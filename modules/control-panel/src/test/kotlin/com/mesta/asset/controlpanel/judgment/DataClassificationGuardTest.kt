@@ -108,6 +108,27 @@ class DataClassificationGuardTest {
     }
 
     @Test
+    fun `blank environment values fall back to the defaults`() {
+        val environment = mapOf(
+            "OPENROUTER_API_KEY" to "from-env",
+            "DECISION_MODEL" to "",
+            "DECISION_MODEL_ENDPOINT" to "   ",
+        )
+
+        val config = DecisionModelConfig.fromEnvironment(environment::get)
+
+        assertEquals(DecisionModelConfig.DEFAULT_MODEL, config.model)
+        assertEquals(DecisionModelConfig.DEFAULT_ENDPOINT, config.endpoint)
+    }
+
+    @Test
+    fun `a blank key is treated as missing`() {
+        assertFailsWith<IllegalStateException> {
+            DecisionModelConfig.fromEnvironment { "" }
+        }
+    }
+
+    @Test
     fun `config rejects a blank key`() {
         assertFailsWith<IllegalArgumentException> {
             DecisionModelConfig(
