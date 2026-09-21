@@ -4,7 +4,7 @@ Interface inventory and per-screen spec for Mesta-Asset. Layouts derive from the
 
 ## Shell
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │ Logo Firm [Pipeline][Overview][Fund][Investment][Company][CP]│
 ├──────────────┬──────────────────────────────────────────────┤
