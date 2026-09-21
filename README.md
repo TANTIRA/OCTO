@@ -62,6 +62,7 @@ Modular monolith: Kotlin on Java 21, Spring Boot 3, Gradle, Flyway, and self-hos
 - [Ontology concepts — reference mapping](docs/ontology-concepts.md)
 - [Ontology design guidelines](docs/ontology-design-guidelines.md)
 - [AI architecture — platform capability mapping](docs/ai-architecture.md)
+- [TypeSafe fit assessment — proposed judgment layer](docs/typesafe-fit-assessment.md)
 - [Application surface — ontology-aware app model](docs/application-surface.md)
 - [Deal sourcing, screening, due diligence, and IC workflow](docs/deal-sourcing-workflow.md)
 - [User workflows and application flow](docs/user-workflows.md)
