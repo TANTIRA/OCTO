@@ -1,0 +1,190 @@
+@prefix inv:  <https://mesta.asset/ontology/investment#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# SHACL shapes mirroring the TypeQL constraints in ontology/mesta-investment.tql.
+# @key -> sh:minCount 1, @values -> sh:in, @regex -> sh:pattern, @range -> sh:min/maxInclusive,
+# @card(1) -> sh:minCount 1. Every shape carries sh:message so a CI failure is readable.
+
+# --- Parties ---------------------------------------------------------------
+
+inv:PartyShape a sh:NodeShape ;
+    sh:targetClass inv:Party ;
+    sh:property [
+        sh:path inv:legalName ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:message "A party must have a legalName (mirrors 'party owns legal-name @key')."@en
+    ] .
+
+inv:PersonShape a sh:NodeShape ;
+    sh:targetClass inv:Person ;
+    sh:property [
+        sh:path inv:email ;
+        sh:datatype xsd:string ;
+        sh:pattern ".*@.*" ;
+        sh:message "A person's email must contain '@' (mirrors the email @regex)."@en
+    ] .
+
+inv:LimitedPartnerShape a sh:NodeShape ;
+    sh:targetClass inv:LimitedPartner ;
+    sh:property [
+        sh:path inv:lei ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[A-Z0-9]{20}$" ;
+        sh:message "An LEI must be 20 upper-case alphanumerics (mirrors the lei @regex)."@en
+    ] .
+
+# --- Fund, deal, investment ------------------------------------------------
+
+inv:FundShape a sh:NodeShape ;
+    sh:targetClass inv:Fund ;
+    sh:property [
+        sh:path inv:legalName ; sh:datatype xsd:string ; sh:minCount 1 ;
+        sh:message "A fund must have a legalName (mirrors 'fund owns legal-name @key')."@en
+    ] ;
+    sh:property [
+        sh:path inv:fundStatus ;
+        sh:in ( "fundraising" "investing" "harvesting" "winding-down" "closed" ) ;
+        sh:message "fundStatus must be one of the fund-status @values."@en
+    ] ;
+    sh:property [
+        sh:path inv:currencyCode ;
+        sh:datatype xsd:string ; sh:pattern "^[A-Z]{3}$" ;
+        sh:message "currencyCode must be a 3-letter ISO code."@en
+    ] ;
+    sh:property [
+        sh:path inv:vintageYear ;
+        sh:datatype xsd:integer ; sh:minInclusive 1900 ; sh:maxInclusive 2100 ;
+        sh:message "vintageYear must fall within 1900..2100."@en
+    ] .
+
+inv:DealShape a sh:NodeShape ;
+    sh:targetClass inv:Deal ;
+    sh:property [
+        sh:path inv:displayName ; sh:datatype xsd:string ; sh:minCount 1 ;
+        sh:message "A deal must have a displayName (mirrors 'deal owns display-name @key')."@en
+    ] ;
+    sh:property [
+        sh:path inv:dealStatus ;
+        sh:in ( "intake" "screening" "analyst-review" "due-diligence" "ic-preparation"
+                "ic-review" "approved" "declined" "invested" "realized" ) ;
+        sh:message "dealStatus must be one of the deal-status @values."@en
+    ] ;
+    sh:property [
+        sh:path inv:dealSource ;
+        sh:in ( "founder" "auction" "limited-auction" "referral" "intermediary"
+                "proprietary" "other" ) ;
+        sh:message "dealSource must be one of the deal-source @values."@en
+    ] .
+
+inv:InvestmentShape a sh:NodeShape ;
+    sh:targetClass inv:Investment ;
+    sh:property [
+        sh:path inv:displayName ; sh:datatype xsd:string ; sh:minCount 1 ;
+        sh:message "An investment must have a displayName (mirrors 'investment owns display-name @key')."@en
+    ] ;
+    sh:property [
+        sh:path inv:investmentStatus ;
+        sh:in ( "unrealized" "partially-realized" "realized" ) ;
+        sh:message "investmentStatus must be one of the investment-status @values."@en
+    ] .
+
+# --- Ledger, valuation, provenance ----------------------------------------
+
+inv:LedgerEventShape a sh:NodeShape ;
+    sh:targetClass inv:LedgerEvent ;
+    sh:property [
+        sh:path inv:flowType ; sh:minCount 1 ;
+        sh:in ( "contribution" "distribution" "management-fee" "expense"
+                "carried-interest" "recallable-distribution" "other-income" ) ;
+        sh:message "A ledger event must carry a flowType from the flow-type @values."@en
+    ] ;
+    sh:property [
+        sh:path inv:monetaryAmount ; sh:datatype xsd:decimal ; sh:minCount 1 ;
+        sh:message "A ledger event must carry a monetaryAmount."@en
+    ] ;
+    sh:property [
+        sh:path inv:currencyCode ; sh:datatype xsd:string ;
+        sh:pattern "^[A-Z]{3}$" ; sh:minCount 1 ;
+        sh:message "A ledger event must carry a 3-letter currencyCode."@en
+    ] ;
+    sh:property [
+        sh:path inv:occurredAt ; sh:datatype xsd:dateTime ; sh:minCount 1 ;
+        sh:message "A ledger event must carry occurredAt."@en
+    ] .
+
+inv:ValuationEventShape a sh:NodeShape ;
+    sh:targetClass inv:ValuationEvent ;
+    sh:property [
+        sh:path inv:monetaryAmount ; sh:datatype xsd:decimal ; sh:minCount 1 ;
+        sh:message "A valuation event must carry a monetaryAmount."@en
+    ] ;
+    sh:property [
+        sh:path inv:asOfDate ; sh:datatype xsd:date ; sh:minCount 1 ;
+        sh:message "A valuation event must carry an asOfDate."@en
+    ] ;
+    sh:property [
+        sh:path inv:valuationMethod ; sh:minCount 1 ;
+        sh:in ( "dcf" "comparables" "lbo" "cost" "recent-round" "mark-to-model" "other" ) ;
+        sh:message "valuationMethod must be one of the valuation-method @values."@en
+    ] .
+
+inv:DocumentShape a sh:NodeShape ;
+    sh:targetClass inv:Document ;
+    sh:property [
+        sh:path inv:fileName ; sh:datatype xsd:string ; sh:minCount 1 ;
+        sh:message "A document must have a fileName (mirrors 'document owns file-name @key')."@en
+    ] ;
+    sh:property [
+        sh:path inv:documentSha256 ; sh:datatype xsd:string ;
+        sh:pattern "^[0-9a-f]{64}$" ;
+        sh:message "documentSha256 must be 64 lower-case hex characters."@en
+    ] .
+
+inv:ExtractedClaimShape a sh:NodeShape ;
+    sh:targetClass inv:ExtractedClaim ;
+    sh:property [
+        sh:path inv:description ; sh:datatype xsd:string ; sh:minCount 1 ;
+        sh:message "An extracted claim must carry its description."@en
+    ] ;
+    sh:property [
+        sh:path inv:confidenceLevel ; sh:datatype xsd:double ;
+        sh:minInclusive 0 ; sh:maxInclusive 1 ;
+        sh:message "confidenceLevel must be within 0..1."@en
+    ] .
+
+inv:ScreeningDecisionShape a sh:NodeShape ;
+    sh:targetClass inv:ScreeningDecision ;
+    sh:property [
+        sh:path inv:screeningResult ; sh:minCount 1 ;
+        sh:in ( "pass" "conditional" "fail" "unknown" "conflicting" ) ;
+        sh:message "screeningResult must be one of the screening-result @values."@en
+    ] ;
+    sh:property [
+        sh:path inv:criterionVersion ; sh:datatype xsd:string ; sh:minCount 1 ;
+        sh:message "A screening decision must record the criterionVersion it was evaluated against."@en
+    ] ;
+    sh:property [
+        sh:path inv:rationale ; sh:datatype xsd:string ; sh:minCount 1 ;
+        sh:message "A screening decision must record a rationale."@en
+    ] .
+
+# --- Conditional invariant -------------------------------------------------
+
+inv:SupersededEventRequiresRationaleShape a sh:NodeShape ;
+    sh:targetClass inv:LedgerEvent ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "A ledger event that supersedes an earlier event must record a rationale (mirrors 'supersedes owns rationale')."@en ;
+        sh:select """
+            SELECT $this WHERE {
+                $this <https://mesta.asset/ontology/investment#supersedes> ?original .
+                FILTER NOT EXISTS {
+                    $this <https://mesta.asset/ontology/investment#rationale> ?r
+                }
+            }
+        """ ;
+    ] .
