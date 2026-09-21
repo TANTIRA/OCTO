@@ -19,12 +19,15 @@ data class DecisionModelConfig(
         const val DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1/api/alpha/decisions"
         const val DEFAULT_MODEL = "typesafe/jev-1.13"
 
-        fun fromEnvironment(env: (String) -> String? = System::getenv): DecisionModelConfig =
-            DecisionModelConfig(
-                endpoint = env("DECISION_MODEL_ENDPOINT") ?: DEFAULT_ENDPOINT,
-                model = env("DECISION_MODEL") ?: DEFAULT_MODEL,
-                apiKey = env("OPENROUTER_API_KEY")
+        fun fromEnvironment(env: (String) -> String? = System::getenv): DecisionModelConfig {
+            fun value(name: String): String? = env(name)?.takeIf { it.isNotBlank() }
+
+            return DecisionModelConfig(
+                endpoint = value("DECISION_MODEL_ENDPOINT") ?: DEFAULT_ENDPOINT,
+                model = value("DECISION_MODEL") ?: DEFAULT_MODEL,
+                apiKey = value("OPENROUTER_API_KEY")
                     ?: throw IllegalStateException("OPENROUTER_API_KEY is not set"),
             )
+        }
     }
 }
