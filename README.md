@@ -77,7 +77,7 @@ This repo follows the TANTIRA SDLC — see [AGENTS.md](AGENTS.md). Highlights: w
 
 ## Repository layout
 
-```
+```text
 modules/
   api/            Spring Boot entry point — REST boundary, Flyway wiring, actuator
   ibor-core/      Append-only ledger: commitments, transactions, cash flows, valuations

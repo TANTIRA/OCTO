@@ -4,7 +4,7 @@ Deployment spec for the self-hosted stack. Two Dokploy compose projects share on
 
 ## Topology
 
-```
+```text
 Internet
    │  HTTPS
    ▼
