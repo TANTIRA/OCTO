@@ -6,7 +6,7 @@ ontology types in `ontology/mesta-investment.tql`. Client implementation lives i
 
 - **Model:** `typesafe/jev-1.13` via the OpenRouter decisions endpoint
 - **Risk tier:** T2 — models used for decisions. Preconditions listed at the end
-- **Status:** points 5 and 6 are implemented as decision logic; points 1, 8, 9, and 10 are not started. Nothing is persisted yet — the repository has no storage layer, so no decision reaches `document.document-type` or `extracted-claim.confidence-level`
+- **Status:** points 5 and 6 are implemented and persist to the append-only staging tables `mesta.document_classification` and `mesta.claim_assessment`. Point 1 is unblocked — `screening-decision` now carries `model-version`, `result-distribution`, `confidence-level`, and `external-id` — but not yet implemented. Points 8, 9, and 10 are not started
 
 ## How to read this
 
@@ -51,14 +51,14 @@ These are real blockers for the affected points, and ontology changes are T2 and
 
 | Gap | Affects | Consequence |
 | --- | --- | --- |
-| No model-version attribute on `screening-decision` or `extracted-claim` | 1, 3, 4, 6, 7 | `criterion-version` records which *criteria* were used, not which *model* answered. The lineage requirement is unmet |
-| `screening-decision` has no `confidence-level` and no place for a distribution | 1 | The platform would store a verdict and discard the confidence that justifies treating it as `unknown` rather than `fail` |
+| ~~No model-version attribute on `screening-decision` or `extracted-claim`~~ — closed | 1, 3, 4, 6, 7 | `screening-decision` and `extracted-claim` now own `model-version` and `external-id` (the provider request id). `criterion-version` still records which *criteria* were used |
+| ~~`screening-decision` has no `confidence-level` and no place for a distribution~~ — closed | 1 | `screening-decision` now owns `confidence-level` and `result-distribution`, so the rule that `unknown` never silently becomes `fail` has the distribution to read |
 | No reconciliation-break type | 8 | Break records live only in PostgreSQL, so graph-versus-ledger reconciliation has no typed target |
 | No alert-rule or news-item type | 9 | Alert state is untyped relative to the ontology |
 | No identity-merge provenance type | 7 | `supersedes` exists for ledger corrections, not entity merges. A merge needs its own auditable record |
 | `rationale` cannot be model-written | 1 | The model produces no prose. Cited reasons for a recommendation must be assembled from the criteria and the underlying `extracted-claim` citations, not generated |
 
-The first two matter most. Without a model-version attribute, a screening decision cannot satisfy the requirement that model versions be recorded; without confidence storage, the rule that `unknown` never silently becomes `fail` has nothing to read.
+The first two were the screening blockers and are closed. `external-id` doubles as the provider request id, linking a TypeDB decision back to the staged row in `mesta.claim_assessment`.
 
 ## Explicit exclusions
 
@@ -108,7 +108,7 @@ Ordered by risk, not by value.
 | --- | --- | --- | --- |
 | 1 | 5 — document classification | Implemented | Exact enum match, non-financial field, correctable failure, no ontology change needed |
 | 2 | 6 — claim support | Implemented | Improves every downstream decision and enforces citation integrity. Uses existing `confidence-level` |
-| 3 | 1 — deal screening | Blocked | Highest value, but needs the model-version and confidence gaps closed first |
+| 3 | 1 — deal screening | Unblocked, not implemented | Highest value. The model-version and confidence gaps are closed; the remaining preconditions are the eval set and approved-model registry entry |
 | 4 | 8 — recon triage | Not started | T2, and needs a break type in the ontology |
 
 Where the first two live:
@@ -118,7 +118,7 @@ Where the first two live:
 | 5 | `modules/ingestion/.../classification/` — `DocumentType`, `DocumentClassificationCriteria`, `DocumentClassifier` |
 | 6 | `modules/ingestion/.../extraction/` — `ClaimSupportPolicy`, `ClaimSupportAssessor` |
 
-Both return a decision record with the model lineage and a `requiresReview` flag. Neither writes anywhere: the caller owns persistence, and no storage layer exists yet.
+Both return a decision record with the model lineage and a `requiresReview` flag. Persistence lives in `modules/ingestion/.../persistence/` — `DocumentClassificationStore` and `ClaimAssessmentStore` interfaces with `JdbcDecisionStore` writing to the append-only tables `mesta.document_classification` and `mesta.claim_assessment` (V2 migration). Corrections are new rows linked by `supersedes_id` with a mandatory rationale, replay is rejected by a `(source_system, external_id)` unique index, and the full probability distribution is stored as `jsonb` — the argmax alone cannot show how marginal a decision was. The TypeDB attributes (`document.document-type`, `extracted-claim.confidence-level`) are written downstream after review; staging is the record of what the model said.
 
 
 ## Preconditions
@@ -128,7 +128,7 @@ Both return a decision record with the model lineage and a `requiresReview` flag
 - [ ] Security Blue Team review of OpenRouter as a processor — state transits OpenRouter and TypeSafe
 - [ ] Confirm whether Confidential state may be sent at all, or the feature runs synthetic-only
 - [ ] T2 plan agreed in a GitHub issue before any integration point is wired
-- [ ] Ontology change (T2, CTO) for model version and confidence storage before point 1
+- [x] Ontology change (T2, CTO) for model version and confidence storage before point 1 — done: `model-version`, `result-distribution`, `confidence-level`, `external-id` on `screening-decision`; `model-version`, `external-id` on `extracted-claim`
 
 ## Notes
 
