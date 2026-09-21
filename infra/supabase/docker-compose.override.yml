@@ -1,0 +1,73 @@
+# Hardening overlay applied on top of the official pinned Supabase
+# self-hosted docker-compose.yml (see infra/supabase/README.md).
+# Goals: private-by-default services, resource bounds, Dokploy ingress.
+
+name: supabase
+
+networks:
+  dokploy-network:
+    external: true
+
+services:
+
+  # API gateway (Kong/Envoy) is the ONLY public surface.
+  # Dokploy assigns the domain; TLS terminates at Dokploy's Traefik.
+  kong:
+    networks:
+      - default
+      - dokploy-network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  db:
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8G
+        reservations:
+          memory: 2G
+    # No host port mapping — reachable only on compose networks.
+
+  studio:
+    # Administrative only — attach to the private admin network, never
+    # assign a public domain in Dokploy. Access via VPN/bastion.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  auth:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  rest:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  storage:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  imgproxy:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  # Realtime and Edge Runtime are deferred per ADR-0002. Remove their
+  # sections from the base compose until a documented need exists.

@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: mesta-asset
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}
+    username: ${DB_USER:mesta}
+    password: ${DB_PASSWORD:}
+  flyway:
+    enabled: true
+    locations: filesystem:${DB_MIGRATIONS_DIR:db/migrations}
+    user: ${DB_MIGRATION_USER:}
+    password: ${DB_MIGRATION_PASSWORD:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+server:
+  port: 8080

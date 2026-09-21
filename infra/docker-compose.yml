@@ -1,0 +1,105 @@
+# Mesta-Asset application stack — Dokploy compose project
+# Deploy alongside the supabase project (infra/supabase/). Both attach to
+# the shared external "data" network so api can reach Postgres and Storage.
+# Secrets are injected via Dokploy project env — never commit .env.
+
+name: mesta-asset
+
+networks:
+  app:
+    driver: bridge
+  data:
+    external: true
+    name: ${DATA_NETWORK:-supabase_default}
+  dokploy-network:
+    external: true
+
+services:
+
+  api:
+    image: ${REGISTRY_URL}/mesta-api:${API_IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: "5432"
+      DB_NAME: ${POSTGRES_DB:-postgres}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_MIGRATION_USER: ${DB_MIGRATION_USER}
+      DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_STORAGE_ENDPOINT: ${SUPABASE_STORAGE_ENDPOINT}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      AUTH_ISSUER: ${AUTH_ISSUER}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL}
+      TYPEDB_ADDR: typedb:1729
+      TYPEDB_DATABASE: ${TYPEDB_DATABASE:-mesta}
+      TYPEDB_USER: ${TYPEDB_USER}
+      TYPEDB_PASSWORD: ${TYPEDB_PASSWORD}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    networks:
+      - app
+      - data
+    depends_on:
+      typedb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  web:
+    image: ${REGISTRY_URL}/mesta-web:${WEB_IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: ${API_PUBLIC_URL}
+      AUTH_PUBLIC_URL: ${AUTH_PUBLIC_URL}
+    networks:
+      - app
+      - dokploy-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    # Public domain assigned in Dokploy UI → Traefik/TLS handled by Dokploy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  typedb:
+    image: typedb/typedb:${TYPEDB_VERSION}
+    restart: unless-stopped
+    volumes:
+      - typedb-data:/opt/typedb/data
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/1729' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          memory: 1G
+
+volumes:
+  typedb-data:
+    name: mesta-typedb-${ENVIRONMENT:-prod}
