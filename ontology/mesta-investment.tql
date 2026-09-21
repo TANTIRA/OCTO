@@ -1,0 +1,334 @@
+# Mesta-Asset Investment Ontology — TypeQL 3.0 schema
+# Canonical entity-relationship model for private-equity deal sourcing,
+# portfolio operations, look-through, and AI grounding.
+# Version: owl:versionIRI equivalent tracked in Git tags; SemVer applies.
+# Reserved identifiers must never be used as labels (any capitalization).
+
+define
+
+  # ============================================================
+  # Attributes — identity and descriptive
+  # ============================================================
+
+  attribute legal-name, value string;
+  attribute display-name, value string;
+  attribute external-id, value string;
+  attribute lei, value string @regex("^[A-Z0-9]{20}$");
+  attribute description, value string;
+  attribute email, value string @regex(".*@.*");
+  attribute phone, value string;
+  attribute website, value string;
+  attribute job-title, value string;
+  attribute role-title, value string;
+
+  # ============================================================
+  # Attributes — classification
+  # ============================================================
+
+  attribute iso-country-code, value string @regex("^[A-Z]{2}$");
+  attribute sector-name, value string;
+  attribute strategy-name, value string;
+  attribute currency-code, value string @regex("^[A-Z]{3}$");
+
+  attribute deal-source, value string @values("founder", "auction", "limited-auction", "referral", "intermediary", "proprietary", "other");
+  attribute deal-status, value string @values("intake", "screening", "analyst-review", "due-diligence", "ic-preparation", "ic-review", "approved", "declined", "invested", "realized");
+  attribute fund-status, value string @values("fundraising", "investing", "harvesting", "winding-down", "closed");
+  attribute investment-status, value string @values("unrealized", "partially-realized", "realized");
+  attribute document-type, value string @values("pitch-deck", "ddq", "financials", "icap-report", "memo", "legal", "lp-report", "tear-sheet", "other");
+  attribute flow-type, value string @values("contribution", "distribution", "management-fee", "expense", "carried-interest", "recallable-distribution", "other-income");
+  attribute valuation-method, value string @values("dcf", "comparables", "lbo", "cost", "recent-round", "mark-to-model", "other");
+  attribute screening-result, value string @values("pass", "conditional", "fail", "unknown", "conflicting");
+  attribute confidence-level, value double @range(0..1);
+
+  # ============================================================
+  # Attributes — measures and timestamps
+  # ============================================================
+
+  attribute monetary-amount, value decimal;
+  attribute committed-amount, value decimal;
+  attribute invested-amount, value decimal;
+  attribute ownership-pct, value decimal @range(0..100);
+  attribute headcount, value integer;
+  attribute vintage-year, value integer @range(1900..2100);
+  attribute founded-date, value date;
+  attribute effective-date, value date;
+  attribute end-date, value date;
+  attribute occurred-at, value datetime;
+  attribute recorded-at, value datetime;
+  attribute as-of-date, value date;
+  attribute document-sha256, value string @regex("^[0-9a-f]{64}$");
+  attribute file-name, value string;
+  attribute criterion-version, value string;
+  attribute rationale, value string;
+
+  # ============================================================
+  # Entities — parties
+  # ============================================================
+
+  entity party @abstract,
+    owns legal-name @key,
+    owns external-id @card(0..),
+    owns description,
+    plays contact-for:party-side;
+
+  entity organization, sub party,
+    owns website,
+    plays employment:employer,
+    plays ownership:owner,
+    plays ownership:asset,
+    plays co-investment:investor-side,
+    plays cash-flow-attribution:counterparty;
+
+  entity fund-manager, sub organization,
+    plays fund-management:manager;
+
+  entity limited-partner, sub organization,
+    owns lei,
+    plays commitment:investor;
+
+  entity operating-company, sub organization,
+    owns founded-date,
+    plays deal-subject:company-side,
+    plays valuation-of:subject-side;
+
+  entity data-provider, sub organization,
+    plays source-attribution:provider-side;
+
+  entity person, sub party,
+    owns email @card(0..) @unique,
+    owns phone @card(0..),
+    owns job-title,
+    plays employment:employee,
+    plays board-seat:member,
+    plays contact-for:contact-side;
+
+  # ============================================================
+  # Entities — structure and reference
+  # ============================================================
+
+  entity sector,
+    owns sector-name @key,
+    plays company-sector:sector-side,
+    plays fund-sector:sector-side;
+
+  entity country,
+    owns iso-country-code @key,
+    plays company-domicile:country-side,
+    plays fund-domicile:country-side;
+
+  entity fund,
+    owns legal-name @key,
+    owns vintage-year,
+    owns fund-status,
+    owns currency-code,
+    owns committed-amount,
+    plays fund-management:vehicle,
+    plays commitment:vehicle,
+    plays fund-investment:vehicle,
+    plays fund-sector:fund-side,
+    plays fund-domicile:fund-side;
+
+  entity deal,
+    owns display-name @key,
+    owns deal-source,
+    owns deal-status,
+    owns effective-date,
+    plays deal-subject:deal-side,
+    plays fund-investment:deal-side,
+    plays document-about:deal-side;
+
+  entity investment,
+    owns display-name @key,
+    owns investment-status,
+    plays fund-investment:position,
+    plays valuation-of:subject-side,
+    plays cash-flow-attribution:position-side;
+
+  # ============================================================
+  # Entities — ledger events and documents
+  # ============================================================
+
+  # Append-only financial events. Instances are never mutated; corrections
+  # are new events referencing the original via supersedes.
+  entity ledger-event,
+    owns flow-type,
+    owns monetary-amount,
+    owns currency-code,
+    owns occurred-at,
+    owns recorded-at,
+    owns external-id @card(0..),
+    plays cash-flow-attribution:event-side,
+    plays supersedes:replacement,
+    plays supersedes:original;
+
+  entity valuation-event,
+    owns monetary-amount,
+    owns currency-code,
+    owns as-of-date,
+    owns valuation-method,
+    plays valuation-of:valuation-side,
+    plays supersedes:replacement,
+    plays supersedes:original;
+
+  entity document,
+    owns file-name @key,
+    owns document-type,
+    owns document-sha256,
+    owns recorded-at,
+    plays document-about:document-side,
+    plays extraction-source:document-side;
+
+  entity extracted-claim,
+    owns description,
+    owns confidence-level,
+    owns recorded-at,
+    plays extraction-source:claim-side;
+
+  entity screening-decision,
+    owns screening-result,
+    owns criterion-version,
+    owns rationale,
+    owns recorded-at,
+    plays screening-of:decision-side;
+
+  # ============================================================
+  # Relations — organizational
+  # ============================================================
+
+  relation employment,
+    relates employee @card(1),
+    relates employer @card(1),
+    owns role-title,
+    owns effective-date,
+    owns end-date;
+
+  relation board-seat,
+    relates member @card(1),
+    relates organization-side @card(1),
+    owns role-title,
+    owns effective-date,
+    owns end-date;
+
+  relation contact-for,
+    relates contact-side @card(1),
+    relates party-side @card(1),
+    owns effective-date;
+
+  relation co-investment,
+    relates investor-side @card(1..),
+    relates company-side @card(1),
+    owns effective-date;
+
+  # ============================================================
+  # Relations — fund and deal structure
+  # ============================================================
+
+  relation fund-management,
+    relates manager @card(1),
+    relates vehicle @card(1),
+    owns effective-date;
+
+  relation commitment,
+    relates investor @card(1),
+    relates vehicle @card(1),
+    owns committed-amount,
+    owns currency-code,
+    owns effective-date;
+
+  relation deal-subject,
+    relates deal-side @card(1),
+    relates company-side @card(1);
+
+  relation fund-investment,
+    relates vehicle @card(1),
+    relates deal-side @card(1),
+    relates position @card(1),
+    owns effective-date;
+
+  relation company-sector,
+    relates company-side @card(1),
+    relates sector-side @card(1);
+
+  relation fund-sector,
+    relates fund-side @card(1),
+    relates sector-side @card(1);
+
+  relation company-domicile,
+    relates company-side @card(1),
+    relates country-side @card(1);
+
+  relation fund-domicile,
+    relates fund-side @card(1),
+    relates country-side @card(1);
+
+  # ============================================================
+  # Relations — look-through ownership
+  # ============================================================
+
+  # Recursive ownership edges power look-through exposure aggregation.
+  # owner and asset are both party-scoped so funds, vehicles, and
+  # operating companies can appear on either side.
+  relation ownership,
+    relates owner @card(1),
+    relates asset @card(1),
+    owns ownership-pct,
+    owns effective-date,
+    owns end-date;
+
+  # ============================================================
+  # Relations — ledger and valuation attribution
+  # ============================================================
+
+  relation cash-flow-attribution,
+    relates event-side @card(1),
+    relates position-side @card(0..1),
+    relates counterparty @card(0..1),
+    relates vehicle-side @card(0..1);
+
+  relation valuation-of,
+    relates valuation-side @card(1),
+    relates subject-side @card(1);
+
+  # Corrections are new events superseding prior ones; history is preserved.
+  relation supersedes,
+    relates replacement @card(1),
+    relates original @card(1),
+    owns rationale,
+    owns recorded-at;
+
+  # ============================================================
+  # Relations — documents, extraction, screening
+  # ============================================================
+
+  relation document-about,
+    relates document-side @card(1),
+    relates deal-side @card(1);
+
+  relation extraction-source,
+    relates claim-side @card(1),
+    relates document-side @card(1),
+    owns confidence-level;
+
+  relation source-attribution,
+    relates provider-side @card(1),
+    relates data-side @card(1),
+    owns recorded-at;
+
+  relation screening-of,
+    relates decision-side @card(1),
+    relates deal-side @card(1);
+
+  # ============================================================
+  # Player declarations for remaining types
+  # ============================================================
+
+  entity fund, plays cash-flow-attribution:vehicle-side;
+  entity operating-company, plays board-seat:organization-side, plays co-investment:company-side;
+  entity fund-manager, plays board-seat:organization-side;
+  entity limited-partner, plays board-seat:organization-side;
+  entity fund-manager, plays co-investment:investor-side;
+  entity operating-company, plays company-sector:company-side, plays company-domicile:company-side;
+  entity deal, plays screening-of:deal-side;
+  entity ledger-event, plays source-attribution:data-side;
+  entity valuation-event, plays source-attribution:data-side;
+  entity document, plays source-attribution:data-side;
