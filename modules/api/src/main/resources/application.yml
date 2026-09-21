@@ -7,9 +7,9 @@ spring:
     password: ${DB_PASSWORD:}
   flyway:
     enabled: true
-    locations: filesystem:${DB_MIGRATIONS_DIR:db/migrations}
-    user: ${DB_MIGRATION_USER:}
-    password: ${DB_MIGRATION_PASSWORD:}
+    locations: classpath:db/migration
+    user: ${DB_MIGRATION_USER}
+    password: ${DB_MIGRATION_PASSWORD}
 
 management:
   endpoints:

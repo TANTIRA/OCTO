@@ -20,6 +20,3 @@ jobs:
 
       - name: Check
         run: ./gradlew check
-
-      # TODO(issue): TypeQL schema validation for ontology/mesta-investment.tql
-      # TODO(issue): AI eval gate once eval sets land (see docs/ai-architecture.md)
