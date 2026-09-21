@@ -12,6 +12,7 @@ include(
     "modules:ibor-core",
     "modules:ingestion",
     "modules:lookthrough",
+    "modules:ontology",
     "modules:recon",
     "modules:workflow",
 )

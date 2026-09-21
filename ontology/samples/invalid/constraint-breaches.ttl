@@ -1,0 +1,87 @@
+@prefix inv: <https://mesta.asset/ontology/investment#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Synthetic negative fixtures. A minimal valid skeleton carries the entities that breaches
+# reference, so each breach below produces exactly one expected message. This graph MUST NOT
+# conform; see OntologyValidatorTest for the asserted message set.
+
+# --- valid skeleton --------------------------------------------------------
+
+inv:fund-x a inv:Fund ; inv:legalName "X Fund LP" .
+
+inv:investment-x a inv:Investment ;
+    inv:displayName "X Investment" ;
+    inv:investmentStatus "unrealized" .
+
+inv:org-a a inv:FundManager ; inv:legalName "Org A" .
+inv:org-b a inv:OperatingCompany ; inv:legalName "Org B" .
+
+inv:ledger-event-ok a inv:LedgerEvent ;
+    inv:flowType "contribution" ;
+    inv:monetaryAmount 1000000.00 ;
+    inv:currencyCode "USD" ;
+    inv:occurredAt "2026-01-05T09:00:00Z"^^xsd:dateTime ;
+    inv:recordedAt "2026-01-05T09:00:30Z"^^xsd:dateTime .
+
+inv:cfa-ok a inv:CashFlowAttribution ;
+    inv:eventSide inv:ledger-event-ok ;
+    inv:positionSide inv:investment-x .
+
+# --- schema-mirror breaches ------------------------------------------------
+
+inv:fund-broken-status a inv:Fund ;
+    inv:legalName "Broken Status Fund LP" ;
+    inv:fundStatus "closed-beta" .
+
+inv:limited-partner-broken-lei a inv:LimitedPartner ;
+    inv:legalName "Broken Lei Partner" ;
+    inv:lei "ABC123" .
+
+inv:country-broken-code a inv:Country ;
+    inv:isoCountryCode "SGP" .
+
+inv:ownership-broken-pct a inv:Ownership ;
+    inv:owner inv:org-a ;
+    inv:asset inv:org-b ;
+    inv:ownershipPct 140.0 ;
+    inv:effectiveDate "2026-01-01"^^xsd:date .
+
+inv:commitment-broken-role a inv:Commitment ;
+    inv:vehicle inv:fund-x ;
+    inv:committedAmount 5000000.00 ;
+    inv:currencyCode "USD" ;
+    inv:effectiveDate "2026-01-01"^^xsd:date .
+
+inv:ledger-event-broken-datatype a inv:LedgerEvent ;
+    inv:flowType "expense" ;
+    inv:monetaryAmount 125000.00 ;
+    inv:currencyCode "USD" ;
+    inv:occurredAt "2026-02-10"^^xsd:date ;
+    inv:recordedAt "2026-02-10T11:00:00Z"^^xsd:dateTime .
+
+inv:cfa-broken-datatype a inv:CashFlowAttribution ;
+    inv:eventSide inv:ledger-event-broken-datatype .
+
+# --- policy breaches -------------------------------------------------------
+
+inv:extracted-claim-broken-confidence a inv:ExtractedClaim ;
+    inv:description "Claim with an out-of-range confidence and no source document." ;
+    inv:confidenceLevel "1.5"^^xsd:double ;
+    inv:recordedAt "2026-01-08T08:04:12Z"^^xsd:dateTime .
+
+inv:screening-decision-broken-rationale a inv:ScreeningDecision ;
+    inv:screeningResult "pass" ;
+    inv:criterionVersion "industrials-v3" ;
+    inv:recordedAt "2026-01-09T10:15:00Z"^^xsd:dateTime .
+
+inv:supersedes-broken-rationale a inv:Supersedes ;
+    inv:replacement inv:ledger-event-ok ;
+    inv:original inv:ledger-event-broken-datatype ;
+    inv:recordedAt "2026-02-10T11:05:00Z"^^xsd:dateTime .
+
+inv:ledger-event-unattributed a inv:LedgerEvent ;
+    inv:flowType "distribution" ;
+    inv:monetaryAmount 750000.00 ;
+    inv:currencyCode "USD" ;
+    inv:occurredAt "2026-03-01T09:00:00Z"^^xsd:dateTime ;
+    inv:recordedAt "2026-03-01T09:00:22Z"^^xsd:dateTime .
