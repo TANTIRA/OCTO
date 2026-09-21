@@ -65,7 +65,7 @@ TypeSafe proposes a judgment. It never writes to the ledger, never approves a st
 
 ## Architectural placement
 
-```
+```text
 documents / source records
         │
         ▼
