@@ -6,83 +6,67 @@
 
 inv: a owl:Ontology ;
     rdfs:label "Mesta-Asset investment ontology"@en ;
-    rdfs:comment "OWL mirror of ontology/mesta-investment.tql (TypeQL 3.0). Classes and properties only; per-class cardinality and value constraints live in mesta-investment-shacl.ttl. OWL/SHACL is the deterministic CI gate; TypeQL remains the instance store per ADR-0003."@en ;
+    rdfs:comment """OWL mirror of ontology/mesta-investment.tql (TypeQL 3.0). OWL/SHACL is the deterministic CI gate; TypeQL remains the instance store per ADR-0003.
+
+Modelling notes:
+- TypeQL relations are reified as owl:Class, one class per relation. A relation instance carries its own attributes, so relation-owned facts (committed-amount, ownership-pct, effective-date) are checkable.
+- Role properties carry rdfs:range only. rdfs:domain is omitted because TypeQL role names are reused across relations (vehicle, deal-side, company-side) and a single domain would be wrong. The relation -> role structure lives in mesta-investment-shacl.ttl.
+- Role properties with more than one player type carry no rdfs:range (supersedes: replacement/original; source-attribution: data-side).
+- Datatype properties carry rdfs:range only: TypeQL attributes are shared across types and owned per type, so ownership is enforced by SHACL shapes, not by OWL domains."""@en ;
     owl:versionIRI <https://mesta.asset/ontology/investment/0.1.0> .
 
 # ---------------------------------------------------------------------------
 # Entity classes
-#
-# TODO(issue-id): reify the n-ary TypeQL relations that carry attributes
-# (commitment, ownership, employment, board-seat, fund-investment,
-# cash-flow-attribution, supersedes, extraction-source, source-attribution)
-# so their owned attributes become SHACL-checkable. Increment 1 covers
-# entity-level constraints only.
 # ---------------------------------------------------------------------------
 
-inv:Party a owl:Class ;
-    rdfs:label "Party"@en ;
-    rdfs:comment "Abstract party; anything that can hold a legal identity in the investment graph."@en .
+inv:Party a owl:Class ; rdfs:label "Party"@en .
+inv:Organization a owl:Class ; rdfs:subClassOf inv:Party ; rdfs:label "Organization"@en .
+inv:FundManager a owl:Class ; rdfs:subClassOf inv:Organization ; rdfs:label "Fund manager"@en .
+inv:LimitedPartner a owl:Class ; rdfs:subClassOf inv:Organization ; rdfs:label "Limited partner"@en .
+inv:OperatingCompany a owl:Class ; rdfs:subClassOf inv:Organization ; rdfs:label "Operating company"@en .
+inv:DataProvider a owl:Class ; rdfs:subClassOf inv:Organization ; rdfs:label "Data provider"@en .
+inv:Person a owl:Class ; rdfs:subClassOf inv:Party ; rdfs:label "Person"@en .
+inv:Sector a owl:Class ; rdfs:label "Sector"@en .
+inv:Country a owl:Class ; rdfs:label "Country"@en .
+inv:Fund a owl:Class ; rdfs:label "Fund"@en .
+inv:Deal a owl:Class ; rdfs:label "Deal"@en .
+inv:Investment a owl:Class ; rdfs:label "Investment"@en .
+inv:LedgerEvent a owl:Class ; rdfs:label "Ledger event"@en ;
+    rdfs:comment "Append-only financial event. Never mutated; corrections are new events."@en .
+inv:ValuationEvent a owl:Class ; rdfs:label "Valuation event"@en .
+inv:Document a owl:Class ; rdfs:label "Document"@en .
+inv:ExtractedClaim a owl:Class ; rdfs:label "Extracted claim"@en .
+inv:ScreeningDecision a owl:Class ; rdfs:label "Screening decision"@en .
 
-inv:Organization a owl:Class ;
-    rdfs:subClassOf inv:Party ;
-    rdfs:label "Organization"@en .
+# ---------------------------------------------------------------------------
+# Relation classes (reified TypeQL relations)
+# ---------------------------------------------------------------------------
 
-inv:FundManager a owl:Class ;
-    rdfs:subClassOf inv:Organization ;
-    rdfs:label "Fund manager"@en .
-
-inv:LimitedPartner a owl:Class ;
-    rdfs:subClassOf inv:Organization ;
-    rdfs:label "Limited partner"@en .
-
-inv:OperatingCompany a owl:Class ;
-    rdfs:subClassOf inv:Organization ;
-    rdfs:label "Operating company"@en .
-
-inv:DataProvider a owl:Class ;
-    rdfs:subClassOf inv:Organization ;
-    rdfs:label "Data provider"@en .
-
-inv:Person a owl:Class ;
-    rdfs:subClassOf inv:Party ;
-    rdfs:label "Person"@en .
-
-inv:Sector a owl:Class ;
-    rdfs:label "Sector"@en .
-
-inv:Country a owl:Class ;
-    rdfs:label "Country"@en .
-
-inv:Fund a owl:Class ;
-    rdfs:label "Fund"@en .
-
-inv:Deal a owl:Class ;
-    rdfs:label "Deal"@en .
-
-inv:Investment a owl:Class ;
-    rdfs:label "Investment"@en .
-
-inv:LedgerEvent a owl:Class ;
-    rdfs:label "Ledger event"@en ;
-    rdfs:comment "Append-only financial event. Never mutated; corrections are new events linked by inv:supersedes."@en .
-
-inv:ValuationEvent a owl:Class ;
-    rdfs:label "Valuation event"@en .
-
-inv:Document a owl:Class ;
-    rdfs:label "Document"@en .
-
-inv:ExtractedClaim a owl:Class ;
-    rdfs:label "Extracted claim"@en .
-
-inv:ScreeningDecision a owl:Class ;
-    rdfs:label "Screening decision"@en .
+inv:Employment a owl:Class ; rdfs:label "Employment"@en .
+inv:BoardSeat a owl:Class ; rdfs:label "Board seat"@en .
+inv:ContactFor a owl:Class ; rdfs:label "Contact for"@en .
+inv:CoInvestment a owl:Class ; rdfs:label "Co-investment"@en .
+inv:FundManagement a owl:Class ; rdfs:label "Fund management"@en .
+inv:Commitment a owl:Class ; rdfs:label "Commitment"@en .
+inv:DealSubject a owl:Class ; rdfs:label "Deal subject"@en .
+inv:FundInvestment a owl:Class ; rdfs:label "Fund investment"@en .
+inv:CompanySector a owl:Class ; rdfs:label "Company sector"@en .
+inv:FundSector a owl:Class ; rdfs:label "Fund sector"@en .
+inv:CompanyDomicile a owl:Class ; rdfs:label "Company domicile"@en .
+inv:FundDomicile a owl:Class ; rdfs:label "Fund domicile"@en .
+inv:Ownership a owl:Class ; rdfs:label "Ownership"@en ;
+    rdfs:comment "Recursive look-through edge. Both roles are organization-scoped per the TypeQL declaration; see TODO(issue-id) in mesta-investment.tql."@en .
+inv:CashFlowAttribution a owl:Class ; rdfs:label "Cash-flow attribution"@en .
+inv:ValuationOf a owl:Class ; rdfs:label "Valuation of"@en .
+inv:Supersedes a owl:Class ; rdfs:label "Supersedes"@en ;
+    rdfs:comment "Correction link. History is preserved: the original event is never mutated."@en .
+inv:DocumentAbout a owl:Class ; rdfs:label "Document about"@en .
+inv:ExtractionSource a owl:Class ; rdfs:label "Extraction source"@en .
+inv:SourceAttribution a owl:Class ; rdfs:label "Source attribution"@en .
+inv:ScreeningOf a owl:Class ; rdfs:label "Screening of"@en .
 
 # ---------------------------------------------------------------------------
 # Datatype properties
-#
-# No rdfs:domain: TypeQL attributes are shared across types and "owned" per
-# type. Per-class ownership is enforced by SHACL shapes, not by OWL domains.
 # ---------------------------------------------------------------------------
 
 inv:legalName a owl:DatatypeProperty ; rdfs:range xsd:string .
@@ -95,12 +79,10 @@ inv:phone a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:website a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:jobTitle a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:roleTitle a owl:DatatypeProperty ; rdfs:range xsd:string .
-
 inv:isoCountryCode a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:sectorName a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:strategyName a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:currencyCode a owl:DatatypeProperty ; rdfs:range xsd:string .
-
 inv:dealSource a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:dealStatus a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:fundStatus a owl:DatatypeProperty ; rdfs:range xsd:string .
@@ -110,14 +92,12 @@ inv:flowType a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:valuationMethod a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:screeningResult a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:confidenceLevel a owl:DatatypeProperty ; rdfs:range xsd:double .
-
 inv:monetaryAmount a owl:DatatypeProperty ; rdfs:range xsd:decimal .
 inv:committedAmount a owl:DatatypeProperty ; rdfs:range xsd:decimal .
 inv:investedAmount a owl:DatatypeProperty ; rdfs:range xsd:decimal .
 inv:ownershipPct a owl:DatatypeProperty ; rdfs:range xsd:decimal .
 inv:headcount a owl:DatatypeProperty ; rdfs:range xsd:integer .
 inv:vintageYear a owl:DatatypeProperty ; rdfs:range xsd:integer .
-
 inv:foundedDate a owl:DatatypeProperty ; rdfs:range xsd:date .
 inv:effectiveDate a owl:DatatypeProperty ; rdfs:range xsd:date .
 inv:endDate a owl:DatatypeProperty ; rdfs:range xsd:date .
@@ -127,33 +107,42 @@ inv:recordedAt a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
 inv:documentSha256 a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:fileName a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:criterionVersion a owl:DatatypeProperty ; rdfs:range xsd:string .
+inv:modelVersion a owl:DatatypeProperty ; rdfs:range xsd:string .
+inv:resultDistribution a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:rationale a owl:DatatypeProperty ; rdfs:range xsd:string .
 
 # ---------------------------------------------------------------------------
-# Object properties
-#
-# Only the links needed to keep increment-1 sample data coherent are declared.
-# The remaining TypeQL relations arrive with relation reification (see TODO above).
+# Role properties
 # ---------------------------------------------------------------------------
 
-inv:owner a owl:ObjectProperty ;
-    rdfs:domain inv:Organization ;
-    rdfs:range inv:Organization ;
-    rdfs:label "owner"@en ;
-    rdfs:comment "Look-through ownership edge. TypeQL declares both ownership roles on organization; the mesta-investment.tql comment claims party scoping — see TODO(issue-id)."@en .
-
-inv:fundSector a owl:ObjectProperty ; rdfs:domain inv:Fund ; rdfs:range inv:Sector .
-inv:companySector a owl:ObjectProperty ; rdfs:domain inv:OperatingCompany ; rdfs:range inv:Sector .
-inv:fundDomicile a owl:ObjectProperty ; rdfs:domain inv:Fund ; rdfs:range inv:Country .
-inv:companyDomicile a owl:ObjectProperty ; rdfs:domain inv:OperatingCompany ; rdfs:range inv:Country .
-inv:dealCompany a owl:ObjectProperty ; rdfs:domain inv:Deal ; rdfs:range inv:OperatingCompany .
-inv:screeningDeal a owl:ObjectProperty ; rdfs:domain inv:ScreeningDecision ; rdfs:range inv:Deal .
-inv:documentDeal a owl:ObjectProperty ; rdfs:domain inv:Document ; rdfs:range inv:Deal .
-inv:claimDocument a owl:ObjectProperty ; rdfs:domain inv:ExtractedClaim ; rdfs:range inv:Document .
-inv:valuationSubject a owl:ObjectProperty ; rdfs:domain inv:ValuationEvent ; rdfs:range inv:Investment .
-inv:cashFlowPosition a owl:ObjectProperty ; rdfs:domain inv:LedgerEvent ; rdfs:range inv:Investment .
-inv:supersedes a owl:ObjectProperty ;
-    rdfs:domain inv:LedgerEvent ;
-    rdfs:range inv:LedgerEvent ;
-    rdfs:comment "Correction link: the replacement event points at the original. History is preserved."@en .
-inv:sourceProvider a owl:ObjectProperty ; rdfs:domain inv:Document ; rdfs:range inv:DataProvider .
+inv:employee a owl:ObjectProperty ; rdfs:range inv:Person .
+inv:employer a owl:ObjectProperty ; rdfs:range inv:Organization .
+inv:member a owl:ObjectProperty ; rdfs:range inv:Person .
+inv:organizationSide a owl:ObjectProperty ; rdfs:range inv:Organization .
+inv:contactSide a owl:ObjectProperty ; rdfs:range inv:Person .
+inv:partySide a owl:ObjectProperty ; rdfs:range inv:Party .
+inv:investorSide a owl:ObjectProperty ; rdfs:range inv:Organization .
+inv:companySide a owl:ObjectProperty ; rdfs:range inv:OperatingCompany .
+inv:manager a owl:ObjectProperty ; rdfs:range inv:FundManager .
+inv:vehicle a owl:ObjectProperty ; rdfs:range inv:Fund .
+inv:investor a owl:ObjectProperty ; rdfs:range inv:LimitedPartner .
+inv:dealSide a owl:ObjectProperty ; rdfs:range inv:Deal .
+inv:position a owl:ObjectProperty ; rdfs:range inv:Investment .
+inv:fundSide a owl:ObjectProperty ; rdfs:range inv:Fund .
+inv:sectorSide a owl:ObjectProperty ; rdfs:range inv:Sector .
+inv:countrySide a owl:ObjectProperty ; rdfs:range inv:Country .
+inv:owner a owl:ObjectProperty ; rdfs:range inv:Organization .
+inv:asset a owl:ObjectProperty ; rdfs:range inv:Organization .
+inv:eventSide a owl:ObjectProperty ; rdfs:range inv:LedgerEvent .
+inv:positionSide a owl:ObjectProperty ; rdfs:range inv:Investment .
+inv:counterparty a owl:ObjectProperty ; rdfs:range inv:Organization .
+inv:vehicleSide a owl:ObjectProperty ; rdfs:range inv:Fund .
+inv:valuationSide a owl:ObjectProperty ; rdfs:range inv:ValuationEvent .
+inv:subjectSide a owl:ObjectProperty .
+inv:replacement a owl:ObjectProperty .
+inv:original a owl:ObjectProperty .
+inv:documentSide a owl:ObjectProperty ; rdfs:range inv:Document .
+inv:claimSide a owl:ObjectProperty ; rdfs:range inv:ExtractedClaim .
+inv:providerSide a owl:ObjectProperty ; rdfs:range inv:DataProvider .
+inv:dataSide a owl:ObjectProperty .
+inv:decisionSide a owl:ObjectProperty ; rdfs:range inv:ScreeningDecision .

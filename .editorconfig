@@ -1,0 +1,5 @@
+root = true
+
+[*.{kt,kts}]
+# Scaffold modules intentionally carry package-only placeholder files until they gain sources.
+ktlint_standard_no-empty-file = disabled

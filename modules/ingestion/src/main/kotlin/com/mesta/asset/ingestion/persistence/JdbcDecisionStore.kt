@@ -14,9 +14,10 @@ import javax.sql.DataSource
  * `SQLException` — an unknown document type, a malformed hash, or a missing rationale is a caller
  * bug, not a retryable condition.
  */
-class JdbcDecisionStore(private val dataSource: DataSource) :
-    DocumentClassificationStore, ClaimAssessmentStore {
-
+class JdbcDecisionStore(
+    private val dataSource: DataSource,
+) : DocumentClassificationStore,
+    ClaimAssessmentStore {
     private val json = ObjectMapper()
 
     override fun record(
@@ -26,17 +27,19 @@ class JdbcDecisionStore(private val dataSource: DataSource) :
         supersedesId: UUID?,
         rationale: String?,
     ): UUID {
-        val sql = """
+        val sql =
+            """
             insert into mesta.document_classification
                 (external_id, document_sha256, document_type, confidence, distribution,
                  requires_review, model_provider, model_version, decision_request_id,
                  supersedes_id, rationale, source_system, actor, ingestion_run_id, correlation_id)
             values (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             returning id
-        """.trimIndent()
-        val distribution = json.writeValueAsString(
-            classification.probabilities.mapKeys { it.key.wireValue },
-        )
+            """.trimIndent()
+        val distribution =
+            json.writeValueAsString(
+                classification.probabilities.mapKeys { it.key.wireValue },
+            )
         dataSource.connection.use { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setString(1, provenance.externalId)
@@ -68,7 +71,8 @@ class JdbcDecisionStore(private val dataSource: DataSource) :
         supersedesId: UUID?,
         rationale: String?,
     ): UUID {
-        val sql = """
+        val sql =
+            """
             insert into mesta.claim_assessment
                 (external_id, claim_text, source_document_sha256, support_probability,
                  support_threshold, review_band, supported, requires_review,
@@ -76,7 +80,7 @@ class JdbcDecisionStore(private val dataSource: DataSource) :
                  supersedes_id, rationale, source_system, actor, ingestion_run_id, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             returning id
-        """.trimIndent()
+            """.trimIndent()
         dataSource.connection.use { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setString(1, provenance.externalId)
@@ -101,7 +105,10 @@ class JdbcDecisionStore(private val dataSource: DataSource) :
         }
     }
 
-    private fun PreparedStatement.setNullableUuid(index: Int, value: UUID?) {
+    private fun PreparedStatement.setNullableUuid(
+        index: Int,
+        value: UUID?,
+    ) {
         if (value == null) setNull(index, Types.OTHER) else setObject(index, value)
     }
 

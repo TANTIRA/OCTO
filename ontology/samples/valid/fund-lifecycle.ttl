@@ -1,90 +1,168 @@
 @prefix inv: <https://mesta.asset/ontology/investment#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-# Synthetic sample graph. Must conform to every shape in
-# ontology/mesta-investment-shacl.ttl. No real firm, fund, LP, or company data.
+# Synthetic sample graph. Must conform to mesta-investment-shacl.ttl (schema mirror) and
+# mesta-investment-policy-shacl.ttl (business rules). No real firm, fund, LP, or company data.
 
 inv:fund-manager-aurora a inv:FundManager ;
-    inv:legalName "Aurora Capital Partners Pte Ltd" .
+    inv:legalName "Aurora Capital Partners Pte Ltd" ;
+    inv:website "https://example.com/aurora" .
 
 inv:fund-aurora-iii a inv:Fund ;
     inv:legalName "Aurora Industrial Partners III LP" ;
     inv:fundStatus "investing" ;
     inv:currencyCode "USD" ;
     inv:vintageYear 2021 ;
-    inv:fundSector inv:sector-industrials ;
-    inv:fundDomicile inv:country-sg .
+    inv:committedAmount 750000000.00 .
 
-inv:sector-industrials a inv:Sector ;
-    inv:sectorName "Industrials" .
+inv:fund-management-aurora-iii a inv:FundManagement ;
+    inv:manager inv:fund-manager-aurora ;
+    inv:vehicle inv:fund-aurora-iii ;
+    inv:effectiveDate "2021-06-30"^^xsd:date .
 
-inv:country-sg a inv:Country ;
-    inv:isoCountryCode "SG" .
+inv:sector-industrials a inv:Sector ; inv:sectorName "Industrials" .
+inv:country-sg a inv:Country ; inv:isoCountryCode "SG" .
+
+inv:fund-sector-aurora-iii a inv:FundSector ;
+    inv:fundSide inv:fund-aurora-iii ;
+    inv:sectorSide inv:sector-industrials .
+
+inv:fund-domicile-aurora-iii a inv:FundDomicile ;
+    inv:fundSide inv:fund-aurora-iii ;
+    inv:countrySide inv:country-sg .
 
 inv:limited-partner-nusantara a inv:LimitedPartner ;
     inv:legalName "Nusantara Sovereign Fund" ;
     inv:lei "5493001KJTIIGC8Y1R12" .
 
+inv:commitment-nusantara-aurora-iii a inv:Commitment ;
+    inv:investor inv:limited-partner-nusantara ;
+    inv:vehicle inv:fund-aurora-iii ;
+    inv:committedAmount 120000000.00 ;
+    inv:currencyCode "USD" ;
+    inv:effectiveDate "2021-06-30"^^xsd:date .
+
 inv:operating-company-fn-nyc a inv:OperatingCompany ;
     inv:legalName "FN NYC Manufacturing Inc" ;
-    inv:foundedDate "1998-04-02"^^xsd:date ;
-    inv:companySector inv:sector-industrials ;
-    inv:companyDomicile inv:country-sg .
+    inv:foundedDate "1998-04-02"^^xsd:date .
+
+inv:company-sector-fn-nyc a inv:CompanySector ;
+    inv:companySide inv:operating-company-fn-nyc ;
+    inv:sectorSide inv:sector-industrials .
+
+inv:company-domicile-fn-nyc a inv:CompanyDomicile ;
+    inv:companySide inv:operating-company-fn-nyc ;
+    inv:countrySide inv:country-sg .
 
 inv:person-rina a inv:Person ;
     inv:legalName "Rina Hartono" ;
     inv:email "rina.hartono@example.com" ;
     inv:jobTitle "Investment Director" .
 
-# Look-through edge. TypeQL models ownership as a relation owning ownership-pct
-# and effective-date; those arrive with relation reification — see TODO(issue-id).
-inv:fund-manager-aurora inv:owner inv:operating-company-fn-nyc .
+inv:employment-rina-aurora a inv:Employment ;
+    inv:employee inv:person-rina ;
+    inv:employer inv:fund-manager-aurora ;
+    inv:roleTitle "Investment Director" ;
+    inv:effectiveDate "2023-01-09"^^xsd:date .
+
+# Look-through edge. Both roles are organization-scoped per the TypeQL declaration.
+inv:ownership-aurora-fn-nyc a inv:Ownership ;
+    inv:owner inv:fund-manager-aurora ;
+    inv:asset inv:operating-company-fn-nyc ;
+    inv:ownershipPct 68.50 ;
+    inv:effectiveDate "2025-11-14"^^xsd:date .
 
 inv:deal-fn-nyc a inv:Deal ;
     inv:displayName "FN NYC" ;
     inv:dealStatus "due-diligence" ;
     inv:dealSource "proprietary" ;
-    inv:dealCompany inv:operating-company-fn-nyc .
+    inv:effectiveDate "2025-10-02"^^xsd:date .
+
+inv:deal-subject-fn-nyc a inv:DealSubject ;
+    inv:dealSide inv:deal-fn-nyc ;
+    inv:companySide inv:operating-company-fn-nyc .
 
 inv:investment-fn-nyc a inv:Investment ;
     inv:displayName "FN NYC Series B" ;
     inv:investmentStatus "unrealized" .
+
+inv:fund-investment-fn-nyc a inv:FundInvestment ;
+    inv:vehicle inv:fund-aurora-iii ;
+    inv:dealSide inv:deal-fn-nyc ;
+    inv:position inv:investment-fn-nyc ;
+    inv:effectiveDate "2025-11-14"^^xsd:date .
 
 inv:ledger-event-call-001 a inv:LedgerEvent ;
     inv:flowType "contribution" ;
     inv:monetaryAmount 25000000.00 ;
     inv:currencyCode "USD" ;
     inv:occurredAt "2026-01-15T09:30:00Z"^^xsd:dateTime ;
-    inv:cashFlowPosition inv:investment-fn-nyc .
+    inv:recordedAt "2026-01-15T09:31:04Z"^^xsd:dateTime .
+
+inv:cash-flow-call-001 a inv:CashFlowAttribution ;
+    inv:eventSide inv:ledger-event-call-001 ;
+    inv:positionSide inv:investment-fn-nyc ;
+    inv:vehicleSide inv:fund-aurora-iii ;
+    inv:counterparty inv:fund-manager-aurora .
 
 inv:ledger-event-call-001-reversal a inv:LedgerEvent ;
     inv:flowType "recallable-distribution" ;
     inv:monetaryAmount 2500000.00 ;
     inv:currencyCode "USD" ;
     inv:occurredAt "2026-02-01T09:30:00Z"^^xsd:dateTime ;
-    inv:cashFlowPosition inv:investment-fn-nyc ;
-    inv:supersedes inv:ledger-event-call-001 ;
-    inv:rationale "Partial recall of the January capital call after the allocation was revised." .
+    inv:recordedAt "2026-02-01T09:30:41Z"^^xsd:dateTime .
+
+inv:cash-flow-call-001-reversal a inv:CashFlowAttribution ;
+    inv:eventSide inv:ledger-event-call-001-reversal ;
+    inv:positionSide inv:investment-fn-nyc ;
+    inv:vehicleSide inv:fund-aurora-iii .
+
+inv:supersedes-call-001 a inv:Supersedes ;
+    inv:replacement inv:ledger-event-call-001-reversal ;
+    inv:original inv:ledger-event-call-001 ;
+    inv:rationale "Partial recall of the January capital call after the allocation was revised." ;
+    inv:recordedAt "2026-02-01T09:30:41Z"^^xsd:dateTime .
 
 inv:valuation-event-fn-nyc-2026q1 a inv:ValuationEvent ;
     inv:monetaryAmount 31250000.00 ;
+    inv:currencyCode "USD" ;
     inv:asOfDate "2026-03-31"^^xsd:date ;
-    inv:valuationMethod "comparables" ;
-    inv:valuationSubject inv:investment-fn-nyc .
+    inv:valuationMethod "comparables" .
+
+inv:valuation-of-fn-nyc-2026q1 a inv:ValuationOf ;
+    inv:valuationSide inv:valuation-event-fn-nyc-2026q1 ;
+    inv:subjectSide inv:investment-fn-nyc .
 
 inv:document-fn-nyc-pitch a inv:Document ;
     inv:fileName "fn-nyc-pitch-2026.pdf" ;
     inv:documentType "pitch-deck" ;
     inv:documentSha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ;
-    inv:documentDeal inv:deal-fn-nyc .
+    inv:recordedAt "2026-01-08T08:00:00Z"^^xsd:dateTime .
+
+inv:document-about-fn-nyc a inv:DocumentAbout ;
+    inv:documentSide inv:document-fn-nyc-pitch ;
+    inv:dealSide inv:deal-fn-nyc .
 
 inv:extracted-claim-fn-nyc-revenue a inv:ExtractedClaim ;
     inv:description "FY2025 revenue of USD 84.2m stated on slide 12." ;
     inv:confidenceLevel "0.87"^^xsd:double ;
-    inv:claimDocument inv:document-fn-nyc-pitch .
+    inv:recordedAt "2026-01-08T08:04:12Z"^^xsd:dateTime .
+
+inv:extraction-source-revenue a inv:ExtractionSource ;
+    inv:claimSide inv:extracted-claim-fn-nyc-revenue ;
+    inv:documentSide inv:document-fn-nyc-pitch ;
+    inv:confidenceLevel "0.87"^^xsd:double .
 
 inv:screening-decision-fn-nyc a inv:ScreeningDecision ;
     inv:screeningResult "conditional" ;
     inv:criterionVersion "industrials-v3" ;
+    inv:modelVersion "typesafe/jev-1.13" ;
+    inv:resultDistribution "{\"pass\":0.21,\"conditional\":0.52,\"fail\":0.09,\"unknown\":0.15,\"conflicting\":0.03}" ;
+    inv:confidenceLevel "0.52"^^xsd:double ;
+    inv:externalId "or-dec-4f8c2a91" ;
     inv:rationale "Revenue threshold met; five-year CAGR evidence missing from the deck." ;
-    inv:screeningDeal inv:deal-fn-nyc .
+    inv:recordedAt "2026-01-09T10:15:00Z"^^xsd:dateTime .
+
+inv:screening-of-fn-nyc a inv:ScreeningOf ;
+    inv:decisionSide inv:screening-decision-fn-nyc ;
+    inv:dealSide inv:deal-fn-nyc .

@@ -25,10 +25,11 @@ class ClaimSupportAssessor(
         state: ClassifiedState,
         questionId: String = DEFAULT_QUESTION_ID,
     ): ClaimSupport {
-        val result = client.decide(
-            state,
-            mapOf(questionId to ClaimSupportCriteria.QUESTION),
-        )
+        val result =
+            client.decide(
+                state,
+                mapOf(questionId to ClaimSupportCriteria.QUESTION),
+            )
         val probability = result.noulAnswer(questionId).noul
 
         return ClaimSupport(

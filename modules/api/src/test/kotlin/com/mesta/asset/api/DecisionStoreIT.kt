@@ -25,9 +25,9 @@ import java.util.UUID
  */
 @Testcontainers(disabledWithoutDocker = true)
 class DecisionStoreIT {
-
     private val store: JdbcDecisionStore by lazy {
-        Flyway.configure()
+        Flyway
+            .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
             .schemas("mesta")
@@ -40,19 +40,28 @@ class DecisionStoreIT {
 
     @Test
     fun `migration creates both staging tables and their append-only triggers`() {
-        assertThat(count("select count(*) from information_schema.tables where table_schema = 'mesta' and table_name in ('document_classification', 'claim_assessment')"))
-            .describedAs("decision staging tables after migration")
+        assertThat(
+            count(
+                "select count(*) from pg_tables where schemaname = 'mesta' and tablename in ('document_classification', 'claim_assessment')",
+            ),
+        ).describedAs("decision staging tables after migration")
             .isEqualTo(2)
-        assertThat(count("select count(*) from pg_trigger where tgname in ('document_classification_append_only', 'claim_assessment_append_only')"))
-            .describedAs("append-only triggers after migration")
+        assertThat(
+            count(
+                "select count(*) from pg_trigger where tgname in ('document_classification_append_only', 'claim_assessment_append_only')",
+            ),
+        ).describedAs("append-only triggers after migration")
             .isEqualTo(2)
     }
 
     @Test
     fun `a document classification round-trips through the staging table`() {
         val id = recordClassification()
-        assertThat(count("select count(*) from mesta.document_classification where id = '$id' and document_type = 'pitch-deck' and confidence = 0.82"))
-            .isEqualTo(1)
+        assertThat(
+            count(
+                "select count(*) from mesta.document_classification where id = '$id' and document_type = 'pitch-deck' and confidence = 0.82",
+            ),
+        ).isEqualTo(1)
         assertThat(count("select count(*) from mesta.document_classification where id = '$id' and distribution ->> 'pitch-deck' = '0.82'"))
             .describedAs("the full distribution must persist, not only the argmax")
             .isEqualTo(1)
@@ -61,8 +70,11 @@ class DecisionStoreIT {
     @Test
     fun `a claim assessment round-trips with its policy snapshot`() {
         val id = recordClaim()
-        assertThat(count("select count(*) from mesta.claim_assessment where id = '$id' and supported = true and support_threshold = 0.5 and review_band = 0.15"))
-            .isEqualTo(1)
+        assertThat(
+            count(
+                "select count(*) from mesta.claim_assessment where id = '$id' and supported = true and support_threshold = 0.5 and review_band = 0.15",
+            ),
+        ).isEqualTo(1)
     }
 
     @Test
@@ -122,25 +134,27 @@ class DecisionStoreIT {
         supersedesId: UUID? = null,
         rationale: String? = null,
     ): UUID {
-        val classification = DocumentClassification(
-            documentType = documentType,
-            confidence = 0.82,
-            probabilities = mapOf(documentType to 0.82, DocumentType.OTHER to 0.18),
-            requiresReview = false,
-            lineage = DecisionLineage(model = "typesafe/jev-1.13", provider = "openrouter", requestId = "req-test"),
-        )
+        val classification =
+            DocumentClassification(
+                documentType = documentType,
+                confidence = 0.82,
+                probabilities = mapOf(documentType to 0.82, DocumentType.OTHER to 0.18),
+                requiresReview = false,
+                lineage = DecisionLineage(model = "typesafe/jev-1.13", provider = "openrouter", requestId = "req-test"),
+            )
         if (rawTypeOverride != null) {
             // Bypasses the enum to prove the check constraint mirrors the ontology @values.
             dataSource().connection.use { connection ->
-                connection.prepareStatement(
-                    "insert into mesta.document_classification (document_sha256, document_type, confidence, distribution, requires_review, model_version, source_system, actor, ingestion_run_id, correlation_id) values (?, ?, 0.5, '{}', false, 'test', 'test', 'it', ?, ?)",
-                ).use { statement ->
-                    statement.setString(1, documentSha256)
-                    statement.setString(2, rawTypeOverride)
-                    statement.setObject(3, UUID.randomUUID())
-                    statement.setObject(4, UUID.randomUUID())
-                    statement.execute()
-                }
+                connection
+                    .prepareStatement(
+                        "insert into mesta.document_classification (document_sha256, document_type, confidence, distribution, requires_review, model_version, source_system, actor, ingestion_run_id, correlation_id) values (?, ?, 0.5, '{}', false, 'test', 'test', 'it', ?, ?)",
+                    ).use { statement ->
+                        statement.setString(1, documentSha256)
+                        statement.setString(2, rawTypeOverride)
+                        statement.setObject(3, UUID.randomUUID())
+                        statement.setObject(4, UUID.randomUUID())
+                        statement.execute()
+                    }
             }
             return UUID(0, 0)
         }
@@ -151,23 +165,25 @@ class DecisionStoreIT {
         store.record(
             claimText = "Revenue grew 21% year over year.",
             sourceDocumentSha256 = "b".repeat(64),
-            support = ClaimSupport(
-                probability = 0.7,
-                supported = true,
-                requiresReview = false,
-                lineage = DecisionLineage(model = "typesafe/jev-1.13", provider = "openrouter", requestId = "req-claim"),
-            ),
+            support =
+                ClaimSupport(
+                    probability = 0.7,
+                    supported = true,
+                    requiresReview = false,
+                    lineage = DecisionLineage(model = "typesafe/jev-1.13", provider = "openrouter", requestId = "req-claim"),
+                ),
             policy = ClaimSupportPolicy(),
             provenance = provenance(),
         )
 
-    private fun provenance(externalId: String? = null) = Provenance(
-        sourceSystem = "test",
-        actor = "integration-test",
-        ingestionRunId = UUID.randomUUID(),
-        correlationId = UUID.randomUUID(),
-        externalId = externalId,
-    )
+    private fun provenance(externalId: String? = null) =
+        Provenance(
+            sourceSystem = "test",
+            actor = "integration-test",
+            ingestionRunId = UUID.randomUUID(),
+            correlationId = UUID.randomUUID(),
+            externalId = externalId,
+        )
 
     private fun dataSource() = DriverManagerDataSource(postgres.jdbcUrl, postgres.username, postgres.password)
 
@@ -184,9 +200,10 @@ class DecisionStoreIT {
     private companion object {
         @Container
         @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:17-alpine")
-            .withDatabaseName("mesta")
-            .withUsername("mesta")
-            .withPassword("mesta")
+        val postgres =
+            PostgreSQLContainer("postgres:17-alpine")
+                .withDatabaseName("mesta")
+                .withUsername("mesta")
+                .withPassword("mesta")
     }
 }

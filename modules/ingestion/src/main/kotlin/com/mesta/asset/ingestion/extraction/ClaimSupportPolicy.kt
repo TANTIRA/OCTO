@@ -18,14 +18,15 @@ data class ClaimSupportPolicy(
 }
 
 object ClaimSupportCriteria {
-
     const val INSTRUCTIONS = "Is the claim supported by the quoted passage from the document?"
 
-    val QUESTION = NoulQuestion(
-        instructions = INSTRUCTIONS,
-        criteria = NoulCriteria(
-            whenTrue = "The quoted passage states the claim, or directly entails it.",
-            whenFalse = "The passage does not state the claim, contradicts it, or is unrelated to it.",
-        ),
-    )
+    val QUESTION =
+        NoulQuestion(
+            instructions = INSTRUCTIONS,
+            criteria =
+                NoulCriteria(
+                    whenTrue = "The quoted passage states the claim, or directly entails it.",
+                    whenFalse = "The passage does not state the claim, contradicts it, or is unrelated to it.",
+                ),
+        )
 }

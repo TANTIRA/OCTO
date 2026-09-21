@@ -25,8 +25,9 @@ data class DecisionModelConfig(
             return DecisionModelConfig(
                 endpoint = value("DECISION_MODEL_ENDPOINT") ?: DEFAULT_ENDPOINT,
                 model = value("DECISION_MODEL") ?: DEFAULT_MODEL,
-                apiKey = value("OPENROUTER_API_KEY")
-                    ?: throw IllegalStateException("OPENROUTER_API_KEY is not set"),
+                apiKey =
+                    value("OPENROUTER_API_KEY")
+                        ?: throw IllegalStateException("OPENROUTER_API_KEY is not set"),
             )
         }
     }

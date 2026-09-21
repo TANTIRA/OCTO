@@ -17,7 +17,9 @@ sealed interface JudgmentAnswer {
     val type: String
 }
 
-data class NoulAnswer(val noul: Double) : JudgmentAnswer {
+data class NoulAnswer(
+    val noul: Double,
+) : JudgmentAnswer {
     override val type: String get() = "noul"
 }
 

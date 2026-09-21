@@ -15,16 +15,13 @@ import kotlin.test.assertTrue
  * corresponding message disappears and this test fails instead of the gate going quiet.
  */
 class OntologyValidatorTest {
+    private val ontologyDir: Path =
+        Path.of(
+            System.getProperty("ontology.dir")
+                ?: error("ontology.dir system property is not set — see modules/ontology/build.gradle.kts"),
+        )
 
-    private val ontologyDir: Path = Path.of(
-        System.getProperty("ontology.dir")
-            ?: error("ontology.dir system property is not set — see modules/ontology/build.gradle.kts"),
-    )
-
-    private val validator = OntologyValidator.load(
-        ontologyDir.resolve("mesta-investment-owl.ttl"),
-        ontologyDir.resolve("mesta-investment-shacl.ttl"),
-    )
+    private val validator = OntologyValidator.loadDefault(ontologyDir)
 
     @Test
     fun `ontology and shapes parse and declare shapes`() {
@@ -56,17 +53,26 @@ class OntologyValidatorTest {
         }
     }
 
-    private fun ttlFiles(dir: Path): List<Path> =
-        Files.newDirectoryStream(dir, "*.ttl").use { stream -> stream.toList().sorted() }
+    private fun ttlFiles(dir: Path): List<Path> = Files.newDirectoryStream(dir, "*.ttl").use { stream -> stream.toList().sorted() }
 
     private companion object {
-        val EXPECTED_BREACHES = setOf(
-            "fundStatus must be one of the fund-status @values.",
-            "An LEI must be 20 upper-case alphanumerics (mirrors the lei @regex).",
-            "confidenceLevel must be within 0..1.",
-            "A ledger event must carry a 3-letter currencyCode.",
-            "A ledger event that supersedes an earlier event must record a rationale (mirrors 'supersedes owns rationale').",
-            "A screening decision must record a rationale.",
-        )
+        /**
+         * One message per deliberate breach in samples/invalid/constraint-breaches.ttl: seven from
+         * the schema mirror and four from the policy layer.
+         */
+        val EXPECTED_BREACHES =
+            setOf(
+                "fundStatus must be one of the fund-status @values.",
+                "lei must match ^[A-Z0-9]{20}$.",
+                "A country must have an isoCountryCode matching ^[A-Z]{2}$.",
+                "confidenceLevel must be within 0..1.",
+                "An extracted claim must be the claim-side of an extraction-source; a claim with no source document is ungrounded.",
+                "ownershipPct must be within 0..100.",
+                "A commitment must relate exactly one investor (mirrors 'relates investor @card(1)').",
+                "occurredAt must be an xsd:dateTime.",
+                "A screening decision must record a rationale.",
+                "A supersedes link must record a rationale; corrections are never unexplained.",
+                "A ledger event must be the event-side of a cash-flow-attribution; an unattributed event cannot be reconciled.",
+            )
     }
 }

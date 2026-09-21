@@ -4,187 +4,233 @@
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
-# SHACL shapes mirroring the TypeQL constraints in ontology/mesta-investment.tql.
-# @key -> sh:minCount 1, @values -> sh:in, @regex -> sh:pattern, @range -> sh:min/maxInclusive,
-# @card(1) -> sh:minCount 1. Every shape carries sh:message so a CI failure is readable.
+# Faithful SHACL mirror of ontology/mesta-investment.tql.
+#
+# Parity rules, enforced by TypeQlSchemaDriftTest:
+#   attribute @values(...)  -> sh:in
+#   attribute @regex("...") -> sh:pattern
+#   attribute @range(a..b)  -> sh:minInclusive / sh:maxInclusive
+#   attribute value type    -> sh:datatype
+#   owns X @key             -> sh:minCount 1 on X
+#   relates R @card(1)      -> sh:minCount 1 on R
+#
+# Unannotated `owns` is @card(0..1) per ADR-0003, so it gets no sh:minCount. Business rules that
+# require more than the schema does live in mesta-investment-policy-shacl.ttl, not here.
 
-# --- Parties ---------------------------------------------------------------
+# --- Entities --------------------------------------------------------------
 
 inv:PartyShape a sh:NodeShape ;
     sh:targetClass inv:Party ;
-    sh:property [
-        sh:path inv:legalName ;
-        sh:datatype xsd:string ;
-        sh:minCount 1 ;
-        sh:message "A party must have a legalName (mirrors 'party owns legal-name @key')."@en
-    ] .
+    sh:property [ sh:path inv:legalName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "A party must have a legalName (mirrors 'owns legal-name @key')."@en ] ;
+    sh:property [ sh:path inv:externalId ; sh:datatype xsd:string ; sh:message "externalId must be a string."@en ] ;
+    sh:property [ sh:path inv:description ; sh:datatype xsd:string ; sh:message "description must be a string."@en ] .
 
-inv:PersonShape a sh:NodeShape ;
-    sh:targetClass inv:Person ;
-    sh:property [
-        sh:path inv:email ;
-        sh:datatype xsd:string ;
-        sh:pattern ".*@.*" ;
-        sh:message "A person's email must contain '@' (mirrors the email @regex)."@en
-    ] .
+inv:OrganizationShape a sh:NodeShape ;
+    sh:targetClass inv:Organization ;
+    sh:property [ sh:path inv:website ; sh:datatype xsd:string ; sh:message "website must be a string."@en ] .
 
 inv:LimitedPartnerShape a sh:NodeShape ;
     sh:targetClass inv:LimitedPartner ;
-    sh:property [
-        sh:path inv:lei ;
-        sh:datatype xsd:string ;
-        sh:pattern "^[A-Z0-9]{20}$" ;
-        sh:message "An LEI must be 20 upper-case alphanumerics (mirrors the lei @regex)."@en
-    ] .
+    sh:property [ sh:path inv:lei ; sh:datatype xsd:string ; sh:pattern "^[A-Z0-9]{20}$" ; sh:message "lei must match ^[A-Z0-9]{20}$."@en ] .
 
-# --- Fund, deal, investment ------------------------------------------------
+inv:OperatingCompanyShape a sh:NodeShape ;
+    sh:targetClass inv:OperatingCompany ;
+    sh:property [ sh:path inv:foundedDate ; sh:datatype xsd:date ; sh:message "foundedDate must be an xsd:date."@en ] .
+
+inv:PersonShape a sh:NodeShape ;
+    sh:targetClass inv:Person ;
+    sh:property [ sh:path inv:email ; sh:datatype xsd:string ; sh:pattern ".*@.*" ; sh:message "email must match .*@.* ."@en ] ;
+    sh:property [ sh:path inv:phone ; sh:datatype xsd:string ; sh:message "phone must be a string."@en ] ;
+    sh:property [ sh:path inv:jobTitle ; sh:datatype xsd:string ; sh:message "jobTitle must be a string."@en ] .
+
+inv:SectorShape a sh:NodeShape ;
+    sh:targetClass inv:Sector ;
+    sh:property [ sh:path inv:sectorName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "A sector must have a sectorName (mirrors 'owns sector-name @key')."@en ] .
+
+inv:CountryShape a sh:NodeShape ;
+    sh:targetClass inv:Country ;
+    sh:property [ sh:path inv:isoCountryCode ; sh:datatype xsd:string ; sh:minCount 1 ; sh:pattern "^[A-Z]{2}$" ; sh:message "A country must have an isoCountryCode matching ^[A-Z]{2}$."@en ] .
 
 inv:FundShape a sh:NodeShape ;
     sh:targetClass inv:Fund ;
-    sh:property [
-        sh:path inv:legalName ; sh:datatype xsd:string ; sh:minCount 1 ;
-        sh:message "A fund must have a legalName (mirrors 'fund owns legal-name @key')."@en
-    ] ;
-    sh:property [
-        sh:path inv:fundStatus ;
-        sh:in ( "fundraising" "investing" "harvesting" "winding-down" "closed" ) ;
-        sh:message "fundStatus must be one of the fund-status @values."@en
-    ] ;
-    sh:property [
-        sh:path inv:currencyCode ;
-        sh:datatype xsd:string ; sh:pattern "^[A-Z]{3}$" ;
-        sh:message "currencyCode must be a 3-letter ISO code."@en
-    ] ;
-    sh:property [
-        sh:path inv:vintageYear ;
-        sh:datatype xsd:integer ; sh:minInclusive 1900 ; sh:maxInclusive 2100 ;
-        sh:message "vintageYear must fall within 1900..2100."@en
-    ] .
+    sh:property [ sh:path inv:legalName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "A fund must have a legalName (mirrors 'owns legal-name @key')."@en ] ;
+    sh:property [ sh:path inv:vintageYear ; sh:datatype xsd:integer ; sh:minInclusive 1900 ; sh:maxInclusive 2100 ; sh:message "vintageYear must be within 1900..2100."@en ] ;
+    sh:property [ sh:path inv:fundStatus ; sh:datatype xsd:string ; sh:in ( "fundraising" "investing" "harvesting" "winding-down" "closed" ) ; sh:message "fundStatus must be one of the fund-status @values."@en ] ;
+    sh:property [ sh:path inv:currencyCode ; sh:datatype xsd:string ; sh:pattern "^[A-Z]{3}$" ; sh:message "currencyCode must match ^[A-Z]{3}$."@en ] ;
+    sh:property [ sh:path inv:committedAmount ; sh:datatype xsd:decimal ; sh:message "committedAmount must be a decimal."@en ] .
 
 inv:DealShape a sh:NodeShape ;
     sh:targetClass inv:Deal ;
-    sh:property [
-        sh:path inv:displayName ; sh:datatype xsd:string ; sh:minCount 1 ;
-        sh:message "A deal must have a displayName (mirrors 'deal owns display-name @key')."@en
-    ] ;
-    sh:property [
-        sh:path inv:dealStatus ;
-        sh:in ( "intake" "screening" "analyst-review" "due-diligence" "ic-preparation"
-                "ic-review" "approved" "declined" "invested" "realized" ) ;
-        sh:message "dealStatus must be one of the deal-status @values."@en
-    ] ;
-    sh:property [
-        sh:path inv:dealSource ;
-        sh:in ( "founder" "auction" "limited-auction" "referral" "intermediary"
-                "proprietary" "other" ) ;
-        sh:message "dealSource must be one of the deal-source @values."@en
-    ] .
+    sh:property [ sh:path inv:displayName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "A deal must have a displayName (mirrors 'owns display-name @key')."@en ] ;
+    sh:property [ sh:path inv:dealSource ; sh:datatype xsd:string ; sh:in ( "founder" "auction" "limited-auction" "referral" "intermediary" "proprietary" "other" ) ; sh:message "dealSource must be one of the deal-source @values."@en ] ;
+    sh:property [ sh:path inv:dealStatus ; sh:datatype xsd:string ; sh:in ( "intake" "screening" "analyst-review" "due-diligence" "ic-preparation" "ic-review" "approved" "declined" "invested" "realized" ) ; sh:message "dealStatus must be one of the deal-status @values."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] .
 
 inv:InvestmentShape a sh:NodeShape ;
     sh:targetClass inv:Investment ;
-    sh:property [
-        sh:path inv:displayName ; sh:datatype xsd:string ; sh:minCount 1 ;
-        sh:message "An investment must have a displayName (mirrors 'investment owns display-name @key')."@en
-    ] ;
-    sh:property [
-        sh:path inv:investmentStatus ;
-        sh:in ( "unrealized" "partially-realized" "realized" ) ;
-        sh:message "investmentStatus must be one of the investment-status @values."@en
-    ] .
-
-# --- Ledger, valuation, provenance ----------------------------------------
+    sh:property [ sh:path inv:displayName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "An investment must have a displayName (mirrors 'owns display-name @key')."@en ] ;
+    sh:property [ sh:path inv:investmentStatus ; sh:datatype xsd:string ; sh:in ( "unrealized" "partially-realized" "realized" ) ; sh:message "investmentStatus must be one of the investment-status @values."@en ] .
 
 inv:LedgerEventShape a sh:NodeShape ;
     sh:targetClass inv:LedgerEvent ;
-    sh:property [
-        sh:path inv:flowType ; sh:minCount 1 ;
-        sh:in ( "contribution" "distribution" "management-fee" "expense"
-                "carried-interest" "recallable-distribution" "other-income" ) ;
-        sh:message "A ledger event must carry a flowType from the flow-type @values."@en
-    ] ;
-    sh:property [
-        sh:path inv:monetaryAmount ; sh:datatype xsd:decimal ; sh:minCount 1 ;
-        sh:message "A ledger event must carry a monetaryAmount."@en
-    ] ;
-    sh:property [
-        sh:path inv:currencyCode ; sh:datatype xsd:string ;
-        sh:pattern "^[A-Z]{3}$" ; sh:minCount 1 ;
-        sh:message "A ledger event must carry a 3-letter currencyCode."@en
-    ] ;
-    sh:property [
-        sh:path inv:occurredAt ; sh:datatype xsd:dateTime ; sh:minCount 1 ;
-        sh:message "A ledger event must carry occurredAt."@en
-    ] .
+    sh:property [ sh:path inv:flowType ; sh:datatype xsd:string ; sh:in ( "contribution" "distribution" "management-fee" "expense" "carried-interest" "recallable-distribution" "other-income" ) ; sh:message "flowType must be one of the flow-type @values."@en ] ;
+    sh:property [ sh:path inv:monetaryAmount ; sh:datatype xsd:decimal ; sh:message "monetaryAmount must be a decimal."@en ] ;
+    sh:property [ sh:path inv:currencyCode ; sh:datatype xsd:string ; sh:pattern "^[A-Z]{3}$" ; sh:message "currencyCode must match ^[A-Z]{3}$."@en ] ;
+    sh:property [ sh:path inv:occurredAt ; sh:datatype xsd:dateTime ; sh:message "occurredAt must be an xsd:dateTime."@en ] ;
+    sh:property [ sh:path inv:recordedAt ; sh:datatype xsd:dateTime ; sh:message "recordedAt must be an xsd:dateTime."@en ] ;
+    sh:property [ sh:path inv:externalId ; sh:datatype xsd:string ; sh:message "externalId must be a string."@en ] .
 
 inv:ValuationEventShape a sh:NodeShape ;
     sh:targetClass inv:ValuationEvent ;
-    sh:property [
-        sh:path inv:monetaryAmount ; sh:datatype xsd:decimal ; sh:minCount 1 ;
-        sh:message "A valuation event must carry a monetaryAmount."@en
-    ] ;
-    sh:property [
-        sh:path inv:asOfDate ; sh:datatype xsd:date ; sh:minCount 1 ;
-        sh:message "A valuation event must carry an asOfDate."@en
-    ] ;
-    sh:property [
-        sh:path inv:valuationMethod ; sh:minCount 1 ;
-        sh:in ( "dcf" "comparables" "lbo" "cost" "recent-round" "mark-to-model" "other" ) ;
-        sh:message "valuationMethod must be one of the valuation-method @values."@en
-    ] .
+    sh:property [ sh:path inv:monetaryAmount ; sh:datatype xsd:decimal ; sh:message "monetaryAmount must be a decimal."@en ] ;
+    sh:property [ sh:path inv:currencyCode ; sh:datatype xsd:string ; sh:pattern "^[A-Z]{3}$" ; sh:message "currencyCode must match ^[A-Z]{3}$."@en ] ;
+    sh:property [ sh:path inv:asOfDate ; sh:datatype xsd:date ; sh:message "asOfDate must be an xsd:date."@en ] ;
+    sh:property [ sh:path inv:valuationMethod ; sh:datatype xsd:string ; sh:in ( "dcf" "comparables" "lbo" "cost" "recent-round" "mark-to-model" "other" ) ; sh:message "valuationMethod must be one of the valuation-method @values."@en ] .
 
 inv:DocumentShape a sh:NodeShape ;
     sh:targetClass inv:Document ;
-    sh:property [
-        sh:path inv:fileName ; sh:datatype xsd:string ; sh:minCount 1 ;
-        sh:message "A document must have a fileName (mirrors 'document owns file-name @key')."@en
-    ] ;
-    sh:property [
-        sh:path inv:documentSha256 ; sh:datatype xsd:string ;
-        sh:pattern "^[0-9a-f]{64}$" ;
-        sh:message "documentSha256 must be 64 lower-case hex characters."@en
-    ] .
+    sh:property [ sh:path inv:fileName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "A document must have a fileName (mirrors 'owns file-name @key')."@en ] ;
+    sh:property [ sh:path inv:documentType ; sh:datatype xsd:string ; sh:in ( "pitch-deck" "ddq" "financials" "icap-report" "memo" "legal" "lp-report" "tear-sheet" "other" ) ; sh:message "documentType must be one of the document-type @values."@en ] ;
+    sh:property [ sh:path inv:documentSha256 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{64}$" ; sh:message "documentSha256 must match ^[0-9a-f]{64}$."@en ] ;
+    sh:property [ sh:path inv:recordedAt ; sh:datatype xsd:dateTime ; sh:message "recordedAt must be an xsd:dateTime."@en ] .
 
 inv:ExtractedClaimShape a sh:NodeShape ;
     sh:targetClass inv:ExtractedClaim ;
-    sh:property [
-        sh:path inv:description ; sh:datatype xsd:string ; sh:minCount 1 ;
-        sh:message "An extracted claim must carry its description."@en
-    ] ;
-    sh:property [
-        sh:path inv:confidenceLevel ; sh:datatype xsd:double ;
-        sh:minInclusive 0 ; sh:maxInclusive 1 ;
-        sh:message "confidenceLevel must be within 0..1."@en
-    ] .
+    sh:property [ sh:path inv:description ; sh:datatype xsd:string ; sh:message "description must be a string."@en ] ;
+    sh:property [ sh:path inv:confidenceLevel ; sh:datatype xsd:double ; sh:minInclusive 0 ; sh:maxInclusive 1 ; sh:message "confidenceLevel must be within 0..1."@en ] ;
+    sh:property [ sh:path inv:modelVersion ; sh:datatype xsd:string ; sh:message "modelVersion must be a string."@en ] ;
+    sh:property [ sh:path inv:externalId ; sh:datatype xsd:string ; sh:message "externalId must be a string."@en ] ;
+    sh:property [ sh:path inv:recordedAt ; sh:datatype xsd:dateTime ; sh:message "recordedAt must be an xsd:dateTime."@en ] .
 
 inv:ScreeningDecisionShape a sh:NodeShape ;
     sh:targetClass inv:ScreeningDecision ;
-    sh:property [
-        sh:path inv:screeningResult ; sh:minCount 1 ;
-        sh:in ( "pass" "conditional" "fail" "unknown" "conflicting" ) ;
-        sh:message "screeningResult must be one of the screening-result @values."@en
-    ] ;
-    sh:property [
-        sh:path inv:criterionVersion ; sh:datatype xsd:string ; sh:minCount 1 ;
-        sh:message "A screening decision must record the criterionVersion it was evaluated against."@en
-    ] ;
-    sh:property [
-        sh:path inv:rationale ; sh:datatype xsd:string ; sh:minCount 1 ;
-        sh:message "A screening decision must record a rationale."@en
-    ] .
+    sh:property [ sh:path inv:screeningResult ; sh:datatype xsd:string ; sh:in ( "pass" "conditional" "fail" "unknown" "conflicting" ) ; sh:message "screeningResult must be one of the screening-result @values."@en ] ;
+    sh:property [ sh:path inv:criterionVersion ; sh:datatype xsd:string ; sh:message "criterionVersion must be a string."@en ] ;
+    sh:property [ sh:path inv:modelVersion ; sh:datatype xsd:string ; sh:message "modelVersion must be a string."@en ] ;
+    sh:property [ sh:path inv:resultDistribution ; sh:datatype xsd:string ; sh:message "resultDistribution must be a string."@en ] ;
+    sh:property [ sh:path inv:confidenceLevel ; sh:datatype xsd:double ; sh:minInclusive 0 ; sh:maxInclusive 1 ; sh:message "confidenceLevel must be within 0..1."@en ] ;
+    sh:property [ sh:path inv:externalId ; sh:datatype xsd:string ; sh:message "externalId must be a string."@en ] ;
+    sh:property [ sh:path inv:rationale ; sh:datatype xsd:string ; sh:message "rationale must be a string."@en ] ;
+    sh:property [ sh:path inv:recordedAt ; sh:datatype xsd:dateTime ; sh:message "recordedAt must be an xsd:dateTime."@en ] .
 
-# --- Conditional invariant -------------------------------------------------
+# --- Relations -------------------------------------------------------------
 
-inv:SupersededEventRequiresRationaleShape a sh:NodeShape ;
-    sh:targetClass inv:LedgerEvent ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "A ledger event that supersedes an earlier event must record a rationale (mirrors 'supersedes owns rationale')."@en ;
-        sh:select """
-            SELECT $this WHERE {
-                $this <https://mesta.asset/ontology/investment#supersedes> ?original .
-                FILTER NOT EXISTS {
-                    $this <https://mesta.asset/ontology/investment#rationale> ?r
-                }
-            }
-        """ ;
-    ] .
+inv:EmploymentShape a sh:NodeShape ;
+    sh:targetClass inv:Employment ;
+    sh:property [ sh:path inv:employee ; sh:minCount 1 ; sh:message "An employment must relate exactly one employee (mirrors 'relates employee @card(1)')."@en ] ;
+    sh:property [ sh:path inv:employer ; sh:minCount 1 ; sh:message "An employment must relate exactly one employer (mirrors 'relates employer @card(1)')."@en ] ;
+    sh:property [ sh:path inv:roleTitle ; sh:datatype xsd:string ; sh:message "roleTitle must be a string."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] ;
+    sh:property [ sh:path inv:endDate ; sh:datatype xsd:date ; sh:message "endDate must be an xsd:date."@en ] .
+
+inv:BoardSeatShape a sh:NodeShape ;
+    sh:targetClass inv:BoardSeat ;
+    sh:property [ sh:path inv:member ; sh:minCount 1 ; sh:message "A board seat must relate exactly one member (mirrors 'relates member @card(1)')."@en ] ;
+    sh:property [ sh:path inv:organizationSide ; sh:minCount 1 ; sh:message "A board seat must relate exactly one organization-side (mirrors 'relates organization-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:roleTitle ; sh:datatype xsd:string ; sh:message "roleTitle must be a string."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] ;
+    sh:property [ sh:path inv:endDate ; sh:datatype xsd:date ; sh:message "endDate must be an xsd:date."@en ] .
+
+inv:ContactForShape a sh:NodeShape ;
+    sh:targetClass inv:ContactFor ;
+    sh:property [ sh:path inv:contactSide ; sh:minCount 1 ; sh:message "A contact-for must relate exactly one contact-side (mirrors 'relates contact-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:partySide ; sh:minCount 1 ; sh:message "A contact-for must relate exactly one party-side (mirrors 'relates party-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] .
+
+inv:CoInvestmentShape a sh:NodeShape ;
+    sh:targetClass inv:CoInvestment ;
+    sh:property [ sh:path inv:investorSide ; sh:minCount 1 ; sh:message "A co-investment must relate at least one investor-side (mirrors 'relates investor-side @card(1..)')."@en ] ;
+    sh:property [ sh:path inv:companySide ; sh:minCount 1 ; sh:message "A co-investment must relate exactly one company-side (mirrors 'relates company-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] .
+
+inv:FundManagementShape a sh:NodeShape ;
+    sh:targetClass inv:FundManagement ;
+    sh:property [ sh:path inv:manager ; sh:minCount 1 ; sh:message "A fund-management must relate exactly one manager (mirrors 'relates manager @card(1)')."@en ] ;
+    sh:property [ sh:path inv:vehicle ; sh:minCount 1 ; sh:message "A fund-management must relate exactly one vehicle (mirrors 'relates vehicle @card(1)')."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] .
+
+inv:CommitmentShape a sh:NodeShape ;
+    sh:targetClass inv:Commitment ;
+    sh:property [ sh:path inv:investor ; sh:minCount 1 ; sh:message "A commitment must relate exactly one investor (mirrors 'relates investor @card(1)')."@en ] ;
+    sh:property [ sh:path inv:vehicle ; sh:minCount 1 ; sh:message "A commitment must relate exactly one vehicle (mirrors 'relates vehicle @card(1)')."@en ] ;
+    sh:property [ sh:path inv:committedAmount ; sh:datatype xsd:decimal ; sh:message "committedAmount must be a decimal."@en ] ;
+    sh:property [ sh:path inv:currencyCode ; sh:datatype xsd:string ; sh:pattern "^[A-Z]{3}$" ; sh:message "currencyCode must match ^[A-Z]{3}$."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] .
+
+inv:DealSubjectShape a sh:NodeShape ;
+    sh:targetClass inv:DealSubject ;
+    sh:property [ sh:path inv:dealSide ; sh:minCount 1 ; sh:message "A deal-subject must relate exactly one deal-side (mirrors 'relates deal-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:companySide ; sh:minCount 1 ; sh:message "A deal-subject must relate exactly one company-side (mirrors 'relates company-side @card(1)')."@en ] .
+
+inv:FundInvestmentShape a sh:NodeShape ;
+    sh:targetClass inv:FundInvestment ;
+    sh:property [ sh:path inv:vehicle ; sh:minCount 1 ; sh:message "A fund-investment must relate exactly one vehicle (mirrors 'relates vehicle @card(1)')."@en ] ;
+    sh:property [ sh:path inv:dealSide ; sh:minCount 1 ; sh:message "A fund-investment must relate exactly one deal-side (mirrors 'relates deal-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:position ; sh:minCount 1 ; sh:message "A fund-investment must relate exactly one position (mirrors 'relates position @card(1)')."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] .
+
+inv:CompanySectorShape a sh:NodeShape ;
+    sh:targetClass inv:CompanySector ;
+    sh:property [ sh:path inv:companySide ; sh:minCount 1 ; sh:message "A company-sector must relate exactly one company-side (mirrors 'relates company-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:sectorSide ; sh:minCount 1 ; sh:message "A company-sector must relate exactly one sector-side (mirrors 'relates sector-side @card(1)')."@en ] .
+
+inv:FundSectorShape a sh:NodeShape ;
+    sh:targetClass inv:FundSector ;
+    sh:property [ sh:path inv:fundSide ; sh:minCount 1 ; sh:message "A fund-sector must relate exactly one fund-side (mirrors 'relates fund-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:sectorSide ; sh:minCount 1 ; sh:message "A fund-sector must relate exactly one sector-side (mirrors 'relates sector-side @card(1)')."@en ] .
+
+inv:CompanyDomicileShape a sh:NodeShape ;
+    sh:targetClass inv:CompanyDomicile ;
+    sh:property [ sh:path inv:companySide ; sh:minCount 1 ; sh:message "A company-domicile must relate exactly one company-side (mirrors 'relates company-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:countrySide ; sh:minCount 1 ; sh:message "A company-domicile must relate exactly one country-side (mirrors 'relates country-side @card(1)')."@en ] .
+
+inv:FundDomicileShape a sh:NodeShape ;
+    sh:targetClass inv:FundDomicile ;
+    sh:property [ sh:path inv:fundSide ; sh:minCount 1 ; sh:message "A fund-domicile must relate exactly one fund-side (mirrors 'relates fund-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:countrySide ; sh:minCount 1 ; sh:message "A fund-domicile must relate exactly one country-side (mirrors 'relates country-side @card(1)')."@en ] .
+
+inv:OwnershipShape a sh:NodeShape ;
+    sh:targetClass inv:Ownership ;
+    sh:property [ sh:path inv:owner ; sh:minCount 1 ; sh:message "An ownership must relate exactly one owner (mirrors 'relates owner @card(1)')."@en ] ;
+    sh:property [ sh:path inv:asset ; sh:minCount 1 ; sh:message "An ownership must relate exactly one asset (mirrors 'relates asset @card(1)')."@en ] ;
+    sh:property [ sh:path inv:ownershipPct ; sh:datatype xsd:decimal ; sh:minInclusive 0 ; sh:maxInclusive 100 ; sh:message "ownershipPct must be within 0..100."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] ;
+    sh:property [ sh:path inv:endDate ; sh:datatype xsd:date ; sh:message "endDate must be an xsd:date."@en ] .
+
+inv:CashFlowAttributionShape a sh:NodeShape ;
+    sh:targetClass inv:CashFlowAttribution ;
+    sh:property [ sh:path inv:eventSide ; sh:minCount 1 ; sh:message "A cash-flow-attribution must relate exactly one event-side (mirrors 'relates event-side @card(1)')."@en ] .
+
+inv:ValuationOfShape a sh:NodeShape ;
+    sh:targetClass inv:ValuationOf ;
+    sh:property [ sh:path inv:valuationSide ; sh:minCount 1 ; sh:message "A valuation-of must relate exactly one valuation-side (mirrors 'relates valuation-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:subjectSide ; sh:minCount 1 ; sh:message "A valuation-of must relate exactly one subject-side (mirrors 'relates subject-side @card(1)')."@en ] .
+
+inv:SupersedesShape a sh:NodeShape ;
+    sh:targetClass inv:Supersedes ;
+    sh:property [ sh:path inv:replacement ; sh:minCount 1 ; sh:message "A supersedes must relate exactly one replacement (mirrors 'relates replacement @card(1)')."@en ] ;
+    sh:property [ sh:path inv:original ; sh:minCount 1 ; sh:message "A supersedes must relate exactly one original (mirrors 'relates original @card(1)')."@en ] ;
+    sh:property [ sh:path inv:rationale ; sh:datatype xsd:string ; sh:message "rationale must be a string."@en ] ;
+    sh:property [ sh:path inv:recordedAt ; sh:datatype xsd:dateTime ; sh:message "recordedAt must be an xsd:dateTime."@en ] .
+
+inv:DocumentAboutShape a sh:NodeShape ;
+    sh:targetClass inv:DocumentAbout ;
+    sh:property [ sh:path inv:documentSide ; sh:minCount 1 ; sh:message "A document-about must relate exactly one document-side (mirrors 'relates document-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:dealSide ; sh:minCount 1 ; sh:message "A document-about must relate exactly one deal-side (mirrors 'relates deal-side @card(1)')."@en ] .
+
+inv:ExtractionSourceShape a sh:NodeShape ;
+    sh:targetClass inv:ExtractionSource ;
+    sh:property [ sh:path inv:claimSide ; sh:minCount 1 ; sh:message "An extraction-source must relate exactly one claim-side (mirrors 'relates claim-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:documentSide ; sh:minCount 1 ; sh:message "An extraction-source must relate exactly one document-side (mirrors 'relates document-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:confidenceLevel ; sh:datatype xsd:double ; sh:minInclusive 0 ; sh:maxInclusive 1 ; sh:message "confidenceLevel must be within 0..1."@en ] .
+
+inv:SourceAttributionShape a sh:NodeShape ;
+    sh:targetClass inv:SourceAttribution ;
+    sh:property [ sh:path inv:providerSide ; sh:minCount 1 ; sh:message "A source-attribution must relate exactly one provider-side (mirrors 'relates provider-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:dataSide ; sh:minCount 1 ; sh:message "A source-attribution must relate exactly one data-side (mirrors 'relates data-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:recordedAt ; sh:datatype xsd:dateTime ; sh:message "recordedAt must be an xsd:dateTime."@en ] .
+
+inv:ScreeningOfShape a sh:NodeShape ;
+    sh:targetClass inv:ScreeningOf ;
+    sh:property [ sh:path inv:decisionSide ; sh:minCount 1 ; sh:message "A screening-of must relate exactly one decision-side (mirrors 'relates decision-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:dealSide ; sh:minCount 1 ; sh:message "A screening-of must relate exactly one deal-side (mirrors 'relates deal-side @card(1)')."@en ] .

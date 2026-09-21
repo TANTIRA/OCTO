@@ -49,8 +49,10 @@ data class DecisionLineage(
     val requestId: String? = null,
 )
 
-class UnexpectedAnswerException(questionId: String, actual: JudgmentAnswer?) :
-    IllegalStateException(
+class UnexpectedAnswerException(
+    questionId: String,
+    actual: JudgmentAnswer?,
+) : IllegalStateException(
         "question '$questionId' did not return the expected answer type (got ${actual?.type ?: "nothing"})",
     )
 
@@ -61,4 +63,3 @@ fun JudgmentResult.choiceAnswer(questionId: String): ChoiceAnswer =
 fun JudgmentResult.noulAnswer(questionId: String): NoulAnswer =
     answers[questionId] as? NoulAnswer
         ?: throw UnexpectedAnswerException(questionId, answers[questionId])
-
