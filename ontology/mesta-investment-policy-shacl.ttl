@@ -1,0 +1,109 @@
+@prefix inv:  <https://mesta.asset/ontology/investment#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Business rules that go BEYOND the TypeQL schema. mesta-investment-shacl.ttl mirrors the schema
+# exactly; this file adds requirements the schema leaves at the @card(0..1) default.
+#
+# These are policy, not parity. Each one cites the document it comes from, and each is a T2
+# business rule: changing one changes what the platform accepts, so it needs review.
+#
+# Not enforced here, deliberately: anything that depends on a firm's own materiality thresholds
+# (screening cut-offs, approval limits). Those are configurable per strategy, not ontology rules.
+
+# --- Ledger and valuation completeness -------------------------------------
+
+# data-security-governance.md: "Every event records source, actor, ingestion run, effective time,
+# recorded time, currency, and correlation ID."
+inv:LedgerEventCompletenessShape a sh:NodeShape ;
+    sh:targetClass inv:LedgerEvent ;
+    sh:property [ sh:path inv:flowType ; sh:minCount 1 ; sh:message "A ledger event must carry a flowType; an untyped cash flow cannot be reconciled."@en ] ;
+    sh:property [ sh:path inv:monetaryAmount ; sh:minCount 1 ; sh:message "A ledger event must carry a monetaryAmount."@en ] ;
+    sh:property [ sh:path inv:currencyCode ; sh:minCount 1 ; sh:message "A ledger event must carry a currencyCode."@en ] ;
+    sh:property [ sh:path inv:occurredAt ; sh:minCount 1 ; sh:message "A ledger event must carry occurredAt; undated cash flows break IRR and XIRR."@en ] ;
+    sh:property [ sh:path inv:recordedAt ; sh:minCount 1 ; sh:message "A ledger event must carry recordedAt; the append-only ledger needs a recording time."@en ] .
+
+# quantitative-methodology.md section 10.3: currency, valuation policy and valuation date are
+# mandatory metadata; data quality rules reject missing valuation dates.
+inv:ValuationEventCompletenessShape a sh:NodeShape ;
+    sh:targetClass inv:ValuationEvent ;
+    sh:property [ sh:path inv:monetaryAmount ; sh:minCount 1 ; sh:message "A valuation event must carry a monetaryAmount."@en ] ;
+    sh:property [ sh:path inv:currencyCode ; sh:minCount 1 ; sh:message "A valuation event must carry a currencyCode."@en ] ;
+    sh:property [ sh:path inv:asOfDate ; sh:minCount 1 ; sh:message "A valuation event must carry an asOfDate."@en ] ;
+    sh:property [ sh:path inv:valuationMethod ; sh:minCount 1 ; sh:message "A valuation event must carry a valuationMethod."@en ] .
+
+# --- Decision and provenance records ---------------------------------------
+
+# deal-sourcing-workflow.md: "Analysts can override recommendations, never erase them; rationale
+# is mandatory." A decision with no recorded criteria version cannot be reproduced.
+inv:ScreeningDecisionCompletenessShape a sh:NodeShape ;
+    sh:targetClass inv:ScreeningDecision ;
+    sh:property [ sh:path inv:screeningResult ; sh:minCount 1 ; sh:message "A screening decision must carry a screeningResult."@en ] ;
+    sh:property [ sh:path inv:criterionVersion ; sh:minCount 1 ; sh:message "A screening decision must record the criterionVersion it was evaluated against."@en ] ;
+    sh:property [ sh:path inv:rationale ; sh:minCount 1 ; sh:message "A screening decision must record a rationale."@en ] .
+
+# deal-sourcing-workflow.md: "Every extracted claim links to page, section, table, or bounding
+# region in its source." data-security-governance.md: unsupported claims must be marked, not
+# fabricated. An ungrounded claim must not exist at all.
+inv:ExtractedClaimProvenanceShape a sh:NodeShape ;
+    sh:targetClass inv:ExtractedClaim ;
+    sh:property [ sh:path inv:description ; sh:minCount 1 ; sh:message "An extracted claim must carry its description."@en ] ;
+    sh:property [ sh:path inv:confidenceLevel ; sh:minCount 1 ; sh:message "An extracted claim must carry a confidenceLevel."@en ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "An extracted claim must be the claim-side of an extraction-source; a claim with no source document is ungrounded."@en ;
+        sh:select """
+            SELECT $this WHERE {
+                $this a <https://mesta.asset/ontology/investment#ExtractedClaim> .
+                FILTER NOT EXISTS {
+                    ?link a <https://mesta.asset/ontology/investment#ExtractionSource> ;
+                          <https://mesta.asset/ontology/investment#claimSide> $this .
+                }
+            }
+        """ ;
+    ] .
+
+# data-security-governance.md: source documents are integrity-controlled; the hash is what makes
+# tamper-evidence possible.
+inv:DocumentIntegrityShape a sh:NodeShape ;
+    sh:targetClass inv:Document ;
+    sh:property [ sh:path inv:documentSha256 ; sh:minCount 1 ; sh:message "A document must carry its documentSha256 for tamper-evidence."@en ] ;
+    sh:property [ sh:path inv:documentType ; sh:minCount 1 ; sh:message "A document must carry a documentType."@en ] .
+
+# --- Append-only ledger invariants -----------------------------------------
+
+# ADR-0003: "every IBOR event must have attributed entities in the graph". An unattributed event
+# cannot be reconciled against positions or counterparties.
+inv:LedgerEventAttributionShape a sh:NodeShape ;
+    sh:targetClass inv:LedgerEvent ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "A ledger event must be the event-side of a cash-flow-attribution; an unattributed event cannot be reconciled."@en ;
+        sh:select """
+            SELECT $this WHERE {
+                $this a <https://mesta.asset/ontology/investment#LedgerEvent> .
+                FILTER NOT EXISTS {
+                    ?link a <https://mesta.asset/ontology/investment#CashFlowAttribution> ;
+                          <https://mesta.asset/ontology/investment#eventSide> $this .
+                }
+            }
+        """ ;
+    ] .
+
+# The TypeQL comment on `supersedes` states corrections preserve history. A correction with no
+# stated reason is an unexplained change to financial data.
+inv:SupersedesRequiresRationaleShape a sh:NodeShape ;
+    sh:targetClass inv:Supersedes ;
+    sh:property [ sh:path inv:rationale ; sh:minCount 1 ; sh:message "A supersedes link must record a rationale; corrections are never unexplained."@en ] ;
+    sh:property [ sh:path inv:recordedAt ; sh:minCount 1 ; sh:message "A supersedes link must record when it was recorded."@en ] .
+
+# --- Look-through ----------------------------------------------------------
+
+# Look-through exposure is a product of the ownership percentages along the path, so a missing
+# percentage silently understates or drops exposure.
+inv:OwnershipCompletenessShape a sh:NodeShape ;
+    sh:targetClass inv:Ownership ;
+    sh:property [ sh:path inv:ownershipPct ; sh:minCount 1 ; sh:message "An ownership edge must carry ownershipPct; look-through exposure multiplies it."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:minCount 1 ; sh:message "An ownership edge must carry an effectiveDate."@en ] .

@@ -21,3 +21,7 @@ infra/.env
 
 # OS
 .DS_Store
+
+# Local env files
+.env.local
+.env
