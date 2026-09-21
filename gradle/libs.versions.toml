@@ -2,6 +2,7 @@
 kotlin = "2.2.21"
 springBoot = "3.5.7"
 springDepMgmt = "1.1.7"
+flyway = "11.7.2"
 testcontainers = "2.0.1"
 
 [libraries]
@@ -23,3 +24,4 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
 spring-dep-mgmt = { id = "io.spring.dependency-management", version.ref = "springDepMgmt" }
+flyway = { id = "org.flywaydb.flyway", version.ref = "flyway" }
