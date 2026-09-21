@@ -11,7 +11,6 @@ class OpenRouterDecisionsClient(
     private val transport: JudgmentTransport,
     private val objectMapper: ObjectMapper = defaultObjectMapper(),
 ) : JudgmentClient {
-
     override fun decide(
         state: ClassifiedState,
         questions: Map<String, JudgmentQuestion>,
@@ -21,20 +20,23 @@ class OpenRouterDecisionsClient(
             throw ConfidentialStateRejectedException(state.classification)
         }
 
-        val request = DecisionsRequest(
-            model = config.model,
-            state = state.payload,
-            questions = questions,
-            provider = ProviderRouting(config.allowFallbacks),
-        )
-        val response = transport.post(
-            endpoint = config.endpoint,
-            headers = mapOf(
-                "Authorization" to "Bearer ${config.apiKey}",
-                "Content-Type" to "application/json",
-            ),
-            body = objectMapper.writeValueAsString(request),
-        )
+        val request =
+            DecisionsRequest(
+                model = config.model,
+                state = state.payload,
+                questions = questions,
+                provider = ProviderRouting(config.allowFallbacks),
+            )
+        val response =
+            transport.post(
+                endpoint = config.endpoint,
+                headers =
+                    mapOf(
+                        "Authorization" to "Bearer ${config.apiKey}",
+                        "Content-Type" to "application/json",
+                    ),
+                body = objectMapper.writeValueAsString(request),
+            )
         if (response.statusCode !in 200..299) {
             throw JudgmentRequestException(response.statusCode, response.body.take(MAX_ERROR_BODY))
         }
@@ -52,10 +54,12 @@ class OpenRouterDecisionsClient(
     private companion object {
         const val MAX_ERROR_BODY = 512
 
-        fun defaultObjectMapper(): ObjectMapper = JsonMapper.builder()
-            .addModule(kotlinModule())
-            .serializationInclusion(JsonInclude.Include.NON_NULL)
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-            .build()
+        fun defaultObjectMapper(): ObjectMapper =
+            JsonMapper
+                .builder()
+                .addModule(kotlinModule())
+                .serializationInclusion(JsonInclude.Include.NON_NULL)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .build()
     }
 }

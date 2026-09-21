@@ -17,8 +17,11 @@ dependencies {
     implementation(project(":modules:workflow"))
 
     implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.spring.boot.starter.validation)
+    implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.oauth2.rs)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlin.reflect)
     implementation(libs.flyway.core)
@@ -26,8 +29,10 @@ dependencies {
     runtimeOnly(libs.postgresql)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.security.test)
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.testcontainers.postgres)
+    testImplementation(libs.archunit.junit5)
 }
 
 tasks.processResources {
@@ -37,8 +42,12 @@ tasks.processResources {
     }
 }
 
+val dbHost = System.getenv("DB_HOST") ?: "localhost"
+val dbPort = System.getenv("DB_PORT") ?: "5432"
+val dbName = System.getenv("DB_NAME") ?: "postgres"
+
 flyway {
-    url = "jdbc:postgresql://${System.getenv("DB_HOST") ?: "localhost"}:${System.getenv("DB_PORT") ?: "5432"}/${System.getenv("DB_NAME") ?: "postgres"}"
+    url = "jdbc:postgresql://$dbHost:$dbPort/$dbName"
     user = System.getenv("DB_MIGRATION_USER") ?: ""
     password = System.getenv("DB_MIGRATION_PASSWORD") ?: ""
     locations = arrayOf("filesystem:${rootProject.file("db/migrations")}")

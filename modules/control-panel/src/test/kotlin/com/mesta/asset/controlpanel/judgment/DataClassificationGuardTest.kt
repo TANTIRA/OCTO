@@ -20,12 +20,12 @@ private class CountingTransport : JudgmentTransport {
 }
 
 class DataClassificationGuardTest {
-
-    private val config = DecisionModelConfig(
-        endpoint = DecisionModelConfig.DEFAULT_ENDPOINT,
-        model = DecisionModelConfig.DEFAULT_MODEL,
-        apiKey = "test-key-not-a-real-secret",
-    )
+    private val config =
+        DecisionModelConfig(
+            endpoint = DecisionModelConfig.DEFAULT_ENDPOINT,
+            model = DecisionModelConfig.DEFAULT_MODEL,
+            apiKey = "test-key-not-a-real-secret",
+        )
 
     private val questions = mapOf("q" to NoulQuestion("Is it urgent?"))
 
@@ -33,12 +33,13 @@ class DataClassificationGuardTest {
     fun `confidential state never reaches the transport`() {
         val transport = CountingTransport()
 
-        val failure = assertFailsWith<ConfidentialStateRejectedException> {
-            OpenRouterDecisionsClient(config, transport).decide(
-                ClassifiedState(DataClassification.Confidential, "fund cash flow detail"),
-                questions,
-            )
-        }
+        val failure =
+            assertFailsWith<ConfidentialStateRejectedException> {
+                OpenRouterDecisionsClient(config, transport).decide(
+                    ClassifiedState(DataClassification.Confidential, "fund cash flow detail"),
+                    questions,
+                )
+            }
 
         assertEquals(DataClassification.Confidential, failure.classification)
         assertEquals(0, transport.calls)
@@ -62,12 +63,13 @@ class DataClassificationGuardTest {
     fun `the rejection message names the classification but not the payload`() {
         val transport = CountingTransport()
 
-        val failure = assertFailsWith<ConfidentialStateRejectedException> {
-            OpenRouterDecisionsClient(config, transport).decide(
-                ClassifiedState(DataClassification.Confidential, "portfolio-company revenue 42.1m"),
-                questions,
-            )
-        }
+        val failure =
+            assertFailsWith<ConfidentialStateRejectedException> {
+                OpenRouterDecisionsClient(config, transport).decide(
+                    ClassifiedState(DataClassification.Confidential, "portfolio-company revenue 42.1m"),
+                    questions,
+                )
+            }
 
         assertFalse(failure.message!!.contains("42.1m"))
         assertTrue(failure.message!!.contains("Confidential"))
@@ -95,10 +97,11 @@ class DataClassificationGuardTest {
 
     @Test
     fun `config reads the key from the environment and refuses to start without it`() {
-        val environment = mapOf(
-            "OPENROUTER_API_KEY" to "from-env",
-            "DECISION_MODEL" to "typesafe/jev-1.13",
-        )
+        val environment =
+            mapOf(
+                "OPENROUTER_API_KEY" to "from-env",
+                "DECISION_MODEL" to "typesafe/jev-1.13",
+            )
 
         assertEquals("from-env", DecisionModelConfig.fromEnvironment(environment::get).apiKey)
 
@@ -109,11 +112,12 @@ class DataClassificationGuardTest {
 
     @Test
     fun `blank environment values fall back to the defaults`() {
-        val environment = mapOf(
-            "OPENROUTER_API_KEY" to "from-env",
-            "DECISION_MODEL" to "",
-            "DECISION_MODEL_ENDPOINT" to "   ",
-        )
+        val environment =
+            mapOf(
+                "OPENROUTER_API_KEY" to "from-env",
+                "DECISION_MODEL" to "",
+                "DECISION_MODEL_ENDPOINT" to "   ",
+            )
 
         val config = DecisionModelConfig.fromEnvironment(environment::get)
 

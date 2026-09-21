@@ -59,6 +59,8 @@ define
   attribute document-sha256, value string @regex("^[0-9a-f]{64}$");
   attribute file-name, value string;
   attribute criterion-version, value string;
+  attribute model-version, value string;
+  attribute result-distribution, value string;
   attribute rationale, value string;
 
   # ============================================================
@@ -181,12 +183,18 @@ define
   entity extracted-claim,
     owns description,
     owns confidence-level,
+    owns model-version,
+    owns external-id,
     owns recorded-at,
     plays extraction-source:claim-side;
 
   entity screening-decision,
     owns screening-result,
     owns criterion-version,
+    owns model-version,
+    owns result-distribution,
+    owns confidence-level,
+    owns external-id,
     owns rationale,
     owns recorded-at,
     plays screening-of:decision-side;
@@ -266,8 +274,13 @@ define
   # ============================================================
 
   # Recursive ownership edges power look-through exposure aggregation.
-  # owner and asset are both party-scoped so funds, vehicles, and
-  # operating companies can appear on either side.
+  # Both roles are organization-scoped: `organization` declares
+  # `plays ownership:owner` and `plays ownership:asset`. Funds and vehicles
+  # therefore cannot appear on either side today, so a fund -> company
+  # look-through edge is not expressible.
+  # TODO(issue-id): decide whether ownership should be party-scoped, or
+  # whether fund/operating-company should play both roles, then align the
+  # declaration. The OWL/SHACL mirror follows the declaration as written.
   relation ownership,
     relates owner @card(1),
     relates asset @card(1),
@@ -326,7 +339,8 @@ define
   entity operating-company, plays board-seat:organization-side, plays co-investment:company-side;
   entity fund-manager, plays board-seat:organization-side;
   entity limited-partner, plays board-seat:organization-side;
-  entity fund-manager, plays co-investment:investor-side;
+  # fund-manager inherits plays co-investment:investor-side from organization — restating it here
+  # is rejected by TypeDB (SVL42: redeclared inherited capability without specialisation).
   entity operating-company, plays company-sector:company-side, plays company-domicile:company-side;
   entity deal, plays screening-of:deal-side;
   entity ledger-event, plays source-attribution:data-side;

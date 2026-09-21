@@ -8,7 +8,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-private class RecordingTransport(private val response: TransportResponse) : JudgmentTransport {
+private class RecordingTransport(
+    private val response: TransportResponse,
+) : JudgmentTransport {
     var calls = 0
     var lastEndpoint: String? = null
     var lastHeaders: Map<String, String> = emptyMap()
@@ -28,17 +30,16 @@ private class RecordingTransport(private val response: TransportResponse) : Judg
 }
 
 class OpenRouterDecisionsClientTest {
-
     private val mapper = JsonMapper.builder().addModule(kotlinModule()).build()
 
-    private val config = DecisionModelConfig(
-        endpoint = DecisionModelConfig.DEFAULT_ENDPOINT,
-        model = DecisionModelConfig.DEFAULT_MODEL,
-        apiKey = "test-key-not-a-real-secret",
-    )
+    private val config =
+        DecisionModelConfig(
+            endpoint = DecisionModelConfig.DEFAULT_ENDPOINT,
+            model = DecisionModelConfig.DEFAULT_MODEL,
+            apiKey = "test-key-not-a-real-secret",
+        )
 
-    private fun client(transport: JudgmentTransport) =
-        OpenRouterDecisionsClient(config, transport)
+    private fun client(transport: JudgmentTransport) = OpenRouterDecisionsClient(config, transport)
 
     private fun ok(body: String) = RecordingTransport(TransportResponse(200, body))
 
@@ -52,21 +53,24 @@ class OpenRouterDecisionsClientTest {
                 mapOf("ticket" to "Checkout shows a blank screen"),
             ),
             mapOf(
-                "is_bug" to NoulQuestion(
-                    "Is the customer reporting a software defect?",
-                    NoulCriteria(
-                        whenTrue = "Describes broken behaviour",
-                        whenFalse = "Asks a question or requests a feature",
+                "is_bug" to
+                    NoulQuestion(
+                        "Is the customer reporting a software defect?",
+                        NoulCriteria(
+                            whenTrue = "Describes broken behaviour",
+                            whenFalse = "Asks a question or requests a feature",
+                        ),
                     ),
-                ),
-                "team" to ChoiceQuestion(
-                    "Which team should own this ticket?",
-                    mapOf("billing" to "Payments", "technical" to "Bugs"),
-                ),
-                "urgency" to ScoreQuestion(
-                    "How urgent is this ticket?",
-                    listOf("Can wait", "This week", "Blocking revenue"),
-                ),
+                "team" to
+                    ChoiceQuestion(
+                        "Which team should own this ticket?",
+                        mapOf("billing" to "Payments", "technical" to "Bugs"),
+                    ),
+                "urgency" to
+                    ScoreQuestion(
+                        "How urgent is this ticket?",
+                        listOf("Can wait", "This week", "Blocking revenue"),
+                    ),
             ),
         )
 
@@ -124,37 +128,39 @@ class OpenRouterDecisionsClientTest {
 
     @Test
     fun `reads back noul, choice and score answers`() {
-        val transport = ok(
-            """
-            {
-              "model": "jev-1.13.0",
-              "id": "gen-abc123",
-              "provider": "TypeSafe",
-              "answers": {
-                "is_urgent": { "type": "noul", "noul": 0.95 },
-                "department": {
-                  "type": "choice",
-                  "choice": "billing",
-                  "probabilities": { "billing": 0.88, "technical": 0.12 },
-                  "confidence": 0.81
-                },
-                "frustration": {
-                  "type": "score",
-                  "score": 1.05,
-                  "legend": { "0": "Calm", "1": "Frustrated", "2": "Very angry" },
-                  "probabilities": { "0": 0.0, "1": 0.95, "2": 0.05 },
-                  "confidence": 0.92
+        val transport =
+            ok(
+                """
+                {
+                  "model": "jev-1.13.0",
+                  "id": "gen-abc123",
+                  "provider": "TypeSafe",
+                  "answers": {
+                    "is_urgent": { "type": "noul", "noul": 0.95 },
+                    "department": {
+                      "type": "choice",
+                      "choice": "billing",
+                      "probabilities": { "billing": 0.88, "technical": 0.12 },
+                      "confidence": 0.81
+                    },
+                    "frustration": {
+                      "type": "score",
+                      "score": 1.05,
+                      "legend": { "0": "Calm", "1": "Frustrated", "2": "Very angry" },
+                      "probabilities": { "0": 0.0, "1": 0.95, "2": 0.05 },
+                      "confidence": 0.92
+                    }
+                  },
+                  "usage": { "input_tokens": 318, "output_tokens": 34, "cost": 0.0000134 }
                 }
-              },
-              "usage": { "input_tokens": 318, "output_tokens": 34, "cost": 0.0000134 }
-            }
-            """.trimIndent(),
-        )
+                """.trimIndent(),
+            )
 
-        val result = client(transport).decide(
-            ClassifiedState(DataClassification.Internal, "state"),
-            mapOf("q" to NoulQuestion("Is it urgent?")),
-        )
+        val result =
+            client(transport).decide(
+                ClassifiedState(DataClassification.Internal, "state"),
+                mapOf("q" to NoulQuestion("Is it urgent?")),
+            )
 
         assertEquals("jev-1.13.0", result.model)
         assertEquals("gen-abc123", result.id)
@@ -177,30 +183,34 @@ class OpenRouterDecisionsClientTest {
 
     @Test
     fun `ignores unknown fields so a provider addition does not break parsing`() {
-        val transport = ok(
-            """{"model":"jev-1.13.0","answers":{},"new_field":{"nested":true}}""",
-        )
+        val transport =
+            ok(
+                """{"model":"jev-1.13.0","answers":{},"new_field":{"nested":true}}""",
+            )
 
-        val result = client(transport).decide(
-            ClassifiedState(DataClassification.Internal, "state"),
-            mapOf("q" to NoulQuestion("Is it urgent?")),
-        )
+        val result =
+            client(transport).decide(
+                ClassifiedState(DataClassification.Internal, "state"),
+                mapOf("q" to NoulQuestion("Is it urgent?")),
+            )
 
         assertTrue(result.answers.isEmpty())
     }
 
     @Test
     fun `fails with the status when the endpoint rejects the request`() {
-        val transport = RecordingTransport(
-            TransportResponse(429, """{"error":{"message":"rate limited"}}"""),
-        )
-
-        val failure = assertFailsWith<JudgmentRequestException> {
-            client(transport).decide(
-                ClassifiedState(DataClassification.Internal, "state"),
-                mapOf("q" to NoulQuestion("Is it urgent?")),
+        val transport =
+            RecordingTransport(
+                TransportResponse(429, """{"error":{"message":"rate limited"}}"""),
             )
-        }
+
+        val failure =
+            assertFailsWith<JudgmentRequestException> {
+                client(transport).decide(
+                    ClassifiedState(DataClassification.Internal, "state"),
+                    mapOf("q" to NoulQuestion("Is it urgent?")),
+                )
+            }
 
         assertEquals(429, failure.statusCode)
         assertTrue(failure.message!!.contains("429"))

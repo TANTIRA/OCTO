@@ -26,13 +26,13 @@ private fun choiceResult(
 )
 
 class DocumentClassifierTest {
-
     private val state = ClassifiedState(DataClassification.Internal, "synthetic pitch deck text")
 
     @Test
     fun `maps a confident answer to a document type`() {
-        val classification = DocumentClassifier(StubJudgmentClient(choiceResult("pitch-deck", 0.91)))
-            .classify(state)
+        val classification =
+            DocumentClassifier(StubJudgmentClient(choiceResult("pitch-deck", 0.91)))
+                .classify(state)
 
         assertEquals(DocumentType.PITCH_DECK, classification.documentType)
         assertEquals(0.91, classification.confidence)
@@ -41,8 +41,9 @@ class DocumentClassifierTest {
 
     @Test
     fun `carries the lineage of the decision`() {
-        val classification = DocumentClassifier(StubJudgmentClient(choiceResult("memo", 0.8)))
-            .classify(state)
+        val classification =
+            DocumentClassifier(StubJudgmentClient(choiceResult("memo", 0.8)))
+                .classify(state)
 
         assertEquals("jev-1.13.0", classification.lineage.model)
         assertEquals("TypeSafe", classification.lineage.provider)
@@ -69,8 +70,9 @@ class DocumentClassifierTest {
 
     @Test
     fun `confidence below the threshold routes to review`() {
-        val classification = DocumentClassifier(StubJudgmentClient(choiceResult("financials", 0.42)))
-            .classify(state)
+        val classification =
+            DocumentClassifier(StubJudgmentClient(choiceResult("financials", 0.42)))
+                .classify(state)
 
         assertEquals(DocumentType.FINANCIALS, classification.documentType)
         assertTrue(classification.requiresReview)
@@ -78,17 +80,19 @@ class DocumentClassifierTest {
 
     @Test
     fun `confidence at the threshold is accepted`() {
-        val classification = DocumentClassifier(
-            StubJudgmentClient(choiceResult("financials", DocumentClassificationCriteria.MIN_CONFIDENCE)),
-        ).classify(state)
+        val classification =
+            DocumentClassifier(
+                StubJudgmentClient(choiceResult("financials", DocumentClassificationCriteria.MIN_CONFIDENCE)),
+            ).classify(state)
 
         assertFalse(classification.requiresReview)
     }
 
     @Test
     fun `an option outside the enumeration falls back to other and routes to review`() {
-        val classification = DocumentClassifier(StubJudgmentClient(choiceResult("spreadsheet", 0.95)))
-            .classify(state)
+        val classification =
+            DocumentClassifier(StubJudgmentClient(choiceResult("spreadsheet", 0.95)))
+                .classify(state)
 
         assertEquals(DocumentType.OTHER, classification.documentType)
         assertTrue(classification.requiresReview)
@@ -96,15 +100,16 @@ class DocumentClassifierTest {
 
     @Test
     fun `keeps the full distribution for the stored decision`() {
-        val classification = DocumentClassifier(
-            StubJudgmentClient(
-                choiceResult(
-                    "tear-sheet",
-                    0.7,
-                    mapOf("tear-sheet" to 0.7, "memo" to 0.2, "other" to 0.1),
+        val classification =
+            DocumentClassifier(
+                StubJudgmentClient(
+                    choiceResult(
+                        "tear-sheet",
+                        0.7,
+                        mapOf("tear-sheet" to 0.7, "memo" to 0.2, "other" to 0.1),
+                    ),
                 ),
-            ),
-        ).classify(state)
+            ).classify(state)
 
         assertEquals(0.2, classification.probabilities[DocumentType.MEMO])
         assertEquals(3, classification.probabilities.size)
@@ -112,12 +117,13 @@ class DocumentClassifierTest {
 
     @Test
     fun `rejects an answer of the wrong type`() {
-        val client = StubJudgmentClient(
-            JudgmentResult(
-                model = "jev-1.13.0",
-                answers = mapOf("document_type" to NoulAnswer(0.9)),
-            ),
-        )
+        val client =
+            StubJudgmentClient(
+                JudgmentResult(
+                    model = "jev-1.13.0",
+                    answers = mapOf("document_type" to NoulAnswer(0.9)),
+                ),
+            )
 
         assertFailsWith<UnexpectedAnswerException> {
             DocumentClassifier(client).classify(state)

@@ -37,19 +37,18 @@ data class ValidationOutcome(
 /**
  * Deterministic OWL/SHACL validation for the Mesta-Asset investment ontology.
  *
- * Loads `ontology/mesta-investment-owl.ttl` and `ontology/mesta-investment-shacl.ttl`, then
- * validates data graphs with RDFS inference so the class hierarchy in the ontology
- * (`FundManager` ⊑ `Organization` ⊑ `Party`) is visible to shapes targeting a supertype.
+ * Loads the OWL ontology plus one or more SHACL shape graphs, then validates data graphs with RDFS
+ * inference so the class hierarchy in the ontology (`FundManager` ⊑ `Organization` ⊑ `Party`) is
+ * visible to shapes targeting a supertype.
  *
- * Validation is structural and reproducible: it is a CI gate and a pre-write check, never a
- * source of financial values. IBOR derivation and reported metrics stay deterministic.
+ * Validation is structural and reproducible: it is a CI gate and a pre-write check, never a source
+ * of financial values. IBOR derivation and reported metrics stay deterministic.
  */
 class OntologyValidator private constructor(
     private val ontology: Model,
     private val shapes: Shapes,
 ) {
-
-    /** Number of SHACL shapes parsed from the shapes graph. */
+    /** Number of SHACL shapes parsed from the shapes graphs. */
     val shapesDeclared: Int get() = shapes.numShapes()
 
     /**
@@ -57,8 +56,7 @@ class OntologyValidator private constructor(
      *
      * @param dataPath path to the data graph; a parse error fails loudly rather than silently passing.
      */
-    fun validate(dataPath: Path): ValidationOutcome =
-        validate(RDFDataMgr.loadModel(dataPath.toUri().toString()))
+    fun validate(dataPath: Path): ValidationOutcome = validate(RDFDataMgr.loadModel(dataPath.toUri().toString()))
 
     /** Validate an already-loaded model against the shapes. */
     fun validate(data: Model): ValidationOutcome {
@@ -67,29 +65,54 @@ class OntologyValidator private constructor(
     }
 
     private fun toOutcome(report: ValidationReport): ValidationOutcome {
-        val violations = report.entries
-            .filter { Severity.Violation == it.severity() }
-            .map { entry ->
-                Violation(
-                    message = entry.message()?.trim().orEmpty().ifEmpty { entry.toString() },
-                    focusNode = entry.focusNode()?.let { if (it.isURI) it.uri else it.toString() }.orEmpty(),
-                    path = entry.resultPath()?.toString(),
-                )
-            }
-            .distinctBy { it.message to it.focusNode }
+        val violations =
+            report.entries
+                .filter { Severity.Violation == it.severity() }
+                .map { entry ->
+                    Violation(
+                        message =
+                            entry
+                                .message()
+                                ?.trim()
+                                .orEmpty()
+                                .ifEmpty { entry.toString() },
+                        focusNode = entry.focusNode()?.let { if (it.isURI) it.uri else it.toString() }.orEmpty(),
+                        path = entry.resultPath()?.toString(),
+                    )
+                }.distinctBy { it.message to it.focusNode }
         return ValidationOutcome(report.conforms(), violations)
     }
 
     companion object {
+        /** Shape files that make up the gate: the schema mirror and the policy layer. */
+        val SHAPE_FILES =
+            listOf(
+                "mesta-investment-shacl.ttl",
+                "mesta-investment-policy-shacl.ttl",
+            )
+
+        /** OWL ontology file name. */
+        const val ONTOLOGY_FILE = "mesta-investment-owl.ttl"
+
+        /** Load the ontology and the standard shape set from an `ontology/` directory. */
+        fun loadDefault(ontologyDir: Path): OntologyValidator =
+            load(ontologyDir.resolve(ONTOLOGY_FILE), SHAPE_FILES.map(ontologyDir::resolve))
+
         /**
-         * Load the ontology and shapes graphs.
+         * Load the ontology and one or more shape graphs.
          *
-         * @throws org.apache.jena.riot.RiotException when either file is not valid Turtle,
+         * @throws org.apache.jena.riot.RiotException when any file is not valid Turtle,
          *   which is the RDF syntax check required by `AGENTS.md`.
          */
-        fun load(ontologyPath: Path, shapesPath: Path): OntologyValidator {
+        fun load(
+            ontologyPath: Path,
+            shapesPaths: List<Path>,
+        ): OntologyValidator {
             val ontology = RDFDataMgr.loadModel(ontologyPath.toUri().toString())
-            val shapesModel = RDFDataMgr.loadModel(shapesPath.toUri().toString())
+            val shapesModel = ModelFactory.createDefaultModel()
+            for (path in shapesPaths) {
+                shapesModel.read(path.toUri().toString())
+            }
             return OntologyValidator(ontology, Shapes.parse(shapesModel))
         }
     }

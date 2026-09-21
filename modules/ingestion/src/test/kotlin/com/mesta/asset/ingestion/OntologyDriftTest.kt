@@ -12,11 +12,11 @@ import kotlin.test.assertTrue
  * document type fails here rather than silently mislabelling documents in production.
  */
 class OntologyDriftTest {
-
-    private val ontology: String = File(
-        System.getProperty("ontology.file")
-            ?: error("ontology.file system property is not set"),
-    ).readText()
+    private val ontology: String =
+        File(
+            System.getProperty("ontology.file")
+                ?: error("ontology.file system property is not set"),
+        ).readText()
 
     @Test
     fun `document type enumeration matches the ontology`() {
@@ -43,8 +43,9 @@ class OntologyDriftTest {
     }
 
     private fun attributeValues(name: String): List<String> {
-        val declaration = Regex("""attribute\s+$name,\s+value\s+string\s+@values\(([^)]*)\)""")
-            .find(ontology)
+        val declaration =
+            Regex("""attribute\s+$name,\s+value\s+string\s+@values\(([^)]*)\)""")
+                .find(ontology)
 
         assertTrue(declaration != null, "attribute '$name' with @values not found in the ontology")
 

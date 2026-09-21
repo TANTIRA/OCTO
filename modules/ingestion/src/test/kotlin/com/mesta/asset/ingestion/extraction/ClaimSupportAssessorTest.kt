@@ -15,19 +15,20 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-private fun noulResult(probability: Double) = JudgmentResult(
-    model = "jev-1.13.0",
-    id = "gen-2",
-    provider = "TypeSafe",
-    answers = mapOf("claim_supported" to NoulAnswer(probability)),
-)
+private fun noulResult(probability: Double) =
+    JudgmentResult(
+        model = "jev-1.13.0",
+        id = "gen-2",
+        provider = "TypeSafe",
+        answers = mapOf("claim_supported" to NoulAnswer(probability)),
+    )
 
 class ClaimSupportAssessorTest {
-
-    private val state = ClassifiedState(
-        DataClassification.Internal,
-        "claim: revenue grew 40% in FY24 | passage: synthetic financial summary",
-    )
+    private val state =
+        ClassifiedState(
+            DataClassification.Internal,
+            "claim: revenue grew 40% in FY24 | passage: synthetic financial summary",
+        )
 
     @Test
     fun `a supported claim carries its probability`() {
@@ -49,9 +50,10 @@ class ClaimSupportAssessorTest {
 
     @Test
     fun `the support threshold is inclusive`() {
-        val atThreshold = ClaimSupportAssessor(
-            StubJudgmentClient(noulResult(ClaimSupportPolicy().supportThreshold)),
-        ).assess(state)
+        val atThreshold =
+            ClaimSupportAssessor(
+                StubJudgmentClient(noulResult(ClaimSupportPolicy().supportThreshold)),
+            ).assess(state)
         val below = ClaimSupportAssessor(StubJudgmentClient(noulResult(0.49))).assess(state)
 
         assertTrue(atThreshold.supported)
@@ -94,12 +96,13 @@ class ClaimSupportAssessorTest {
 
     @Test
     fun `rejects an answer of the wrong type`() {
-        val client = StubJudgmentClient(
-            JudgmentResult(
-                model = "jev-1.13.0",
-                answers = mapOf("claim_supported" to ChoiceAnswer("yes", mapOf("yes" to 1.0), 0.9)),
-            ),
-        )
+        val client =
+            StubJudgmentClient(
+                JudgmentResult(
+                    model = "jev-1.13.0",
+                    answers = mapOf("claim_supported" to ChoiceAnswer("yes", mapOf("yes" to 1.0), 0.9)),
+                ),
+            )
 
         assertFailsWith<UnexpectedAnswerException> {
             ClaimSupportAssessor(client).assess(state)
@@ -115,10 +118,11 @@ class ClaimSupportAssessorTest {
 
     @Test
     fun `a custom policy moves the decision boundary`() {
-        val strict = ClaimSupportAssessor(
-            StubJudgmentClient(noulResult(0.75)),
-            ClaimSupportPolicy(supportThreshold = 0.8, reviewBand = 0.05),
-        ).assess(state)
+        val strict =
+            ClaimSupportAssessor(
+                StubJudgmentClient(noulResult(0.75)),
+                ClaimSupportPolicy(supportThreshold = 0.8, reviewBand = 0.05),
+            ).assess(state)
 
         assertFalse(strict.supported)
     }

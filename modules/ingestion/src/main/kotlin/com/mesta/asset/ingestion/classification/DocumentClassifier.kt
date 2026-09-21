@@ -21,21 +21,22 @@ class DocumentClassifier(
         state: ClassifiedState,
         questionId: String = DEFAULT_QUESTION_ID,
     ): DocumentClassification {
-        val result = client.decide(
-            state,
-            mapOf(questionId to DocumentClassificationCriteria.question()),
-        )
+        val result =
+            client.decide(
+                state,
+                mapOf(questionId to DocumentClassificationCriteria.question()),
+            )
         val answer = result.choiceAnswer(questionId)
         val documentType = DocumentType.fromWireValue(answer.choice)
 
         return DocumentClassification(
             documentType = documentType ?: DocumentType.OTHER,
             confidence = answer.confidence,
-            probabilities = answer.probabilities
-                .mapNotNull { (option, probability) ->
-                    DocumentType.fromWireValue(option)?.let { it to probability }
-                }
-                .toMap(),
+            probabilities =
+                answer.probabilities
+                    .mapNotNull { (option, probability) ->
+                        DocumentType.fromWireValue(option)?.let { it to probability }
+                    }.toMap(),
             requiresReview = documentType == null || answer.confidence < minConfidence,
             lineage = result.lineage,
         )

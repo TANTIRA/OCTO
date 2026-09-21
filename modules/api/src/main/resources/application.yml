@@ -8,8 +8,15 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    user: ${DB_MIGRATION_USER}
-    password: ${DB_MIGRATION_PASSWORD}
+    # Pin the managed schema: DB_USER defaults to "mesta" and the V1 migration creates the mesta
+    # schema, so relying on the connection's current_schema would move flyway_schema_history
+    # between public (first boot) and mesta (later boots) and fail with a non-empty-schema error.
+    schemas: mesta
+    # Migrations run as a dedicated identity in every deployed environment:
+    # infra/docker-compose.yml always sets DB_MIGRATION_*. The fallback to the application role
+    # exists so a local run without a separate migration role works, and is never the production path.
+    user: ${DB_MIGRATION_USER:${DB_USER:mesta}}
+    password: ${DB_MIGRATION_PASSWORD:${DB_PASSWORD:}}
 
 management:
   endpoints:

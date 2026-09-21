@@ -5,7 +5,9 @@ import com.mesta.asset.controlpanel.judgment.JudgmentClient
 import com.mesta.asset.controlpanel.judgment.JudgmentQuestion
 import com.mesta.asset.controlpanel.judgment.JudgmentResult
 
-internal class StubJudgmentClient(private val result: JudgmentResult) : JudgmentClient {
+internal class StubJudgmentClient(
+    private val result: JudgmentResult,
+) : JudgmentClient {
     var lastState: ClassifiedState? = null
     var lastQuestions: Map<String, JudgmentQuestion> = emptyMap()
 
