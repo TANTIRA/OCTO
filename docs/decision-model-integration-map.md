@@ -1,0 +1,136 @@
+# Decision model — integration map
+
+Where the `typesafe/jev-1.13` decision model plugs into Mesta-Asset, mapped against the actual
+ontology types in `ontology/mesta-investment.tql`. Client implementation lives in
+`modules/control-panel/src/main/kotlin/com/mesta/asset/controlpanel/judgment/`.
+
+- **Model:** `typesafe/jev-1.13` via the OpenRouter decisions endpoint
+- **Risk tier:** T2 — models used for decisions. Preconditions listed at the end
+- **Status:** points 5 and 6 are implemented as decision logic; points 1, 8, 9, and 10 are not started. Nothing is persisted yet — the repository has no storage layer, so no decision reaches `document.document-type` or `extracted-claim.confidence-level`
+
+## How to read this
+
+Three properties of the model determine every mapping below:
+
+1. **It returns typed answers, not prose.** `noul` gives a probability, `choice` gives an option plus a full distribution, `score` gives a value plus a distribution. There is no generated text, so it can never fill a free-text field such as `rationale`.
+2. **Two stores, two kinds of decision record.** TypeDB owns entities, relationships, and provenance. PostgreSQL owns the ledger, workflow, and audit. A decision about an *entity* belongs in TypeDB; a decision about a *task* belongs in PostgreSQL.
+3. **The probability distribution is the point.** The selected option alone discards the information that makes the answer useful, so every integration point below has to decide where the distribution is stored.
+
+## Integration points
+
+| # | Module | Decision | Question | Ontology / store target | Human gate |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `deal-sourcing` | Screen an inbound deal against configured criteria | `choice` (5 options) | `screening-decision` + `screening-of` → `deal` | Decline and IC submission always human |
+| 2 | `deal-sourcing` | Does this material answer this criterion? | `noul` | Drives the evidence request, not a stored field | Evidence request raised, not auto-failed |
+| 3 | `deal-sourcing` | Does the submitted material support this DDQ answer? | `noul`, `score` | `extracted-claim` + `extraction-source` → `document` | Analyst reviews every suggestion |
+| 4 | `deal-sourcing` | Is this IC report claim supported by its citation? | `noul` | `extracted-claim.confidence-level` | Editor confirms before export |
+| 5 | `ingestion` | Classify an inbound document | `choice` (9 options) | `document.document-type` | Low risk; misrouting is correctable |
+| 6 | `ingestion` | Is this extracted claim supported by the quoted passage? | `noul` | `extracted-claim.confidence-level`, `extraction-source.confidence-level` | Feeds review queue, never auto-approves |
+| 7 | `ingestion` | Are these two records the same entity? | `noul` | `party.external-id`, `source-attribution` | Merge is human-approved |
+| 8 | `recon` | Classify a source-versus-IBOR break | `choice` | PostgreSQL recon records | Break disposition is human |
+| 9 | `control-panel` | Is this item material to this portfolio company? | `noul`, `score` | PostgreSQL alert records | Alert is a prompt to look, not an action |
+| 10 | `workflow` | Route or prioritise a task | `choice`, `score` | PostgreSQL workflow state | Routing only, no approval power |
+
+Points 8, 9, and 10 target PostgreSQL because workflow, alerting, and audit state live there per ADR-0001 — not because the ontology is missing something.
+
+## Exact type matches
+
+Three ontology definitions already match the model's answer shapes without modification.
+
+| Ontology | Values | Model equivalent |
+| --- | --- | --- |
+| `screening-result` | `pass`, `conditional`, `fail`, `unknown`, `conflicting` | A five-way `choice`; criteria map 1:1 to the options |
+| `document-type` | `pitch-deck`, `ddq`, `financials`, `icap-report`, `memo`, `legal`, `lp-report`, `tear-sheet`, `other` | A nine-way `choice`; the enum is the criteria map |
+| `confidence-level` | `double @range(0..1)` | The `confidence` field on choice and score answers, and the `noul` probability |
+
+Point 5 is the cleanest integration in the platform: an enum in the schema that is exactly the option set of a choice question, on a non-financial field, with a correctable failure mode.
+
+## Gaps that need an ontology change
+
+These are real blockers for the affected points, and ontology changes are T2 and CTO-owned.
+
+| Gap | Affects | Consequence |
+| --- | --- | --- |
+| No model-version attribute on `screening-decision` or `extracted-claim` | 1, 3, 4, 6, 7 | `criterion-version` records which *criteria* were used, not which *model* answered. The lineage requirement is unmet |
+| `screening-decision` has no `confidence-level` and no place for a distribution | 1 | The platform would store a verdict and discard the confidence that justifies treating it as `unknown` rather than `fail` |
+| No reconciliation-break type | 8 | Break records live only in PostgreSQL, so graph-versus-ledger reconciliation has no typed target |
+| No alert-rule or news-item type | 9 | Alert state is untyped relative to the ontology |
+| No identity-merge provenance type | 7 | `supersedes` exists for ledger corrections, not entity merges. A merge needs its own auditable record |
+| `rationale` cannot be model-written | 1 | The model produces no prose. Cited reasons for a recommendation must be assembled from the criteria and the underlying `extracted-claim` citations, not generated |
+
+The first two matter most. Without a model-version attribute, a screening decision cannot satisfy the requirement that model versions be recorded; without confidence storage, the rule that `unknown` never silently becomes `fail` has nothing to read.
+
+## Explicit exclusions
+
+| Excluded | Why |
+| --- | --- |
+| IBOR derivation, positions, commitments | Deterministic and reproducible from the append-only ledger |
+| IRR, TVPI, MOIC, DPI, valuation models | Probabilistic input to a reported figure is not auditable |
+| IC report drafting, LP emails, DDQ question generation | These need generated prose. A decision model returns typed values; generation belongs to the approved generative model |
+| Metric and model definition authoring | Definitions touching financial data are T2 and belong to human review |
+| Authorization and permission decisions | Deterministic RBAC/ABAC only |
+| Ontology and SHACL validation | Structural validation is deterministic and gates ingestion |
+
+The distinction worth holding onto: this model **judges**, it does not **write**. Point 4 is the clearest example — it verifies a claim someone else drafted rather than drafting one.
+
+## Placement
+
+```text
+document ──► extraction ──► extracted-claim (+ citation)
+                                  │
+                                  ▼
+                        decision model client
+                        (control-panel, allowlisted)
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+          screening-decision              claim confidence
+          (+ screening-of → deal)         (+ extraction-source)
+                    │                           │
+                    └─────────────┬─────────────┘
+                                  ▼
+                        human review queue
+                                  │
+                                  ▼
+                        workflow approval ──► outbound
+```
+
+Two rules carried from ADR-0001 and the AI architecture:
+
+- **Adapter isolation.** No module outside the client adapter depends on the OpenRouter or TypeSafe API shape. Swapping the provider must be an adapter change.
+- **The guard is not optional.** `decide()` requires a declared `DataClassification` and refuses Confidential and Strictly Confidential state before the transport is reached. Point 1 screens real deal materials, so this is load-bearing rather than ceremonial.
+
+## Suggested sequence
+
+Ordered by risk, not by value.
+
+| Order | Point | State | Why this order |
+| --- | --- | --- | --- |
+| 1 | 5 — document classification | Implemented | Exact enum match, non-financial field, correctable failure, no ontology change needed |
+| 2 | 6 — claim support | Implemented | Improves every downstream decision and enforces citation integrity. Uses existing `confidence-level` |
+| 3 | 1 — deal screening | Blocked | Highest value, but needs the model-version and confidence gaps closed first |
+| 4 | 8 — recon triage | Not started | T2, and needs a break type in the ontology |
+
+Where the first two live:
+
+| Point | Code |
+| --- | --- |
+| 5 | `modules/ingestion/.../classification/` — `DocumentType`, `DocumentClassificationCriteria`, `DocumentClassifier` |
+| 6 | `modules/ingestion/.../extraction/` — `ClaimSupportPolicy`, `ClaimSupportAssessor` |
+
+Both return a decision record with the model lineage and a `requiresReview` flag. Neither writes anywhere: the caller owns persistence, and no storage layer exists yet.
+
+
+## Preconditions
+
+- [ ] Approved-model registry entry: provider, version, residency, licence, per-feature cost limit
+- [ ] Eval set covering normal, edge, and prompt-injection cases, thresholds in one reviewable file
+- [ ] Security Blue Team review of OpenRouter as a processor — state transits OpenRouter and TypeSafe
+- [ ] Confirm whether Confidential state may be sent at all, or the feature runs synthetic-only
+- [ ] T2 plan agreed in a GitHub issue before any integration point is wired
+- [ ] Ontology change (T2, CTO) for model version and confidence storage before point 1
+
+## Notes
+
+- The model page at `https://openrouter.ai/typesafe/jev-1.13` returns 404 to automated fetches. Model facts were read from `https://openrouter.ai/api/v1/models/typesafe/jev-1.13/endpoints` instead.
+- The endpoint is `/api/v1/api/alpha/decisions` — note the doubled `api` segment and the alpha status.
