@@ -32,6 +32,7 @@ val coverageEnforcedModules = setOf(
     ":modules:ingestion",
     ":modules:lookthrough",
     ":modules:ontology",
+    ":modules:workflow",
 )
 
 subprojects {
