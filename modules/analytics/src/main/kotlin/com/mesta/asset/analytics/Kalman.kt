@@ -1,6 +1,8 @@
 package com.mesta.asset.analytics
 
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.ln
 import kotlin.math.sqrt
 
 /** Formula set every state-space result below is computed under (quantitative-methodology.md §9.3–9.4, §10.5). */
@@ -9,6 +11,7 @@ const val STATE_SPACE_METHODOLOGY = "quantitative-methodology §9.3–9.4 v1"
 /**
  * A linear Gaussian state-space model (§9.3): x_t = F x_{t−1} + w_t with w ~ N(0, Q), and y_t = H_t x_t + v_t with
  * v ~ N(0, R). F, Q and R are constant; the observation matrix H_t may change per step, as §9.4's regression needs.
+ * [control] is B in x_t = F x_{t−1} + B u_t + w_t; null when the system has no control input.
  */
 class KalmanModel(
     val transition: Array<DoubleArray>,
@@ -16,11 +19,16 @@ class KalmanModel(
     val measurementNoise: Array<DoubleArray>,
     val initialState: DoubleArray,
     val initialCovariance: Array<DoubleArray>,
+    val control: Array<DoubleArray>? = null,
 ) {
     init {
         val n = initialState.size
         require(n > 0) { "the state needs at least one dimension" }
         requireSquare("transition", transition, n)
+        require(
+            control == null || (control.size == n && control.all { it.isNotEmpty() && it.size == control[0].size }),
+        ) { "control must be $n×k" }
+        control?.let { requireFinite("control", it.flatMap { row -> row.toList() }) }
         requireCovariance("process noise", processNoise, n)
         requireCovariance("initial covariance", initialCovariance, n)
         requireCovariance("measurement noise", measurementNoise, measurementNoise.size)
@@ -30,7 +38,9 @@ class KalmanModel(
 
 /**
  * Filtered output, point in time: every value at step t uses observations up to t only, so it is valid as a live
- * signal (§9.1, §9.3). [innovations] and [innovationCovariances] are ỹ_t and S_t, the inputs to §9.6 diagnostics.
+ * signal (§9.1, §9.3). [innovations] and [innovationCovariances] are ỹ_t and S_t, [standardizedInnovations] are
+ * ỹ_t / √diag(S_t) (§9.4), and [logLikelihoods] are log p(y_t | y_{1:t−1}): the inputs to §9.6 diagnostics.
+ * All four are null at a step whose observation was missing (§10.7). [logLikelihood] sums the observed steps.
  */
 class KalmanFiltered(
     val model: KalmanModel,
@@ -38,10 +48,14 @@ class KalmanFiltered(
     val predictedCovariances: List<Array<DoubleArray>>,
     val states: List<DoubleArray>,
     val covariances: List<Array<DoubleArray>>,
-    val innovations: List<DoubleArray>,
-    val innovationCovariances: List<Array<DoubleArray>>,
+    val innovations: List<DoubleArray?>,
+    val innovationCovariances: List<Array<DoubleArray>?>,
+    val standardizedInnovations: List<DoubleArray?>,
+    val logLikelihoods: List<Double?>,
     val methodology: String = STATE_SPACE_METHODOLOGY,
-)
+) {
+    val logLikelihood: Double = logLikelihoods.filterNotNull().sum()
+}
 
 /** Rauch–Tung–Striebel output. It uses the whole sample, so it is for historical analysis only, never a live signal (§9.3). */
 class SmoothedHistoricalOnly(
@@ -50,13 +64,20 @@ class SmoothedHistoricalOnly(
     val methodology: String = STATE_SPACE_METHODOLOGY,
 )
 
-/** §9.3 predict and update for each observation, with the Joseph covariance update. H_t comes from [observationMatrix]. */
+/**
+ * §9.3 predict and update for each observation, with the Joseph covariance update. H_t comes from [observationMatrix].
+ * A null observation is missing (§10.7): that step predicts and skips the update. [controls] holds u_t per step and is
+ * required exactly when the model has a control matrix.
+ */
 fun kalmanFilter(
     model: KalmanModel,
-    observations: List<DoubleArray>,
+    observations: List<DoubleArray?>,
+    controls: List<DoubleArray>? = null,
     observationMatrix: (step: Int) -> Array<DoubleArray>,
 ): KalmanFiltered {
     require(observations.isNotEmpty()) { "at least one observation is required" }
+    require((controls != null) == (model.control != null)) { "controls are required exactly when the model has a control matrix" }
+    require(controls == null || controls.size == observations.size) { "one control input per observation" }
     val n = model.initialState.size
     val m = model.measurementNoise.size
     val f = model.transition
@@ -67,32 +88,68 @@ fun kalmanFilter(
     val predictedCovariances = mutableListOf<Array<DoubleArray>>()
     val states = mutableListOf<DoubleArray>()
     val covariances = mutableListOf<Array<DoubleArray>>()
-    val innovations = mutableListOf<DoubleArray>()
-    val innovationCovariances = mutableListOf<Array<DoubleArray>>()
+    val innovations = mutableListOf<DoubleArray?>()
+    val innovationCovariances = mutableListOf<Array<DoubleArray>?>()
+    val standardized = mutableListOf<DoubleArray?>()
+    val logLikelihoods = mutableListOf<Double?>()
     for ((t, y) in observations.withIndex()) {
+        var xPredicted = f * x
+        if (model.control != null) {
+            val u = controls!![t]
+            require(u.size == model.control[0].size) { "control input $t has ${u.size} values, not ${model.control[0].size}" }
+            requireFinite("control input $t", u.toList())
+            xPredicted = DoubleArray(n) { i -> xPredicted[i] + (model.control * u)[i] }
+        }
+        val pPredicted = f * p * f.transpose() + model.processNoise
+        predictedStates += xPredicted
+        predictedCovariances += pPredicted
+
+        if (y == null) {
+            x = xPredicted
+            p = pPredicted
+            states += x
+            covariances += p
+            innovations += null
+            innovationCovariances += null
+            standardized += null
+            logLikelihoods += null
+            continue
+        }
         require(y.size == m) { "observation $t has ${y.size} values, not $m" }
         requireFinite("observation $t", y.toList())
         val h = observationMatrix(t)
         require(h.size == m && h.all { it.size == n }) { "H at step $t must be $m×$n" }
         requireFinite("H at step $t", h.flatMap { it.toList() })
 
-        val xPredicted = f * x
-        val pPredicted = f * p * f.transpose() + model.processNoise
         val innovation = DoubleArray(m) { i -> y[i] - (h * xPredicted)[i] }
         val s = h * pPredicted * h.transpose() + model.measurementNoise
-        val gain = pPredicted * h.transpose() * inverseSpd(s, "innovation covariance at step $t")
+        val l = choleskyLower(s, "innovation covariance at step $t")
+        val gain = pPredicted * h.transpose() * inverseFromCholesky(l)
         x = DoubleArray(n) { i -> xPredicted[i] + (gain * innovation)[i] }
         val a = identity - gain * h
         p = symmetrised(a * pPredicted * a.transpose() + gain * model.measurementNoise * gain.transpose())
+        // log p(y_t | y_{1:t−1}) = −½ (m ln 2π + ln det S + ỹᵀ S⁻¹ ỹ), with ỹᵀ S⁻¹ ỹ = ‖L⁻¹ ỹ‖².
+        val whitened = forwardSubstitute(l, innovation)
+        val mahalanobis = whitened.sumOf { it * it }
 
-        predictedStates += xPredicted
-        predictedCovariances += pPredicted
         states += x
         covariances += p
         innovations += innovation
         innovationCovariances += s
+        standardized += DoubleArray(m) { i -> innovation[i] / sqrt(s[i][i]) }
+        logLikelihoods += -0.5 * (m * ln(2 * PI) + 2 * l.indices.sumOf { ln(l[it][it]) } + mahalanobis)
     }
-    return KalmanFiltered(model, predictedStates, predictedCovariances, states, covariances, innovations, innovationCovariances)
+    return KalmanFiltered(
+        model,
+        predictedStates,
+        predictedCovariances,
+        states,
+        covariances,
+        innovations,
+        innovationCovariances,
+        standardized,
+        logLikelihoods,
+    )
 }
 
 /** §9.3 backward pass: J_t = P_{t|t} Fᵀ P_{t+1|t}⁻¹, x̂_{t|T} = x̂_{t|t} + J_t (x̂_{t+1|T} − x̂_{t+1|t}). */
@@ -147,12 +204,8 @@ fun dynamicRegression(
     return DynamicRegression(
         alphas = filtered.states.map { it[0] },
         betas = filtered.states.map { it[1] },
-        residuals = filtered.innovations.map { it[0] },
-        standardizedResiduals =
-            filtered.innovations.indices.map {
-                filtered.innovations[it][0] /
-                    sqrt(filtered.innovationCovariances[it][0][0])
-            },
+        residuals = filtered.innovations.map { it!![0] },
+        standardizedResiduals = filtered.standardizedInnovations.map { it!![0] },
     )
 }
 
@@ -180,6 +233,12 @@ private fun requireCovariance(
 private fun inverseSpd(
     a: Array<DoubleArray>,
     name: String,
+) = inverseFromCholesky(choleskyLower(a, name))
+
+/** Lower-triangular L with L Lᵀ = [a]; fails if [a] is not positive definite. */
+private fun choleskyLower(
+    a: Array<DoubleArray>,
+    name: String,
 ): Array<DoubleArray> {
     val n = a.size
     val l = Array(n) { DoubleArray(n) }
@@ -194,11 +253,25 @@ private fun inverseSpd(
             }
         }
     }
-    // Solve L Lᵀ X = I one column at a time.
+    return l
+}
+
+/** Solves L z = [b] for lower-triangular L. */
+private fun forwardSubstitute(
+    l: Array<DoubleArray>,
+    b: DoubleArray,
+): DoubleArray {
+    val z = DoubleArray(l.size)
+    for (i in l.indices) z[i] = (b[i] - (0 until i).sumOf { l[i][it] * z[it] }) / l[i][i]
+    return z
+}
+
+/** Solves L Lᵀ X = I one column at a time. */
+private fun inverseFromCholesky(l: Array<DoubleArray>): Array<DoubleArray> {
+    val n = l.size
     return Array(n) { DoubleArray(n) }.also { inverse ->
         for (c in 0 until n) {
-            val z = DoubleArray(n)
-            for (i in 0 until n) z[i] = ((if (i == c) 1.0 else 0.0) - (0 until i).sumOf { l[i][it] * z[it] }) / l[i][i]
+            val z = forwardSubstitute(l, DoubleArray(n) { if (it == c) 1.0 else 0.0 })
             for (i in n - 1 downTo 0) inverse[i][c] = (z[i] - (i + 1 until n).sumOf { l[it][i] * inverse[it][c] }) / l[i][i]
         }
     }
