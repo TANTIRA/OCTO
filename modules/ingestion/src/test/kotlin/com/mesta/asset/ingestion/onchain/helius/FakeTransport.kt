@@ -23,8 +23,11 @@ class FakeTransport(
         publisher.subscribe(
             object : java.util.concurrent.Flow.Subscriber<java.nio.ByteBuffer> {
                 override fun onSubscribe(s: java.util.concurrent.Flow.Subscription) = s.request(Long.MAX_VALUE)
+
                 override fun onNext(item: java.nio.ByteBuffer) = bytes.writeBytes(item.array())
+
                 override fun onError(t: Throwable) {}
+
                 override fun onComplete() {}
             },
         )
@@ -34,5 +37,7 @@ class FakeTransport(
 
 fun okJson(body: String): TransportResponse = TransportResponse(200, emptyMap(), body)
 
-fun statusOf(code: Int, retryAfterSeconds: Int? = null): TransportResponse =
-    TransportResponse(code, retryAfterSeconds?.let { mapOf("Retry-After" to listOf(it.toString())) }.orEmpty(), "")
+fun statusOf(
+    code: Int,
+    retryAfterSeconds: Int? = null,
+): TransportResponse = TransportResponse(code, retryAfterSeconds?.let { mapOf("Retry-After" to listOf(it.toString())) }.orEmpty(), "")
