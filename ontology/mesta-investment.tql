@@ -165,6 +165,7 @@ define
 
   entity valuation-event,
     owns monetary-amount,
+    owns external-id @card(0..),
     owns currency-code,
     owns as-of-date,
     owns valuation-method,
@@ -236,12 +237,14 @@ define
     relates vehicle @card(1),
     owns effective-date;
 
+  # A commitment is also a valuation subject: the LP capital-account NAV (issue #21).
   relation commitment,
     relates investor @card(1),
     relates vehicle @card(1),
     owns committed-amount,
     owns currency-code,
-    owns effective-date;
+    owns effective-date,
+    plays valuation-of:subject-side;
 
   relation deal-subject,
     relates deal-side @card(1),

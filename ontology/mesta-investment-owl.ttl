@@ -13,7 +13,7 @@ Modelling notes:
 - Role properties carry rdfs:range only. rdfs:domain is omitted because TypeQL role names are reused across relations (vehicle, deal-side, company-side) and a single domain would be wrong. The relation -> role structure lives in mesta-investment-shacl.ttl.
 - Role properties with more than one player type carry no rdfs:range (supersedes: replacement/original; source-attribution: data-side).
 - Datatype properties carry rdfs:range only: TypeQL attributes are shared across types and owned per type, so ownership is enforced by SHACL shapes, not by OWL domains."""@en ;
-    owl:versionIRI <https://mesta.asset/ontology/investment/0.1.0> .
+    owl:versionIRI <https://mesta.asset/ontology/investment/0.2.0> .
 
 # ---------------------------------------------------------------------------
 # Entity classes
