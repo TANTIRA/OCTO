@@ -16,7 +16,7 @@ data class DecisionModelConfig(
         "DecisionModelConfig(endpoint=$endpoint, model=$model, apiKey=redacted, allowFallbacks=$allowFallbacks)"
 
     companion object {
-        const val DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1/api/alpha/decisions"
+        const val DEFAULT_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
         const val DEFAULT_MODEL = "typesafe/jev-1.13"
 
         fun fromEnvironment(env: (String) -> String? = System::getenv): DecisionModelConfig {

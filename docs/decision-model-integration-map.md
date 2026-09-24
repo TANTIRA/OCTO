@@ -133,4 +133,4 @@ Both return a decision record with the model lineage and a `requiresReview` flag
 ## Notes
 
 - The model page at `https://openrouter.ai/typesafe/jev-1.13` returns 404 to automated fetches. Model facts were read from `https://openrouter.ai/api/v1/models/typesafe/jev-1.13/endpoints` instead.
-- The endpoint is `/api/v1/api/alpha/decisions` — note the doubled `api` segment and the alpha status.
+- The endpoint is `/api/alpha/decisions`, alpha status. An earlier default with a doubled `api` segment returned 404 (#70).
