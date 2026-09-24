@@ -43,16 +43,25 @@ data class LedgerEvent(
 fun currentEvents(
     ledger: List<LedgerEvent>,
     knownAt: Instant,
-): List<LedgerEvent> {
-    val known = ledger.filter { !it.recordedAt.isAfter(knownAt) }
-    val ids = ledger.mapTo(HashSet()) { it.id }
+): List<LedgerEvent> = resolveCurrent(ledger, knownAt, LedgerEvent::id, LedgerEvent::supersedesId, LedgerEvent::recordedAt)
+
+/** Shared supersession rules for every append-only fact table: bi-temporal cut, chains, no forks. */
+internal fun <T> resolveCurrent(
+    rows: List<T>,
+    knownAt: Instant,
+    id: (T) -> UUID,
+    supersedesId: (T) -> UUID?,
+    recordedAt: (T) -> Instant,
+): List<T> {
+    val known = rows.filter { !recordedAt(it).isAfter(knownAt) }
+    val ids = rows.mapTo(HashSet(), id)
     val superseded = HashSet<UUID>()
-    for (event in known) {
-        val target = event.supersedesId ?: continue
-        check(target in ids) { "event ${event.id} supersedes $target, which is not in the ledger" }
-        check(superseded.add(target)) { "event $target is superseded more than once" }
+    for (row in known) {
+        val target = supersedesId(row) ?: continue
+        check(target in ids) { "${id(row)} supersedes $target, which is not loaded" }
+        check(superseded.add(target)) { "$target is superseded more than once" }
     }
-    return known.filter { it.id !in superseded }
+    return known.filter { id(it) !in superseded }
 }
 
 /**
@@ -75,7 +84,7 @@ data class CommitmentPosition(
 /**
  * Derives the position of one commitment. Attribution lives in TypeDB (ADR-0003), so the caller
  * passes the ids of the events attributed to the commitment as [members]. Supersession is resolved
- * over the whole ledger first, so a correction that moves an event elsewhere removes it here.
+ * over [ledger] first, so a correction that moves an event elsewhere removes it here.
  */
 fun commitmentPosition(
     ledger: List<LedgerEvent>,
@@ -83,7 +92,6 @@ fun commitmentPosition(
     knownAt: Instant,
     zone: ZoneId,
 ): CommitmentPosition {
-    // ponytail: holds the full ledger in memory; the JDBC reader (slice 4b) should fetch only the supersession closure.
     val events = currentEvents(ledger, knownAt).filter { it.id in members }
     require(events.isNotEmpty()) { "no current ledger events for this commitment" }
     val currency = events.map { it.currency }.distinct().singleOrNull()
