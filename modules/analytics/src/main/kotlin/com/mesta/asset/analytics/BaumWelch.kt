@@ -56,6 +56,8 @@ fun baumWelch(
             }
         val regimes =
             (0 until k).map { i ->
+                // No posterior weight means no data to estimate from: keep the regime, as the transition row does.
+                if (occupancy[i] <= 0) return@map model.regimes[i]
                 val mean = observations.indices.sumOf { gamma[it][i] * y[it] } / occupancy[i]
                 val variance = observations.indices.sumOf { gamma[it][i] * (y[it] - mean) * (y[it] - mean) } / occupancy[i]
                 GaussianRegime(model.regimes[i].name, mean, max(sqrt(variance), minimumSigma))
