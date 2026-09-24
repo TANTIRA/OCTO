@@ -1,9 +1,11 @@
 package com.mesta.asset.ingestion.onchain.persistence
 
 import com.mesta.asset.ingestion.onchain.ONCHAIN_SOURCE_SYSTEM
+import com.mesta.asset.ingestion.onchain.OnchainBalance
 import com.mesta.asset.ingestion.onchain.OnchainStagingStore
 import com.mesta.asset.ingestion.onchain.OnchainTransfer
 import com.mesta.asset.ingestion.onchain.WatchSource
+import java.math.BigDecimal
 import java.sql.Timestamp
 import java.util.UUID
 import javax.sql.DataSource
@@ -116,4 +118,50 @@ class JdbcOnchainStagingStore(
             }
         }
     }
+
+    override fun insertSnapshots(
+        balances: List<OnchainBalance>,
+        ingestionRunId: UUID,
+        correlationId: UUID,
+        actor: String,
+    ): Int {
+        if (balances.isEmpty()) return 0
+        val sql =
+            """
+            insert into mesta.onchain_balance_snapshot
+                (external_id, as_of, chain, wallet, token_account, mint_address,
+                 amount_raw, decimals, usd_value, source, slot,
+                 source_system, actor, ingestion_run_id, correlation_id)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            on conflict (source_system, external_id) do nothing
+            """.trimIndent()
+        return dataSource.connection.use { c ->
+            c.prepareStatement(sql).use { s ->
+                for (b in balances) {
+                    s.setString(1, snapshotExternalId(b))
+                    s.setTimestamp(2, Timestamp.from(b.asOf))
+                    s.setString(3, b.chain)
+                    s.setString(4, b.wallet)
+                    s.setString(5, b.tokenAccount)
+                    s.setString(6, b.mintAddress)
+                    s.setBigDecimal(7, b.amountRaw.toBigDecimal())
+                    s.setInt(8, b.decimals)
+                    s.setBigDecimal(9, b.usdValue?.let(BigDecimal::valueOf))
+                    s.setString(10, b.source.db)
+                    s.setObject(11, b.slot)
+                    s.setString(12, ONCHAIN_SOURCE_SYSTEM)
+                    s.setString(13, actor)
+                    s.setObject(14, ingestionRunId)
+                    s.setObject(15, correlationId)
+                    s.addBatch()
+                }
+                s.executeBatch().count { it > 0 }
+            }
+        }
+    }
+
+    // The observation's identity: an identical report in the same second is the same fact;
+    // a different amount or a second source is a different observation worth keeping.
+    private fun snapshotExternalId(b: OnchainBalance): String =
+        "${b.chain}:${b.wallet}:${b.mintAddress ?: "native"}:balance:${b.source.db}:${b.asOf.epochSecond}:${b.amountRaw}"
 }

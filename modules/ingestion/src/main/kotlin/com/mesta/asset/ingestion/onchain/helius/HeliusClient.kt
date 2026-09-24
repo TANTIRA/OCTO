@@ -56,7 +56,11 @@ interface HeliusRpcApi {
  * reconciliation snapshots and fast history backfill.
  */
 interface HeliusWalletApi {
-    fun balances(address: String): JsonNode
+    /** `/balances` — paginated manually; `pagination.hasMore` in the response drives [page]. */
+    fun balances(
+        address: String,
+        page: Int = 1,
+    ): JsonNode
 
     fun transfers(
         address: String,
