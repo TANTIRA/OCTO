@@ -3,7 +3,6 @@ plugins {
     alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dep.mgmt)
-    alias(libs.plugins.flyway)
 }
 
 dependencies {
@@ -44,27 +43,7 @@ tasks.processResources {
     }
 }
 
-val dbHost = System.getenv("DB_HOST") ?: "localhost"
-val dbPort = System.getenv("DB_PORT") ?: "5432"
-val dbName = System.getenv("DB_NAME") ?: "postgres"
-
-flyway {
-    url = "jdbc:postgresql://$dbHost:$dbPort/$dbName"
-    user = System.getenv("DB_MIGRATION_USER") ?: ""
-    password = System.getenv("DB_MIGRATION_PASSWORD") ?: ""
-    locations = arrayOf("filesystem:${rootProject.file("db/migrations")}")
-    // V3 grants the runtime role; mirrors spring.flyway.placeholders.runtime_role in application.yml.
-    placeholders = mapOf("runtime_role" to (System.getenv("DB_USER") ?: ""))
-}
-
-tasks.named("flywayMigrate") {
-    doFirst {
-        require(!System.getenv("DB_USER").isNullOrBlank()) { "DB_USER is required: V3 grants it runtime access" }
-        require(!System.getenv("DB_MIGRATION_USER").isNullOrBlank()) { "DB_MIGRATION_USER is required" }
-        require(!System.getenv("DB_MIGRATION_PASSWORD").isNullOrBlank()) { "DB_MIGRATION_PASSWORD is required" }
-    }
-}
-
-tasks.named("flywayClean") {
-    enabled = false
-}
+// No Flyway Gradle plugin: 11.7.2 calls JavaPluginConvention, which Gradle 9 removed, so every
+// flyway* task fails before it can run. Migrations execute at application boot through Spring
+// Boot Flyway (application.yml); for an ad-hoc run use the `flyway` CLI against db/migrations
+// with the DB_MIGRATION_* credentials and -placeholders.runtime_role=$DB_USER.
