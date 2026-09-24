@@ -15,7 +15,8 @@ import org.springframework.security.web.SecurityFilterChain
  *
  * The service is a stateless resource server: requests are authenticated by bearer JWTs verified
  * against the issuer's JWKS (`AUTH_JWKS_URL`), with issuer validation when `AUTH_ISSUER` is set.
- * Actuator health/info stay public so liveness probes and the compose healthcheck keep working.
+ * Actuator health (including the liveness and readiness probes) and info stay public so probes and the
+ * compose healthcheck keep working; metrics and prometheus need a bearer token like everything else.
  *
  * When no JWKS URL is configured the chain still requires authentication on every endpoint —
  * there is no unauthenticated fallback, so a misconfigured environment fails closed.
@@ -33,7 +34,7 @@ class SecurityConfig {
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
                 it
-                    .requestMatchers("/actuator/health", "/actuator/info")
+                    .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
                     .permitAll()
                     .anyRequest()
                     .authenticated()

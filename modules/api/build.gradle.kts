@@ -19,6 +19,8 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.actuator)
+    // Prometheus scrape endpoint for docs/reliability.md; Apache-2.0, version from the Boot BOM.
+    runtimeOnly(libs.micrometer.prometheus)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.security)
     implementation(libs.spring.boot.starter.oauth2.rs)
