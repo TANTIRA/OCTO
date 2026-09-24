@@ -80,6 +80,24 @@ fun performance(series: CashFlowSeries): PerformanceReport {
 }
 
 /**
+ * Methodology §10.4: portfolio metrics come from the funds' pooled cash flows, never from averaging
+ * fund results. Flows are concatenated, not netted by date, so paid-in and distributions stay gross.
+ * Series must share one currency (§10.3) and one valuation date: NAVs from different dates don't add.
+ */
+fun pool(series: List<CashFlowSeries>): CashFlowSeries {
+    require(series.isNotEmpty()) { "nothing to pool" }
+    val first = series.first()
+    require(series.all { it.currency == first.currency }) { "pooling across currencies needs an FX source (§10.3)" }
+    require(series.all { it.valuationDate == first.valuationDate }) { "pooled series must share one valuation date" }
+    return CashFlowSeries(
+        currency = first.currency,
+        flows = series.flatMap { it.flows }.sortedBy { it.date },
+        nav = series.sumOf { it.nav },
+        valuationDate = first.valuationDate,
+    )
+}
+
+/**
  * XIRR with an actual/365 year fraction (methodology §2.1).
  *
  * Returns null when the NPV curve does not cross zero exactly once over (-99%, +10,000%). A pattern
