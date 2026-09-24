@@ -3,6 +3,7 @@ package com.mesta.asset.analytics
 import java.time.LocalDate
 import kotlin.math.sqrt
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
@@ -136,6 +137,26 @@ class FactorTest {
         assertFailsWith<IllegalArgumentException> { declared(valid.dropLast(1) + valid.last().copy(factors = mapOf("SMB" to 0.0))) }
         assertFailsWith<IllegalArgumentException> { declared(valid.map { it.copy(factors = emptyMap()) }) }
         assertFailsWith<IllegalArgumentException> { StandardErrors.NeweyWest(-1) }
+        assertContains(assertFailsWith<IllegalArgumentException> { declared(emptyList()) }.message.orEmpty(), "observation")
+    }
+
+    @Test
+    fun `non-finite values are rejected with a message about the value`() {
+        val valid = observations(NOISY, "MKT-RF" to MARKET)
+        val declared = { obs: List<FactorObservation> -> factorModel(obs, "monthly", "synthetic-market", StandardErrors.Hc1) }
+        val badReturn = valid.mapIndexed { t, o -> if (t == 3) o.copy(excessReturn = Double.NaN) else o }
+        val badFactor = valid.mapIndexed { t, o -> if (t == 3) o.copy(factors = mapOf("MKT-RF" to Double.POSITIVE_INFINITY)) else o }
+
+        // #37: a NaN return gave a model of NaNs, and a bad factor value was reported as collinearity.
+        assertContains(assertFailsWith<IllegalArgumentException> { declared(badReturn) }.message.orEmpty(), "finite")
+        assertContains(assertFailsWith<IllegalArgumentException> { declared(badFactor) }.message.orEmpty(), "finite")
+    }
+
+    @Test
+    fun `newey-west lags must be fewer than the observations`() {
+        // #37: 50 lags on 10 observations were silently capped at 9.
+        assertFailsWith<IllegalArgumentException> { capm(NOISY, StandardErrors.NeweyWest(10)) }
+        assertEquals(10, capm(NOISY, StandardErrors.NeweyWest(9)).observations)
     }
 
     @Test
