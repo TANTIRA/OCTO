@@ -22,7 +22,10 @@ class HeliusRpcClient(
     private val transport: HttpTransport =
         HttpTransport { req ->
             val res =
-                HttpClient.newBuilder().connectTimeout(TIMEOUT).build()
+                HttpClient
+                    .newBuilder()
+                    .connectTimeout(TIMEOUT)
+                    .build()
                     .send(req, HttpResponse.BodyHandlers.ofString())
             TransportResponse(res.statusCode(), res.headers().map(), res.body())
         },
@@ -30,24 +33,26 @@ class HeliusRpcClient(
     private val sleeper: (Duration) -> Unit = { Thread.sleep(it) },
     private val mapper: ObjectMapper = ObjectMapper(),
 ) : HeliusRpcApi {
-
     private val ids = AtomicLong()
 
     override fun signaturesForAddress(
         address: String,
         limit: Int,
         before: String?,
+        until: String?,
     ): JsonNode {
         val params = mapper.createObjectNode()
         params.put("limit", limit)
         params.put("commitment", "finalized")
         if (before != null) params.put("before", before)
+        if (until != null) params.put("until", until)
         return rpc("getSignaturesForAddress", mapper.createArrayNode().add(address).add(params))
     }
 
     override fun transaction(signature: String): JsonNode? {
         val params =
-            mapper.createObjectNode()
+            mapper
+                .createObjectNode()
                 .put("encoding", "jsonParsed")
                 .put("maxSupportedTransactionVersion", 0)
                 .put("commitment", "finalized")
@@ -64,7 +69,14 @@ class HeliusRpcClient(
     override fun tokenAccountsByOwner(address: String): JsonNode {
         val owner = mapper.createObjectNode().put("programId", SPL_TOKEN_PROGRAM_ID)
         val cfg = mapper.createObjectNode().put("encoding", "jsonParsed").put("commitment", "finalized")
-        return rpc("getTokenAccountsByOwner", mapper.createArrayNode().add(address).add(owner).add(cfg))
+        return rpc(
+            "getTokenAccountsByOwner",
+            mapper
+                .createArrayNode()
+                .add(address)
+                .add(owner)
+                .add(cfg),
+        )
     }
 
     private fun rpc(
@@ -72,13 +84,15 @@ class HeliusRpcClient(
         params: JsonNode,
     ): JsonNode {
         val body =
-            mapper.createObjectNode()
+            mapper
+                .createObjectNode()
                 .put("jsonrpc", "2.0")
                 .put("id", ids.incrementAndGet())
                 .put("method", method)
                 .set<JsonNode>("params", params)
         val request =
-            HttpRequest.newBuilder(URI.create("${config.rpcBaseUrl}/?api-key=${config.apiKey}"))
+            HttpRequest
+                .newBuilder(URI.create("${config.rpcBaseUrl}/?api-key=${config.apiKey}"))
                 .timeout(TIMEOUT)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))

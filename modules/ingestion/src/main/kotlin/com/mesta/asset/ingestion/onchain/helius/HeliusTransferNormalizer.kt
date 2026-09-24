@@ -22,7 +22,6 @@ import java.time.Instant
  * normalized by poller or webhook produces the same ids.
  */
 class HeliusTransferNormalizer {
-
     fun normalize(
         tx: JsonNode,
         wallet: String,
@@ -35,8 +34,13 @@ class HeliusTransferNormalizer {
 
         val signature = transaction.path("signatures").path(0).asText()
         val blockTime = Instant.ofEpochSecond(tx.path("blockTime").asLong())
-        val blockHash = tx.path("blockHash").asText().ifEmpty { null }
-            ?: transaction.path("message").path("recentBlockhash").asText().ifEmpty { null }
+        val blockHash =
+            tx.path("blockHash").asText().ifEmpty { null }
+                ?: transaction
+                    .path("message")
+                    .path("recentBlockhash")
+                    .asText()
+                    .ifEmpty { null }
         val slot = tx.path("slot").asLong()
 
         val legs = mutableListOf<OnchainTransfer>()
@@ -45,16 +49,28 @@ class HeliusTransferNormalizer {
         val pre = meta.path("preBalances")
         val post = meta.path("postBalances")
         for (i in 0 until maxOf(pre.size(), post.size())) {
-            val account = keys.path(i).path("pubkey").asText().ifEmpty { keys.path(i).asText() }
+            val account =
+                keys
+                    .path(i)
+                    .path("pubkey")
+                    .asText()
+                    .ifEmpty { keys.path(i).asText() }
             if (account != wallet) continue
             val delta = lamports(post, i) - lamports(pre, i)
             if (delta == BigInteger.ZERO) continue
             legs +=
                 transfer(
                     externalId = "$CHAIN_SOLANA:$signature:$account:bal:$i",
-                    signature = signature, slot = slot, blockHash = blockHash, blockTime = blockTime,
-                    wallet = wallet, counterparty = null, tokenAccount = null, mintAddress = null,
-                    amountRaw = delta.abs(), decimals = SOL_DECIMALS,
+                    signature = signature,
+                    slot = slot,
+                    blockHash = blockHash,
+                    blockTime = blockTime,
+                    wallet = wallet,
+                    counterparty = null,
+                    tokenAccount = null,
+                    mintAddress = null,
+                    amountRaw = delta.abs(),
+                    decimals = SOL_DECIMALS,
                     direction = if (delta.signum() > 0) TransferDirection.IN else TransferDirection.OUT,
                     kind = if (delta.signum() > 0) TransferKind.TRANSFER_IN else TransferKind.TRANSFER_OUT,
                 )
@@ -73,14 +89,25 @@ class HeliusTransferNormalizer {
             val delta = amountAfter - amountBefore
             if (delta == BigInteger.ZERO) continue
             val accountIndex = (after ?: before)!!.path("accountIndex").asInt()
-            val account = keys.path(accountIndex).path("pubkey").asText().ifEmpty { keys.path(accountIndex).asText() }
+            val account =
+                keys
+                    .path(accountIndex)
+                    .path("pubkey")
+                    .asText()
+                    .ifEmpty { keys.path(accountIndex).asText() }
             legs +=
                 transfer(
                     externalId = "$CHAIN_SOLANA:$signature:$account:tok:$accountIndex",
-                    signature = signature, slot = slot, blockHash = blockHash, blockTime = blockTime,
-                    wallet = wallet, counterparty = null, tokenAccount = account,
+                    signature = signature,
+                    slot = slot,
+                    blockHash = blockHash,
+                    blockTime = blockTime,
+                    wallet = wallet,
+                    counterparty = null,
+                    tokenAccount = account,
                     mintAddress = (after ?: before)!!.path("mint").asText(),
-                    amountRaw = delta.abs(), decimals = (after ?: before)!!.decimals(),
+                    amountRaw = delta.abs(),
+                    decimals = (after ?: before)!!.decimals(),
                     direction = if (delta.signum() > 0) TransferDirection.IN else TransferDirection.OUT,
                     kind = if (delta.signum() > 0) TransferKind.TRANSFER_IN else TransferKind.TRANSFER_OUT,
                 )
@@ -96,8 +123,10 @@ class HeliusTransferNormalizer {
             emptyMap()
         }
 
-    private fun lamports(balances: JsonNode, index: Int): BigInteger =
-        balances.path(index).takeIf { it.isNumber }?.bigIntegerValue() ?: BigInteger.ZERO
+    private fun lamports(
+        balances: JsonNode,
+        index: Int,
+    ): BigInteger = balances.path(index).takeIf { it.isNumber }?.bigIntegerValue() ?: BigInteger.ZERO
 
     private fun JsonNode.amountRaw(): BigInteger =
         path("uiTokenAmount").path("amount").takeIf { it.isTextual }?.let { BigInteger(it.asText()) } ?: BigInteger.ZERO
@@ -119,10 +148,19 @@ class HeliusTransferNormalizer {
         direction: TransferDirection,
         kind: TransferKind,
     ) = OnchainTransfer(
-        externalId = externalId, signature = signature, slot = slot, blockHash = blockHash,
-        blockTime = blockTime, wallet = wallet, counterparty = counterparty,
-        tokenAccount = tokenAccount, mintAddress = mintAddress, amountRaw = amountRaw,
-        decimals = decimals, direction = direction, transferKind = kind,
+        externalId = externalId,
+        signature = signature,
+        slot = slot,
+        blockHash = blockHash,
+        blockTime = blockTime,
+        wallet = wallet,
+        counterparty = counterparty,
+        tokenAccount = tokenAccount,
+        mintAddress = mintAddress,
+        amountRaw = amountRaw,
+        decimals = decimals,
+        direction = direction,
+        transferKind = kind,
     )
 
     companion object {

@@ -24,7 +24,11 @@ class HeliusWalletClientTest {
     fun `balances hits the wallet path with the api key`() {
         val transport = FakeTransport(okJson("""{"nativeBalance":5,"tokens":[]}"""))
         val result = client(transport).balances("walletX")
-        val uri = transport.requests.single().uri().toString()
+        val uri =
+            transport.requests
+                .single()
+                .uri()
+                .toString()
         assertTrue(uri.startsWith("https://api-devnet.helius.xyz/v1/wallet/walletX/balances"))
         assertTrue(uri.contains("api-key=test-key"))
         assertEquals(5, result["nativeBalance"].asInt())
@@ -34,7 +38,11 @@ class HeliusWalletClientTest {
     fun `transfers pages with limit and before`() {
         val transport = FakeTransport(okJson("""{"data":[]}"""))
         client(transport).transfers("walletX", limit = 50, before = "sig9")
-        val uri = transport.requests.single().uri().toString()
+        val uri =
+            transport.requests
+                .single()
+                .uri()
+                .toString()
         assertTrue(uri.contains("limit=50"))
         assertTrue(uri.contains("before=sig9"))
     }
