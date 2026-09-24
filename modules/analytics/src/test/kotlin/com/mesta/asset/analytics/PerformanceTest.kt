@@ -134,4 +134,46 @@ class PerformanceTest {
         assertDecimal("0.75", status.drawdownRate)
         assertDecimal("0.4", status.distributionRate)
     }
+
+    private fun seriesOf(
+        vararg flows: CashFlow,
+        nav: String,
+    ) = CashFlowSeries(USD, flows.toList(), BigDecimal(nav), LocalDate.parse("2022-01-01"))
+
+    @Test
+    fun `pooled tvpi comes from pooled cash flows, not the mean of fund tvpis`() {
+        val a = seriesOf(flow("2020-01-01", "-100"), nav = "200") // TVPI 2.0
+        val b = seriesOf(flow("2020-01-01", "-300"), nav = "300") // TVPI 1.0
+
+        assertDecimal("1.25", performance(pool(listOf(a, b))).tvpi) // 500 / 400, not 1.5
+    }
+
+    @Test
+    fun `pooled irr is the irr of the combined flows, not the mean of fund irrs`() {
+        val a = seriesOf(flow("2020-01-01", "-100"), nav = "121") // about 10% a year over two years
+        val b = seriesOf(flow("2021-01-01", "-100"), nav = "150") // 50% over one year
+
+        // The mean of the two fund IRRs would be about 30%.
+        assertEquals(0.2202, assertNotNull(performance(pool(listOf(a, b))).irr), 1e-3)
+    }
+
+    @Test
+    fun `same-day flows from different funds are not netted`() {
+        val a = seriesOf(flow("2021-06-30", "-100"), nav = "100")
+        val b = seriesOf(flow("2020-01-01", "-50"), flow("2021-06-30", "40"), nav = "20")
+        val pooled = pool(listOf(a, b))
+
+        assertDecimal("150", pooled.paidIn) // netting 2021-06-30 would give 110
+        assertDecimal("40", pooled.distributed)
+        assertDecimal("120", pooled.nav)
+    }
+
+    @Test
+    fun `pooling rejects mixed currencies, mixed valuation dates and nothing`() {
+        val usd = seriesOf(flow("2020-01-01", "-100"), nav = "100")
+
+        assertFailsWith<IllegalArgumentException> { pool(listOf(usd, usd.copy(currency = Currency.getInstance("EUR")))) }
+        assertFailsWith<IllegalArgumentException> { pool(listOf(usd, usd.copy(valuationDate = LocalDate.parse("2022-06-30")))) }
+        assertFailsWith<IllegalArgumentException> { pool(emptyList()) }
+    }
 }
