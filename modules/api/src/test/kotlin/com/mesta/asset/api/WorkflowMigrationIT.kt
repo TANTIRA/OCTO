@@ -12,8 +12,8 @@ import java.sql.SQLException
 import java.util.UUID
 
 /**
- * V5 on its own: the rules the database enforces for a caller that writes workflow rows directly, without the
- * Kotlin state machine. Skipped when Docker is unavailable.
+ * V5 and V7: the rules the database enforces for a caller that writes workflow rows directly, without the Kotlin
+ * state machine. Since V7 it accepts exactly the histories `Task.replay()` accepts. Skipped when Docker is unavailable.
  */
 @Testcontainers(disabledWithoutDocker = true)
 class WorkflowMigrationIT {
@@ -74,6 +74,58 @@ class WorkflowMigrationIT {
         }
     }
 
+    @Test
+    fun `an approval task cannot be closed by completion, even by its requester`() {
+        val task = newTask()
+
+        // Before V7 this was accepted: the requester closed their own approval with no decision and no rationale.
+        assertRefused(CHECK_VIOLATION) { rawEvent(task, "completed", actor = "alice") }
+        assertRefused(CHECK_VIOLATION) { rawEvent(task, "completed", actor = "bob") }
+    }
+
+    @Test
+    fun `nothing but a refused second decision follows a decision`() {
+        val task = newTask()
+        rawEvent(task, "approved", actor = "bob")
+
+        assertRefused(CHECK_VIOLATION) { rawEvent(task, "assigned", actor = "carol", assignee = "dave") }
+    }
+
+    @Test
+    fun `only approval tasks are decided or resubmitted`() {
+        val review = newTask(kind = "review")
+
+        assertRefused(CHECK_VIOLATION) { rawEvent(review, "approved", actor = "bob") }
+        assertRefused(CHECK_VIOLATION) { rawEvent(review, "resubmitted", actor = "alice") }
+    }
+
+    @Test
+    fun `a task in rework is resubmitted by its requester before anyone decides it`() {
+        val task = newTask()
+        assertRefused(CHECK_VIOLATION) { rawEvent(task, "resubmitted", actor = "alice") }
+        rawEvent(task, "rework-requested", actor = "bob", rationale = "method not stated")
+
+        assertRefused(CHECK_VIOLATION) { rawEvent(task, "approved", actor = "bob") }
+        rawEvent(task, "resubmitted", actor = "alice")
+        rawEvent(task, "approved", actor = "bob")
+    }
+
+    @Test
+    fun `events are in time order, and seq orders ties by arrival`() {
+        val task = newTask()
+        rawEvent(task, "assigned", actor = "alice", assignee = "bob", occurredAt = "2026-09-24T10:00:00Z")
+
+        assertRefused(CHECK_VIOLATION) { rawEvent(task, "approved", actor = "bob", occurredAt = "2026-09-24T09:00:00Z") }
+        rawEvent(task, "assigned", actor = "alice", assignee = "carol", occurredAt = "2026-09-24T10:00:00Z")
+        assertThat(count("select count(distinct seq) from mesta.workflow_task_event where task_id = '$task'")).isEqualTo(2)
+        assertThat(
+            count(
+                "select count(*) from mesta.workflow_task_event where task_id = '$task' and assignee = 'carol' " +
+                    "and seq = (select max(seq) from mesta.workflow_task_event where task_id = '$task')",
+            ),
+        ).describedAs("the tie goes to the later arrival").isEqualTo(1)
+    }
+
     private fun newTask(kind: String = "approval"): UUID {
         val id = UUID.randomUUID()
         execute(
@@ -89,19 +141,21 @@ class WorkflowMigrationIT {
         actor: String,
         assignee: String? = null,
         rationale: String? = null,
+        occurredAt: String? = null,
     ) {
         dataSource.connection.use { connection ->
             connection
                 .prepareStatement(
                     "insert into mesta.workflow_task_event " +
                         "(task_id, event_type, actor, assignee, rationale, occurred_at, correlation_id) " +
-                        "values (?, ?, ?, ?, ?, now(), gen_random_uuid())",
+                        "values (?, ?, ?, ?, ?, coalesce(?::timestamptz, now()), gen_random_uuid())",
                 ).use { statement ->
                     statement.setObject(1, task)
                     statement.setString(2, type)
                     statement.setString(3, actor)
                     statement.setString(4, assignee)
                     statement.setString(5, rationale)
+                    statement.setString(6, occurredAt)
                     statement.executeUpdate()
                 }
         }
