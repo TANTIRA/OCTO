@@ -1,11 +1,14 @@
 package com.mesta.asset.analytics
 
 import java.util.Random
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.ln
 import kotlin.math.sqrt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 private fun m(vararg rows: DoubleArray) = arrayOf(*rows)
@@ -142,6 +145,45 @@ class KalmanTest {
         val variance = z.sumOf { it * it } / z.size
         assertTrue(variance in 0.9..1.1, "Var(Z) was $variance")
         assertEquals(fit.residuals.size, fit.standardizedResiduals.size)
+    }
+
+    @Test
+    fun `the log-likelihood and standardized innovation follow 9_3 and 9_6`() {
+        // Step 0 of the local level: P⁻ = 1.01, S = 1.11, ỹ = 0.5.
+        val filtered = level()
+
+        assertEquals(-0.5 * (ln(2 * PI) + ln(1.11) + 0.25 / 1.11), filtered.logLikelihoods[0]!!, 1e-12)
+        assertEquals(0.5 / sqrt(1.11), filtered.standardizedInnovations[0]!![0], 1e-12)
+        assertEquals(filtered.logLikelihoods.sumOf { it!! }, filtered.logLikelihood, 1e-12)
+    }
+
+    @Test
+    fun `a missing observation predicts through and skips the update`() {
+        val filtered = kalmanFilter(LEVEL, listOf(v(0.5), null, v(0.7))) { m(v(1.0)) }
+        val full = level()
+
+        assertEquals(full.states[0][0], filtered.states[1][0], 1e-12)
+        assertEquals(full.covariances[0][0][0] + 0.01, filtered.covariances[1][0][0], 1e-12)
+        assertEquals(filtered.predictedStates[1][0], filtered.states[1][0], 1e-12)
+        assertNull(filtered.innovations[1])
+        assertNull(filtered.innovationCovariances[1])
+        assertNull(filtered.standardizedInnovations[1])
+        assertNull(filtered.logLikelihoods[1])
+        assertEquals(filtered.logLikelihoods[0]!! + filtered.logLikelihoods[2]!!, filtered.logLikelihood, 1e-12)
+        assertEquals(3, filtered.states.size)
+    }
+
+    @Test
+    fun `a control input enters the prediction`() {
+        // x_0 = 1 with P_0 = 0 and Q = 0: the prediction 1 + 2 × 3 = 7 is certain, so the measurement is ignored.
+        val model = KalmanModel(m(v(1.0)), m(v(0.0)), m(v(1.0)), v(1.0), m(v(0.0)), control = m(v(2.0)))
+        val filtered = kalmanFilter(model, listOf(v(9.0)), controls = listOf(v(3.0))) { m(v(1.0)) }
+
+        assertEquals(7.0, filtered.predictedStates[0][0], 1e-12)
+        assertEquals(7.0, filtered.states[0][0], 1e-12)
+        assertFailsWith<IllegalArgumentException> { kalmanFilter(model, listOf(v(9.0))) { m(v(1.0)) } }
+        assertFailsWith<IllegalArgumentException> { kalmanFilter(LEVEL, listOf(v(9.0)), controls = listOf(v(3.0))) { m(v(1.0)) } }
+        assertFailsWith<IllegalArgumentException> { kalmanFilter(model, listOf(v(9.0)), controls = listOf(v(3.0), v(1.0))) { m(v(1.0)) } }
     }
 
     @Test
