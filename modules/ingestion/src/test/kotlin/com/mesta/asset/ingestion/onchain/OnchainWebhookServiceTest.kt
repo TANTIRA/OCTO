@@ -77,7 +77,6 @@ private class FakeWebhookStore : OnchainStagingStore {
         wallet: String,
     ): List<OnchainBalance> = emptyList()
 
-
     override fun insertEvidence(
         evidence: List<OnchainEvidence>,
         ingestionRunId: UUID,

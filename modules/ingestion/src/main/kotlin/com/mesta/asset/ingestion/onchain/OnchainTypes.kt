@@ -119,7 +119,6 @@ data class WatchSource(
     val label: String?,
 )
 
-
 /** Evidence kinds the onchain adapter can produce — mirrors `onchain_claim_evidence.evidence_kind`. */
 enum class EvidenceKind(
     val db: String,

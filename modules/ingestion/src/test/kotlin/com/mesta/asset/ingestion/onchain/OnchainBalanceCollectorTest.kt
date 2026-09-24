@@ -120,7 +120,6 @@ private class StubRpc(
 
     override fun blockTime(slot: Long): Long? = null
 
-
     override fun tokenSupply(mint: String) = ObjectMapper().createObjectNode()
 
     override fun tokenLargestAccounts(mint: String) = ObjectMapper().createArrayNode()

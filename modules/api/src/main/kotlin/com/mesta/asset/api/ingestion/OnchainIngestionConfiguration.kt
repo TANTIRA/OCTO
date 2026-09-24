@@ -52,12 +52,12 @@ class OnchainIngestionConfiguration {
                 wallet: String,
             ): List<OnchainBalance> = delegate.latestSnapshots(chain, wallet)
 
-    override fun insertEvidence(
-        evidence: List<OnchainEvidence>,
-        ingestionRunId: UUID,
-        correlationId: UUID,
-        actor: String,
-    ): Int = delegate.insertEvidence(evidence, ingestionRunId, correlationId, actor)
+            override fun insertEvidence(
+                evidence: List<OnchainEvidence>,
+                ingestionRunId: UUID,
+                correlationId: UUID,
+                actor: String,
+            ): Int = delegate.insertEvidence(evidence, ingestionRunId, correlationId, actor)
         }
     }
 

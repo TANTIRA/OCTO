@@ -214,34 +214,35 @@ class JdbcOnchainStagingStore(
     ): Int {
         if (evidence.isEmpty()) return 0
         return dataSource.connection.use { c ->
-            c.prepareStatement(
-                """
-                insert into mesta.onchain_claim_evidence
-                    (external_id, claim_ref, chain, subject_address, evidence_kind,
-                     observed_numeric, observed_text, observed_payload, as_of,
-                     source_system, actor, ingestion_run_id, correlation_id)
-                values (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
-                on conflict (source_system, external_id) do nothing
-                """.trimIndent(),
-            ).use { s ->
-                for (e in evidence) {
-                    s.setString(1, e.externalId)
-                    s.setString(2, e.claimRef)
-                    s.setString(3, e.chain)
-                    s.setString(4, e.subjectAddress)
-                    s.setString(5, e.kind.db)
-                    s.setBigDecimal(6, e.observedNumeric)
-                    s.setString(7, e.observedText)
-                    s.setString(8, e.payload.toString())
-                    s.setTimestamp(9, Timestamp.from(e.asOf))
-                    s.setString(10, ONCHAIN_SOURCE_SYSTEM)
-                    s.setString(11, actor)
-                    s.setObject(12, ingestionRunId)
-                    s.setObject(13, correlationId)
-                    s.addBatch()
+            c
+                .prepareStatement(
+                    """
+                    insert into mesta.onchain_claim_evidence
+                        (external_id, claim_ref, chain, subject_address, evidence_kind,
+                         observed_numeric, observed_text, observed_payload, as_of,
+                         source_system, actor, ingestion_run_id, correlation_id)
+                    values (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
+                    on conflict (source_system, external_id) do nothing
+                    """.trimIndent(),
+                ).use { s ->
+                    for (e in evidence) {
+                        s.setString(1, e.externalId)
+                        s.setString(2, e.claimRef)
+                        s.setString(3, e.chain)
+                        s.setString(4, e.subjectAddress)
+                        s.setString(5, e.kind.db)
+                        s.setBigDecimal(6, e.observedNumeric)
+                        s.setString(7, e.observedText)
+                        s.setString(8, e.payload.toString())
+                        s.setTimestamp(9, Timestamp.from(e.asOf))
+                        s.setString(10, ONCHAIN_SOURCE_SYSTEM)
+                        s.setString(11, actor)
+                        s.setObject(12, ingestionRunId)
+                        s.setObject(13, correlationId)
+                        s.addBatch()
+                    }
+                    s.executeBatch().sumOf { if (it >= 0) it else 0 }
                 }
-                s.executeBatch().sumOf { if (it >= 0) it else 0 }
-            }
         }
     }
 
