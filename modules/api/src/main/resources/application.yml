@@ -17,6 +17,9 @@ spring:
     # exists so a local run without a separate migration role works, and is never the production path.
     user: ${DB_MIGRATION_USER:${DB_USER:mesta}}
     password: ${DB_MIGRATION_PASSWORD:${DB_PASSWORD:}}
+    placeholders:
+      # V3 grants the api's own login (the datasource username above) access to the mesta schema.
+      runtime_role: ${DB_USER:mesta}
 
 management:
   endpoints:

@@ -51,10 +51,13 @@ flyway {
     user = System.getenv("DB_MIGRATION_USER") ?: ""
     password = System.getenv("DB_MIGRATION_PASSWORD") ?: ""
     locations = arrayOf("filesystem:${rootProject.file("db/migrations")}")
+    // V3 grants the runtime role; mirrors spring.flyway.placeholders.runtime_role in application.yml.
+    placeholders = mapOf("runtime_role" to (System.getenv("DB_USER") ?: ""))
 }
 
 tasks.named("flywayMigrate") {
     doFirst {
+        require(!System.getenv("DB_USER").isNullOrBlank()) { "DB_USER is required: V3 grants it runtime access" }
         require(!System.getenv("DB_MIGRATION_USER").isNullOrBlank()) { "DB_MIGRATION_USER is required" }
         require(!System.getenv("DB_MIGRATION_PASSWORD").isNullOrBlank()) { "DB_MIGRATION_PASSWORD is required" }
     }
