@@ -148,4 +148,29 @@ class RiskTest {
         assertClose(0.0, report.expectedShortfall) // ⌈3 · 1%⌉ = 1: the worst return, 0%
         assertEquals(RISK_METHODOLOGY, report.methodology)
     }
+
+    @Test
+    fun `non-finite inputs are rejected rather than turned into a result`() {
+        val broken = listOf(-0.05, Double.NaN, 0.01, 0.02)
+
+        // #37: this returned 0.02, because the NaN counted towards the tail size but never entered the tail.
+        assertFailsWith<IllegalArgumentException> { historicalExpectedShortfall(broken, confidence = 0.5) }
+        // #37: this returned NaN.
+        assertFailsWith<IllegalArgumentException> { maxDrawdown(listOf(0.1, Double.NaN, -0.2)) }
+        assertFailsWith<IllegalArgumentException> { volatility(listOf(0.01, Double.POSITIVE_INFINITY)) }
+        assertFailsWith<IllegalArgumentException> { parametricVar(broken, confidence = 0.99) }
+        assertFailsWith<IllegalArgumentException> { sharpe(EVEN, riskFree = Double.NaN) }
+        assertFailsWith<IllegalArgumentException> { sortino(EVEN, target = Double.NaN) }
+        assertFailsWith<IllegalArgumentException> {
+            riskReport(
+                broken,
+                ValuationBasis.MARKET,
+                riskFree = 0.0,
+                target = 0.0,
+                confidence = 0.95,
+            )
+        }
+        val covariance = listOf(listOf(0.04, 0.0), listOf(0.0, 0.09))
+        assertFailsWith<IllegalArgumentException> { portfolioVolatility(listOf(0.5, Double.NaN), covariance) }
+    }
 }

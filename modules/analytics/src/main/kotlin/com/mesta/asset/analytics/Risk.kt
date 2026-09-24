@@ -100,8 +100,15 @@ fun riskReport(
         expectedShortfall = historicalExpectedShortfall(returns, confidence),
     )
 
+/** NaN and infinity are how a missing or broken value arrives in a Double; §10.7 forbids turning one into a result. */
+internal fun requireFinite(
+    name: String,
+    values: Collection<Double>,
+) = require(values.all { it.isFinite() }) { "$name must be finite: NaN or infinity is a missing value, not a number (§10.7)" }
+
 /** Sample standard deviation (n − 1): the series estimates the return process rather than being all of it. */
 fun volatility(returns: List<Double>): Double? {
+    requireFinite("returns", returns)
     if (returns.size < 2) return null
     val mean = returns.average()
     return sqrt(returns.sumOf { (it - mean) * (it - mean) } / (returns.size - 1))
@@ -114,6 +121,8 @@ fun portfolioVolatility(
 ): Double {
     val n = weights.size
     require(covariance.size == n && covariance.all { it.size == n }) { "covariance must be $n×$n" }
+    requireFinite("weights", weights)
+    requireFinite("covariance", covariance.flatten())
     val variance = (0 until n).sumOf { i -> (0 until n).sumOf { j -> weights[i] * covariance[i][j] * weights[j] } }
     // Rounding can leave a fully hedged portfolio a hair below zero; anything further is not a covariance.
     require(variance > -1e-12) { "covariance is not positive semi-definite: wᵀΣw = $variance" }
@@ -125,6 +134,7 @@ fun sharpe(
     returns: List<Double>,
     riskFree: Double,
 ): Double? {
+    requireFinite("risk-free rate", listOf(riskFree))
     val sigma = volatility(returns)?.takeIf { it > 0.0 } ?: return null
     return (returns.average() - riskFree) / sigma
 }
@@ -134,6 +144,8 @@ fun sortino(
     returns: List<Double>,
     target: Double,
 ): Double? {
+    requireFinite("returns", returns)
+    requireFinite("target", listOf(target))
     if (returns.isEmpty()) return null
     val downside = sqrt(returns.sumOf { minOf(it - target, 0.0).let { shortfall -> shortfall * shortfall } } / returns.size)
     if (downside == 0.0) return null
@@ -145,6 +157,7 @@ fun sortino(
  * than on NAV keeps capital calls and distributions from reading as gains and drawdowns.
  */
 fun maxDrawdown(returns: List<Double>): Double? {
+    requireFinite("returns", returns)
     if (returns.isEmpty()) return null
     var value = 1.0
     var peak = 1.0
@@ -180,6 +193,7 @@ fun historicalExpectedShortfall(
     confidence: Double,
 ): Double? {
     require(confidence > 0.0 && confidence < 1.0) { "confidence must be between 0 and 1" }
+    requireFinite("returns", returns)
     if (returns.isEmpty()) return null
     // Decimal arithmetic so that, say, 5% of 100 returns is exactly 5 and not 5.000000000000004.
     val tailSize =
