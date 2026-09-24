@@ -19,7 +19,10 @@ class HeliusWalletClient(
     private val transport: HttpTransport =
         HttpTransport { req ->
             val res =
-                HttpClient.newBuilder().connectTimeout(HeliusRpcClient.TIMEOUT).build()
+                HttpClient
+                    .newBuilder()
+                    .connectTimeout(HeliusRpcClient.TIMEOUT)
+                    .build()
                     .send(req, HttpResponse.BodyHandlers.ofString())
             TransportResponse(res.statusCode(), res.headers().map(), res.body())
         },
@@ -27,7 +30,6 @@ class HeliusWalletClient(
     private val sleeper: (Duration) -> Unit = { Thread.sleep(it) },
     private val mapper: ObjectMapper = ObjectMapper(),
 ) : HeliusWalletApi {
-
     override fun balances(address: String): JsonNode = get("/v1/wallet/$address/balances", emptyMap())
 
     override fun transfers(
@@ -45,10 +47,11 @@ class HeliusWalletClient(
     private fun pageParams(
         limit: Int,
         before: String?,
-    ): Map<String, String> = buildMap {
-        put("limit", limit.toString())
-        if (before != null) put("before", before)
-    }
+    ): Map<String, String> =
+        buildMap {
+            put("limit", limit.toString())
+            if (before != null) put("before", before)
+        }
 
     private fun get(
         path: String,
@@ -59,7 +62,8 @@ class HeliusWalletClient(
                 "$k=${URLEncoder.encode(v, StandardCharsets.UTF_8)}"
             }
         val request =
-            HttpRequest.newBuilder(URI.create("${config.walletApiBaseUrl}$path?$query"))
+            HttpRequest
+                .newBuilder(URI.create("${config.walletApiBaseUrl}$path?$query"))
                 .timeout(HeliusRpcClient.TIMEOUT)
                 .GET()
                 .build()
