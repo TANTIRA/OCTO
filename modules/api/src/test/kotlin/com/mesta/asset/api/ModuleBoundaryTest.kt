@@ -33,6 +33,7 @@ class ModuleBoundaryTest {
         mapOf(
             "api" to modulePackages.keys - "api",
             "ingestion" to setOf("control-panel"),
+            "recon" to setOf("ibor-core"),
         )
 
     private val productionClasses =
@@ -60,5 +61,18 @@ class ModuleBoundaryTest {
                 .allowEmptyShould(true) // scaffold modules have no classes yet
                 .check(productionClasses)
         }
+    }
+
+    @Test
+    fun `recon is reporting-only - no JDBC or DataSource references`() {
+        noClasses()
+            .that()
+            .resideInAPackage("com.mesta.asset.recon..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage("java.sql..", "javax.sql..")
+            .`as`("recon compares fetched rows; it never opens a connection or writes a correction")
+            .allowEmptyShould(true)
+            .check(productionClasses)
     }
 }
