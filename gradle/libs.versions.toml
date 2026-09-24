@@ -15,6 +15,7 @@ testcontainers = "1.21.3"
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
 spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }

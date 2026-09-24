@@ -25,7 +25,25 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        # health and info are public (SecurityConfig); metrics and prometheus need a bearer token.
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      # /actuator/health/liveness and /readiness (docs/reliability.md §4). Readiness includes the
+      # database, so a lost connection takes the instance out of rotation without killing it.
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+      # Probes get a status; an authenticated operator sees which component failed.
+      show-details: when_authorized
+
+logging:
+  structured:
+    format:
+      # One JSON object per line, with the MDC (correlation_id from CorrelationIdFilter) as fields.
+      console: ecs
 
 server:
   port: 8080
