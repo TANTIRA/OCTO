@@ -176,7 +176,7 @@ class JdbcInstrumentFlowStore(
                                         decimals = r.getInt("decimals"),
                                         occurredAt = r.instant("occurred_at"),
                                         recordedAt = r.instant("recorded_at"),
-                                        slot = r.getObject("slot", Long::class.java),
+                                        slot = r.getLong("slot").takeIf { !r.wasNull() },
                                         signature = r.getString("signature"),
                                         supersedesId = r.uuid("supersedes_id"),
                                         rationale = r.getString("rationale"),
