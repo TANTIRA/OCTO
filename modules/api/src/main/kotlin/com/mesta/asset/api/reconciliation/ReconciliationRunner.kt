@@ -13,6 +13,14 @@ import java.time.Instant
 import java.time.ZoneId
 import java.util.UUID
 
+/** Opens the evidence-request task a break needs; `JdbcTaskStore.create` behind it in production. */
+fun interface BreakTaskOpener {
+    fun open(
+        task: Task,
+        provenance: TaskProvenance,
+    )
+}
+
 /** One break of a run and the evidence-request task reviewing it. [opened] is false when an earlier run's task is reused. */
 data class BreakOutcome(
     val brk: Break,
@@ -34,7 +42,7 @@ data class RunResult(
  */
 class ReconciliationRunner(
     private val store: ReconciliationStore,
-    private val openTask: (Task, TaskProvenance) -> Unit,
+    private val tasks: BreakTaskOpener,
 ) {
     fun run(
         tenantId: UUID,
@@ -54,7 +62,7 @@ class ReconciliationRunner(
                     return@map BreakOutcome(brk, existing, opened = false)
                 }
                 val task = Task(UUID.randomUUID(), TaskKind.EVIDENCE_REQUEST, "reconciliation-break", brk.key(), requestedBy, Instant.now())
-                openTask(task, TaskProvenance("api", correlationId))
+                tasks.open(task, TaskProvenance("api", correlationId))
                 try {
                     store.record(tenantId, runId, brk, task.id, correlationId)
                     BreakOutcome(brk, task.id, opened = true)

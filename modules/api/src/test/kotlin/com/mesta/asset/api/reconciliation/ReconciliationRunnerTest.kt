@@ -22,7 +22,7 @@ class ReconciliationRunnerTest {
     private val store =
         FakeReconciliationStore(listOf(kept, orphan, IborRecord(UUID.randomUUID(), "admin-b", "b-1", BigDecimal.ONE, usd, day)))
     private val opened = mutableListOf<Task>()
-    private val runner = ReconciliationRunner(store) { task, _ -> opened += task }
+    private val runner = ReconciliationRunner(store, BreakTaskOpener { task, _ -> opened += task })
     private val tenantId = UUID.randomUUID()
 
     private fun source(
@@ -103,7 +103,8 @@ class ReconciliationRunnerTest {
                         }
                     }
                 },
-            ) { task, _ -> opened += task }
+                BreakTaskOpener { task, _ -> opened += task },
+            )
         val raced =
             racing.run(
                 tenantId,
