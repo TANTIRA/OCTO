@@ -28,6 +28,7 @@ class LedgerMigrationIT {
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
             .schemas("mesta")
+            .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
         DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password)
