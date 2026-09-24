@@ -27,6 +27,7 @@ allprojects {
 val coverageEnforcedModules = setOf(
     ":modules:api",
     ":modules:control-panel",
+    ":modules:ibor-core",
     ":modules:ingestion",
     ":modules:ontology",
 )
