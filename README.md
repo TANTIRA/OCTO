@@ -74,6 +74,7 @@ Modular monolith: Kotlin on Java 21, Spring Boot 3, Gradle, Flyway, and self-hos
 - [Data security and governance](docs/data-security-governance.md)
 - [xStocks fit assessment — proposed instrument data source](docs/xstocks-fit-assessment.md)
 - [Arbitrum fit assessment — settlement network and onchain data source](docs/arbitrum-fit-assessment.md)
+- [TradingView MCP fit assessment — market data, fundamentals, news, calendars](docs/tradingview-mcp-fit-assessment.md)
 
 ## Governance
 
