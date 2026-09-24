@@ -99,6 +99,35 @@ inv:SupersedesRequiresRationaleShape a sh:NodeShape ;
     sh:property [ sh:path inv:rationale ; sh:minCount 1 ; sh:message "A supersedes link must record a rationale; corrections are never unexplained."@en ] ;
     sh:property [ sh:path inv:recordedAt ; sh:minCount 1 ; sh:message "A supersedes link must record when it was recorded."@en ] .
 
+# --- Onchain instrument flows ----------------------------------------------
+
+# data-security-governance.md applies to token flows exactly as to fiat flows: an undated or
+# untyped movement cannot be reconciled, and the append-only ledger needs a recording time.
+inv:InstrumentFlowCompletenessShape a sh:NodeShape ;
+    sh:targetClass inv:InstrumentFlow ;
+    sh:property [ sh:path inv:instrumentFlowType ; sh:minCount 1 ; sh:message "An instrument flow must carry an instrumentFlowType; an untyped token flow cannot be reconciled."@en ] ;
+    sh:property [ sh:path inv:monetaryAmount ; sh:minCount 1 ; sh:message "An instrument flow must carry a monetaryAmount."@en ] ;
+    sh:property [ sh:path inv:occurredAt ; sh:minCount 1 ; sh:message "An instrument flow must carry occurredAt; undated flows break position derivation."@en ] ;
+    sh:property [ sh:path inv:recordedAt ; sh:minCount 1 ; sh:message "An instrument flow must carry recordedAt; the append-only ledger needs a recording time."@en ] .
+
+# ADR-0003: every ledger fact must be attributed in the graph. A token flow with no instrument
+# and wallet cannot be reconciled against positions.
+inv:InstrumentFlowAttributionShape a sh:NodeShape ;
+    sh:targetClass inv:InstrumentFlow ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "An instrument flow must be the flow-side of an instrument-flow-of; an unattributed flow cannot be reconciled."@en ;
+        sh:select """
+            SELECT $this WHERE {
+                $this a <https://mesta.asset/ontology/investment#InstrumentFlow> .
+                FILTER NOT EXISTS {
+                    ?link a <https://mesta.asset/ontology/investment#InstrumentFlowOf> ;
+                          <https://mesta.asset/ontology/investment#flowSide> $this .
+                }
+            }
+        """ ;
+    ] .
+
 # --- Look-through ----------------------------------------------------------
 
 # Look-through exposure is a product of the ownership percentages along the path, so a missing
