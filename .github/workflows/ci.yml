@@ -19,4 +19,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Check
+        env:
+          # Enforces the decision-model eval thresholds (AGENTS.md, #52). Without the secret, as on fork PRs,
+          # DecisionModelEvalTest is reported as skipped.
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: ./gradlew check
