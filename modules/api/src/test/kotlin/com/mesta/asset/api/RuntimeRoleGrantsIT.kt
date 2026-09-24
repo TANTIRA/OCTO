@@ -102,6 +102,18 @@ class RuntimeRoleGrantsIT {
                     values (1000000.00, 'USD', current_date, 'mark-to-model',
                             'test', 'integration-test', gen_random_uuid(), gen_random_uuid())
                     """.trimIndent(),
+                "workflow_task" to
+                    """
+                    insert into mesta.workflow_task
+                        (kind, subject_type, subject_id, requested_by, source_system, correlation_id)
+                    values ('review', 'valuation-event', 've-1', 'alice', 'test', gen_random_uuid())
+                    """.trimIndent(),
+                // The segregation-of-duties trigger reads workflow_task as the inserting (runtime) role.
+                "workflow_task_event" to
+                    """
+                    insert into mesta.workflow_task_event (task_id, event_type, actor, occurred_at, correlation_id)
+                    select id, 'completed', 'bob', now(), gen_random_uuid() from mesta.workflow_task limit 1
+                    """.trimIndent(),
             )
 
         @Container
