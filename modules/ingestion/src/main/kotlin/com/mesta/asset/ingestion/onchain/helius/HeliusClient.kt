@@ -30,11 +30,15 @@ class HeliusException(
  * the only level that cannot roll back, so staged facts never need reorg handling.
  */
 interface HeliusRpcApi {
-    /** `getSignaturesForAddress`, newest-first. `before` is the resume cursor signature. */
+    /**
+     * `getSignaturesForAddress`, newest-first. `before` pages backward; `until` stops the scan at
+     * a known signature (exclusive) — the incremental-sync cursor.
+     */
     fun signaturesForAddress(
         address: String,
         limit: Int = 100,
         before: String? = null,
+        until: String? = null,
     ): JsonNode
 
     /** `getTransaction` with `jsonParsed` encoding; null when the signature is unknown. */
