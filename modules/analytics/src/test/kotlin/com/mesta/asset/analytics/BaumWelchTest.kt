@@ -76,6 +76,17 @@ class BaumWelchTest {
     }
 
     @Test
+    fun `a regime with no posterior weight is kept as it was`() {
+        // The far regime's emission underflows to zero on every observation (#92).
+        val start = hmm(listOf(0.0, 1000.0), listOf(1.0, 1.0), listOf(listOf(0.9, 0.1), listOf(0.1, 0.9)))
+        val near = List(50) { RegimeObservation(START.plusDays(it.toLong()), (it % 5) * 0.1) }
+        val estimate = baumWelch(start, near, minimumSigma = 1e-3)
+
+        assertEquals(start.regimes[1], estimate.model.regimes[1])
+        assertEquals(0.2, estimate.model.regimes[0].mean, 1e-9)
+    }
+
+    @Test
     fun `invalid inputs are rejected`() {
         assertFailsWith<IllegalArgumentException> { baumWelch(truth, sample.take(1), minimumSigma = 0.1) }
         assertFailsWith<IllegalArgumentException> {
