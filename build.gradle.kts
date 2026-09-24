@@ -28,6 +28,7 @@ val coverageEnforcedModules = setOf(
     ":modules:api",
     ":modules:control-panel",
     ":modules:ingestion",
+    ":modules:lookthrough",
     ":modules:ontology",
 )
 
