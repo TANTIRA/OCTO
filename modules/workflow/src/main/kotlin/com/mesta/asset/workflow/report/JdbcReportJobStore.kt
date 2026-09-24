@@ -79,6 +79,15 @@ class JdbcReportJobStore(
             it.setObject(2, id)
         }
 
+    override fun attachApproval(
+        id: UUID,
+        taskId: UUID,
+    ): ReportJob =
+        transition(id, "approval_task_id = ?") {
+            it.setObject(1, taskId)
+            it.setObject(2, id)
+        }
+
     private fun transition(
         id: UUID,
         assignment: String,
