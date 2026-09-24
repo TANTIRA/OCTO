@@ -84,6 +84,18 @@ data class RegimeResult(
     val methodology: String = REGIME_METHODOLOGY,
 )
 
+/**
+ * A §9.1 maximum-likelihood estimate. [converged] is false when [iterations] hit the cap before the
+ * likelihood gain fell under the tolerance; the model is then the best found, not the optimum.
+ */
+data class EstimatedModel(
+    val model: HiddenMarkovModel,
+    val logLikelihood: Double,
+    val iterations: Int,
+    val converged: Boolean,
+    val methodology: String = REGIME_METHODOLOGY,
+)
+
 /** §9.1 forward recursion, normalized at each step. */
 fun regimeFilter(
     model: HiddenMarkovModel,
@@ -111,17 +123,38 @@ fun regimeSmoother(
     observations: List<RegimeObservation>,
 ): List<List<Double>> {
     val forward = regimeFilter(model, observations).estimates
+    val backward = backward(model, observations)
+    return observations.indices.map { t -> normalize((0 until model.states).map { forward[t].filtered[it] * backward[t][it] }) }
+}
+
+/** Normalized backward variables β̂_t; the scale is irrelevant because every use renormalizes. */
+internal fun backward(
+    model: HiddenMarkovModel,
+    observations: List<RegimeObservation>,
+): List<List<Double>> {
     val k = model.states
-    var beta = List(k) { 1.0 }
-    val smoothed = arrayOfNulls<List<Double>>(observations.size)
+    val beta = arrayOfNulls<List<Double>>(observations.size)
     for (t in observations.indices.reversed()) {
-        val joint = (0 until k).map { forward[t].filtered[it] * beta[it] }
-        smoothed[t] = normalize(joint)
-        if (t == 0) break
-        val emission = observations[t].value?.let { y -> model.regimes.map { exp(it.logDensity(y)) } } ?: List(k) { 1.0 }
-        beta = normalize((0 until k).map { i -> (0 until k).sumOf { j -> model.transition[i][j] * emission[j] * beta[j] } })
+        beta[t] =
+            if (t == observations.lastIndex) {
+                List(k) { 1.0 }
+            } else {
+                val emission = emission(model, observations[t + 1].value)
+                normalize((0 until k).map { i -> (0 until k).sumOf { j -> model.transition[i][j] * emission[j] * beta[t + 1]!![j] } })
+            }
     }
-    return smoothed.map { it!! }
+    return beta.map { it!! }
+}
+
+/** f(y; θ_j) per regime, scaled by the largest so nothing underflows; all ones for a missing value. */
+internal fun emission(
+    model: HiddenMarkovModel,
+    y: Double?,
+): List<Double> {
+    if (y == null) return List(model.states) { 1.0 }
+    val logs = model.regimes.map { it.logDensity(y) }
+    val shift = logs.max()
+    return logs.map { exp(it - shift) }
 }
 
 /** §9.1 Viterbi: the most likely regime sequence, as indices into [HiddenMarkovModel.regimes]. Historical only. */
@@ -193,7 +226,7 @@ private fun update(
     return normalize(joint) to ln(normalizer) + shift
 }
 
-private fun normalize(v: List<Double>): List<Double> {
+internal fun normalize(v: List<Double>): List<Double> {
     val sum = v.sum()
     require(sum > 0) { "every regime has zero probability: the model cannot explain the observation" }
     return v.map { it / sum }
