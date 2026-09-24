@@ -25,9 +25,11 @@ allprojects {
 // AGENTS.md: new code in core modules needs at least 70% coverage. Scaffold modules join this
 // list when they gain real sources — a module with nothing to cover has nothing to verify.
 val coverageEnforcedModules = setOf(
+    ":modules:analytics",
     ":modules:api",
     ":modules:control-panel",
     ":modules:ingestion",
+    ":modules:lookthrough",
     ":modules:ontology",
 )
 
