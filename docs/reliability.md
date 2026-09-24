@@ -57,10 +57,10 @@ State of `main` on 2026-09-24. ✅ passes, ⚠️ acceptable for now, ❌ must f
 | Metrics | a scraper can read request and JVM metrics | ❌ → ✅ | Prometheus registry on `/actuator/prometheus`, authenticated |
 | Tracing | a request can be followed across logs and database rows | ❌ → ✅ | `CorrelationIdFilter`: one id per request in the MDC, the response, and every `correlation_id` column |
 | Logs | machine-readable, no free-text personal data | ❌ → ✅ | ECS-format JSON on the console; the governance rule against logging tokens and personal data still applies to what code puts in a message |
-| Config | every env var the compose file passes is read by something | ❌ | `OTEL_EXPORTER_OTLP_ENDPOINT` is passed and read by nothing. Wire an OTLP exporter when a collector exists, or drop the variable |
-| Build | the image the compose file pulls is built from this repo | ❌ | there is no `Dockerfile`; AGENTS.md lists one. DevOps item |
-| Runtime | JVM heap sized to the container | ⚠️ | 2 GB limit, default heap 25%. Set `-XX:MaxRAMPercentage=75.0` in the image or compose (infra review) |
-| Runtime | compose healthcheck uses readiness | ⚠️ | it uses the aggregate; switch to `/actuator/health/readiness` after the baseline PR (infra review) |
+| Config | every env var the compose file passes is read by something | ✅ | `OTEL_EXPORTER_OTLP_ENDPOINT` was passed and read by nothing; dropped until a collector exists (backlog item 8 adds the exporter with it) |
+| Build | the image the compose file pulls is built from this repo | ✅ | `Dockerfile` (#76): wrapper-built boot jar on a JRE, non-root |
+| Runtime | JVM heap sized to the container | ✅ | `MaxRAMPercentage=75.0` and exit-on-OOM in the image (#76) |
+| Runtime | compose healthcheck uses readiness | ✅ | `/actuator/health/readiness` (#76); `ReadinessIT` shows it drops when the database is lost |
 | Dependencies | api waits for what it needs | ⚠️ | `depends_on` covers TypeDB only; PostgreSQL lives in another compose project, so readiness plus `start_period` is the real gate |
 | Auth | fails closed without a JWKS URL | ✅ | `SecurityConfig` |
 | Data | migrations run as a separate role; the runtime role cannot update or delete | ✅ | `DB_MIGRATION_*`, V3, `RuntimeRoleGrantsIT` |
@@ -72,9 +72,9 @@ State of `main` on 2026-09-24. ✅ passes, ⚠️ acceptable for now, ❌ must f
 
 1. **Restore CI.** Nothing merges with a green check today. Blocks every other item's verification.
 2. **Observability baseline** (this issue's PR 2): probes, Prometheus, correlation ids, structured logs. Without it none of the SLIs can be measured.
-3. **Dockerfile and image build.** The compose file references an image nobody builds.
+3. ~~Dockerfile and image build~~ — done in #76.
 4. **Backup and restore runbook**, with one rehearsed restore. The ledger is append-only, so a lost database is unrecoverable by replay.
-5. **Compose follow-ups:** healthcheck on readiness, `MaxRAMPercentage`, drop or wire the OTEL variable.
+5. ~~Compose follow-ups~~ — healthcheck on readiness and `MaxRAMPercentage` in #76; the OTEL variable is dropped until a collector exists.
 6. **Migration rollback rehearsal** for V5–V7 on staging, as AGENTS.md requires for T2.
 7. **Timeouts on outbound calls.** `JdkHttpTransport` has a 30-second request timeout; the decision-model call sits on the ingestion path, so a slow vendor becomes a slow ingest. Add a circuit breaker once the call is on a user-facing path.
 8. **Burn-rate alerts** in the collector once metrics flow.
