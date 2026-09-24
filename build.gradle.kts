@@ -28,6 +28,7 @@ val coverageEnforcedModules = setOf(
     ":modules:analytics",
     ":modules:api",
     ":modules:control-panel",
+    ":modules:ibor-core",
     ":modules:ingestion",
     ":modules:lookthrough",
     ":modules:ontology",
