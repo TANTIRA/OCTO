@@ -30,4 +30,7 @@ tasks.withType<Test> {
         .file(ontologySchema)
         .withPropertyName("ontologySchema")
         .withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
+    // The live decision-model eval runs only with the key. Tracking whether the key is present (never its value)
+    // stops a cached run from when the eval was skipped satisfying a run that must enforce the thresholds.
+    inputs.property("liveDecisionEval", System.getenv("OPENROUTER_API_KEY").isNullOrBlank().not())
 }
