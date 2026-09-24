@@ -43,15 +43,23 @@ private fun tx(
     }
     """.trimIndent()
 
-private fun tokenEntry(accountIndex: Int, mint: String, owner: String, amount: String, decimals: Int) =
-    """{"accountIndex":$accountIndex,"mint":"$mint","owner":"$owner",
+private fun tokenEntry(
+    accountIndex: Int,
+    mint: String,
+    owner: String,
+    amount: String,
+    decimals: Int,
+) = """{"accountIndex":$accountIndex,"mint":"$mint","owner":"$owner",
        "uiTokenAmount":{"amount":"$amount","decimals":$decimals}}"""
 
 class HeliusTransferNormalizerTest {
     private val mapper = ObjectMapper()
     private val normalizer = HeliusTransferNormalizer()
 
-    private fun normalize(json: String, wallet: String = WALLET) = normalizer.normalize(mapper.readTree(json), wallet)
+    private fun normalize(
+        json: String,
+        wallet: String = WALLET,
+    ) = normalizer.normalize(mapper.readTree(json), wallet)
 
     @Test
     fun `incoming native SOL produces one IN leg in lamports`() {
@@ -76,7 +84,13 @@ class HeliusTransferNormalizerTest {
 
     @Test
     fun `a failed transaction produces no facts`() {
-        val json = tx(preLamports = listOf(2_000), postLamports = listOf(1_000), accounts = listOf(WALLET), err = """{"InstructionError":[0,"Custom"]}""")
+        val json =
+            tx(
+                preLamports = listOf(2_000),
+                postLamports = listOf(1_000),
+                accounts = listOf(WALLET),
+                err = """{"InstructionError":[0,"Custom"]}""",
+            )
         assertTrue(normalize(json).isEmpty())
     }
 
@@ -99,7 +113,8 @@ class HeliusTransferNormalizerTest {
         val accounts = listOf("wAcct", "tAcct")
         val pre = """[${tokenEntry(1, MINT, WALLET, "400", 6)}]"""
         val post = """[${tokenEntry(1, MINT, WALLET, "100", 6)}]"""
-        val legs = normalize(tx(preLamports = listOf(0, 0), postLamports = listOf(0, 0), accounts = accounts, preTokens = pre, postTokens = post))
+        val legs =
+            normalize(tx(preLamports = listOf(0, 0), postLamports = listOf(0, 0), accounts = accounts, preTokens = pre, postTokens = post))
         assertEquals(TransferDirection.OUT, legs.single().direction)
         assertEquals(BigInteger("300"), legs.single().amountRaw)
     }
@@ -109,7 +124,10 @@ class HeliusTransferNormalizerTest {
         val accounts = listOf("w", "acct1", "acct2")
         val pre = """[${tokenEntry(1, MINT, WALLET, "100", 6)}, ${tokenEntry(2, MINT, WALLET, "100", 6)}]"""
         val post = """[${tokenEntry(1, MINT, WALLET, "50", 6)}, ${tokenEntry(2, MINT, WALLET, "150", 6)}]"""
-        val legs = normalize(tx(preLamports = listOf(0, 0, 0), postLamports = listOf(0, 0, 0), accounts = accounts, preTokens = pre, postTokens = post))
+        val legs =
+            normalize(
+                tx(preLamports = listOf(0, 0, 0), postLamports = listOf(0, 0, 0), accounts = accounts, preTokens = pre, postTokens = post),
+            )
         assertEquals(2, legs.size)
         assertEquals(setOf("acct1", "acct2"), legs.map { it.tokenAccount }.toSet())
         assertEquals(setOf(TransferDirection.OUT, TransferDirection.IN), legs.map { it.direction }.toSet())
