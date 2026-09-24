@@ -2,7 +2,6 @@ package com.mesta.asset.ingestion.onchain.helius
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.ObjectNode
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -22,7 +21,10 @@ class HeliusRpcClient(
     private val transport: HttpTransport =
         HttpTransport { req ->
             val res =
-                HttpClient.newBuilder().connectTimeout(TIMEOUT).build()
+                HttpClient
+                    .newBuilder()
+                    .connectTimeout(TIMEOUT)
+                    .build()
                     .send(req, HttpResponse.BodyHandlers.ofString())
             TransportResponse(res.statusCode(), res.headers().map(), res.body())
         },
@@ -30,55 +32,82 @@ class HeliusRpcClient(
     private val sleeper: (Duration) -> Unit = { Thread.sleep(it) },
     private val mapper: ObjectMapper = ObjectMapper(),
 ) : HeliusRpcApi {
-
     private val ids = AtomicLong()
 
     override fun signaturesForAddress(
         address: String,
         limit: Int,
         before: String?,
+        until: String?,
     ): JsonNode {
         val params = mapper.createObjectNode()
         params.put("limit", limit)
         params.put("commitment", "finalized")
         if (before != null) params.put("before", before)
-        return rpc("getSignaturesForAddress", mapper.createArrayNode().add(address).add(params))
+        if (until != null) params.put("until", until)
+        return rpc(
+            "getSignaturesForAddress",
+            mapper
+                .createArrayNode()
+                .add(address)
+                .add(params),
+        )
     }
 
     override fun transaction(signature: String): JsonNode? {
         val params =
-            mapper.createObjectNode()
+            mapper
+                .createObjectNode()
                 .put("encoding", "jsonParsed")
                 .put("maxSupportedTransactionVersion", 0)
                 .put("commitment", "finalized")
-        val result = rpc("getTransaction", mapper.createArrayNode().add(signature).add(params))
+        val args =
+            mapper
+                .createArrayNode()
+                .add(signature)
+                .add(params)
+        val result = rpc("getTransaction", args)
         return if (result.isNull) null else result
     }
 
     override fun balance(address: String): Long {
         val params = mapper.createObjectNode().put("commitment", "finalized")
-        val result = rpc("getBalance", mapper.createArrayNode().add(address).add(params))
-        return result.path("value").asLong()
+        val args =
+            mapper
+                .createArrayNode()
+                .add(address)
+                .add(params)
+        return rpc("getBalance", args).path("value").asLong()
     }
 
     override fun tokenAccountsByOwner(address: String): JsonNode {
         val owner = mapper.createObjectNode().put("programId", SPL_TOKEN_PROGRAM_ID)
-        val cfg = mapper.createObjectNode().put("encoding", "jsonParsed").put("commitment", "finalized")
-        return rpc("getTokenAccountsByOwner", mapper.createArrayNode().add(address).add(owner).add(cfg))
+        val cfg =
+            mapper
+                .createObjectNode()
+                .put("encoding", "jsonParsed")
+                .put("commitment", "finalized")
+        val args =
+            mapper
+                .createArrayNode()
+                .add(address)
+                .add(owner)
+                .add(cfg)
+        return rpc("getTokenAccountsByOwner", args)
     }
 
     private fun rpc(
         method: String,
         params: JsonNode,
     ): JsonNode {
-        val body =
-            mapper.createObjectNode()
-                .put("jsonrpc", "2.0")
-                .put("id", ids.incrementAndGet())
-                .put("method", method)
-                .set<JsonNode>("params", params)
+        val body = mapper.createObjectNode()
+        body.put("jsonrpc", "2.0")
+        body.put("id", ids.incrementAndGet())
+        body.put("method", method)
+        body.set<JsonNode>("params", params)
         val request =
-            HttpRequest.newBuilder(URI.create("${config.rpcBaseUrl}/?api-key=${config.apiKey}"))
+            HttpRequest
+                .newBuilder(URI.create("${config.rpcBaseUrl}/?api-key=${config.apiKey}"))
                 .timeout(TIMEOUT)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))
