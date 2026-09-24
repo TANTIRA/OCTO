@@ -35,6 +35,16 @@ mesta-asset project            mesta-supabase project
 
 One project set per environment — self-hosted Supabase is single-project (ADR-0002).
 
+## Build the api image
+
+From the repo root, with the tag the environment's `API_IMAGE_TAG` expects:
+
+```bash
+docker build -t "$REGISTRY_URL/mesta-api:$API_IMAGE_TAG" .
+```
+
+`Dockerfile` builds the boot jar with the repo's Gradle wrapper and runs it as a non-root user on a JRE with the heap sized to the container limit. `web` has its own image (`web/`).
+
 ## Deploy procedure
 
 1. **Vendored Supabase:** copy the official `docker/` directory from the pinned `self-hosted/vX.Y.Z` release tag into the `mesta-supabase-{env}` project; apply `supabase/docker-compose.override.yml`.

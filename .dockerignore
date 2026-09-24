@@ -1,0 +1,15 @@
+# Only what the api image build needs goes into the build context.
+.git
+.gradle
+build
+**/build
+**/.gradle
+.idea
+*.iml
+.vscode
+.env*
+infra
+web
+docs
+*.docx
+node_modules
