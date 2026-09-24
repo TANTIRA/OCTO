@@ -176,7 +176,4 @@ private fun invert(matrix: Array<DoubleArray>): Array<DoubleArray> {
     return inverse
 }
 
-private fun Array<DoubleArray>.times(other: Array<DoubleArray>) =
-    Array(size) { i -> DoubleArray(other[0].size) { j -> other.indices.sumOf { m -> this[i][m] * other[m][j] } } }
-
 private fun Array<DoubleArray>.scaled(factor: Double) = Array(size) { i -> DoubleArray(this[i].size) { j -> this[i][j] * factor } }
