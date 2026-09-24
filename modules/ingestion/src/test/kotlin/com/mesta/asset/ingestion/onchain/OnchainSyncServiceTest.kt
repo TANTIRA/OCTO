@@ -35,6 +35,20 @@ private class FakeRpc(
     override fun balance(address: String): Long = 0
 
     override fun tokenAccountsByOwner(address: String): JsonNode = ObjectMapper().createArrayNode()
+
+    override fun stakeAccounts(address: String) =
+        com.fasterxml.jackson.databind
+            .ObjectMapper()
+            .createArrayNode()
+
+    override fun inflationReward(
+        addresses: List<String>,
+        epoch: Long?,
+    ) = com.fasterxml.jackson.databind
+        .ObjectMapper()
+        .createArrayNode()
+
+    override fun blockTime(slot: Long): Long? = null
 }
 
 private open class FakeStore : OnchainStagingStore {
