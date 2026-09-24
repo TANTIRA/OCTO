@@ -2,7 +2,6 @@
 kotlin = "2.2.21"
 springBoot = "3.5.7"
 springDepMgmt = "1.1.7"
-flyway = "11.7.2"
 jackson = "2.19.2"
 jena = "6.1.0"
 ktlint = "12.3.0"
@@ -40,6 +39,5 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
 spring-dep-mgmt = { id = "io.spring.dependency-management", version.ref = "springDepMgmt" }
-flyway = { id = "org.flywaydb.flyway", version.ref = "flyway" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
