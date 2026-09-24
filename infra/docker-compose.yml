@@ -30,7 +30,9 @@ services:
       DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD}
       SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
       SUPABASE_STORAGE_ENDPOINT: ${SUPABASE_STORAGE_ENDPOINT}
-      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      # No SUPABASE_SERVICE_KEY: nothing consumes it, and the service key bypasses RLS, so
+      # holding it only widens the blast radius. A feature that needs storage adds the narrow
+      # credential it actually reads (user-JWT passthrough or a scoped key) in its own PR.
       AUTH_ISSUER: ${AUTH_ISSUER}
       AUTH_JWKS_URL: ${AUTH_JWKS_URL}
       TYPEDB_ADDR: typedb:1729
