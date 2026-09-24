@@ -72,6 +72,7 @@ Modular monolith: Kotlin on Java 21, Spring Boot 3, Gradle, Flyway, and self-hos
 - [User experience principles](docs/user-experience.md)
 - [Quantitative methodology](docs/quantitative-methodology.md)
 - [Data security and governance](docs/data-security-governance.md)
+- [Reliability — SLOs, error budget, production readiness](docs/reliability.md)
 - [xStocks fit assessment — proposed instrument data source](docs/xstocks-fit-assessment.md)
 - [Arbitrum fit assessment — settlement network and onchain data source](docs/arbitrum-fit-assessment.md)
 
