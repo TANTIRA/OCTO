@@ -115,3 +115,45 @@ fun commitmentPosition(
                 .sortedBy { it.first },
     )
 }
+
+/**
+ * Deal-level position of one investment (methodology §2.2): [invested] is the capital put into the deal,
+ * [realized] the cash returned from it, and [unrealized] its NAV in force on [valuationDate], or null when
+ * no valuation is attributed (§10.7: missing, not zero). Fees, expenses and carry are not deal flows.
+ */
+data class DealPosition(
+    val currency: Currency,
+    val invested: BigDecimal,
+    val realized: BigDecimal,
+    val unrealized: BigDecimal?,
+    val valuationDate: LocalDate?,
+)
+
+/**
+ * Derives a deal position from the ledger events and valuations attributed to an investment in TypeDB
+ * (`cash-flow-attribution`, `valuation-of`; ADR-0003, #6 decision of 2026-09-25). Same derivation as
+ * [commitmentPosition], so a correction that moves an event elsewhere leaves this deal. Recallable
+ * distributions count as realized until a recall records a new contribution.
+ */
+fun dealPosition(
+    ledger: List<LedgerEvent>,
+    ledgerMembers: Set<UUID>,
+    valuations: List<ValuationEvent>,
+    valuationMembers: Set<UUID>,
+    asOf: LocalDate,
+    knownAt: Instant,
+    zone: ZoneId,
+): DealPosition {
+    val position = commitmentPosition(ledger, ledgerMembers, knownAt, zone)
+    val valuation = latestValuation(valuations, valuationMembers, asOf, knownAt)
+    require(valuation == null || valuation.currency == position.currency) {
+        "valuation in ${valuation?.currency} for a deal whose flows are in ${position.currency}"
+    }
+    return DealPosition(
+        currency = position.currency,
+        invested = position.called,
+        realized = position.distributed + position.recallableDistributed,
+        unrealized = valuation?.amount,
+        valuationDate = valuation?.asOfDate,
+    )
+}
