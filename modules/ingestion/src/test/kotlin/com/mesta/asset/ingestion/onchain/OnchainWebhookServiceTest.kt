@@ -51,7 +51,7 @@ private class FakeWebhookStore : OnchainStagingStore {
 
     override fun newestSignature(
         chain: String,
-        address: String,
+        wallet: String,
     ) = null
 
     override fun insertTransfers(
