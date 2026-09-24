@@ -13,12 +13,11 @@ Private-equity investment platform: a standardized Ontology (prospects, funds, p
 
 ```bash
 ./gradlew build                                     # install dependencies and compile
-./gradlew bootRun                                   # run locally
+./gradlew bootRun                                   # run locally — migrations apply at boot via Spring Flyway
 ./gradlew test                                      # run the full test suite
 ./gradlew test --tests 'com.mesta.asset.FooTest'    # run a single test
 ./gradlew check                                     # lint and format check
 ./gradlew bootJar                                   # production build
-./gradlew bootRun                                   # migrations run at boot via Spring Flyway
 flyway migrate                                      # ad-hoc migration (flyway CLI; the Gradle plugin is gone — it was broken on Gradle 9)
 ```
 
