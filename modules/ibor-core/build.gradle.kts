@@ -15,3 +15,14 @@ tasks.withType<Test> {
         .withPropertyName("ontologySchema")
         .withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
 }
+
+// JdbcIborReader is thin JDBC glue covered by IborReaderIT in :modules:api (same as ingestion).
+kover {
+    reports {
+        filters {
+            excludes {
+                classes("com.mesta.asset.iborcore.persistence.*")
+            }
+        }
+    }
+}
