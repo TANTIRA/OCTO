@@ -104,6 +104,6 @@ The web UI is a separate frontend concern (ADR-0001); `infra/docker-compose.yml`
 
 Backend scaffold in place — `./gradlew check` compiles all modules and runs tests.
 
-- Implemented as libraries: IBOR ledger and decision-staging migrations, the decision-model client, document classification and claim-support assessment, PE performance metrics (`analytics`), path-sum look-through exposure (`lookthrough`), and the ontology validation gate. None of these is wired into the running application yet.
+- Implemented as libraries: IBOR ledger and decision-staging migrations, the decision-model client, document classification and claim-support assessment, PE performance, Brinson attribution, and return and risk measures (`analytics`), path-sum look-through exposure (`lookthrough`), and the ontology validation gate. None of these is wired into the running application yet.
 - Not implemented: IBOR derivation, reconciliation, deal sourcing, and workflow.
 - The ADRs in `docs/adr/` are still Proposed.
