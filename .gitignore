@@ -25,3 +25,7 @@ infra/.env
 # Local env files
 .env.local
 .env
+
+# Web frontend (web/)
+node_modules/
+.next/
