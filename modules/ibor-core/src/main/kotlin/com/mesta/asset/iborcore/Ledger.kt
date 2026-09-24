@@ -62,6 +62,16 @@ internal fun <T> resolveCurrent(
         check(superseded.add(target)) { "$target is superseded more than once" }
     }
     return known.filter { id(it) !in superseded }
+): List<LedgerEvent> {
+    val known = ledger.filter { !it.recordedAt.isAfter(knownAt) }
+    val ids = ledger.mapTo(HashSet()) { it.id }
+    val superseded = HashSet<UUID>()
+    for (event in known) {
+        val target = event.supersedesId ?: continue
+        check(target in ids) { "event ${event.id} supersedes $target, which is not in the ledger" }
+        check(superseded.add(target)) { "event $target is superseded more than once" }
+    }
+    return known.filter { it.id !in superseded }
 }
 
 /**
@@ -85,6 +95,7 @@ data class CommitmentPosition(
  * Derives the position of one commitment. Attribution lives in TypeDB (ADR-0003), so the caller
  * passes the ids of the events attributed to the commitment as [members]. Supersession is resolved
  * over [ledger] first, so a correction that moves an event elsewhere removes it here.
+ * over the whole ledger first, so a correction that moves an event elsewhere removes it here.
  */
 fun commitmentPosition(
     ledger: List<LedgerEvent>,
@@ -92,6 +103,7 @@ fun commitmentPosition(
     knownAt: Instant,
     zone: ZoneId,
 ): CommitmentPosition {
+    // ponytail: holds the full ledger in memory; the JDBC reader (slice 4b) should fetch only the supersession closure.
     val events = currentEvents(ledger, knownAt).filter { it.id in members }
     require(events.isNotEmpty()) { "no current ledger events for this commitment" }
     val currency = events.map { it.currency }.distinct().singleOrNull()

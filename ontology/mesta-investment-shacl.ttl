@@ -85,7 +85,8 @@ inv:ValuationEventShape a sh:NodeShape ;
     sh:property [ sh:path inv:monetaryAmount ; sh:datatype xsd:decimal ; sh:message "monetaryAmount must be a decimal."@en ] ;
     sh:property [ sh:path inv:currencyCode ; sh:datatype xsd:string ; sh:pattern "^[A-Z]{3}$" ; sh:message "currencyCode must match ^[A-Z]{3}$."@en ] ;
     sh:property [ sh:path inv:asOfDate ; sh:datatype xsd:date ; sh:message "asOfDate must be an xsd:date."@en ] ;
-    sh:property [ sh:path inv:valuationMethod ; sh:datatype xsd:string ; sh:in ( "dcf" "comparables" "lbo" "cost" "recent-round" "mark-to-model" "other" ) ; sh:message "valuationMethod must be one of the valuation-method @values."@en ] .
+    sh:property [ sh:path inv:valuationMethod ; sh:datatype xsd:string ; sh:in ( "dcf" "comparables" "lbo" "cost" "recent-round" "mark-to-model" "other" ) ; sh:message "valuationMethod must be one of the valuation-method @values."@en ] ;
+    sh:property [ sh:path inv:externalId ; sh:datatype xsd:string ; sh:message "externalId must be a string."@en ] .
 
 inv:DocumentShape a sh:NodeShape ;
     sh:targetClass inv:Document ;

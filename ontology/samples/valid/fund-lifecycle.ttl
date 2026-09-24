@@ -133,6 +133,17 @@ inv:valuation-of-fn-nyc-2026q1 a inv:ValuationOf ;
     inv:valuationSide inv:valuation-event-fn-nyc-2026q1 ;
     inv:subjectSide inv:investment-fn-nyc .
 
+inv:valuation-event-nusantara-aurora-iii-2026q1 a inv:ValuationEvent ;
+    inv:monetaryAmount 96400000.00 ;
+    inv:currencyCode "USD" ;
+    inv:asOfDate "2026-03-31"^^xsd:date ;
+    inv:valuationMethod "other" ;
+    inv:externalId "3f6c1d2e-8a4b-4c7e-9f10-2b3c4d5e6f70" .
+
+inv:valuation-of-nusantara-aurora-iii-2026q1 a inv:ValuationOf ;
+    inv:valuationSide inv:valuation-event-nusantara-aurora-iii-2026q1 ;
+    inv:subjectSide inv:commitment-nusantara-aurora-iii .
+
 inv:document-fn-nyc-pitch a inv:Document ;
     inv:fileName "fn-nyc-pitch-2026.pdf" ;
     inv:documentType "pitch-deck" ;
