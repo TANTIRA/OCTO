@@ -37,6 +37,7 @@ data class InstrumentFlow(
     val id: UUID,
     val externalId: String,
     val instrumentId: UUID,
+    val chain: String,
     val wallet: String,
     val tokenAccount: String?,
     val flowType: InstrumentFlowType,
@@ -47,6 +48,7 @@ data class InstrumentFlow(
     val slot: Long?,
     val signature: String?,
     val supersedesId: UUID? = null,
+    val rationale: String? = null,
 )
 
 /**

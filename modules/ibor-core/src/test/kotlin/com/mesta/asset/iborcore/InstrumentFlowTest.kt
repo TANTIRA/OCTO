@@ -27,6 +27,7 @@ private fun flow(
     id = UUID.randomUUID(),
     externalId = "solana:sig:${UUID.randomUUID()}:bal:0",
     instrumentId = instrument,
+    chain = "solana",
     wallet = wallet,
     tokenAccount = null,
     flowType = type,
