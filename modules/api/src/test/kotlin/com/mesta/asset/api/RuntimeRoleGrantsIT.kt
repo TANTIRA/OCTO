@@ -114,6 +114,24 @@ class RuntimeRoleGrantsIT {
                     insert into mesta.workflow_task_event (task_id, event_type, actor, occurred_at, correlation_id)
                     select id, 'completed', 'bob', now(), gen_random_uuid() from mesta.workflow_task limit 1
                     """.trimIndent(),
+                // Order matters: member references tenant, and the event references the member.
+                "tenant" to
+                    """
+                    insert into mesta.tenant (slug, display_name, source_system, correlation_id)
+                    values ('acme-capital', 'Acme Capital', 'test', gen_random_uuid())
+                    """.trimIndent(),
+                "tenant_member" to
+                    """
+                    insert into mesta.tenant_member (tenant_id, user_id, source_system, correlation_id)
+                    select id, '00000000-0000-0000-0000-000000000001', 'test', gen_random_uuid() from mesta.tenant limit 1
+                    """.trimIndent(),
+                // The trigger reads tenant_member_event and enforces its rules as the runtime role.
+                "tenant_member_event" to
+                    """
+                    insert into mesta.tenant_member_event (tenant_id, user_id, event_type, role, actor, occurred_at, correlation_id)
+                    select tenant_id, user_id, 'granted', 'analyst', '00000000-0000-0000-0000-000000000002', now(), gen_random_uuid()
+                    from mesta.tenant_member limit 1
+                    """.trimIndent(),
             )
 
         @Container
