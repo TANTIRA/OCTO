@@ -37,7 +37,12 @@ class HeliusRpcClientTest {
         assertEquals("getSignaturesForAddress", body["method"].asText())
         assertEquals("finalized", body["params"][1]["commitment"].asText())
         assertEquals("cursorSig", body["params"][1]["before"].asText())
-        assertTrue(transport.requests[0].uri().toString().contains("api-key=test-key"))
+        assertTrue(
+            transport.requests[0]
+                .uri()
+                .toString()
+                .contains("api-key=test-key"),
+        )
         assertEquals("sigA", result[0]["signature"].asText())
     }
 
