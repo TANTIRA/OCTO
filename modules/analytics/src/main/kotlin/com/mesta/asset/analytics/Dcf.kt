@@ -51,6 +51,7 @@ data class DcfInputs(
 ) {
     init {
         require(freeCashFlows.isNotEmpty()) { "at least one year of free cash flow is required" }
+        require(preferredClaims.signum() >= 0) { "preferred claims must not be negative: they are deducted from equity" }
     }
 }
 
@@ -88,24 +89,31 @@ fun dcf(inputs: DcfInputs): DcfValuation {
     )
 }
 
-/** One cell of a sensitivity grid. A null [equityValue] means WACC does not exceed g, so there is no value. */
-data class DcfScenario(
-    val wacc: BigDecimal,
-    val terminalGrowth: BigDecimal,
-    val equityValue: BigDecimal?,
-)
-
 /**
- * §10.9 scenarios: the equity value for every [waccs] × [growths] pair, WACC-major, holding the declared FCFF_{N+1}.
- * A pair where WACC does not exceed g is null rather than an error: it is undefined, not invalid (§10.7).
+ * A WACC × g scenario grid (§10.9): [equityValues] has one row per entry of [waccs] and one column per entry of
+ * [growths]. A cell where WACC does not exceed g is null: it is undefined, not invalid (§10.7).
  */
+data class DcfSensitivity(
+    val waccs: List<BigDecimal>,
+    val growths: List<BigDecimal>,
+    val equityValues: List<List<BigDecimal?>>,
+) {
+    init {
+        require(waccs.isNotEmpty() && growths.isNotEmpty()) { "the grid needs at least one WACC and one growth rate" }
+        require(equityValues.size == waccs.size && equityValues.all { it.size == growths.size }) {
+            "equityValues must be a ${waccs.size}×${growths.size} grid"
+        }
+    }
+}
+
+/** §10.9 scenarios, holding the declared FCFF_{N+1}: the equity value for every [waccs] × [growths] pair. */
 fun dcfSensitivity(
     inputs: DcfInputs,
     waccs: List<BigDecimal>,
     growths: List<BigDecimal>,
-): List<DcfScenario> {
-    require(waccs.isNotEmpty() && growths.isNotEmpty()) { "the grid needs at least one WACC and one growth rate" }
-    return waccs.flatMap { w ->
-        growths.map { g -> DcfScenario(w, g, if (w > g) dcf(inputs.copy(wacc = w, terminalGrowth = g)).equityValue else null) }
-    }
-}
+): DcfSensitivity =
+    DcfSensitivity(
+        waccs,
+        growths,
+        waccs.map { w -> growths.map { g -> if (w > g) dcf(inputs.copy(wacc = w, terminalGrowth = g)).equityValue else null } },
+    )
