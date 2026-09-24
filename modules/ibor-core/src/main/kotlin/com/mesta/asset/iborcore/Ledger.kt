@@ -43,6 +43,25 @@ data class LedgerEvent(
 fun currentEvents(
     ledger: List<LedgerEvent>,
     knownAt: Instant,
+): List<LedgerEvent> = resolveCurrent(ledger, knownAt, LedgerEvent::id, LedgerEvent::supersedesId, LedgerEvent::recordedAt)
+
+/** Shared supersession rules for every append-only fact table: bi-temporal cut, chains, no forks. */
+internal fun <T> resolveCurrent(
+    rows: List<T>,
+    knownAt: Instant,
+    id: (T) -> UUID,
+    supersedesId: (T) -> UUID?,
+    recordedAt: (T) -> Instant,
+): List<T> {
+    val known = rows.filter { !recordedAt(it).isAfter(knownAt) }
+    val ids = rows.mapTo(HashSet(), id)
+    val superseded = HashSet<UUID>()
+    for (row in known) {
+        val target = supersedesId(row) ?: continue
+        check(target in ids) { "${id(row)} supersedes $target, which is not loaded" }
+        check(superseded.add(target)) { "$target is superseded more than once" }
+    }
+    return known.filter { id(it) !in superseded }
 ): List<LedgerEvent> {
     val known = ledger.filter { !it.recordedAt.isAfter(knownAt) }
     val ids = ledger.mapTo(HashSet()) { it.id }
@@ -75,6 +94,7 @@ data class CommitmentPosition(
 /**
  * Derives the position of one commitment. Attribution lives in TypeDB (ADR-0003), so the caller
  * passes the ids of the events attributed to the commitment as [members]. Supersession is resolved
+ * over [ledger] first, so a correction that moves an event elsewhere removes it here.
  * over the whole ledger first, so a correction that moves an event elsewhere removes it here.
  */
 fun commitmentPosition(
