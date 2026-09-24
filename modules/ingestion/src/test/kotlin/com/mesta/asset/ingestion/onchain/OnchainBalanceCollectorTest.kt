@@ -50,6 +50,13 @@ private class FakeSnapshotStore(
         chain: String,
         wallet: String,
     ) = snapshots.filter { it.chain == chain && it.wallet == wallet }
+
+    override fun insertEvidence(
+        evidence: List<OnchainEvidence>,
+        ingestionRunId: UUID,
+        correlationId: UUID,
+        actor: String,
+    ): Int = evidence.size
 }
 
 private class StubWalletApi(
@@ -112,6 +119,11 @@ private class StubRpc(
     ) = ObjectMapper().createArrayNode()
 
     override fun blockTime(slot: Long): Long? = null
+
+
+    override fun tokenSupply(mint: String) = ObjectMapper().createObjectNode()
+
+    override fun tokenLargestAccounts(mint: String) = ObjectMapper().createArrayNode()
 }
 
 private fun balancesPage(

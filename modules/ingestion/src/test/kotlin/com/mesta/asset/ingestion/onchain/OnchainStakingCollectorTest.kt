@@ -51,6 +51,11 @@ private class StakingStubRpc(
     }
 
     override fun blockTime(slot: Long): Long? = 1_751_000_000
+
+
+    override fun tokenSupply(mint: String) = ObjectMapper().createObjectNode()
+
+    override fun tokenLargestAccounts(mint: String) = ObjectMapper().createArrayNode()
 }
 
 private class StakingFakeStore : OnchainStagingStore {
@@ -92,6 +97,14 @@ private class StakingFakeStore : OnchainStagingStore {
         chain: String,
         wallet: String,
     ): List<OnchainBalance> = emptyList()
+
+
+    override fun insertEvidence(
+        evidence: List<OnchainEvidence>,
+        ingestionRunId: UUID,
+        correlationId: UUID,
+        actor: String,
+    ): Int = evidence.size
 }
 
 class OnchainStakingCollectorTest {

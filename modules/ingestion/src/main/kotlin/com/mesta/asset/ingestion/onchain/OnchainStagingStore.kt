@@ -47,4 +47,15 @@ interface OnchainStagingStore {
         chain: String,
         wallet: String,
     ): List<OnchainBalance>
+
+    /**
+     * Batch-insert claim-evidence rows into `onchain_claim_evidence`. The external id is the
+     * query's identity — identical re-observations dedupe on the unique key.
+     */
+    fun insertEvidence(
+        evidence: List<OnchainEvidence>,
+        ingestionRunId: UUID,
+        correlationId: UUID,
+        actor: String,
+    ): Int
 }

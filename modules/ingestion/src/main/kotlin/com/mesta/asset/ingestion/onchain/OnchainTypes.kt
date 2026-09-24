@@ -118,3 +118,34 @@ data class WatchSource(
     val tenantId: UUID?,
     val label: String?,
 )
+
+
+/** Evidence kinds the onchain adapter can produce — mirrors `onchain_claim_evidence.evidence_kind`. */
+enum class EvidenceKind(
+    val db: String,
+) {
+    TOKEN_SUPPLY("token-supply"),
+    HOLDER_CONCENTRATION("holder-concentration"),
+    TREASURY_BALANCE("treasury-balance"),
+    ACCOUNT_ACTIVITY("account-activity"),
+    OTHER("other"),
+}
+
+/**
+ * One onchain observation backing an extracted claim (issue #116). The row is what the chain
+ * reported — never the verdict; support/refute is a downstream decision point.
+ *
+ * [externalId] is the query's identity: "<chain>:<kind>:<subject>:<asOf>:<observed>" so an
+ * identical re-observation dedupes while a changed value stages as a new fact.
+ */
+data class OnchainEvidence(
+    val externalId: String,
+    val claimRef: String,
+    val subjectAddress: String,
+    val kind: EvidenceKind,
+    val observedNumeric: java.math.BigDecimal?,
+    val observedText: String?,
+    val payload: com.fasterxml.jackson.databind.JsonNode,
+    val asOf: Instant,
+    val chain: String = CHAIN_SOLANA,
+)

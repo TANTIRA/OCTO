@@ -69,6 +69,12 @@ interface HeliusRpcApi {
 
     /** `getBlockTime` — historical estimate for a produced slot; null when unknown. */
     fun blockTime(slot: Long): Long?
+
+    /** `getTokenSupply` — total supply for a mint (`amount`, `decimals`, `uiAmount`). */
+    fun tokenSupply(mint: String): JsonNode
+
+    /** `getTokenLargestAccounts` — the up-to-20 largest token accounts of a mint. */
+    fun tokenLargestAccounts(mint: String): JsonNode
 }
 
 /**
