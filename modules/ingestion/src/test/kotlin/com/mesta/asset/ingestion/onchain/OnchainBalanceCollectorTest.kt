@@ -45,6 +45,11 @@ private class FakeSnapshotStore(
         snapshots += balances
         return balances.size
     }
+
+    override fun latestSnapshots(
+        chain: String,
+        wallet: String,
+    ) = snapshots.filter { it.chain == chain && it.wallet == wallet }
 }
 
 private class StubWalletApi(

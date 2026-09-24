@@ -1,5 +1,6 @@
 package com.mesta.asset.ingestion.onchain.persistence
 
+import com.mesta.asset.ingestion.onchain.BalanceSource
 import com.mesta.asset.ingestion.onchain.ONCHAIN_SOURCE_SYSTEM
 import com.mesta.asset.ingestion.onchain.OnchainBalance
 import com.mesta.asset.ingestion.onchain.OnchainStagingStore
@@ -159,6 +160,50 @@ class JdbcOnchainStagingStore(
             }
         }
     }
+
+    override fun latestSnapshots(
+        chain: String,
+        wallet: String,
+    ): List<OnchainBalance> =
+        dataSource.connection.use { c ->
+            c
+                .prepareStatement(
+                    """
+                    select distinct on (mint_address)
+                           wallet, token_account, mint_address, amount_raw, decimals,
+                           usd_value, source, slot, as_of
+                      from mesta.onchain_balance_snapshot s
+                     where chain = ? and wallet = ?
+                       and not exists (
+                           select 1 from mesta.onchain_balance_snapshot x
+                            where x.supersedes_id = s.id)
+                     order by mint_address, as_of desc
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.setString(2, wallet)
+                    s.executeQuery().use { r ->
+                        buildList {
+                            while (r.next()) {
+                                add(
+                                    OnchainBalance(
+                                        wallet = r.getString("wallet"),
+                                        tokenAccount = r.getString("token_account"),
+                                        mintAddress = r.getString("mint_address"),
+                                        amountRaw = r.getBigDecimal("amount_raw").toBigIntegerExact(),
+                                        decimals = r.getInt("decimals"),
+                                        usdValue = r.getBigDecimal("usd_value")?.toDouble(),
+                                        source = BalanceSource.entries.first { it.db == r.getString("source") },
+                                        slot = r.getLong("slot").takeIf { !r.wasNull() },
+                                        asOf = r.getObject("as_of", java.time.OffsetDateTime::class.java).toInstant(),
+                                        chain = chain,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                }
+        }
 
     // The observation's identity: an identical report in the same second is the same fact;
     // a different amount or a second source is a different observation worth keeping.

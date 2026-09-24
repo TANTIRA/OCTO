@@ -65,6 +65,11 @@ private open class FakeStore : OnchainStagingStore {
         correlationId: UUID,
         actor: String,
     ): Int = balances.size
+
+    override fun latestSnapshots(
+        chain: String,
+        wallet: String,
+    ): List<OnchainBalance> = emptyList()
 }
 
 private fun solTx(
@@ -162,6 +167,11 @@ class OnchainSyncServiceTest {
                     correlationId: UUID,
                     actor: String,
                 ): Int = 0
+
+                override fun latestSnapshots(
+                    chain: String,
+                    wallet: String,
+                ): List<OnchainBalance> = emptyList()
             }
         val result = OnchainSyncService(rpc, normalizer, store).syncAll().single()
         assertEquals(0, result.transfersStaged)

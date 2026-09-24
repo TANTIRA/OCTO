@@ -41,4 +41,10 @@ interface OnchainStagingStore {
         correlationId: UUID,
         actor: String,
     ): Int
+
+    /** The latest non-superseded observation per (wallet, mint) — what recon diffs against. */
+    fun latestSnapshots(
+        chain: String,
+        wallet: String,
+    ): List<OnchainBalance>
 }
