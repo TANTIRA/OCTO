@@ -235,3 +235,41 @@ inv:ScreeningOfShape a sh:NodeShape ;
     sh:targetClass inv:ScreeningOf ;
     sh:property [ sh:path inv:decisionSide ; sh:minCount 1 ; sh:message "A screening-of must relate exactly one decision-side (mirrors 'relates decision-side @card(1)')."@en ] ;
     sh:property [ sh:path inv:dealSide ; sh:minCount 1 ; sh:message "A screening-of must relate exactly one deal-side (mirrors 'relates deal-side @card(1)')."@en ] .
+
+inv:InstrumentShape a sh:NodeShape ;
+    sh:targetClass inv:Instrument ;
+    sh:property [ sh:path inv:instrumentId ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "An instrument must have an instrumentId (mirrors 'owns instrument-id @key')."@en ] ;
+    sh:property [ sh:path inv:instrumentKind ; sh:datatype xsd:string ; sh:in ( "native-token" "spl-token" "token-2022" "nft" "stake-account" "other" ) ; sh:message "instrumentKind must be one of the instrument-kind @values."@en ] ;
+    sh:property [ sh:path inv:chainId ; sh:datatype xsd:string ; sh:message "chainId must be a string."@en ] ;
+    sh:property [ sh:path inv:decimals ; sh:datatype xsd:integer ; sh:minInclusive 0 ; sh:maxInclusive 255 ; sh:message "decimals must be within 0..255."@en ] .
+
+inv:SolanaMintShape a sh:NodeShape ;
+    sh:targetClass inv:SolanaMint ;
+    sh:property [ sh:path inv:solanaAddress ; sh:datatype xsd:string ; sh:pattern "^[1-9A-HJ-NP-Za-km-z]{32,44}$" ; sh:message "solanaAddress must match ^[1-9A-HJ-NP-Za-km-z]{32,44}$."@en ] .
+
+inv:WalletShape a sh:NodeShape ;
+    sh:targetClass inv:Wallet ;
+    sh:property [ sh:path inv:solanaAddress ; sh:datatype xsd:string ; sh:minCount 1 ; sh:pattern "^[1-9A-HJ-NP-Za-km-z]{32,44}$" ; sh:message "A wallet must have a solanaAddress matching ^[1-9A-HJ-NP-Za-km-z]{32,44}$ (mirrors 'owns solana-address @key')."@en ] ;
+    sh:property [ sh:path inv:chainId ; sh:datatype xsd:string ; sh:message "chainId must be a string."@en ] .
+
+inv:InstrumentFlowShape a sh:NodeShape ;
+    sh:targetClass inv:InstrumentFlow ;
+    sh:property [ sh:path inv:instrumentFlowType ; sh:datatype xsd:string ; sh:in ( "transfer-in" "transfer-out" "staking-reward" "airdrop" "unlock" "vesting-claim" "mint" "burn" "other" ) ; sh:message "instrumentFlowType must be one of the instrument-flow-type @values."@en ] ;
+    sh:property [ sh:path inv:monetaryAmount ; sh:datatype xsd:decimal ; sh:message "monetaryAmount must be a decimal."@en ] ;
+    sh:property [ sh:path inv:occurredAt ; sh:datatype xsd:dateTime ; sh:message "occurredAt must be an xsd:dateTime."@en ] ;
+    sh:property [ sh:path inv:recordedAt ; sh:datatype xsd:dateTime ; sh:message "recordedAt must be an xsd:dateTime."@en ] ;
+    sh:property [ sh:path inv:externalId ; sh:datatype xsd:string ; sh:message "externalId must be a string."@en ] ;
+    sh:property [ sh:path inv:slot ; sh:datatype xsd:integer ; sh:message "slot must be an integer."@en ] .
+
+inv:InstrumentFlowOfShape a sh:NodeShape ;
+    sh:targetClass inv:InstrumentFlowOf ;
+    sh:property [ sh:path inv:flowSide ; sh:minCount 1 ; sh:message "An instrument-flow-of must relate exactly one flow-side (mirrors 'relates flow-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:instrumentSide ; sh:minCount 1 ; sh:message "An instrument-flow-of must relate exactly one instrument-side (mirrors 'relates instrument-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:walletSide ; sh:minCount 1 ; sh:message "An instrument-flow-of must relate exactly one wallet-side (mirrors 'relates wallet-side @card(1)')."@en ] .
+
+inv:WalletCustodyShape a sh:NodeShape ;
+    sh:targetClass inv:WalletCustody ;
+    sh:property [ sh:path inv:walletSide ; sh:minCount 1 ; sh:message "A wallet-custody must relate exactly one wallet-side (mirrors 'relates wallet-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:owner ; sh:minCount 1 ; sh:message "A wallet-custody must relate exactly one owner (mirrors 'relates owner @card(1)')."@en ] ;
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] ;
+    sh:property [ sh:path inv:endDate ; sh:datatype xsd:date ; sh:message "endDate must be an xsd:date."@en ] .
