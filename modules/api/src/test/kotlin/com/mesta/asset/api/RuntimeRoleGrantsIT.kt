@@ -94,6 +94,14 @@ class RuntimeRoleGrantsIT {
                     values ('Revenue grew 21% year over year.', 0.7, 0.5, 0.15, true,
                             false, 'test', 'test', 'integration-test', gen_random_uuid(), gen_random_uuid())
                     """.trimIndent(),
+                "valuation_event" to
+                    """
+                    insert into mesta.valuation_event
+                        (monetary_amount, currency_code, as_of_date, valuation_method,
+                         source_system, actor, ingestion_run_id, correlation_id)
+                    values (1000000.00, 'USD', current_date, 'mark-to-model',
+                            'test', 'integration-test', gen_random_uuid(), gen_random_uuid())
+                    """.trimIndent(),
             )
 
         @Container
