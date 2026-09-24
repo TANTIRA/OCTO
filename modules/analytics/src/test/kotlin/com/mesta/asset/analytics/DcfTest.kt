@@ -34,11 +34,6 @@ private val BASE =
         nonOperatingAssets = d("50"),
     )
 
-private fun List<DcfScenario>.at(
-    wacc: String,
-    growth: String,
-) = single { it.wacc.compareTo(d(wacc)) == 0 && it.terminalGrowth.compareTo(d(growth)) == 0 }
-
 class DcfTest {
     @Test
     fun `dcf follows methodology 5_1 component by component`() {
@@ -76,13 +71,15 @@ class DcfTest {
 
     @Test
     fun `the sensitivity grid reproduces the point estimate and leaves undefined cells null`() {
-        val grid = dcfSensitivity(BASE, waccs = listOf(d("0.20"), d("0.25")), growths = listOf(d("0.05"), d("0.25")))
+        // Asymmetric axes pin the orientation: rows are WACCs, columns are growth rates.
+        val grid = dcfSensitivity(BASE, waccs = listOf(d("0.20"), d("0.25")), growths = listOf(d("0.03"), d("0.05"), d("0.25")))
 
-        assertEquals(4, grid.size)
-        assertDecimal("750", grid.at("0.25", "0.05").equityValue)
-        assertNull(grid.at("0.25", "0.25").equityValue, "WACC equal to g has no terminal value")
+        assertEquals(2, grid.equityValues.size)
+        assertEquals(listOf(3, 3), grid.equityValues.map { it.size })
+        assertDecimal("750", grid.equityValues[1][1]) // 25% WACC, 5% growth: the point estimate
+        assertNull(grid.equityValues[1][2], "WACC equal to g has no terminal value")
         // Python Decimal at 40 digits: 325.70167824… of cash flows + 1333.33… / 1.728 of terminal value − 62.
-        val cheaperCapital = assertNotNull(grid.at("0.20", "0.05").equityValue)
+        val cheaperCapital = assertNotNull(grid.equityValues[0][1])
         assertTrue((cheaperCapital - d("1035.306616512345679")).abs() < d("1e-9"), "was $cheaperCapital")
     }
 
@@ -91,7 +88,9 @@ class DcfTest {
         assertFailsWith<IllegalArgumentException> { dcf(BASE.copy(terminalGrowth = d("0.25"))) }
         assertFailsWith<IllegalArgumentException> { dcf(BASE.copy(wacc = d("-1"), terminalGrowth = d("-2"))) }
         assertFailsWith<IllegalArgumentException> { BASE.copy(freeCashFlows = emptyList()) }
+        assertFailsWith<IllegalArgumentException> { BASE.copy(preferredClaims = d("-1")) } // would add to equity
         assertFailsWith<IllegalArgumentException> { dcfSensitivity(BASE, emptyList(), listOf(d("0.05"))) }
+        assertFailsWith<IllegalArgumentException> { DcfSensitivity(listOf(d("0.1")), listOf(d("0.05")), emptyList()) }
         assertFailsWith<IllegalArgumentException> { wacc(d("-1"), d("1"), d("0.1"), d("0.05"), d("0.2")) }
         assertFailsWith<IllegalArgumentException> { wacc(d("1"), d("-1"), d("0.1"), d("0.05"), d("0.2")) }
         assertFailsWith<IllegalArgumentException> { wacc(d("0"), d("0"), d("0.1"), d("0.05"), d("0.2")) }
