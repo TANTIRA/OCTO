@@ -91,8 +91,9 @@ modules/
   deal-sourcing/  Screening, DDQ assistance, IC report assembly
   workflow/       Tasks, approvals, outbound-artifact gates
   control-panel/  Unified inbox: alerts, recon items, approvals, AI proposals
+  ontology/       OWL/SHACL validation and TypeQL drift checks — CI gate for ontology/
 db/migrations/    Flyway migrations (append-only, migration identity)
-ontology/         TypeDB schema — mesta-investment.tql (T2, SemVer)
+ontology/         TypeQL schema (mesta-investment.tql), OWL/SHACL mirror, sample graphs (T2, SemVer)
 infra/            Dokploy Compose definitions and Supabase override
 docs/             Architecture, ADRs, product and methodology documentation
 ```
@@ -101,4 +102,8 @@ The web UI is a separate frontend concern (ADR-0001); `infra/docker-compose.yml`
 
 ## Status
 
-Backend scaffold in place — `./gradlew check` compiles all modules and runs tests. Domain logic not yet implemented; see `docs/adr/` for agreed architecture decisions.
+Backend scaffold in place — `./gradlew check` compiles all modules and runs tests.
+
+- Implemented as libraries: IBOR ledger and decision-staging migrations, the decision-model client, document classification and claim-support assessment, PE performance metrics (`analytics`), path-sum look-through exposure (`lookthrough`), and the ontology validation gate. None of these is wired into the running application yet.
+- Not implemented: IBOR derivation, reconciliation, deal sourcing, and workflow.
+- The ADRs in `docs/adr/` are still Proposed.

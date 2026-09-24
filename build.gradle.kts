@@ -74,5 +74,10 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+        // Testcontainers ITs skip themselves when Docker is down; print the skip instead of a
+        // silent green run.
+        testLogging {
+            events("skipped")
+        }
     }
 }
