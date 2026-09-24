@@ -40,7 +40,8 @@ data class Coefficient(
 /**
  * §4.1 estimate of r_t = α + Σ_k β_k·f_{k,t} + ε_t. The window is the first and last observation date;
  * [frequency], [benchmark] and [standardErrors] are the caller's declarations, carried with the numbers.
- * [rSquared] is null when the returns do not vary, because there is nothing to explain.
+ * α is per period of the observations: nothing is annualized. [rSquared] is null when the returns do not
+ * vary, because there is nothing to explain.
  */
 data class FactorModel(
     val alpha: Coefficient,
@@ -58,6 +59,8 @@ data class FactorModel(
 /**
  * Ordinary least squares of excess returns on the factors, with an intercept (methodology §4.1). CAPM is the
  * one-factor case with the market's excess return. Collinear factors have no unique solution and are rejected.
+ * Observations must be equally spaced at the declared [frequency]: Newey–West counts lags in observations,
+ * so a missing period would shift every autocovariance after it.
  */
 fun factorModel(
     observations: List<FactorObservation>,
@@ -65,7 +68,10 @@ fun factorModel(
     benchmark: String,
     standardErrors: StandardErrors,
 ): FactorModel {
+    require(observations.isNotEmpty()) { "at least one observation is required" }
     require(observations.zipWithNext().all { (a, b) -> a.date.isBefore(b.date) }) { "observations must have strictly increasing dates" }
+    requireFinite("excess returns", observations.map { it.excessReturn })
+    requireFinite("factor values", observations.flatMap { it.factors.values })
     val names =
         observations
             .firstOrNull()
@@ -78,6 +84,9 @@ fun factorModel(
     val n = observations.size
     val k = names.size + 1
     require(n > k) { "$n observations leave no residual degrees of freedom for $k coefficients" }
+    if (standardErrors is StandardErrors.NeweyWest) {
+        require(standardErrors.lags < n) { "Newey–West lags (${standardErrors.lags}) must be fewer than the $n observations" }
+    }
 
     val x = observations.map { o -> DoubleArray(k) { j -> if (j == 0) 1.0 else o.factors.getValue(names[j - 1]) } }
     val y = observations.map { it.excessReturn }
@@ -121,7 +130,7 @@ private fun sandwich(
 ): Array<DoubleArray> {
     val k = xtxInverse.size
     val meat = Array(k) { DoubleArray(k) }
-    for (lag in 0..minOf(lags, x.size - 1)) {
+    for (lag in 0..lags) {
         val weight = 1 - lag / (lags + 1.0)
         for (t in lag until x.size) {
             val e = weight * residuals[t] * residuals[t - lag]
@@ -145,7 +154,9 @@ private fun invert(matrix: Array<DoubleArray>): Array<DoubleArray> {
     for (col in 0 until n) {
         val pivot = (col until n).maxBy { abs(a[it][col]) }
         // ponytail: fixed relative tolerance on the normal equations; move to a rank-revealing QR if near-collinear factor sets matter.
-        require(abs(a[pivot][col]) > 1e-12 * scale) { "factors are collinear: the regression has no unique solution" }
+        require(abs(a[pivot][col]) > 1e-12 * scale) {
+            "factors are collinear, or one is constant and so collinear with the intercept: the regression has no unique solution"
+        }
         a[col] = a[pivot].also { a[pivot] = a[col] }
         inverse[col] = inverse[pivot].also { inverse[pivot] = inverse[col] }
         val divisor = a[col][col]
