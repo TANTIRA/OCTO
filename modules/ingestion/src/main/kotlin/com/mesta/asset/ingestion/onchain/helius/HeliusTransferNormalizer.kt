@@ -49,17 +49,12 @@ class HeliusTransferNormalizer {
         val pre = meta.path("preBalances")
         val post = meta.path("postBalances")
         for (i in 0 until maxOf(pre.size(), post.size())) {
-            val account =
-                keys
-                    .path(i)
-                    .path("pubkey")
-                    .asText()
-                    .ifEmpty { keys.path(i).asText() }
+            val account = accountAt(keys, i)
             if (account != wallet) continue
             val delta = lamports(post, i) - lamports(pre, i)
             if (delta == BigInteger.ZERO) continue
             legs +=
-                transfer(
+                OnchainTransfer(
                     externalId = "$CHAIN_SOLANA:$signature:$account:bal:$i",
                     signature = signature,
                     slot = slot,
@@ -72,7 +67,7 @@ class HeliusTransferNormalizer {
                     amountRaw = delta.abs(),
                     decimals = SOL_DECIMALS,
                     direction = if (delta.signum() > 0) TransferDirection.IN else TransferDirection.OUT,
-                    kind = if (delta.signum() > 0) TransferKind.TRANSFER_IN else TransferKind.TRANSFER_OUT,
+                    transferKind = if (delta.signum() > 0) TransferKind.TRANSFER_IN else TransferKind.TRANSFER_OUT,
                 )
         }
 
@@ -82,21 +77,15 @@ class HeliusTransferNormalizer {
         for (key in preTok.keys + postTok.keys) {
             val after = postTok[key]
             val before = preTok[key]
-            val owner = (after ?: before)?.path("owner")?.asText().orEmpty()
+            val entry = after ?: before ?: continue
+            val owner = entry.path("owner").asText().orEmpty()
             if (owner != wallet) continue
-            val amountAfter = after?.amountRaw() ?: BigInteger.ZERO
-            val amountBefore = before?.amountRaw() ?: BigInteger.ZERO
-            val delta = amountAfter - amountBefore
+            val delta = (after?.amountRaw() ?: BigInteger.ZERO) - (before?.amountRaw() ?: BigInteger.ZERO)
             if (delta == BigInteger.ZERO) continue
-            val accountIndex = (after ?: before)!!.path("accountIndex").asInt()
-            val account =
-                keys
-                    .path(accountIndex)
-                    .path("pubkey")
-                    .asText()
-                    .ifEmpty { keys.path(accountIndex).asText() }
+            val accountIndex = entry.path("accountIndex").asInt()
+            val account = accountAt(keys, accountIndex)
             legs +=
-                transfer(
+                OnchainTransfer(
                     externalId = "$CHAIN_SOLANA:$signature:$account:tok:$accountIndex",
                     signature = signature,
                     slot = slot,
@@ -105,15 +94,26 @@ class HeliusTransferNormalizer {
                     wallet = wallet,
                     counterparty = null,
                     tokenAccount = account,
-                    mintAddress = (after ?: before)!!.path("mint").asText(),
+                    mintAddress = entry.path("mint").asText(),
                     amountRaw = delta.abs(),
-                    decimals = (after ?: before)!!.decimals(),
+                    decimals = entry.decimals(),
                     direction = if (delta.signum() > 0) TransferDirection.IN else TransferDirection.OUT,
-                    kind = if (delta.signum() > 0) TransferKind.TRANSFER_IN else TransferKind.TRANSFER_OUT,
+                    transferKind = if (delta.signum() > 0) TransferKind.TRANSFER_IN else TransferKind.TRANSFER_OUT,
                 )
         }
         return legs
     }
+
+    /** Account keys are either plain strings or {pubkey, signer, ...} objects in jsonParsed. */
+    private fun accountAt(
+        keys: JsonNode,
+        index: Int,
+    ): String =
+        keys
+            .path(index)
+            .path("pubkey")
+            .asText()
+            .ifEmpty { keys.path(index).asText() }
 
     /** Keyed by (accountIndex, mint) so a wallet holding the same mint in two accounts stays distinct. */
     private fun tokenBalanceMap(balances: JsonNode): Map<String, JsonNode> =
@@ -129,39 +129,13 @@ class HeliusTransferNormalizer {
     ): BigInteger = balances.path(index).takeIf { it.isNumber }?.bigIntegerValue() ?: BigInteger.ZERO
 
     private fun JsonNode.amountRaw(): BigInteger =
-        path("uiTokenAmount").path("amount").takeIf { it.isTextual }?.let { BigInteger(it.asText()) } ?: BigInteger.ZERO
+        path("uiTokenAmount")
+            .path("amount")
+            .takeIf { it.isTextual }
+            ?.let { BigInteger(it.asText()) }
+            ?: BigInteger.ZERO
 
     private fun JsonNode.decimals(): Int = path("uiTokenAmount").path("decimals").asInt()
-
-    private fun transfer(
-        externalId: String,
-        signature: String,
-        slot: Long,
-        blockHash: String?,
-        blockTime: Instant,
-        wallet: String,
-        counterparty: String?,
-        tokenAccount: String?,
-        mintAddress: String?,
-        amountRaw: BigInteger,
-        decimals: Int,
-        direction: TransferDirection,
-        kind: TransferKind,
-    ) = OnchainTransfer(
-        externalId = externalId,
-        signature = signature,
-        slot = slot,
-        blockHash = blockHash,
-        blockTime = blockTime,
-        wallet = wallet,
-        counterparty = counterparty,
-        tokenAccount = tokenAccount,
-        mintAddress = mintAddress,
-        amountRaw = amountRaw,
-        decimals = decimals,
-        direction = direction,
-        transferKind = kind,
-    )
 
     companion object {
         const val SOL_DECIMALS = 9
