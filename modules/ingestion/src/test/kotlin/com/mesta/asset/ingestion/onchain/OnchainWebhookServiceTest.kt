@@ -24,22 +24,22 @@ private fun delivery(
             accounts.joinToString(",") { """{"pubkey":"$it","signer":false}""" }
         }
     return """
-    [{
-      "slot": 250000000,
-      "blockTime": 1726000000,
-      "transaction": {
-        "signatures": ["$WH_SIG"],
-        "message": {"recentBlockhash": "bh123", "accountKeys": [$keys]}
-      },
-      "meta": {
-        "err": null,
-        "preBalances": [${pre.joinToString(",")}],
-        "postBalances": [${post.joinToString(",")}],
-        "preTokenBalances": [],
-        "postTokenBalances": []
-      }
-    }]
-    """.trimIndent()
+        [{
+          "slot": 250000000,
+          "blockTime": 1726000000,
+          "transaction": {
+            "signatures": ["$WH_SIG"],
+            "message": {"recentBlockhash": "bh123", "accountKeys": [$keys]}
+          },
+          "meta": {
+            "err": null,
+            "preBalances": [${pre.joinToString(",")}],
+            "postBalances": [${post.joinToString(",")}],
+            "preTokenBalances": [],
+            "postTokenBalances": []
+          }
+        }]
+        """.trimIndent()
 }
 
 private class FakeWebhookStore : OnchainStagingStore {
