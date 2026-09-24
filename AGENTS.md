@@ -18,7 +18,8 @@ Private-equity investment platform: a standardized Ontology (prospects, funds, p
 ./gradlew test --tests 'com.mesta.asset.FooTest'    # run a single test
 ./gradlew check                                     # lint and format check
 ./gradlew bootJar                                   # production build
-./gradlew flywayMigrate                             # database migrations
+./gradlew bootRun                                   # migrations run at boot via Spring Flyway
+flyway migrate                                      # ad-hoc migration (flyway CLI; the Gradle plugin is gone — it was broken on Gradle 9)
 ```
 
 Run `./gradlew check` and `./gradlew test` before every pull request. If a command here is wrong, fix this file in the same PR.
