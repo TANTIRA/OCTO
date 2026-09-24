@@ -96,6 +96,8 @@ You may use Claude Code, Codex, Devin, Windsurf, OpenCode, or Oh My Pi on this r
 - Label the PR `ai-assisted` when an agent wrote most of the change. In T3 repos a second reviewer reads that code line by line.
 - Do not add a dependency unless the PR explains why. Copyleft licences (GPL, AGPL) need CTO approval.
 - Do not invent APIs, flags, or config keys. Read the code or the documentation first; if it is still unclear, ask in the issue instead of guessing.
+- Parallel sessions build the same slice. Before claiming work, comment "in progress" on the issue and check recent PRs for a competing implementation — #43/#53, #83/#84, and the Ledger.kt merge all broke `main` this way.
+- Verify `main` compiles before any merge. When CI is unavailable, a local `./gradlew check test` before merge is the only gate; a PR that was green on its branch can still break `main` if the base moved.
 - Never run destructive commands: `rm -rf` outside a build directory, `git push --force` on a shared branch, dropping or truncating a database, rewriting published history.
 - Leave a `TODO(issue-id)` instead of silently skipping a requirement.
 
