@@ -96,6 +96,63 @@ class HeliusRpcClient(
         return rpc("getTokenAccountsByOwner", args)
     }
 
+    override fun stakeAccounts(address: String): JsonNode {
+        val merged = mapper.createArrayNode()
+        val seen = mutableSetOf<String>()
+        for (offset in AUTHORIZED_OFFSETS) {
+            val memcmp =
+                mapper
+                    .createObjectNode()
+                    .put("offset", offset)
+                    .put("bytes", address)
+                    .put("encoding", "base58")
+            val filter = mapper.createObjectNode().set<JsonNode>("memcmp", memcmp)
+            val cfg =
+                mapper
+                    .createObjectNode()
+                    .put("encoding", "jsonParsed")
+                    .put("commitment", "finalized")
+                    .set<JsonNode>("filters", mapper.createArrayNode().add(filter))
+            rpc("getProgramAccounts", mapper.createArrayNode().add(STAKE_PROGRAM_ID).add(cfg))
+                .forEach { account ->
+                    if (seen.add(account.path("pubkey").asText())) merged.add(account)
+                }
+        }
+        return merged
+    }
+
+    override fun inflationReward(
+        addresses: List<String>,
+        epoch: Long?,
+    ): JsonNode {
+        if (addresses.isEmpty()) return mapper.createArrayNode()
+        val cfg = mapper.createObjectNode().put("commitment", "finalized")
+        epoch?.let { cfg.put("epoch", it) }
+        val params = mapper.createArrayNode()
+        addresses.forEach { params.add(it) }
+        return rpc("getInflationReward", params.add(cfg))
+    }
+
+    override fun blockTime(slot: Long): Long? {
+        val result =
+            try {
+                rpc("getBlockTime", mapper.createArrayNode().add(slot))
+            } catch (e: HeliusException) {
+                return null // unknown or purged slot — the caller falls back to observation time
+            }
+        return if (result.isNumber) result.asLong() else null
+    }
+
+    override fun tokenSupply(mint: String): JsonNode {
+        val params = mapper.createObjectNode().put("commitment", "finalized")
+        return rpc("getTokenSupply", mapper.createArrayNode().add(mint).add(params)).path("value")
+    }
+
+    override fun tokenLargestAccounts(mint: String): JsonNode {
+        val params = mapper.createObjectNode().put("commitment", "finalized")
+        return rpc("getTokenLargestAccounts", mapper.createArrayNode().add(mint).add(params)).path("value")
+    }
+
     private fun rpc(
         method: String,
         params: JsonNode,
@@ -155,5 +212,9 @@ class HeliusRpcClient(
     companion object {
         val TIMEOUT: Duration = Duration.ofSeconds(15)
         const val SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        const val STAKE_PROGRAM_ID = "Stake11111111111111111111111111111111111111"
+
+        /** Byte offsets of `Authorized::staker` and `Authorized::withdrawer` in the stake layout. */
+        val AUTHORIZED_OFFSETS = listOf(44, 76)
     }
 }

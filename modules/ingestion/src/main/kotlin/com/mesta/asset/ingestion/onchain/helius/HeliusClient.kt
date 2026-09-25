@@ -49,6 +49,32 @@ interface HeliusRpcApi {
 
     /** `getTokenAccountsByOwner` under the SPL Token program, parsed. */
     fun tokenAccountsByOwner(address: String): JsonNode
+
+    /**
+     * `getProgramAccounts` on the stake program, `jsonParsed`, filtered to accounts whose
+     * `Authorized` names [address] as staker (offset 44) or withdrawer (offset 76) — the RPC
+     * ANDs memcmp filters, so the two authorities need separate calls merged here.
+     */
+    fun stakeAccounts(address: String): JsonNode
+
+    /**
+     * `getInflationReward` — one result slot per queried address in request order; a null
+     * entry means that account earned nothing in the epoch. Null [epoch] asks for the most
+     * recent one.
+     */
+    fun inflationReward(
+        addresses: List<String>,
+        epoch: Long? = null,
+    ): JsonNode
+
+    /** `getBlockTime` — historical estimate for a produced slot; null when unknown. */
+    fun blockTime(slot: Long): Long?
+
+    /** `getTokenSupply` — total supply for a mint (`amount`, `decimals`, `uiAmount`). */
+    fun tokenSupply(mint: String): JsonNode
+
+    /** `getTokenLargestAccounts` — the up-to-20 largest token accounts of a mint. */
+    fun tokenLargestAccounts(mint: String): JsonNode
 }
 
 /**
@@ -56,7 +82,11 @@ interface HeliusRpcApi {
  * reconciliation snapshots and fast history backfill.
  */
 interface HeliusWalletApi {
-    fun balances(address: String): JsonNode
+    /** `/balances` — paginated manually; `pagination.hasMore` in the response drives [page]. */
+    fun balances(
+        address: String,
+        page: Int = 1,
+    ): JsonNode
 
     fun transfers(
         address: String,
