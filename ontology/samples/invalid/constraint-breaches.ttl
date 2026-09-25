@@ -62,6 +62,9 @@ inv:ledger-event-broken-datatype a inv:LedgerEvent ;
 inv:cfa-broken-datatype a inv:CashFlowAttribution ;
     inv:eventSide inv:ledger-event-broken-datatype .
 
+inv:wallet-broken-address a inv:Wallet ;
+    inv:solanaAddress "not-a-base58-address!!" .
+
 # --- policy breaches -------------------------------------------------------
 
 inv:extracted-claim-broken-confidence a inv:ExtractedClaim ;
@@ -85,3 +88,32 @@ inv:ledger-event-unattributed a inv:LedgerEvent ;
     inv:currencyCode "USD" ;
     inv:occurredAt "2026-03-01T09:00:00Z"^^xsd:dateTime ;
     inv:recordedAt "2026-03-01T09:00:22Z"^^xsd:dateTime .
+
+# --- onchain policy breaches -------------------------------------------------
+# Skeleton entries the breaches below link to.
+inv:instrument-skel a inv:Instrument ;
+    inv:instrumentId "solana:native" ;
+    inv:instrumentKind "native-token" ;
+    inv:chainId "solana" ;
+    inv:decimals 9 .
+
+inv:wallet-skel a inv:Wallet ;
+    inv:solanaAddress "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM" .
+
+# Complete except the instrument-flow-of link: exactly one attribution breach.
+inv:instrument-flow-unattributed a inv:InstrumentFlow ;
+    inv:instrumentFlowType "transfer-in" ;
+    inv:monetaryAmount 1000.00 ;
+    inv:occurredAt "2026-03-01T09:00:00Z"^^xsd:dateTime ;
+    inv:recordedAt "2026-03-01T09:00:22Z"^^xsd:dateTime .
+
+# Attributed but untyped: exactly one completeness breach.
+inv:instrument-flow-missing-type a inv:InstrumentFlow ;
+    inv:monetaryAmount 500.00 ;
+    inv:occurredAt "2026-03-02T09:00:00Z"^^xsd:dateTime ;
+    inv:recordedAt "2026-03-02T09:00:22Z"^^xsd:dateTime .
+
+inv:instrument-flow-of-missing-type a inv:InstrumentFlowOf ;
+    inv:flowSide inv:instrument-flow-missing-type ;
+    inv:instrumentSide inv:instrument-skel ;
+    inv:walletSide inv:wallet-skel .

@@ -1,0 +1,55 @@
+@prefix inv: <https://mesta.asset/ontology/investment#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Synthetic onchain sample. Must conform to mesta-investment-shacl.ttl (schema mirror) and
+# mesta-investment-policy-shacl.ttl (business rules). Addresses are shape-valid dummies;
+# no real wallet, project, or transaction data.
+
+inv:fund-manager-aurora a inv:FundManager ;
+    inv:legalName "Aurora Capital Partners Pte Ltd" .
+
+# Native SOL: an instrument with no mint.
+inv:instrument-sol a inv:Instrument ;
+    inv:instrumentId "solana:native" ;
+    inv:instrumentKind "native-token" ;
+    inv:chainId "solana" ;
+    inv:decimals 9 .
+
+# USDC on Solana: an SPL-token instrument keyed by its mint address.
+inv:mint-usdc a inv:SolanaMint ;
+    inv:instrumentId "solana:mint:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" ;
+    inv:instrumentKind "spl-token" ;
+    inv:chainId "solana" ;
+    inv:decimals 6 ;
+    inv:solanaAddress "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" .
+
+inv:wallet-treasury a inv:Wallet ;
+    inv:solanaAddress "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM" ;
+    inv:chainId "solana" .
+
+inv:wallet-custody-treasury a inv:WalletCustody ;
+    inv:walletSide inv:wallet-treasury ;
+    inv:owner inv:fund-manager-aurora ;
+    inv:effectiveDate "2026-01-15"^^xsd:date .
+
+# 250 USDC in raw base units (250.000000 x 10^6) arriving in a finalized transaction.
+inv:instrument-flow-usdc-in-001 a inv:InstrumentFlow ;
+    inv:instrumentFlowType "transfer-in" ;
+    inv:monetaryAmount 250000000.00 ;
+    inv:occurredAt "2026-02-01T09:30:00Z"^^xsd:dateTime ;
+    inv:recordedAt "2026-02-01T09:30:41Z"^^xsd:dateTime ;
+    inv:externalId "solana:5xSigExample9WzDXw:i0" ;
+    inv:slot 284411003 .
+
+inv:instrument-flow-of-usdc-in-001 a inv:InstrumentFlowOf ;
+    inv:flowSide inv:instrument-flow-usdc-in-001 ;
+    inv:instrumentSide inv:mint-usdc ;
+    inv:walletSide inv:wallet-treasury .
+
+inv:data-provider-helius a inv:DataProvider ;
+    inv:legalName "Helius" .
+
+inv:source-attribution-usdc-in-001 a inv:SourceAttribution ;
+    inv:providerSide inv:data-provider-helius ;
+    inv:dataSide inv:instrument-flow-usdc-in-001 ;
+    inv:recordedAt "2026-02-01T09:30:41Z"^^xsd:dateTime .
