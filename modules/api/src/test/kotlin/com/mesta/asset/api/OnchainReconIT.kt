@@ -124,6 +124,8 @@ class OnchainReconIT {
                 .single()
                 .flowType.wireValue,
         ).isEqualTo("staking-reward")
+        assertThat(flowStore.flowsFor("solana", wallet).single().flowType.wireValue)
+            .isEqualTo("staking-reward")
     }
 
     @Test
