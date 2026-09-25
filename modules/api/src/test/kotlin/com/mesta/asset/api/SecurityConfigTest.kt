@@ -53,9 +53,10 @@ class SecurityConfigTest {
     }
 
     @Test
-    fun `a filter chain bean exists and context still starts without a JWKS URL`() {
+    fun `filter chain beans exist and context still starts without a JWKS URL`() {
         contextRunner.run { context ->
-            assertThat(context).hasSingleBean(SecurityFilterChain::class.java)
+            // JWT resource-server chain + the dedicated Helius webhook chain.
+            assertThat(context).getBeans(SecurityFilterChain::class.java).hasSize(2)
         }
     }
 
@@ -66,7 +67,7 @@ class SecurityConfigTest {
                 "AUTH_JWKS_URL=https://issuer.example.invalid/.well-known/jwks.json",
                 "AUTH_ISSUER=https://issuer.example.invalid/",
             ).run { context ->
-                assertThat(context).hasSingleBean(SecurityFilterChain::class.java)
+                assertThat(context).getBeans(SecurityFilterChain::class.java).hasSize(2)
             }
     }
 }

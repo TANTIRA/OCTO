@@ -1,7 +1,9 @@
 package com.mesta.asset.api
 
+import com.mesta.asset.api.ingestion.HeliusWebhookAuthFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.annotation.Order
 import org.springframework.core.env.Environment
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
@@ -9,6 +11,7 @@ import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.oauth2.jwt.JwtValidators
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
 /**
  * Auth boundary for the REST API (AGENTS.md: auth endpoints are T2).
@@ -24,7 +27,32 @@ import org.springframework.security.web.SecurityFilterChain
 @Configuration
 @EnableWebSecurity
 class SecurityConfig {
+    /**
+     * Vendor callbacks cannot carry a user JWT, so the webhook path gets its own chain ahead
+     * of the resource-server chain: it matches only `/api/v1/ingestion/webhooks/helius` and
+     * authenticates the request by shared secret (`HELIUS_WEBHOOK_SECRET`). Every other
+     * request falls through to the JWT chain below — this chain widens nothing.
+     */
     @Bean
+    @Order(1)
+    fun heliusWebhookFilterChain(
+        http: HttpSecurity,
+        env: Environment,
+    ): SecurityFilterChain {
+        http
+            .securityMatcher("/api/v1/ingestion/webhooks/helius")
+            .csrf { it.disable() }
+            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .authorizeHttpRequests { it.anyRequest().authenticated() }
+            .addFilterBefore(
+                HeliusWebhookAuthFilter(env.getProperty("HELIUS_WEBHOOK_SECRET")),
+                UsernamePasswordAuthenticationFilter::class.java,
+            )
+        return http.build()
+    }
+
+    @Bean
+    @Order(2)
     fun securityFilterChain(
         http: HttpSecurity,
         env: Environment,

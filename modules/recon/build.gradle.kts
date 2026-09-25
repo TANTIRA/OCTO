@@ -3,6 +3,7 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":modules:ibor-core"))
     // Break details are stored as jsonb; Apache-2.0, the same artifact ingestion already uses.
     // Rules evaluate the look-through exposure (#10) and the coverage ratio (#45) as given; recon computes neither.
     implementation(project(":modules:analytics"))

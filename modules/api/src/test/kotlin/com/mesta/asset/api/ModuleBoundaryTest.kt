@@ -33,6 +33,7 @@ class ModuleBoundaryTest {
         mapOf(
             "api" to modulePackages.keys - "api",
             "ingestion" to setOf("control-panel"),
+            "recon" to setOf("ibor-core"),
             // #106: compliance rules evaluate the look-through exposure (#10) and coverage ratio (#45) as given.
             "recon" to setOf("analytics", "lookthrough"),
         )
@@ -62,5 +63,30 @@ class ModuleBoundaryTest {
                 .allowEmptyShould(true) // scaffold modules have no classes yet
                 .check(productionClasses)
         }
+    }
+
+    @Test
+    fun `recon is reporting-only - no JDBC or DataSource references`() {
+        noClasses()
+            .that()
+            .resideInAPackage("com.mesta.asset.recon..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage("java.sql..", "javax.sql..")
+            .`as`("recon compares fetched rows; it never opens a connection or writes a correction")
+            .allowEmptyShould(true)
+            .check(productionClasses)
+    }
+
+    @Test
+    fun `helius vendor types stay inside the ingestion module`() {
+        noClasses()
+            .that()
+            .resideOutsideOfPackage("com.mesta.asset.ingestion..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("com.mesta.asset.ingestion.onchain.helius..")
+            .`as`("vendor payload shapes stop inside the helius adapter package — ADR-0001")
+            .check(productionClasses)
     }
 }

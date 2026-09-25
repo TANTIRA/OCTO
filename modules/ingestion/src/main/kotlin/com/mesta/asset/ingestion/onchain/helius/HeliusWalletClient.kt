@@ -30,7 +30,10 @@ class HeliusWalletClient(
     private val sleeper: (Duration) -> Unit = { Thread.sleep(it) },
     private val mapper: ObjectMapper = ObjectMapper(),
 ) : HeliusWalletApi {
-    override fun balances(address: String): JsonNode = get("/v1/wallet/$address/balances", emptyMap())
+    override fun balances(
+        address: String,
+        page: Int,
+    ): JsonNode = get("/v1/wallet/$address/balances", mapOf("page" to page.toString()))
 
     override fun transfers(
         address: String,
