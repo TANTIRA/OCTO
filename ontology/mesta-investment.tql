@@ -41,6 +41,23 @@ define
   attribute confidence-level, value double @range(0..1);
 
   # ============================================================
+  # Attributes — onchain instruments and flows (Solana first)
+  # ============================================================
+
+  # Base58 Solana address (no 0, O, I, l), 32-44 chars.
+  attribute solana-address, value string @regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$");
+  attribute instrument-id, value string;
+  attribute instrument-kind, value string @values("native-token", "spl-token", "token-2022", "nft", "stake-account", "other");
+  attribute instrument-flow-type, value string @values("transfer-in", "transfer-out", "staking-reward", "airdrop", "unlock", "vesting-claim", "mint", "burn", "other");
+  # The chain an instrument or wallet lives on, e.g. "solana". Left as a free
+  # string: the chain list is an adapter-domain concern that evolves faster
+  # than the ontology should.
+  attribute chain-id, value string;
+  attribute slot, value integer;
+  # SPL token decimals are a u8 onchain, so 0..255 — never assume ERC-20's 18.
+  attribute decimals, value integer @range(0..255);
+
+  # ============================================================
   # Attributes — measures and timestamps
   # ============================================================
 
@@ -201,6 +218,43 @@ define
     plays screening-of:decision-side;
 
   # ============================================================
+  # Entities — onchain instruments and flows
+  # ============================================================
+
+  # Anything a wallet can hold that is not an ISO currency. instrument-id is
+  # the canonical key ("solana:native", "solana:mint:<address>"); mints and
+  # symbols are metadata, never keys.
+  entity instrument,
+    owns instrument-id @key,
+    owns instrument-kind,
+    owns chain-id,
+    owns decimals,
+    plays instrument-flow-of:instrument-side;
+
+  entity solana-mint, sub instrument,
+    owns solana-address @unique;
+
+  entity wallet,
+    owns solana-address @key,
+    owns chain-id,
+    plays instrument-flow-of:wallet-side,
+    plays wallet-custody:wallet-side;
+
+  # Append-only token-denominated flows. Fiat flows stay on ledger-event;
+  # token positions are derived from these, never stored.
+  entity instrument-flow,
+    owns instrument-flow-type,
+    owns monetary-amount,
+    owns occurred-at,
+    owns recorded-at,
+    owns external-id @card(0..),
+    owns slot,
+    plays instrument-flow-of:flow-side,
+    plays supersedes:replacement,
+    plays supersedes:original,
+    plays source-attribution:data-side;
+
+  # ============================================================
   # Relations — organizational
   # ============================================================
 
@@ -335,6 +389,22 @@ define
     relates deal-side @card(1);
 
   # ============================================================
+  # Relations — onchain
+  # ============================================================
+
+  relation instrument-flow-of,
+    relates flow-side @card(1),
+    relates instrument-side @card(1),
+    relates wallet-side @card(1);
+
+  # Which organization controls a wallet (treasury, custody, fund wallet).
+  relation wallet-custody,
+    relates wallet-side @card(1),
+    relates owner @card(1),
+    owns effective-date,
+    owns end-date;
+
+  # ============================================================
   # Player declarations for remaining types
   # ============================================================
 
@@ -346,6 +416,7 @@ define
   # is rejected by TypeDB (SVL42: redeclared inherited capability without specialisation).
   entity operating-company, plays company-sector:company-side, plays company-domicile:company-side;
   entity deal, plays screening-of:deal-side;
+  entity organization, plays wallet-custody:owner;
   entity ledger-event, plays source-attribution:data-side;
   entity valuation-event, plays source-attribution:data-side;
   entity document, plays source-attribution:data-side;
