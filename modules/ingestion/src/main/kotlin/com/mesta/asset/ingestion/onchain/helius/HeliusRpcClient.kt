@@ -143,6 +143,16 @@ class HeliusRpcClient(
         return if (result.isNumber) result.asLong() else null
     }
 
+    override fun tokenSupply(mint: String): JsonNode {
+        val params = mapper.createObjectNode().put("commitment", "finalized")
+        return rpc("getTokenSupply", mapper.createArrayNode().add(mint).add(params)).path("value")
+    }
+
+    override fun tokenLargestAccounts(mint: String): JsonNode {
+        val params = mapper.createObjectNode().put("commitment", "finalized")
+        return rpc("getTokenLargestAccounts", mapper.createArrayNode().add(mint).add(params)).path("value")
+    }
+
     private fun rpc(
         method: String,
         params: JsonNode,

@@ -1,6 +1,7 @@
 package com.mesta.asset.api.ingestion
 
 import com.mesta.asset.ingestion.onchain.OnchainBalance
+import com.mesta.asset.ingestion.onchain.OnchainEvidence
 import com.mesta.asset.ingestion.onchain.OnchainStagingStore
 import com.mesta.asset.ingestion.onchain.OnchainTransfer
 import com.mesta.asset.ingestion.onchain.OnchainWebhookService
@@ -50,6 +51,13 @@ class OnchainIngestionConfiguration {
                 chain: String,
                 wallet: String,
             ): List<OnchainBalance> = delegate.latestSnapshots(chain, wallet)
+
+            override fun insertEvidence(
+                evidence: List<OnchainEvidence>,
+                ingestionRunId: UUID,
+                correlationId: UUID,
+                actor: String,
+            ): Int = delegate.insertEvidence(evidence, ingestionRunId, correlationId, actor)
         }
     }
 

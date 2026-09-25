@@ -49,6 +49,10 @@ private class FakeRpc(
         .createArrayNode()
 
     override fun blockTime(slot: Long): Long? = null
+
+    override fun tokenSupply(mint: String) = ObjectMapper().createObjectNode()
+
+    override fun tokenLargestAccounts(mint: String) = ObjectMapper().createArrayNode()
 }
 
 private open class FakeStore : OnchainStagingStore {
@@ -84,6 +88,13 @@ private open class FakeStore : OnchainStagingStore {
         chain: String,
         wallet: String,
     ): List<OnchainBalance> = emptyList()
+
+    override fun insertEvidence(
+        evidence: List<OnchainEvidence>,
+        ingestionRunId: UUID,
+        correlationId: UUID,
+        actor: String,
+    ): Int = evidence.size
 }
 
 private fun solTx(
@@ -186,6 +197,13 @@ class OnchainSyncServiceTest {
                     chain: String,
                     wallet: String,
                 ): List<OnchainBalance> = emptyList()
+
+                override fun insertEvidence(
+                    evidence: List<OnchainEvidence>,
+                    ingestionRunId: UUID,
+                    correlationId: UUID,
+                    actor: String,
+                ): Int = evidence.size
             }
         val result = OnchainSyncService(rpc, normalizer, store).syncAll().single()
         assertEquals(0, result.transfersStaged)

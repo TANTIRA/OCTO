@@ -2,6 +2,7 @@ package com.mesta.asset.api.ingestion
 
 import com.mesta.asset.api.MestaAssetApplication
 import com.mesta.asset.ingestion.onchain.OnchainBalance
+import com.mesta.asset.ingestion.onchain.OnchainEvidence
 import com.mesta.asset.ingestion.onchain.OnchainStagingStore
 import com.mesta.asset.ingestion.onchain.OnchainTransfer
 import com.mesta.asset.ingestion.onchain.WatchSource
@@ -74,6 +75,13 @@ private class RecordingStore : OnchainStagingStore {
         chain: String,
         wallet: String,
     ): List<OnchainBalance> = emptyList()
+
+    override fun insertEvidence(
+        evidence: List<OnchainEvidence>,
+        ingestionRunId: UUID,
+        correlationId: UUID,
+        actor: String,
+    ): Int = evidence.size
 }
 
 class HeliusWebhookTest {

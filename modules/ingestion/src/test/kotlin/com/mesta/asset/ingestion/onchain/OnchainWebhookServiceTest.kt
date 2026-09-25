@@ -77,6 +77,13 @@ private class FakeWebhookStore : OnchainStagingStore {
         chain: String,
         wallet: String,
     ): List<OnchainBalance> = emptyList()
+
+    override fun insertEvidence(
+        evidence: List<OnchainEvidence>,
+        ingestionRunId: UUID,
+        correlationId: UUID,
+        actor: String,
+    ): Int = evidence.size
 }
 
 class OnchainWebhookServiceTest {
