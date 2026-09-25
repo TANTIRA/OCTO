@@ -75,4 +75,16 @@ class ModuleBoundaryTest {
             .allowEmptyShould(true)
             .check(productionClasses)
     }
+
+    @Test
+    fun `helius vendor types stay inside the ingestion module`() {
+        noClasses()
+            .that()
+            .resideOutsideOfPackage("com.mesta.asset.ingestion..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("com.mesta.asset.ingestion.onchain.helius..")
+            .`as`("vendor payload shapes stop inside the helius adapter package — ADR-0001")
+            .check(productionClasses)
+    }
 }
