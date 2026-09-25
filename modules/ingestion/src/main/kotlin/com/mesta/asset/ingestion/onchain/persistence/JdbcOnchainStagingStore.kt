@@ -1,0 +1,119 @@
+package com.mesta.asset.ingestion.onchain.persistence
+
+import com.mesta.asset.ingestion.onchain.ONCHAIN_SOURCE_SYSTEM
+import com.mesta.asset.ingestion.onchain.OnchainStagingStore
+import com.mesta.asset.ingestion.onchain.OnchainTransfer
+import com.mesta.asset.ingestion.onchain.WatchSource
+import java.sql.Timestamp
+import java.util.UUID
+import javax.sql.DataSource
+
+/**
+ * JDBC implementation of [OnchainStagingStore] against the V10 tables. Thin glue — exercised
+ * end-to-end by `OnchainStagingStoreIT` in `:modules:api` and excluded from module coverage the
+ * same way `JdbcDecisionStore` is.
+ */
+class JdbcOnchainStagingStore(
+    private val dataSource: DataSource,
+) : OnchainStagingStore {
+    override fun activeWatchedAddresses(chain: String): List<WatchSource> =
+        dataSource.connection.use { c ->
+            c
+                .prepareStatement(
+                    """
+                    select t.chain, t.address, t.tenant_id, t.label
+                      from mesta.tracked_address t
+                     where t.chain = ?
+                       and (select e.event_type
+                              from mesta.tracked_address_event e
+                             where e.chain = t.chain and e.address = t.address
+                             order by e.seq desc
+                             limit 1) = 'watched'
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.executeQuery().use { r ->
+                        buildList {
+                            while (r.next()) {
+                                add(
+                                    WatchSource(
+                                        chain = r.getString("chain"),
+                                        address = r.getString("address"),
+                                        tenantId = r.getObject("tenant_id", UUID::class.java),
+                                        label = r.getString("label"),
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                }
+        }
+
+    override fun newestSignature(
+        chain: String,
+        wallet: String,
+    ): String? =
+        dataSource.connection.use { c ->
+            c
+                .prepareStatement(
+                    """
+                    select signature
+                      from mesta.onchain_transfer
+                     where chain = ? and wallet = ?
+                     order by slot desc
+                     limit 1
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.setString(2, wallet)
+                    s.executeQuery().use { r -> if (r.next()) r.getString(1) else null }
+                }
+        }
+
+    override fun insertTransfers(
+        transfers: List<OnchainTransfer>,
+        ingestionRunId: UUID,
+        correlationId: UUID,
+        actor: String,
+    ): Int {
+        if (transfers.isEmpty()) return 0
+        val sql =
+            """
+            insert into mesta.onchain_transfer
+                (external_id, chain, signature, slot, block_hash, block_time, commitment,
+                 wallet, counterparty, token_account, mint_address, amount_raw, decimals,
+                 direction, transfer_kind, helius_payload,
+                 source_system, actor, ingestion_run_id, correlation_id)
+            values (?, ?, ?, ?, ?, ?, 'finalized', ?, ?, ?, ?, ?, ?, ?, ?, null, ?, ?, ?, ?)
+            on conflict (source_system, external_id) do nothing
+            """.trimIndent()
+        // TODO(#114): carry the normalized provider payload into helius_payload when the webhook
+        // path lands — lineage then covers both delivery routes.
+        return dataSource.connection.use { c ->
+            c.prepareStatement(sql).use { s ->
+                for (t in transfers) {
+                    s.setString(1, t.externalId)
+                    s.setString(2, t.chain)
+                    s.setString(3, t.signature)
+                    s.setLong(4, t.slot)
+                    s.setString(5, t.blockHash)
+                    s.setTimestamp(6, Timestamp.from(t.blockTime))
+                    s.setString(7, t.wallet)
+                    s.setString(8, t.counterparty)
+                    s.setString(9, t.tokenAccount)
+                    s.setString(10, t.mintAddress)
+                    s.setBigDecimal(11, t.amountRaw.toBigDecimal())
+                    s.setInt(12, t.decimals)
+                    s.setString(13, t.direction.db)
+                    s.setString(14, t.transferKind.db)
+                    s.setString(15, ONCHAIN_SOURCE_SYSTEM)
+                    s.setString(16, actor)
+                    s.setObject(17, ingestionRunId)
+                    s.setObject(18, correlationId)
+                    s.addBatch()
+                }
+                s.executeBatch().count { it > 0 }
+            }
+        }
+    }
+}
