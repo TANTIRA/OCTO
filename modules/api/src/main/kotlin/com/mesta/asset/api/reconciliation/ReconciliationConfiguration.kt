@@ -39,11 +39,14 @@ class ReconciliationConfiguration {
     }
 
     @Bean
+    fun jdbcBreakTaskOpener(dataSource: ObjectProvider<DataSource>): BreakTaskOpener {
+        val tasks by lazy { JdbcTaskStore(dataSource.getObject()) }
+        return BreakTaskOpener { task, provenance -> tasks.create(task, provenance) }
+    }
+
+    @Bean
     fun reconciliationRunner(
         store: ReconciliationStore,
-        dataSource: ObjectProvider<DataSource>,
-    ): ReconciliationRunner {
-        val tasks by lazy { JdbcTaskStore(dataSource.getObject()) }
-        return ReconciliationRunner(store) { task, provenance -> tasks.create(task, provenance) }
-    }
+        tasks: BreakTaskOpener,
+    ) = ReconciliationRunner(store, tasks)
 }
