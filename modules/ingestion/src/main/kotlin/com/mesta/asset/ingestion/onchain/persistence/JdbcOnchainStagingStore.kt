@@ -169,6 +169,7 @@ class JdbcOnchainStagingStore(
             c
                 .prepareStatement(
                     """
+                    select distinct on (coalesce(token_account, mint_address))
                     select distinct on (mint_address)
                            wallet, token_account, mint_address, amount_raw, decimals,
                            usd_value, source, slot, as_of
@@ -177,6 +178,7 @@ class JdbcOnchainStagingStore(
                        and not exists (
                            select 1 from mesta.onchain_balance_snapshot x
                             where x.supersedes_id = s.id)
+                     order by coalesce(token_account, mint_address), as_of desc
                      order by mint_address, as_of desc
                     """.trimIndent(),
                 ).use { s ->

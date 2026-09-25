@@ -87,6 +87,42 @@ class OnchainReconIT {
     }
 
     @Test
+    fun `a staged staking reward promotes to flow and counts in the native position`() {
+        val wallet = addr()
+        val stakeAccount = addr()
+        stage(
+            OnchainTransfer(
+                externalId = "solana:700:$stakeAccount",
+                signature = "reward:700:$stakeAccount",
+                slot = 305_587_200,
+                blockHash = null,
+                blockTime = Instant.now(),
+                wallet = wallet,
+                counterparty = null,
+                tokenAccount = stakeAccount,
+                mintAddress = null,
+                amountRaw = BigInteger("1234"),
+                decimals = 9,
+                direction = TransferDirection.IN,
+                transferKind = TransferKind.STAKING_REWARD,
+            ),
+        )
+        InstrumentFlowPromoter(flowStore).promote()
+        insertSnapshot(wallet, null, 1234)
+
+        val report =
+            reconcileOnchain(
+                positions = tokenPositions(flowStore.flowsFor("solana", wallet), Instant.now()),
+                snapshots = staging.latestSnapshots("solana", wallet).map(::toObserved),
+                instruments = instruments,
+            )
+
+        assertThat(report.clean).isTrue()
+        assertThat(flowStore.flowsFor("solana", wallet).single().flowType.wireValue)
+            .isEqualTo("staking-reward")
+    }
+
+    @Test
     fun `latestSnapshots returns one row per mint and identical observations dedupe`() {
         val wallet = addr()
         val balance = balance(wallet, null, 100)

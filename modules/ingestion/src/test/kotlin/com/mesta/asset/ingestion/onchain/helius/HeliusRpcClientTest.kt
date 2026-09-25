@@ -107,4 +107,55 @@ class HeliusRpcClientTest {
         assertEquals(3, transport.requests.size)
         assertEquals(listOf(Duration.ofSeconds(2), Duration.ofSeconds(4)), sleeps)
     }
+
+    @Test
+    fun `stakeAccounts filters both authority offsets and merges deduped`() {
+        val acct = """{"pubkey":"stakeAcct1","account":{"data":{"parsed":{"info":{}}}}}"""
+        val transport =
+            FakeTransport(
+                okJson("""{"jsonrpc":"2.0","id":1,"result":[$acct]}"""),
+                okJson("""{"jsonrpc":"2.0","id":2,"result":[$acct]}"""),
+            )
+
+        val result = client(transport).stakeAccounts("walletX")
+
+        assertEquals(2, transport.requests.size)
+        for (i in 0..1) {
+            val body = transport.bodyOf(i)
+            assertEquals("getProgramAccounts", body["method"].asText())
+            assertEquals(HeliusRpcClient.STAKE_PROGRAM_ID, body["params"][0].asText())
+            val memcmp = body["params"][1]["filters"][0]["memcmp"]
+            assertEquals(listOf(44, 76)[i], memcmp["offset"].asInt())
+            assertEquals("walletX", memcmp["bytes"].asText())
+            assertEquals("base58", memcmp["encoding"].asText())
+            assertEquals("finalized", body["params"][1]["commitment"].asText())
+        }
+        // Same pubkey under both authorities merges into one account.
+        assertEquals(1, result.size())
+        assertEquals("stakeAcct1", result[0]["pubkey"].asText())
+    }
+
+    @Test
+    fun `inflationReward passes addresses in order and the epoch`() {
+        val transport =
+            FakeTransport(
+                okJson("""{"jsonrpc":"2.0","id":1,"result":[{"epoch":700,"amount":10}]}"""),
+            )
+
+        client(transport).inflationReward(listOf("acctA", "acctB"), epoch = 700)
+
+        val params = transport.bodyOf(0)["params"]
+        assertEquals("acctA", params[0].asText())
+        assertEquals("acctB", params[1].asText())
+        assertEquals(700, params[2]["epoch"].asLong())
+        assertEquals("finalized", params[2]["commitment"].asText())
+    }
+
+    @Test
+    fun `blockTime returns null when the RPC errors`() {
+        val transport =
+            FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"error":{"code":-32009,"message":"Slot 1 was skipped"}}"""))
+
+        assertNull(client(transport).blockTime(1))
+    }
 }

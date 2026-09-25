@@ -103,6 +103,15 @@ private class StubRpc(
         if (fail) throw HeliusException("rpc boom", 500)
         return accounts
     }
+
+    override fun stakeAccounts(address: String) = ObjectMapper().createArrayNode()
+
+    override fun inflationReward(
+        addresses: List<String>,
+        epoch: Long?,
+    ) = ObjectMapper().createArrayNode()
+
+    override fun blockTime(slot: Long): Long? = null
 }
 
 private fun balancesPage(
