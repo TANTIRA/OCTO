@@ -39,6 +39,19 @@ private fun position(
     zone: ZoneId = ZoneOffset.UTC,
 ) = commitmentPosition(ledger, members.mapTo(HashSet()) { it.id }, knownAt, zone)
 
+private fun valuation(
+    amount: String,
+    asOf: String,
+    currency: Currency = USD,
+) = ValuationEvent(
+    id = UUID.randomUUID(),
+    amount = BigDecimal(amount),
+    currency = currency,
+    asOfDate = LocalDate.parse(asOf),
+    method = ValuationMethod.MARK_TO_MODEL,
+    recordedAt = Instant.parse("2024-12-31T00:00:00Z"),
+)
+
 private fun assertDecimal(
     expected: String,
     actual: BigDecimal,
@@ -140,5 +153,39 @@ class LedgerTest {
                 ?.let { Regex("\"([^\"]+)\"").findAll(it).map { m -> m.groupValues[1] }.toSet() }
 
         assertEquals(values, FlowType.entries.map { it.wireValue }.toSet())
+    }
+
+    @Test
+    fun `deal position sums the attributed investor flows and takes the valuation in force`() {
+        val nav = valuation("80", "2024-06-30")
+        val deal =
+            dealPosition(
+                ledger,
+                ledger.mapTo(HashSet()) { it.id },
+                listOf(nav),
+                setOf(nav.id),
+                LocalDate.parse("2024-12-31"),
+                NOW,
+                ZoneOffset.UTC,
+            )
+
+        assertDecimal("150", deal.invested) // 100 + 50
+        assertDecimal("70", deal.realized) // 60 + 10 recallable; fees, expenses, carry and other income excluded
+        assertDecimal("80", deal.unrealized!!)
+        assertEquals(LocalDate.parse("2024-06-30"), deal.valuationDate)
+    }
+
+    @Test
+    fun `deal position without a valuation is unrealized-unknown and a foreign-currency valuation is rejected`() {
+        val members = setOf(call1.id, dist.id)
+        val deal = dealPosition(ledger, members, emptyList(), emptySet(), LocalDate.parse("2024-12-31"), NOW, ZoneOffset.UTC)
+        assertDecimal("100", deal.invested)
+        assertDecimal("60", deal.realized)
+        assertEquals(null, deal.unrealized)
+
+        val eur = valuation("80", "2024-06-30", currency = Currency.getInstance("EUR"))
+        assertFailsWith<IllegalArgumentException> {
+            dealPosition(ledger, members, listOf(eur), setOf(eur.id), LocalDate.parse("2024-12-31"), NOW, ZoneOffset.UTC)
+        }
     }
 }
