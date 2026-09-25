@@ -29,4 +29,22 @@ interface OnchainStagingStore {
         correlationId: UUID,
         actor: String,
     ): Int
+
+    /**
+     * Batch-insert observed-balance rows into `onchain_balance_snapshot`. `external_id` is
+     * derived from the observation's identity — an identical observation from two delivery
+     * routes dedupes on the unique key; a different amount is a different observation.
+     */
+    fun insertSnapshots(
+        balances: List<OnchainBalance>,
+        ingestionRunId: UUID,
+        correlationId: UUID,
+        actor: String,
+    ): Int
+
+    /** The latest non-superseded observation per (wallet, mint) — what recon diffs against. */
+    fun latestSnapshots(
+        chain: String,
+        wallet: String,
+    ): List<OnchainBalance>
 }

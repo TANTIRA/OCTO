@@ -58,6 +58,18 @@ private open class FakeStore : OnchainStagingStore {
         batches += transfers.map { it.externalId }
         return transfers.size
     }
+
+    override fun insertSnapshots(
+        balances: List<OnchainBalance>,
+        ingestionRunId: UUID,
+        correlationId: UUID,
+        actor: String,
+    ): Int = balances.size
+
+    override fun latestSnapshots(
+        chain: String,
+        wallet: String,
+    ): List<OnchainBalance> = emptyList()
 }
 
 private fun solTx(
@@ -148,6 +160,18 @@ class OnchainSyncServiceTest {
                     batches += transfers.map { it.externalId }
                     return 0 // unique key refused every row
                 }
+
+                override fun insertSnapshots(
+                    balances: List<OnchainBalance>,
+                    ingestionRunId: UUID,
+                    correlationId: UUID,
+                    actor: String,
+                ): Int = 0
+
+                override fun latestSnapshots(
+                    chain: String,
+                    wallet: String,
+                ): List<OnchainBalance> = emptyList()
             }
         val result = OnchainSyncService(rpc, normalizer, store).syncAll().single()
         assertEquals(0, result.transfersStaged)
