@@ -35,6 +35,18 @@ val coverageEnforcedModules = setOf(
     ":modules:workflow",
 )
 
+// Kover's reporter (intellij-coverage-reporter 1.0.765) keeps the class-scan filter on a static
+// singleton (ClassPathEntry's DirectoryEntryProcessor.setFilter), and Gradle shares one reporter
+// classloader across projects. Two modules reporting at once can scan with each other's excludes,
+// which dropped the Jdbc* excludes and flaked the gate (#162). Let one Kover task run at a time;
+// compilation and tests stay parallel.
+abstract class KoverReporterLock : BuildService<BuildServiceParameters.None>
+
+val koverReporterLock =
+    gradle.sharedServices.registerIfAbsent("koverReporterLock", KoverReporterLock::class) {
+        maxParallelUsages.set(1)
+    }
+
 subprojects {
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
         extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension> {
@@ -53,6 +65,10 @@ subprojects {
     }
 
     pluginManager.withPlugin("org.jetbrains.kotlinx.kover") {
+        // By name: koverCachedVerify, the task that runs the reporter for koverVerify, has no public type.
+        tasks.named { it.startsWith("kover") }.configureEach {
+            usesService(koverReporterLock)
+        }
         if (project.path in coverageEnforcedModules) {
             extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
                 reports {
