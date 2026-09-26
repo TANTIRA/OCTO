@@ -24,10 +24,12 @@ private class FakeSnapshotStore(
 
     override fun activeWatchedAddresses(chain: String) = watched
 
-    override fun newestSignature(
+    override fun newestSlot(
         chain: String,
         wallet: String,
-    ): String? = null
+    ): Long? = null
+
+    override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
 
     override fun insertTransfers(
         transfers: List<OnchainTransfer>,

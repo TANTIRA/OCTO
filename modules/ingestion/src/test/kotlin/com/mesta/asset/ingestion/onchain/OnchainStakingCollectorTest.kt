@@ -32,6 +32,13 @@ private class StakingStubRpc(
 
     override fun transaction(signature: String): JsonNode? = null
 
+    override fun transactionsForAddress(
+        address: String,
+        limit: Int,
+        paginationToken: String?,
+        slotGt: Long?,
+    ): JsonNode = throw UnsupportedOperationException()
+
     override fun balance(address: String) = 0L
 
     override fun tokenAccountsByOwner(address: String): JsonNode = ObjectMapper().createArrayNode()
@@ -65,10 +72,12 @@ private class StakingFakeStore : OnchainStagingStore {
 
     override fun activeWatchedAddresses(chain: String) = watched
 
-    override fun newestSignature(
+    override fun newestSlot(
         chain: String,
         wallet: String,
-    ) = null
+    ): Long? = null
+
+    override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
 
     override fun insertTransfers(
         transfers: List<OnchainTransfer>,

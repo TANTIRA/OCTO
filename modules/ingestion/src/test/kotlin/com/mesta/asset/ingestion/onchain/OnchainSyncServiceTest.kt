@@ -10,27 +10,36 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 private val WALLET = "7VVA" + "A".repeat(39)
+private val ATA = "ATAx" + "D".repeat(39)
+private val MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
 private class FakeRpc(
-    private val signaturePages: List<List<String>>,
-    private val txs: Map<String, JsonNode>,
+    private val pages: List<Pair<List<JsonNode>, String?>>,
 ) : HeliusRpcApi {
-    val signatureCalls = mutableListOf<Triple<String, String?, String?>>()
+    val txCalls = mutableListOf<Triple<String, String?, Long?>>()
 
     override fun signaturesForAddress(
         address: String,
         limit: Int,
         before: String?,
         until: String?,
+    ): JsonNode = ObjectMapper().createArrayNode()
+
+    override fun transaction(signature: String): JsonNode? = null
+
+    override fun transactionsForAddress(
+        address: String,
+        limit: Int,
+        paginationToken: String?,
+        slotGt: Long?,
     ): JsonNode {
-        signatureCalls += Triple(address, before, until)
-        val page = signaturePages.getOrNull(signatureCalls.size - 1).orEmpty()
-        return ObjectMapper().createArrayNode().apply {
-            page.forEach { add(ObjectMapper().createObjectNode().put("signature", it)) }
+        txCalls += Triple(address, paginationToken, slotGt)
+        val (txs, next) = pages.getOrNull(txCalls.size - 1) ?: (emptyList<JsonNode>() to null)
+        return ObjectMapper().createObjectNode().apply {
+            set<JsonNode>("data", ObjectMapper().createArrayNode().apply { txs.forEach { add(it) } })
+            if (next != null) put("paginationToken", next)
         }
     }
-
-    override fun transaction(signature: String): JsonNode? = txs[signature]
 
     override fun balance(address: String): Long = 0
 
@@ -57,15 +66,17 @@ private class FakeRpc(
 
 private open class FakeStore : OnchainStagingStore {
     var watched = listOf(WatchSource(CHAIN_SOLANA, WALLET, null, null))
-    var cursor: String? = null
+    var cursorSlot: Long? = null
     val batches = mutableListOf<List<String>>()
 
     override fun activeWatchedAddresses(chain: String): List<WatchSource> = watched
 
-    override fun newestSignature(
+    override fun newestSlot(
         chain: String,
         wallet: String,
-    ): String? = cursor
+    ): Long? = cursorSlot
+
+    override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
 
     override fun insertTransfers(
         transfers: List<OnchainTransfer>,
@@ -108,6 +119,24 @@ private fun solTx(
         {"slot":250000001,"blockTime":1726000000,
          "transaction":{"signatures":["$sig"],"message":{"accountKeys":[{"pubkey":"$wallet"}]}},
          "meta":{"err":null,"preBalances":[$pre],"postBalances":[$post],"preTokenBalances":[],"postTokenBalances":[]}}
+        """.trimIndent(),
+    )
+
+/** The wallet never appears in accountKeys — only its ATA does, as the token balance's owner. */
+private fun ataTx(
+    sig: String,
+    ata: String,
+    owner: String,
+    pre: Long,
+    post: Long,
+): JsonNode =
+    ObjectMapper().readTree(
+        """
+        {"slot":250000002,"blockTime":1726000100,
+         "transaction":{"signatures":["$sig"],"message":{"accountKeys":[{"pubkey":"$ata"},{"pubkey":"counterparty"}]}},
+         "meta":{"err":null,"preBalances":[0,0],"postBalances":[0,0],
+          "preTokenBalances":[{"accountIndex":0,"mint":"$MINT","owner":"$owner","uiTokenAmount":{"amount":"$pre","decimals":6}}],
+          "postTokenBalances":[{"accountIndex":0,"mint":"$MINT","owner":"$owner","uiTokenAmount":{"amount":"$post","decimals":6}}]}}
         """.trimIndent(),
     )
 

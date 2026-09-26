@@ -66,7 +66,7 @@ class OnchainStagingStoreIT {
     }
 
     @Test
-    fun `newestSignature returns the signature at the highest staged slot`() {
+    fun `newestSlot returns the highest staged slot`() {
         val wallet = addr()
         track(wallet)
         event(wallet, "watched")
@@ -80,8 +80,8 @@ class OnchainStagingStoreIT {
             UUID.randomUUID(),
             "helius-poller",
         )
-        assertThat(store.newestSignature(CHAIN_SOLANA, wallet)).isEqualTo("newest")
-        assertThat(store.newestSignature(CHAIN_SOLANA, addr())).isNull()
+        assertThat(store.newestSlot(CHAIN_SOLANA, wallet)).isEqualTo(250_000_009L)
+        assertThat(store.newestSlot(CHAIN_SOLANA, addr())).isNull()
     }
 
     private fun dataSource() =
