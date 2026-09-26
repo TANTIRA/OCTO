@@ -122,7 +122,8 @@ private class FakeWebhookStore : OnchainStagingStore {
 class OnchainWebhookServiceTest {
     private val mapper = ObjectMapper()
     private val store = FakeWebhookStore()
-    private val service = OnchainWebhookService(store)
+    private var finalized: Set<String>? = null
+    private val service = OnchainWebhookService(store, FinalityProbe { finalized ?: it.toSet() })
 
     private fun ingest(json: String) = service.ingest(mapper.readTree(json), UUID.randomUUID(), UUID.randomUUID())
 
@@ -193,5 +194,26 @@ class OnchainWebhookServiceTest {
     fun `non-array payloads ingest nothing`() {
         store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
         assertEquals(0, ingest("""{"unexpected": true}"""))
+    }
+
+    @Test
+    fun `a delivery that is not yet finalized stages nothing`() {
+        store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
+        finalized = emptySet()
+        val json = delivery(listOf(WH_WALLET), pre = listOf(1_000), post = listOf(2_000))
+
+        assertEquals(0, ingest(json))
+        assertTrue(store.inserted.isEmpty())
+    }
+
+    @Test
+    fun `a transaction without a signature cannot be verified and is dropped`() {
+        store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
+        val unsigned =
+            delivery(listOf(WH_WALLET), pre = listOf(1_000), post = listOf(2_000))
+                .replace("\"signatures\": [\"$WH_SIG\"]", "\"signatures\": []")
+
+        assertEquals(0, ingest(unsigned))
+        assertTrue(store.inserted.isEmpty())
     }
 }

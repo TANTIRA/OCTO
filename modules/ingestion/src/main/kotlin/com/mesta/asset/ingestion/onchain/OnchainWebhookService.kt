@@ -14,9 +14,16 @@ import java.util.UUID
  * double-writing facts.
  *
  * The vendor shape stops here: callers pass raw JSON, everything downstream is normalized.
+ *
+ * Deliveries carry no commitment promise, so before anything is normalized the service
+ * checks each transaction's signature against [finality] and drops what the chain has not
+ * finalized (#167) — staging can only ever hold `commitment='finalized'` rows, and the claim
+ * is now observed rather than stamped. The poller stages the dropped transactions when they
+ * finalize; deterministic external ids dedupe the overlap.
  */
 class OnchainWebhookService(
     private val store: OnchainStagingStore,
+    private val finality: FinalityProbe,
     private val normalizer: HeliusTransferNormalizer = HeliusTransferNormalizer(),
 ) {
     /**
@@ -35,12 +42,25 @@ class OnchainWebhookService(
         if (watched.isEmpty()) return 0
         val tokenOwners = store.watchedTokenAccounts(chain)
 
+        val finalized = finality.finalizedSignatures(payload.mapNotNull(::signatureOf).toSet())
         val transfers =
-            payload.flatMap { tx ->
-                watchedAccounts(tx, watched, tokenOwners).flatMap { normalizer.normalize(tx, it) }
-            }
+            payload
+                .filter { signatureOf(it) in finalized }
+                .flatMap { tx ->
+                    watchedAccounts(tx, watched, tokenOwners).flatMap { normalizer.normalize(tx, it) }
+                }
         return store.insertTransfers(transfers, ingestionRunId, correlationId, actor)
     }
+
+    /** The transaction's own signature — `transaction.signatures[0]`; a tx without one cannot be verified and is dropped. */
+    private fun signatureOf(tx: JsonNode): String? =
+        tx
+            .path("transaction")
+            .path("signatures")
+            .takeIf { it.isArray && !it.isEmpty }
+            ?.get(0)
+            ?.asText()
+            ?.takeIf(String::isNotBlank)
 
     /**
      * Watched wallets this transaction is relevant to: an `accountKeys` entry either is a
