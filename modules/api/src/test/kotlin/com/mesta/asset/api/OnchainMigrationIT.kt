@@ -35,8 +35,12 @@ class OnchainMigrationIT {
     @Test
     fun `migration creates the onchain tables and seeds native SOL`() {
         for (table in listOf(
-            "instrument", "tracked_address", "tracked_address_event",
-            "onchain_transfer", "onchain_balance_snapshot", "instrument_flow",
+            "instrument",
+            "tracked_address",
+            "tracked_address_event",
+            "onchain_transfer",
+            "onchain_balance_snapshot",
+            "instrument_flow",
         )) {
             assertThat(
                 count(
@@ -186,7 +190,11 @@ class OnchainMigrationIT {
         }
     }
 
-    private fun insertWatchEvent(address: String, type: String, rationale: String? = null) {
+    private fun insertWatchEvent(
+        address: String,
+        type: String,
+        rationale: String? = null,
+    ) {
         connection.createStatement().use {
             it.executeUpdate(
                 "insert into mesta.tracked_address_event " +
