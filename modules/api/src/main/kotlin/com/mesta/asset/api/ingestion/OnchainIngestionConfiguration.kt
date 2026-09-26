@@ -5,6 +5,7 @@ import com.mesta.asset.ingestion.onchain.OnchainEvidence
 import com.mesta.asset.ingestion.onchain.OnchainStagingStore
 import com.mesta.asset.ingestion.onchain.OnchainTransfer
 import com.mesta.asset.ingestion.onchain.OnchainWebhookService
+import com.mesta.asset.ingestion.onchain.TokenContract
 import com.mesta.asset.ingestion.onchain.WatchSource
 import com.mesta.asset.ingestion.onchain.persistence.JdbcOnchainStagingStore
 import org.springframework.beans.factory.ObjectProvider
@@ -32,6 +33,10 @@ class OnchainIngestionConfiguration {
                 chain: String,
                 wallet: String,
             ): String? = delegate.newestSignature(chain, wallet)
+
+            override fun newestStagedSlot(chain: String): Long? = delegate.newestStagedSlot(chain)
+
+            override fun tokenContracts(chain: String): List<TokenContract> = delegate.tokenContracts(chain)
 
             override fun insertTransfers(
                 transfers: List<OnchainTransfer>,
