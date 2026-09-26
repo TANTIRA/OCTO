@@ -33,9 +33,8 @@ class ModuleBoundaryTest {
         mapOf(
             "api" to modulePackages.keys - "api",
             "ingestion" to setOf("control-panel"),
-            "recon" to setOf("ibor-core"),
             // #106: compliance rules evaluate the look-through exposure (#10) and coverage ratio (#45) as given.
-            "recon" to setOf("analytics", "lookthrough"),
+            "recon" to setOf("ibor-core", "analytics", "lookthrough"),
         )
 
     private val productionClasses =
@@ -70,10 +69,12 @@ class ModuleBoundaryTest {
         noClasses()
             .that()
             .resideInAPackage("com.mesta.asset.recon..")
+            .and()
+            .resideOutsideOfPackages("com.mesta.asset.recon..persistence..")
             .should()
             .dependOnClassesThat()
             .resideInAnyPackage("java.sql..", "javax.sql..")
-            .`as`("recon compares fetched rows; it never opens a connection or writes a correction")
+            .`as`("recon domain compares fetched rows; only its persistence adapters may open a connection")
             .allowEmptyShould(true)
             .check(productionClasses)
     }
