@@ -209,6 +209,25 @@ class HeliusRpcClientTest {
     }
 
     @Test
+    fun `signatureStatuses chunks beyond the per-call limit and keeps positional order`() {
+        val first = (1..HeliusRpcClient.MAX_SIGNATURE_STATUSES).joinToString(",") { """{"confirmationStatus":"finalized"}""" }
+        val transport =
+            FakeTransport(
+                okJson("""{"jsonrpc":"2.0","id":1,"result":{"context":{},"value":[$first]}}"""),
+                okJson("""{"jsonrpc":"2.0","id":2,"result":{"context":{},"value":[{"confirmationStatus":"confirmed"}]}}"""),
+            )
+
+        val result = client(transport).signatureStatuses(List(HeliusRpcClient.MAX_SIGNATURE_STATUSES + 1) { "sig$it" })
+
+        assertEquals(2, transport.requests.size)
+        assertEquals(HeliusRpcClient.MAX_SIGNATURE_STATUSES, transport.bodyOf(0)["params"][0].size())
+        assertEquals(1, transport.bodyOf(1)["params"][0].size())
+        assertEquals("sig256", transport.bodyOf(1)["params"][0][0].asText())
+        assertEquals("finalized", result["value"][0]["confirmationStatus"].asText())
+        assertEquals("confirmed", result["value"][HeliusRpcClient.MAX_SIGNATURE_STATUSES]["confirmationStatus"].asText())
+    }
+
+    @Test
     fun `the finality probe keeps only finalized signatures`() {
         val transport =
             FakeTransport(

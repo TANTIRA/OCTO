@@ -3,6 +3,7 @@ package com.mesta.asset.ingestion.onchain
 import com.fasterxml.jackson.databind.JsonNode
 import com.mesta.asset.ingestion.onchain.helius.HeliusTransferNormalizer
 import java.util.UUID
+import java.util.logging.Logger
 
 /**
  * Webhook delivery path: an array of parsed transactions arrives pushed rather than polled.
@@ -26,6 +27,8 @@ class OnchainWebhookService(
     private val finality: FinalityProbe,
     private val normalizer: HeliusTransferNormalizer = HeliusTransferNormalizer(),
 ) {
+    private val log = Logger.getLogger(OnchainWebhookService::class.java.name)
+
     /**
      * Ingest one delivery body. [payload] is the webhook's array of parsed transactions;
      * non-array payloads ingest nothing. Returns the number of new staging rows written.
@@ -43,10 +46,15 @@ class OnchainWebhookService(
         val tokenOwners = store.watchedTokenAccounts(chain)
 
         val finalized = finality.finalizedSignatures(payload.mapNotNull(::signatureOf).toSet())
+        val unsigned = payload.count { signatureOf(it) == null }
+        val pending = payload.count { signatureOf(it)?.let { it !in finalized } == true }
+        if (unsigned > 0) {
+            log.warning("dropped $unsigned webhook transactions with no verifiable signature — check the webhook payload encoding")
+        }
+        if (pending > 0) {
+            log.info("deferred $pending webhook transactions pending finality; the finalized-only poller picks them up")
+        }
         val transfers =
-            payload.flatMap { tx ->
-                watchedAccounts(tx, watched, tokenOwners).flatMap { normalizer.normalize(tx, it) }
-            }
             payload
                 .filter { signatureOf(it) in finalized }
                 .flatMap { tx ->
