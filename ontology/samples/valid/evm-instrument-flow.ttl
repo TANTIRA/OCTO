@@ -1,0 +1,57 @@
+@prefix inv: <https://mesta.asset/ontology/investment#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Synthetic EVM sample — the Arbitrum counterpart of onchain-instrument-flow.ttl. Must
+# conform to mesta-investment-shacl.ttl (schema mirror) and mesta-investment-policy-shacl.ttl
+# (business rules). Addresses are shape-valid dummies; no real wallet, project, or
+# transaction data (the USDC contract is the real Arbitrum One deployment, cited as an
+# example of the erc20 instrument kind).
+
+inv:fund-manager-borealis a inv:FundManager ;
+    inv:legalName "Borealis Capital Ltd" .
+
+# Native ETH: an instrument with no contract, like native SOL.
+inv:instrument-eth a inv:Instrument ;
+    inv:instrumentId "arbitrum-one:native" ;
+    inv:instrumentKind "native-token" ;
+    inv:chainId "arbitrum-one" ;
+    inv:decimals 18 .
+
+# Native USDC on Arbitrum One: an erc20 instrument keyed by its contract address.
+inv:contract-usdc a inv:EvmContract ;
+    inv:instrumentId "arbitrum-one:contract:0xaf88d065e77c8cc2239327c5edb3a432268e5831" ;
+    inv:instrumentKind "erc20" ;
+    inv:chainId "arbitrum-one" ;
+    inv:decimals 6 ;
+    inv:evmAddress "0xaf88d065e77c8cc2239327c5edb3a432268e5831" .
+
+inv:evm-wallet-treasury a inv:EvmWallet ;
+    inv:evmAddress "0x1111111111111111111111111111111111111111" ;
+    inv:chainId "arbitrum-one" .
+
+inv:wallet-custody-evm a inv:WalletCustody ;
+    inv:walletSide inv:evm-wallet-treasury ;
+    inv:owner inv:fund-manager-borealis ;
+    inv:effectiveDate "2026-03-01"^^xsd:date .
+
+# 150 USDC in raw base units (150.000000 x 10^6) leaving the treasury in a finalized block.
+inv:instrument-flow-usdc-out a inv:InstrumentFlow ;
+    inv:instrumentFlowType "transfer-out" ;
+    inv:monetaryAmount 150000000.00 ;
+    inv:occurredAt "2026-03-02T14:11:00Z"^^xsd:dateTime ;
+    inv:recordedAt "2026-03-02T14:12:05Z"^^xsd:dateTime ;
+    inv:externalId "arbitrum-one:0xtxexample:0x1111111111111111111111111111111111111111:log:3" ;
+    inv:slot 42000001 .
+
+inv:instrument-flow-of-usdc-out a inv:InstrumentFlowOf ;
+    inv:flowSide inv:instrument-flow-usdc-out ;
+    inv:instrumentSide inv:contract-usdc ;
+    inv:walletSide inv:evm-wallet-treasury .
+
+inv:data-provider-evm-rpc a inv:DataProvider ;
+    inv:legalName "Public Arbitrum RPC" .
+
+inv:source-attribution-usdc-out a inv:SourceAttribution ;
+    inv:providerSide inv:data-provider-evm-rpc ;
+    inv:dataSide inv:instrument-flow-usdc-out ;
+    inv:recordedAt "2026-03-02T14:12:05Z"^^xsd:dateTime .
