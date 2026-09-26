@@ -47,26 +47,32 @@ class EvmEvidenceAdapter(
             }
             subject.treasuryAddress?.lowercase()?.let { treasury ->
                 val mint = subject.mintAddress?.lowercase()
-                val balance = mint?.let { rpc.balanceOf(it, treasury) } ?: rpc.nativeBalance(treasury)
-                add(
-                    evidence(
-                        subject,
-                        EvidenceKind.TREASURY_BALANCE,
-                        treasury,
-                        balance.toBigDecimal(),
-                        null,
-                        numericPayload(if (mint == null) "wei" else "rawBalance", balance.toBigDecimal()),
-                        asOf,
-                    ),
-                )
+                // A reverting balanceOf means "unknown", never "check ETH instead" — a token
+                // claim must not silently read a different asset's balance.
+                val balance =
+                    if (mint != null) rpc.balanceOf(mint, treasury) else rpc.nativeBalance(treasury)
+                if (balance != null) {
+                    add(
+                        evidence(
+                            subject,
+                            EvidenceKind.TREASURY_BALANCE,
+                            treasury,
+                            balance.toBigDecimal(),
+                            null,
+                            numericPayload(if (mint == null) "wei" else "rawBalance", balance.toBigDecimal()),
+                            asOf,
+                        ),
+                    )
+                }
+                val nonce = rpc.transactionCount(treasury)
                 add(
                     evidence(
                         subject,
                         EvidenceKind.ACCOUNT_ACTIVITY,
                         treasury,
-                        BigDecimal.valueOf(rpc.transactionCount(treasury)),
+                        BigDecimal.valueOf(nonce),
                         null,
-                        numericPayload("nonce", BigDecimal.valueOf(rpc.transactionCount(treasury))),
+                        numericPayload("nonce", BigDecimal.valueOf(nonce)),
                         asOf,
                     ),
                 )
