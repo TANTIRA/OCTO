@@ -71,10 +71,12 @@ private class BalanceFakeStore(
 
     override fun activeWatchedAddresses(chain: String) = watched.filter { it.chain == chain }
 
-    override fun newestSignature(
+    override fun newestSlot(
         chain: String,
         wallet: String,
-    ) = null
+    ): Long? = null
+
+    override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
 
     override fun newestStagedSlot(chain: String): Long? = null
 
