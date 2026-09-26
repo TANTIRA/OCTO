@@ -70,6 +70,36 @@ class HeliusRpcClient(
         return if (result.isNull) null else result
     }
 
+    override fun transactionsForAddress(
+        address: String,
+        limit: Int,
+        paginationToken: String?,
+        slotGt: Long?,
+    ): JsonNode {
+        val filters = mapper.createObjectNode()
+        filters.put("status", "succeeded")
+        filters.put("tokenAccounts", "balanceChanged")
+        if (slotGt != null) {
+            filters.set<JsonNode>("slot", mapper.createObjectNode().put("gt", slotGt))
+        }
+        val params = mapper.createObjectNode()
+        params.put("transactionDetails", "full")
+        params.put("encoding", "jsonParsed")
+        params.put("maxSupportedTransactionVersion", 1)
+        params.put("commitment", "finalized")
+        params.put("sortOrder", "desc")
+        params.put("limit", limit)
+        params.set<JsonNode>("filters", filters)
+        if (paginationToken != null) params.put("paginationToken", paginationToken)
+        return rpc(
+            "getTransactionsForAddress",
+            mapper
+                .createArrayNode()
+                .add(address)
+                .add(params),
+        )
+    }
+
     override fun balance(address: String): Long {
         val params = mapper.createObjectNode().put("commitment", "finalized")
         val args =
