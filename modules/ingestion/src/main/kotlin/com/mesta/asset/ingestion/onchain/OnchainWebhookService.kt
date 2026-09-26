@@ -33,26 +33,32 @@ class OnchainWebhookService(
         if (!payload.isArray || payload.isEmpty) return 0
         val watched = store.activeWatchedAddresses(chain).mapTo(hashSetOf()) { it.address }
         if (watched.isEmpty()) return 0
+        val tokenOwners = store.watchedTokenAccounts(chain)
 
         val transfers =
             payload.flatMap { tx ->
-                watchedAccounts(tx, watched).flatMap { normalizer.normalize(tx, it) }
+                watchedAccounts(tx, watched, tokenOwners).flatMap { normalizer.normalize(tx, it) }
             }
         return store.insertTransfers(transfers, ingestionRunId, correlationId, actor)
     }
 
     /**
-     * Watched addresses named by the transaction's `accountKeys`. Entries are plain strings
+     * Watched wallets this transaction is relevant to: an `accountKeys` entry either is a
+     * watched address itself or is a token account owned by one. Entries are plain strings
      * in the json encoding and `{"pubkey": ...}` objects in jsonParsed — accept both.
+     * A wallet with two ATAs in one transaction still normalizes once — the deterministic
+     * external ids keep a second normalization from writing anything new.
      */
     private fun watchedAccounts(
         tx: JsonNode,
         watched: Set<String>,
+        tokenOwners: Map<String, String>,
     ): List<String> =
         tx
             .path("transaction")
             .path("message")
             .path("accountKeys")
             .mapNotNull { key -> if (key.isTextual) key.asText() else key.path("pubkey").asText(null) }
-            .filter(watched::contains)
+            .mapNotNull { account -> if (account in watched) account else tokenOwners[account]?.takeIf { it in watched } }
+            .distinct()
 }

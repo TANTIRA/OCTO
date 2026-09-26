@@ -11,13 +11,21 @@ interface OnchainStagingStore {
     fun activeWatchedAddresses(chain: String): List<WatchSource>
 
     /**
-     * The signature at the highest staged slot for this wallet — the incremental-sync `until`
-     * cursor. Derived, never stored: replaying history can only strengthen it.
+     * The highest staged slot for this wallet — the incremental-sync `filters.slot.gt` cursor.
+     * Derived, never stored: replaying history can only strengthen it.
      */
-    fun newestSignature(
+    fun newestSlot(
         chain: String,
         wallet: String,
-    ): String?
+    ): Long?
+
+    /**
+     * Known token accounts of watched wallets — `token_account` to owning `wallet`, read from
+     * staged balance snapshots. Best-effort: an ATA appears here only after a balance
+     * collection has observed it, so the poller's `balanceChanged` filter remains the complete
+     * coverage path. An ATA's owner never changes on-chain, so newest rows cannot disagree.
+     */
+    fun watchedTokenAccounts(chain: String): Map<String, String>
 
     /**
      * The highest staged slot on [chain] — the EVM scanner's resume cursor. Derived from

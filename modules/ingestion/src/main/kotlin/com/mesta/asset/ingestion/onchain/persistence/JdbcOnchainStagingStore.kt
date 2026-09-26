@@ -53,24 +53,43 @@ class JdbcOnchainStagingStore(
                 }
         }
 
-    override fun newestSignature(
+    override fun newestSlot(
         chain: String,
         wallet: String,
-    ): String? =
+    ): Long? =
         dataSource.connection.use { c ->
             c
                 .prepareStatement(
                     """
-                    select signature
+                    select max(slot)
                       from mesta.onchain_transfer
                      where chain = ? and wallet = ?
-                     order by slot desc
-                     limit 1
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
                     s.setString(2, wallet)
-                    s.executeQuery().use { r -> if (r.next()) r.getString(1) else null }
+                    s.executeQuery().use { r -> if (r.next()) r.getObject(1, Long::class.java) else null }
+                }
+        }
+
+    override fun watchedTokenAccounts(chain: String): Map<String, String> =
+        dataSource.connection.use { c ->
+            c
+                .prepareStatement(
+                    """
+                    select token_account, wallet
+                      from mesta.onchain_balance_snapshot
+                     where chain = ? and token_account is not null
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.executeQuery().use { r ->
+                        buildMap {
+                            while (r.next()) {
+                                put(r.getString("token_account"), r.getString("wallet"))
+                            }
+                        }
+                    }
                 }
         }
 
