@@ -24,10 +24,12 @@ private class FakeSnapshotStore(
 
     override fun activeWatchedAddresses(chain: String) = watched
 
-    override fun newestSignature(
+    override fun newestSlot(
         chain: String,
         wallet: String,
-    ): String? = null
+    ): Long? = null
+
+    override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
 
     override fun newestStagedSlot(chain: String): Long? = null
 
@@ -104,6 +106,13 @@ private class StubRpc(
     ): JsonNode = throw UnsupportedOperationException()
 
     override fun transaction(signature: String): JsonNode? = null
+
+    override fun transactionsForAddress(
+        address: String,
+        limit: Int,
+        paginationToken: String?,
+        slotGt: Long?,
+    ): JsonNode = throw UnsupportedOperationException()
 
     override fun balance(address: String): Long {
         if (fail) throw HeliusException("rpc boom", 500)
