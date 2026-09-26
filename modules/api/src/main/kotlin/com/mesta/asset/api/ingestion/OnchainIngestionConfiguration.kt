@@ -29,10 +29,12 @@ class OnchainIngestionConfiguration {
         return object : OnchainStagingStore {
             override fun activeWatchedAddresses(chain: String): List<WatchSource> = delegate.activeWatchedAddresses(chain)
 
-            override fun newestSignature(
+            override fun newestSlot(
                 chain: String,
                 wallet: String,
-            ): String? = delegate.newestSignature(chain, wallet)
+            ): Long? = delegate.newestSlot(chain, wallet)
+
+            override fun watchedTokenAccounts(chain: String): Map<String, String> = delegate.watchedTokenAccounts(chain)
 
             override fun newestStagedSlot(chain: String): Long? = delegate.newestStagedSlot(chain)
 
