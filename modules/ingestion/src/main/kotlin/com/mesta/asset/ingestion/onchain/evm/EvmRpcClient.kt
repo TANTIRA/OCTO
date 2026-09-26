@@ -40,14 +40,6 @@ class EvmRpcClient(
 ) : EvmRpcApi {
     private val ids = AtomicLong()
 
-    /** Fails loudly when the endpoint is pointed at a different chain than configured. */
-    fun checkChainId() {
-        val actual = chainId()
-        require(actual == config.chainId) {
-            "rpc endpoint reports chainId $actual, expected ${config.chainId} (${config.chain})"
-        }
-    }
-
     override fun chainId(): Long = rpc("eth_chainId", mapper.createArrayNode()).asQuantity().toLong()
 
     override fun finalizedBlock(): JsonNode =
