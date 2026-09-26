@@ -1,6 +1,7 @@
 package com.octo.api.ingestion
 
 import com.octo.api.OctoApplication
+import com.octo.ingestion.onchain.FinalityProbe
 import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
@@ -124,10 +125,24 @@ class HeliusWebhookTest {
         contextRunner
             .withPropertyValues("HELIUS_WEBHOOK_SECRET=$SECRET")
             .withBean(OnchainStagingStore::class.java, { store })
+            .withBean(FinalityProbe::class.java, { FinalityProbe { it.toSet() } })
             .run { context ->
                 postDelivery(context).andExpect(status().isOk)
                 assertThat(store.transfers).hasSize(1)
                 assertThat(store.transfers.single().externalId).isEqualTo("solana:$SIG:$WATCHED:bal:0")
+            }
+    }
+
+    @Test
+    fun `a delivery that is not yet finalized stages nothing`() {
+        val store = RecordingStore()
+        contextRunner
+            .withPropertyValues("HELIUS_WEBHOOK_SECRET=$SECRET")
+            .withBean(OnchainStagingStore::class.java, { store })
+            .withBean(FinalityProbe::class.java, { FinalityProbe { emptySet() } })
+            .run { context ->
+                postDelivery(context).andExpect(status().isOk)
+                assertThat(store.transfers).isEmpty()
             }
     }
 

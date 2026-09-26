@@ -103,6 +103,26 @@ class HeliusRpcClient(
         )
     }
 
+    override fun signatureStatuses(signatures: List<String>): JsonNode {
+        // getSignatureStatuses caps at 256 signatures per call; chunk and merge `value`
+        // arrays so positional alignment with the input order is preserved.
+        val merged = mapper.createObjectNode()
+        val values = merged.putArray("value")
+        for (chunk in signatures.chunked(MAX_SIGNATURE_STATUSES)) {
+            val sigs = mapper.createArrayNode()
+            chunk.forEach(sigs::add)
+            val cfg = mapper.createObjectNode().put("searchTransactionHistory", false)
+            rpc(
+                "getSignatureStatuses",
+                mapper
+                    .createArrayNode()
+                    .add(sigs)
+                    .add(cfg),
+            ).path("value").forEach { values.add(it) }
+        }
+        return merged
+    }
+
     override fun balance(address: String): Long {
         val params = mapper.createObjectNode().put("commitment", "finalized")
         val args =
@@ -249,5 +269,8 @@ class HeliusRpcClient(
 
         /** Byte offsets of `Authorized::staker` and `Authorized::withdrawer` in the stake layout. */
         val AUTHORIZED_OFFSETS = listOf(12, 44)
+
+        /** `getSignatureStatuses` accepts at most this many signatures per call. */
+        const val MAX_SIGNATURE_STATUSES = 256
     }
 }

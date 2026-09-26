@@ -68,6 +68,14 @@ class JdbcOnchainStagingStore(
                 ).use { s ->
                     s.setString(1, chain)
                     s.setString(2, wallet)
+                    s.executeQuery().use { r ->
+                        if (r.next()) {
+                            val slot = r.getLong(1)
+                            if (r.wasNull()) null else slot
+                        } else {
+                            null
+                        }
+                    }
                     s.executeQuery().use { r -> if (r.next()) r.getLong(1).takeIf { !r.wasNull() } else null }
                 }
         }
