@@ -74,8 +74,6 @@ class ModuleBoundaryTest {
             .should()
             .dependOnClassesThat()
             .resideInAnyPackage("java.sql..", "javax.sql..")
-            .`as`("recon domain compares fetched rows; only its persistence adapters may open a connection")
-            .allowEmptyShould(true)
             .`as`(
                 "recon compares fetched rows in pure functions; only *.persistence readers open connections and nothing writes a correction",
             ).allowEmptyShould(true)
@@ -99,9 +97,6 @@ class ModuleBoundaryTest {
         noClasses()
             .that()
             .resideOutsideOfPackages("com.mesta.asset.ingestion..", "com.mesta.asset.api.ingestion..")
-            .resideOutsideOfPackage("com.mesta.asset.ingestion..")
-            .and()
-            .resideOutsideOfPackage("com.mesta.asset.api.ingestion..")
             .should()
             .dependOnClassesThat()
             .resideInAPackage("com.mesta.asset.ingestion.onchain.evm..")

@@ -45,6 +45,8 @@ services:
     networks:
       - app
       - data
+      # Public API domain assigned in Dokploy UI → Traefik/TLS handled by Dokploy
+      - dokploy-network
     depends_on:
       typedb:
         condition: service_healthy
