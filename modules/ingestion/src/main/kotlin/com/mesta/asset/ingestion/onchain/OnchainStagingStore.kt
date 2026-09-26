@@ -20,6 +20,19 @@ interface OnchainStagingStore {
     ): String?
 
     /**
+     * The highest staged slot on [chain] — the EVM scanner's resume cursor. Derived from
+     * staging like [newestSignature]: a crashed window re-scans idempotently because the
+     * unique (source_system, external_id) key refuses duplicates.
+     */
+    fun newestStagedSlot(chain: String): Long?
+
+    /**
+     * Registered non-native instruments on [chain] — contract address + decimals. The EVM
+     * balance collector and the decimals resolver read this instead of a vendor token list.
+     */
+    fun tokenContracts(chain: String): List<TokenContract>
+
+    /**
      * Batch-insert staging rows. Returns rows actually inserted — replays and webhook/poller
      * duplicates hit the unique (source_system, external_id) key and count as zero.
      */

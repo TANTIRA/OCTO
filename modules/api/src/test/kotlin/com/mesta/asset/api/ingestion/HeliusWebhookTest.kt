@@ -5,6 +5,7 @@ import com.mesta.asset.ingestion.onchain.OnchainBalance
 import com.mesta.asset.ingestion.onchain.OnchainEvidence
 import com.mesta.asset.ingestion.onchain.OnchainStagingStore
 import com.mesta.asset.ingestion.onchain.OnchainTransfer
+import com.mesta.asset.ingestion.onchain.TokenContract
 import com.mesta.asset.ingestion.onchain.WatchSource
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -53,6 +54,10 @@ private class RecordingStore : OnchainStagingStore {
         chain: String,
         wallet: String,
     ) = null
+
+    override fun newestStagedSlot(chain: String): Long? = null
+
+    override fun tokenContracts(chain: String): List<TokenContract> = emptyList()
 
     override fun insertTransfers(
         transfers: List<OnchainTransfer>,

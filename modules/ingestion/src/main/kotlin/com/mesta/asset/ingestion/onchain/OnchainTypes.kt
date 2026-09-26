@@ -10,11 +10,19 @@ import java.util.UUID
  * and the rest of the platform only ever sees them (ADR-0001 vendor-boundary rule).
  */
 
-/** source_system written on every row this pipeline produces. */
+/** source_system written on Solana rows when the row does not name its own. */
 const val ONCHAIN_SOURCE_SYSTEM = "helius-solana"
 
-/** Only chain in v1; the column stays generic so a second chain needs no schema change. */
 const val CHAIN_SOLANA = "solana"
+
+/** Arbitrum One (chain id 42161) — the first EVM chain. The adapter reads `finalized`-tagged blocks only. */
+const val CHAIN_ARBITRUM_ONE = "arbitrum-one"
+
+/** A registered non-native token instrument on an EVM chain — the set balance scans cover. */
+data class TokenContract(
+    val mintAddress: String,
+    val decimals: Int,
+)
 
 /**
  * Direction of a transfer relative to the watched wallet. The `db` strings match the
@@ -53,7 +61,7 @@ enum class TransferKind(
  * webhook/poller overlap; it must never be derived from a provider-side id that can change.
  *
  * `amountRaw` is in base units; `decimals` is what the source reported at observation time.
- * `mintAddress == null` means native SOL.
+ * `mintAddress == null` means the chain's native asset (SOL on Solana, ETH on Arbitrum).
  */
 data class OnchainTransfer(
     val externalId: String,
@@ -70,6 +78,7 @@ data class OnchainTransfer(
     val direction: TransferDirection,
     val transferKind: TransferKind,
     val chain: String = CHAIN_SOLANA,
+    val sourceSystem: String = ONCHAIN_SOURCE_SYSTEM,
 ) {
     init {
         require(amountRaw.signum() >= 0) { "amount_raw must be non-negative" }
@@ -89,6 +98,7 @@ data class OnchainBalance(
     val slot: Long?,
     val asOf: Instant,
     val chain: String = CHAIN_SOLANA,
+    val sourceSystem: String = ONCHAIN_SOURCE_SYSTEM,
 )
 
 /** Where a balance observation came from; `db` matches the V10 source CHECK. */
@@ -147,4 +157,5 @@ data class OnchainEvidence(
     val payload: com.fasterxml.jackson.databind.JsonNode,
     val asOf: Instant,
     val chain: String = CHAIN_SOLANA,
+    val sourceSystem: String = ONCHAIN_SOURCE_SYSTEM,
 )

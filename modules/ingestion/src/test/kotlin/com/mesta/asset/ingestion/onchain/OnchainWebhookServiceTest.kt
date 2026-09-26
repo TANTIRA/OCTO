@@ -54,6 +54,10 @@ private class FakeWebhookStore : OnchainStagingStore {
         wallet: String,
     ) = null
 
+    override fun newestStagedSlot(chain: String): Long? = null
+
+    override fun tokenContracts(chain: String): List<TokenContract> = emptyList()
+
     override fun insertTransfers(
         transfers: List<OnchainTransfer>,
         ingestionRunId: UUID,
