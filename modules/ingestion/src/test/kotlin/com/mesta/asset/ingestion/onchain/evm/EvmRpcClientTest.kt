@@ -24,8 +24,7 @@ private val config =
 class EvmRpcClientTest {
     private val sleeps = mutableListOf<Duration>()
 
-    private fun client(transport: HttpTransport): EvmRpcClient =
-        EvmRpcClient(config, transport = transport, sleeper = { sleeps += it })
+    private fun client(transport: HttpTransport): EvmRpcClient = EvmRpcClient(config, transport = transport, sleeper = { sleeps += it })
 
     @Test
     fun `config never prints the endpoint or the api key`() {
@@ -107,8 +106,8 @@ class EvmRpcClientTest {
 
     @Test
     fun `a reverting eth_call returns null rather than throwing`() {
-        val transport =
-            FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"error":{"code":3,"message":"execution reverted"}}"""))
+        val revert = okJson("""{"jsonrpc":"2.0","id":1,"error":{"code":3,"message":"execution reverted"}}""")
+        val transport = FakeTransport(revert, revert)
         assertNull(client(transport).decimals("0xnotatoken"))
         assertNull(client(transport).balanceOf("0xnotatoken", "0xw"))
         // An empty return payload means the method does not exist.
@@ -169,6 +168,12 @@ class EvmRpcClientTest {
     fun `the api key rides as a bearer token`() {
         val transport = FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"result":"0xa4b1"}"""))
         client(transport).chainId()
-        assertEquals("Bearer test-key", transport.requests[0].headers().firstValue("Authorization").orElse(null))
+        assertEquals(
+            "Bearer test-key",
+            transport.requests[0]
+                .headers()
+                .firstValue("Authorization")
+                .orElse(null),
+        )
     }
 }

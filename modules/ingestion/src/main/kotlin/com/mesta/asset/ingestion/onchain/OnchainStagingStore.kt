@@ -29,7 +29,7 @@ interface OnchainStagingStore {
 
     /**
      * The highest staged slot on [chain] — the EVM scanner's resume cursor. Derived from
-     * staging like [newestSignature]: a crashed window re-scans idempotently because the
+     * staging like [newestSlot]: a crashed window re-scans idempotently because the
      * unique (source_system, external_id) key refuses duplicates.
      */
     fun newestStagedSlot(chain: String): Long?
