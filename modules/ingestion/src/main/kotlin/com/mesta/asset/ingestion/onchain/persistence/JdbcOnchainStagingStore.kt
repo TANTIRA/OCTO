@@ -1,17 +1,13 @@
 package com.mesta.asset.ingestion.onchain.persistence
 
 import com.mesta.asset.ingestion.onchain.BalanceSource
-import com.mesta.asset.ingestion.onchain.ONCHAIN_SOURCE_SYSTEM
 import com.mesta.asset.ingestion.onchain.OnchainBalance
 import com.mesta.asset.ingestion.onchain.OnchainEvidence
 import com.mesta.asset.ingestion.onchain.OnchainStagingStore
 import com.mesta.asset.ingestion.onchain.OnchainTransfer
+import com.mesta.asset.ingestion.onchain.TokenContract
 import com.mesta.asset.ingestion.onchain.WatchSource
 import java.math.BigDecimal
-import com.mesta.asset.ingestion.onchain.ONCHAIN_SOURCE_SYSTEM
-import com.mesta.asset.ingestion.onchain.OnchainStagingStore
-import com.mesta.asset.ingestion.onchain.OnchainTransfer
-import com.mesta.asset.ingestion.onchain.WatchSource
 import java.sql.Timestamp
 import java.util.UUID
 import javax.sql.DataSource
@@ -57,24 +53,79 @@ class JdbcOnchainStagingStore(
                 }
         }
 
-    override fun newestSignature(
+    override fun newestSlot(
         chain: String,
         wallet: String,
-    ): String? =
+    ): Long? =
         dataSource.connection.use { c ->
             c
                 .prepareStatement(
                     """
-                    select signature
+                    select max(slot)
                       from mesta.onchain_transfer
                      where chain = ? and wallet = ?
-                     order by slot desc
-                     limit 1
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
                     s.setString(2, wallet)
-                    s.executeQuery().use { r -> if (r.next()) r.getString(1) else null }
+                    s.executeQuery().use { r -> if (r.next()) r.getObject(1, Long::class.java) else null }
+                }
+        }
+
+    override fun watchedTokenAccounts(chain: String): Map<String, String> =
+        dataSource.connection.use { c ->
+            c
+                .prepareStatement(
+                    """
+                    select token_account, wallet
+                      from mesta.onchain_balance_snapshot
+                     where chain = ? and token_account is not null
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.executeQuery().use { r ->
+                        buildMap {
+                            while (r.next()) {
+                                put(r.getString("token_account"), r.getString("wallet"))
+                            }
+                        }
+                    }
+                }
+        }
+
+    override fun newestStagedSlot(chain: String): Long? =
+        dataSource.connection.use { c ->
+            c
+                .prepareStatement(
+                    """
+                    select max(slot)
+                      from mesta.onchain_transfer
+                     where chain = ?
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.executeQuery().use { r -> if (r.next()) r.getLong(1).takeIf { !r.wasNull() } else null }
+                }
+        }
+
+    override fun tokenContracts(chain: String): List<TokenContract> =
+        dataSource.connection.use { c ->
+            c
+                .prepareStatement(
+                    """
+                    select mint_address, decimals
+                      from mesta.instrument
+                     where chain = ? and mint_address is not null
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.executeQuery().use { r ->
+                        buildList {
+                            while (r.next()) {
+                                add(TokenContract(r.getString("mint_address"), r.getInt("decimals")))
+                            }
+                        }
+                    }
                 }
         }
 
@@ -90,12 +141,12 @@ class JdbcOnchainStagingStore(
             insert into mesta.onchain_transfer
                 (external_id, chain, signature, slot, block_hash, block_time, commitment,
                  wallet, counterparty, token_account, mint_address, amount_raw, decimals,
-                 direction, transfer_kind, helius_payload,
+                 direction, transfer_kind, vendor_payload,
                  source_system, actor, ingestion_run_id, correlation_id)
             values (?, ?, ?, ?, ?, ?, 'finalized', ?, ?, ?, ?, ?, ?, ?, ?, null, ?, ?, ?, ?)
             on conflict (source_system, external_id) do nothing
             """.trimIndent()
-        // TODO(#114): carry the normalized provider payload into helius_payload when the webhook
+        // TODO(#114): carry the normalized provider payload into vendor_payload when the webhook
         // path lands — lineage then covers both delivery routes.
         return dataSource.connection.use { c ->
             c.prepareStatement(sql).use { s ->
@@ -114,7 +165,7 @@ class JdbcOnchainStagingStore(
                     s.setInt(12, t.decimals)
                     s.setString(13, t.direction.db)
                     s.setString(14, t.transferKind.db)
-                    s.setString(15, ONCHAIN_SOURCE_SYSTEM)
+                    s.setString(15, t.sourceSystem)
                     s.setString(16, actor)
                     s.setObject(17, ingestionRunId)
                     s.setObject(18, correlationId)
@@ -155,7 +206,7 @@ class JdbcOnchainStagingStore(
                     s.setBigDecimal(9, b.usdValue?.let(BigDecimal::valueOf))
                     s.setString(10, b.source.db)
                     s.setObject(11, b.slot)
-                    s.setString(12, ONCHAIN_SOURCE_SYSTEM)
+                    s.setString(12, b.sourceSystem)
                     s.setString(13, actor)
                     s.setObject(14, ingestionRunId)
                     s.setObject(15, correlationId)
@@ -175,7 +226,6 @@ class JdbcOnchainStagingStore(
                 .prepareStatement(
                     """
                     select distinct on (coalesce(token_account, mint_address))
-                    select distinct on (mint_address)
                            wallet, token_account, mint_address, amount_raw, decimals,
                            usd_value, source, slot, as_of
                       from mesta.onchain_balance_snapshot s
@@ -184,7 +234,6 @@ class JdbcOnchainStagingStore(
                            select 1 from mesta.onchain_balance_snapshot x
                             where x.supersedes_id = s.id)
                      order by coalesce(token_account, mint_address), as_of desc
-                     order by mint_address, as_of desc
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
@@ -241,7 +290,7 @@ class JdbcOnchainStagingStore(
                         s.setString(7, e.observedText)
                         s.setString(8, e.payload.toString())
                         s.setTimestamp(9, Timestamp.from(e.asOf))
-                        s.setString(10, ONCHAIN_SOURCE_SYSTEM)
+                        s.setString(10, e.sourceSystem)
                         s.setString(11, actor)
                         s.setObject(12, ingestionRunId)
                         s.setObject(13, correlationId)

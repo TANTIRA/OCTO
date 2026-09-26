@@ -13,7 +13,7 @@ Modelling notes:
 - Role properties carry rdfs:range only. rdfs:domain is omitted because TypeQL role names are reused across relations (vehicle, deal-side, company-side) and a single domain would be wrong. The relation -> role structure lives in mesta-investment-shacl.ttl.
 - Role properties with more than one player type carry no rdfs:range (supersedes: replacement/original; source-attribution: data-side).
 - Datatype properties carry rdfs:range only: TypeQL attributes are shared across types and owned per type, so ownership is enforced by SHACL shapes, not by OWL domains."""@en ;
-    owl:versionIRI <https://mesta.asset/ontology/investment/0.3.0> .
+    owl:versionIRI <https://mesta.asset/ontology/investment/0.4.0> .
 
 # ---------------------------------------------------------------------------
 # Entity classes
@@ -40,7 +40,11 @@ inv:ScreeningDecision a owl:Class ; rdfs:label "Screening decision"@en .
 inv:Instrument a owl:Class ; rdfs:label "Instrument"@en ;
     rdfs:comment "Anything a wallet can hold that is not an ISO currency (token, NFT, stake account). instrument-id is the canonical key."@en .
 inv:SolanaMint a owl:Class ; rdfs:subClassOf inv:Instrument ; rdfs:label "Solana mint"@en .
+inv:EvmContract a owl:Class ; rdfs:subClassOf inv:Instrument ; rdfs:label "EVM contract"@en ;
+    rdfs:comment "An ERC-20/EVM contract-as-instrument — the parallel of SolanaMint keyed by evmAddress."@en .
 inv:Wallet a owl:Class ; rdfs:label "Wallet"@en .
+inv:EvmWallet a owl:Class ; rdfs:label "EVM wallet"@en ;
+    rdfs:comment "Parallel to Wallet, keyed by evm-address — additive, not a rekey (arbitrum-ingestion-design.md)."@en .
 inv:InstrumentFlow a owl:Class ; rdfs:label "Instrument flow"@en ;
     rdfs:comment "Append-only token-denominated flow. Positions are derived, never stored."@en .
 
@@ -120,6 +124,7 @@ inv:modelVersion a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:resultDistribution a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:rationale a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:solanaAddress a owl:DatatypeProperty ; rdfs:range xsd:string .
+inv:evmAddress a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:instrumentId a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:instrumentKind a owl:DatatypeProperty ; rdfs:range xsd:string .
 inv:instrumentFlowType a owl:DatatypeProperty ; rdfs:range xsd:string .
@@ -164,4 +169,6 @@ inv:dataSide a owl:ObjectProperty .
 inv:decisionSide a owl:ObjectProperty ; rdfs:range inv:ScreeningDecision .
 inv:flowSide a owl:ObjectProperty ; rdfs:range inv:InstrumentFlow .
 inv:instrumentSide a owl:ObjectProperty ; rdfs:range inv:Instrument .
-inv:walletSide a owl:ObjectProperty ; rdfs:range inv:Wallet .
+# No rdfs:range: instrument-flow-of and wallet-custody take both Wallet and
+# EvmWallet players, and the two share no common supertype.
+inv:walletSide a owl:ObjectProperty .

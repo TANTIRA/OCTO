@@ -65,6 +65,9 @@ inv:cfa-broken-datatype a inv:CashFlowAttribution ;
 inv:wallet-broken-address a inv:Wallet ;
     inv:solanaAddress "not-a-base58-address!!" .
 
+inv:evm-wallet-broken-address a inv:EvmWallet ;
+    inv:evmAddress "0xABCDEF1234567890ABCDEF1234567890ABCDEF" .
+
 # --- policy breaches -------------------------------------------------------
 
 inv:extracted-claim-broken-confidence a inv:ExtractedClaim ;

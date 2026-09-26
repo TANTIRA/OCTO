@@ -25,6 +25,13 @@ private class EvidenceStubRpc : HeliusRpcApi {
 
     override fun transaction(signature: String): JsonNode? = null
 
+    override fun transactionsForAddress(
+        address: String,
+        limit: Int,
+        paginationToken: String?,
+        slotGt: Long?,
+    ): JsonNode = mapper.createObjectNode()
+
     override fun balance(address: String) = 6_000_000_000_000L
 
     override fun tokenAccountsByOwner(address: String): JsonNode = mapper.createArrayNode()

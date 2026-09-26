@@ -1,5 +1,9 @@
 package com.mesta.asset.ingestion.onchain.helius
 
+import com.mesta.asset.ingestion.http.FakeTransport
+import com.mesta.asset.ingestion.http.HttpTransport
+import com.mesta.asset.ingestion.http.okJson
+import com.mesta.asset.ingestion.http.statusOf
 import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -53,6 +57,31 @@ class HeliusRpcClientTest {
         val body = transport.bodyOf(0)
         assertEquals("jsonParsed", body["params"][1]["encoding"].asText())
         assertEquals("finalized", body["params"][1]["commitment"].asText())
+    }
+
+    @Test
+    fun `transactionsForAddress requests full ATA coverage at finalized`() {
+        val transport =
+            FakeTransport(
+                okJson("""{"jsonrpc":"2.0","id":1,"result":{"data":[],"paginationToken":"1055:5"}}"""),
+            )
+        val result =
+            client(transport).transactionsForAddress("walletX", limit = 50, paginationToken = "1055:5", slotGt = 42)
+
+        val body = transport.bodyOf(0)
+        assertEquals("getTransactionsForAddress", body["method"].asText())
+        assertEquals("walletX", body["params"][0].asText())
+        val params = body["params"][1]
+        assertEquals("full", params["transactionDetails"].asText())
+        assertEquals("jsonParsed", params["encoding"].asText())
+        assertEquals(1, params["maxSupportedTransactionVersion"].asInt())
+        assertEquals("finalized", params["commitment"].asText())
+        assertEquals("desc", params["sortOrder"].asText())
+        assertEquals("1055:5", params["paginationToken"].asText())
+        assertEquals("balanceChanged", params["filters"]["tokenAccounts"].asText())
+        assertEquals("succeeded", params["filters"]["status"].asText())
+        assertEquals(42, params["filters"]["slot"]["gt"].asLong())
+        assertEquals("1055:5", result["paginationToken"].asText())
     }
 
     @Test
@@ -125,7 +154,7 @@ class HeliusRpcClientTest {
             assertEquals("getProgramAccounts", body["method"].asText())
             assertEquals(HeliusRpcClient.STAKE_PROGRAM_ID, body["params"][0].asText())
             val memcmp = body["params"][1]["filters"][0]["memcmp"]
-            assertEquals(listOf(44, 76)[i], memcmp["offset"].asInt())
+            assertEquals(listOf(12, 44)[i], memcmp["offset"].asInt())
             assertEquals("walletX", memcmp["bytes"].asText())
             assertEquals("base58", memcmp["encoding"].asText())
             assertEquals("finalized", body["params"][1]["commitment"].asText())

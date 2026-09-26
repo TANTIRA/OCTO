@@ -83,4 +83,10 @@ interface ReportJobs {
         id: UUID,
         error: String,
     ): ReportJob
+
+    /** Attaches the approval task that gates outbound release; V13 allows it once, after `done`. */
+    fun attachApproval(
+        id: UUID,
+        taskId: UUID,
+    ): ReportJob
 }
