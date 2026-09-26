@@ -56,3 +56,11 @@ interface TimeSeriesReader {
 
     fun query(query: TimeSeriesQuery): List<Observation>
 }
+
+/** The write side ingestion adapters depend on; `JdbcTimeSeriesStore` implements it. */
+interface TimeSeriesWriter {
+    fun write(
+        observations: List<Observation>,
+        provenance: ObservationProvenance,
+    ): List<Observation>
+}

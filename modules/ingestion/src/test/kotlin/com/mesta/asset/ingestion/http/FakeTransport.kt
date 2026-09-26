@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.onchain.helius
+package com.mesta.asset.ingestion.http
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.net.http.HttpRequest
