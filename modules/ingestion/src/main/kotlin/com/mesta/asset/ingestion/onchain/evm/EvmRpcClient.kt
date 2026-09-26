@@ -42,8 +42,7 @@ class EvmRpcClient(
 
     override fun chainId(): Long = rpc("eth_chainId", mapper.createArrayNode()).asQuantity().toLong()
 
-    override fun finalizedBlock(): JsonNode =
-        rpc("eth_getBlockByNumber", mapper.createArrayNode().add("finalized").add(false))
+    override fun finalizedBlock(): JsonNode = rpc("eth_getBlockByNumber", mapper.createArrayNode().add("finalized").add(false))
 
     override fun blockByNumber(number: Long): JsonNode? {
         val result =
@@ -93,8 +92,7 @@ class EvmRpcClient(
             ?.let { runCatching { it.intValueExact() }.getOrNull() }
             ?.takeIf { it in 0..255 }
 
-    override fun totalSupply(contract: String): BigInteger? =
-        ethCall(contract, TOTAL_SUPPLY_SELECTOR)?.toQuantity()
+    override fun totalSupply(contract: String): BigInteger? = ethCall(contract, TOTAL_SUPPLY_SELECTOR)?.toQuantity()
 
     override fun transactionCount(address: String): Long =
         rpc("eth_getTransactionCount", mapper.createArrayNode().add(address).add("finalized"))

@@ -44,6 +44,5 @@ class MarketDataSyncService(
             TargetSyncResult(target.seriesKey, 0, e.message)
         }
 
-    private fun provenance() =
-        ObservationProvenance(MARKETDATA_SOURCE_SYSTEM, actor, UUID.randomUUID(), UUID.randomUUID())
+    private fun provenance() = ObservationProvenance(MARKETDATA_SOURCE_SYSTEM, actor, UUID.randomUUID(), UUID.randomUUID())
 }

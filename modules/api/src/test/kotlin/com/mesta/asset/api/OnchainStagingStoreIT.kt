@@ -134,12 +134,13 @@ class OnchainStagingStoreIT {
         )
         dataSource().connection.use { c ->
             c.createStatement().use { s ->
-                s.executeQuery(
-                    "select source_system from mesta.onchain_transfer where chain = 'arbitrum-one' and signature = '0xsrc'",
-                ).use { r ->
-                    assertThat(r.next()).isTrue()
-                    assertThat(r.getString(1)).isEqualTo("rpc-arbitrum-one")
-                }
+                s
+                    .executeQuery(
+                        "select source_system from mesta.onchain_transfer where chain = 'arbitrum-one' and signature = '0xsrc'",
+                    ).use { r ->
+                        assertThat(r.next()).isTrue()
+                        assertThat(r.getString(1)).isEqualTo("rpc-arbitrum-one")
+                    }
             }
         }
     }

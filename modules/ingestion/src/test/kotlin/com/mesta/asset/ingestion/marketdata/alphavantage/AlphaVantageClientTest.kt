@@ -27,7 +27,11 @@ class AlphaVantageClientTest {
         val result = client(transport).dailyEquity("IBM")
 
         assertTrue(result.path("Time Series (Daily)").isObject)
-        val uri = transport.requests.single().uri().toString()
+        val uri =
+            transport.requests
+                .single()
+                .uri()
+                .toString()
         assertTrue(uri.startsWith("https://www.alphavantage.co/query?"))
         for (param in listOf("function=TIME_SERIES_DAILY", "symbol=IBM", "apikey=test-key", "outputsize=compact")) {
             assertTrue(uri.contains(param), "uri must contain $param")
