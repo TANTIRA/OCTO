@@ -1,11 +1,11 @@
-package com.mesta.asset.ingestion.onchain.helius
+package com.mesta.asset.ingestion.http
 
 import java.time.Duration
 
 /**
- * Retry rules for Helius calls (helius-fit-assessment.md §operational risks): honor `Retry-After`
- * on 429, exponential backoff on 429/5xx, never retry client errors — a 4xx is a bug or an auth
- * failure and retrying it only burns quota.
+ * Retry rules for vendor HTTP calls (helius-fit-assessment.md §operational risks): honor
+ * `Retry-After` on 429, exponential backoff on 429/5xx, never retry client errors — a 4xx is a
+ * bug or an auth failure and retrying it only burns quota.
  */
 class RetryPolicy(
     val maxAttempts: Int = 3,

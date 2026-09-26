@@ -79,6 +79,10 @@ private class StakingFakeStore : OnchainStagingStore {
 
     override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
 
+    override fun newestStagedSlot(chain: String): Long? = null
+
+    override fun tokenContracts(chain: String): List<TokenContract> = emptyList()
+
     override fun insertTransfers(
         transfers: List<OnchainTransfer>,
         ingestionRunId: UUID,

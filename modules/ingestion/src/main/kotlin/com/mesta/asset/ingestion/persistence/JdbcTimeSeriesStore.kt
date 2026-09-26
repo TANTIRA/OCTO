@@ -9,9 +9,9 @@ import javax.sql.DataSource
 /** JDBC access to `mesta.timeseries_observation` (V12). Insert and read only; the table is append-only. */
 class JdbcTimeSeriesStore(
     private val dataSource: DataSource,
-) : TimeSeriesReader {
+) : TimeSeriesReader, TimeSeriesWriter {
     /** Writes [observations] in one transaction and returns them with the database's `recorded_at`, in input order. */
-    fun write(
+    override fun write(
         observations: List<Observation>,
         provenance: ObservationProvenance,
     ): List<Observation> {
