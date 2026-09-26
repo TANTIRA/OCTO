@@ -25,8 +25,8 @@ class AlphaVantageNormalizer {
         val series = payload.path(seriesNode)
         require(series.isObject) { "payload has no '$seriesNode' node" }
         val points = mutableListOf<MarketDataPoint>()
-        for ((date, record) in series.fields()) {
-            for ((rawKey, value) in record.fields()) {
+        for ((date, record) in series.properties()) {
+            for ((rawKey, value) in record.properties()) {
                 val field = canonicalField(rawKey, fields) ?: continue
                 points += MarketDataPoint(field, LocalDate.parse(date), BigDecimal(value.asText()))
             }
