@@ -1,23 +1,6 @@
 package com.mesta.asset.ingestion.onchain.helius
 
 import com.fasterxml.jackson.databind.JsonNode
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-
-/** Minimal response shape the clients need — keeps tests free of JDK HttpResponse stubs. */
-data class TransportResponse(
-    val status: Int,
-    val headers: Map<String, List<String>>,
-    val body: String,
-)
-
-/**
- * The HTTP seam the clients talk through. Tests inject a fake transport so no call ever leaves
- * the process; production wires `java.net.http.HttpClient::send`.
- */
-fun interface HttpTransport {
-    fun send(request: HttpRequest): TransportResponse
-}
 
 /** Non-retryable failure or a JSON-RPC `error` object. `status` is null for RPC-level errors. */
 class HeliusException(
@@ -95,6 +78,15 @@ interface HeliusRpcApi {
 
     /** `getTokenLargestAccounts` — the up-to-20 largest token accounts of a mint. */
     fun tokenLargestAccounts(mint: String): JsonNode
+
+    /**
+     * `getSignatureStatuses` for a batch of signatures, `searchTransactionHistory: false`.
+     * Deliberately the one method without a commitment pin: the point is the node's *current*
+     * confirmation view — the webhook path checks a delivered transaction really reached
+     * `finalized` before staging it (#167). `result.value` aligns with request order; a null
+     * entry means the signature is unknown to the node.
+     */
+    fun signatureStatuses(signatures: List<String>): JsonNode
 }
 
 /**

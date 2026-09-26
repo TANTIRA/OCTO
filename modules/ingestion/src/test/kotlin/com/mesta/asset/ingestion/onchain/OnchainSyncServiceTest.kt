@@ -62,6 +62,8 @@ private class FakeRpc(
     override fun tokenSupply(mint: String) = ObjectMapper().createObjectNode()
 
     override fun tokenLargestAccounts(mint: String) = ObjectMapper().createArrayNode()
+
+    override fun signatureStatuses(signatures: List<String>) = ObjectMapper().createObjectNode()
 }
 
 private open class FakeStore : OnchainStagingStore {
@@ -77,6 +79,10 @@ private open class FakeStore : OnchainStagingStore {
     ): Long? = cursorSlot
 
     override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
+
+    override fun newestStagedSlot(chain: String): Long? = null
+
+    override fun tokenContracts(chain: String): List<TokenContract> = emptyList()
 
     override fun insertTransfers(
         transfers: List<OnchainTransfer>,

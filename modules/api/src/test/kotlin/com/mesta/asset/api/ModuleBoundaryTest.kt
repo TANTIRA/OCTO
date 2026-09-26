@@ -65,7 +65,7 @@ class ModuleBoundaryTest {
     }
 
     @Test
-    fun `recon is reporting-only - no JDBC or DataSource references`() {
+    fun `recon keeps JDBC inside persistence packages`() {
         noClasses()
             .that()
             .resideInAPackage("com.mesta.asset.recon..")
@@ -76,6 +76,9 @@ class ModuleBoundaryTest {
             .resideInAnyPackage("java.sql..", "javax.sql..")
             .`as`("recon domain compares fetched rows; only its persistence adapters may open a connection")
             .allowEmptyShould(true)
+            .`as`(
+                "recon compares fetched rows in pure functions; only *.persistence readers open connections and nothing writes a correction",
+            ).allowEmptyShould(true)
             .check(productionClasses)
     }
 
@@ -88,6 +91,33 @@ class ModuleBoundaryTest {
             .dependOnClassesThat()
             .resideInAPackage("com.mesta.asset.ingestion.onchain.helius..")
             .`as`("vendor payload shapes stop inside the helius adapter package — ADR-0001")
+            .check(productionClasses)
+    }
+
+    @Test
+    fun `evm vendor types stay inside the ingestion module`() {
+        noClasses()
+            .that()
+            .resideOutsideOfPackages("com.mesta.asset.ingestion..", "com.mesta.asset.api.ingestion..")
+            .resideOutsideOfPackage("com.mesta.asset.ingestion..")
+            .and()
+            .resideOutsideOfPackage("com.mesta.asset.api.ingestion..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("com.mesta.asset.ingestion.onchain.evm..")
+            .`as`("chain-adapter internals stop inside the evm package; api.ingestion is the composition root — ADR-0001")
+            .check(productionClasses)
+    }
+
+    @Test
+    fun `alphavantage vendor types stay inside the ingestion module`() {
+        noClasses()
+            .that()
+            .resideOutsideOfPackage("com.mesta.asset.ingestion..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("com.mesta.asset.ingestion.marketdata.alphavantage..")
+            .`as`("vendor payload shapes stop inside the alphavantage adapter package — ADR-0001")
             .check(productionClasses)
     }
 }

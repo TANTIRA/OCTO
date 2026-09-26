@@ -2,6 +2,9 @@ package com.mesta.asset.ingestion.onchain.helius
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.mesta.asset.ingestion.http.HttpTransport
+import com.mesta.asset.ingestion.http.RetryPolicy
+import com.mesta.asset.ingestion.http.TransportResponse
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -97,6 +100,19 @@ class HeliusRpcClient(
                 .createArrayNode()
                 .add(address)
                 .add(params),
+        )
+    }
+
+    override fun signatureStatuses(signatures: List<String>): JsonNode {
+        val sigs = mapper.createArrayNode()
+        signatures.forEach(sigs::add)
+        val cfg = mapper.createObjectNode().put("searchTransactionHistory", false)
+        return rpc(
+            "getSignatureStatuses",
+            mapper
+                .createArrayNode()
+                .add(sigs)
+                .add(cfg),
         )
     }
 

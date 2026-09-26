@@ -1,10 +1,12 @@
 package com.mesta.asset.api.ingestion
 
 import com.mesta.asset.api.MestaAssetApplication
+import com.mesta.asset.ingestion.onchain.FinalityProbe
 import com.mesta.asset.ingestion.onchain.OnchainBalance
 import com.mesta.asset.ingestion.onchain.OnchainEvidence
 import com.mesta.asset.ingestion.onchain.OnchainStagingStore
 import com.mesta.asset.ingestion.onchain.OnchainTransfer
+import com.mesta.asset.ingestion.onchain.TokenContract
 import com.mesta.asset.ingestion.onchain.WatchSource
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -55,6 +57,10 @@ private class RecordingStore : OnchainStagingStore {
     ): Long? = null
 
     override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
+
+    override fun newestStagedSlot(chain: String): Long? = null
+
+    override fun tokenContracts(chain: String): List<TokenContract> = emptyList()
 
     override fun insertTransfers(
         transfers: List<OnchainTransfer>,
@@ -119,10 +125,24 @@ class HeliusWebhookTest {
         contextRunner
             .withPropertyValues("HELIUS_WEBHOOK_SECRET=$SECRET")
             .withBean(OnchainStagingStore::class.java, { store })
+            .withBean(FinalityProbe::class.java, { FinalityProbe { it.toSet() } })
             .run { context ->
                 postDelivery(context).andExpect(status().isOk)
                 assertThat(store.transfers).hasSize(1)
                 assertThat(store.transfers.single().externalId).isEqualTo("solana:$SIG:$WATCHED:bal:0")
+            }
+    }
+
+    @Test
+    fun `a delivery that is not yet finalized stages nothing`() {
+        val store = RecordingStore()
+        contextRunner
+            .withPropertyValues("HELIUS_WEBHOOK_SECRET=$SECRET")
+            .withBean(OnchainStagingStore::class.java, { store })
+            .withBean(FinalityProbe::class.java, { FinalityProbe { emptySet() } })
+            .run { context ->
+                postDelivery(context).andExpect(status().isOk)
+                assertThat(store.transfers).isEmpty()
             }
     }
 

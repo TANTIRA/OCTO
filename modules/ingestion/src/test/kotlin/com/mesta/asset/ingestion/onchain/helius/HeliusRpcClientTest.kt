@@ -1,5 +1,9 @@
 package com.mesta.asset.ingestion.onchain.helius
 
+import com.mesta.asset.ingestion.http.FakeTransport
+import com.mesta.asset.ingestion.http.HttpTransport
+import com.mesta.asset.ingestion.http.okJson
+import com.mesta.asset.ingestion.http.statusOf
 import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -182,5 +186,44 @@ class HeliusRpcClientTest {
             FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"error":{"code":-32009,"message":"Slot 1 was skipped"}}"""))
 
         assertNull(client(transport).blockTime(1))
+    }
+
+    @Test
+    fun `signatureStatuses batches signatures without searching history`() {
+        val transport =
+            FakeTransport(
+                okJson(
+                    """{"jsonrpc":"2.0","id":1,"result":{"context":{"slot":9},"value":[{"slot":9,"confirmationStatus":"finalized"},null]}}""",
+                ),
+            )
+
+        val result = client(transport).signatureStatuses(listOf("sigA", "sigB"))
+
+        val body = transport.bodyOf(0)
+        assertEquals("getSignatureStatuses", body["method"].asText())
+        assertEquals("sigA", body["params"][0][0].asText())
+        assertEquals("sigB", body["params"][0][1].asText())
+        assertEquals(false, body["params"][1]["searchTransactionHistory"].asBoolean())
+        assertEquals("finalized", result["value"][0]["confirmationStatus"].asText())
+        assertTrue(result["value"][1].isNull)
+    }
+
+    @Test
+    fun `the finality probe keeps only finalized signatures`() {
+        val transport =
+            FakeTransport(
+                okJson(
+                    """{"jsonrpc":"2.0","id":1,"result":{"context":{"slot":9},"value":[
+                        {"confirmationStatus":"finalized"},
+                        {"confirmationStatus":"confirmed"},
+                        null,
+                        {"confirmationStatus":"processed"}]}}""".replace("\n", "").replace(" ", ""),
+                ),
+            )
+
+        val finalized = HeliusFinalityProbe(client(transport)).finalizedSignatures(listOf("s1", "s2", "s3", "s4"))
+
+        assertEquals(setOf("s1"), finalized)
+        assertTrue(HeliusFinalityProbe(client(transport)).finalizedSignatures(emptyList()).isEmpty())
     }
 }

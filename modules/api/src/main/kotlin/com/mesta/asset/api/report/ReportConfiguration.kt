@@ -1,6 +1,9 @@
 package com.mesta.asset.api.report
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.mesta.asset.workflow.Task
+import com.mesta.asset.workflow.persistence.JdbcTaskStore
+import com.mesta.asset.workflow.persistence.TaskProvenance
 import com.mesta.asset.workflow.report.JdbcReportJobStore
 import com.mesta.asset.workflow.report.ReportJob
 import com.mesta.asset.workflow.report.ReportJobs
@@ -37,6 +40,24 @@ class ReportConfiguration {
                 id: UUID,
                 error: String,
             ): ReportJob = store.fail(id, error)
+
+            override fun attachApproval(
+                id: UUID,
+                taskId: UUID,
+            ): ReportJob = store.attachApproval(id, taskId)
+        }
+    }
+
+    @Bean
+    fun jdbcReleaseTasks(dataSource: ObjectProvider<DataSource>): ReleaseTasks {
+        val store by lazy { JdbcTaskStore(dataSource.getObject()) }
+        return object : ReleaseTasks {
+            override fun open(
+                task: Task,
+                provenance: TaskProvenance,
+            ) = store.create(task, provenance)
+
+            override fun state(taskId: UUID) = store.load(taskId)
         }
     }
 
