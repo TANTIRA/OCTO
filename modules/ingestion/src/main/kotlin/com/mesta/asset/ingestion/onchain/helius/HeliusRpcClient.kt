@@ -103,6 +103,19 @@ class HeliusRpcClient(
         )
     }
 
+    override fun signatureStatuses(signatures: List<String>): JsonNode {
+        val sigs = mapper.createArrayNode()
+        signatures.forEach(sigs::add)
+        val cfg = mapper.createObjectNode().put("searchTransactionHistory", false)
+        return rpc(
+            "getSignatureStatuses",
+            mapper
+                .createArrayNode()
+                .add(sigs)
+                .add(cfg),
+        )
+    }
+
     override fun balance(address: String): Long {
         val params = mapper.createObjectNode().put("commitment", "finalized")
         val args =

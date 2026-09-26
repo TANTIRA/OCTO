@@ -78,6 +78,15 @@ interface HeliusRpcApi {
 
     /** `getTokenLargestAccounts` — the up-to-20 largest token accounts of a mint. */
     fun tokenLargestAccounts(mint: String): JsonNode
+
+    /**
+     * `getSignatureStatuses` for a batch of signatures, `searchTransactionHistory: false`.
+     * Deliberately the one method without a commitment pin: the point is the node's *current*
+     * confirmation view — the webhook path checks a delivered transaction really reached
+     * `finalized` before staging it (#167). `result.value` aligns with request order; a null
+     * entry means the signature is unknown to the node.
+     */
+    fun signatureStatuses(signatures: List<String>): JsonNode
 }
 
 /**

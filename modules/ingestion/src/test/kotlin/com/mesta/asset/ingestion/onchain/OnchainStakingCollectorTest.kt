@@ -62,6 +62,8 @@ private class StakingStubRpc(
     override fun tokenSupply(mint: String) = ObjectMapper().createObjectNode()
 
     override fun tokenLargestAccounts(mint: String) = ObjectMapper().createArrayNode()
+
+    override fun signatureStatuses(signatures: List<String>) = ObjectMapper().createObjectNode()
 }
 
 private class StakingFakeStore : OnchainStagingStore {

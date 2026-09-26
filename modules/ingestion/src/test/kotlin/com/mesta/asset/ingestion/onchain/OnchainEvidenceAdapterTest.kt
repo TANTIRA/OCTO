@@ -55,6 +55,8 @@ private class EvidenceStubRpc : HeliusRpcApi {
               {"amount":"220000000000","decimals":6,"uiAmount":220000.0}
             ]""",
         )
+
+    override fun signatureStatuses(signatures: List<String>): JsonNode = mapper.createObjectNode()
 }
 
 class OnchainEvidenceAdapterTest {
