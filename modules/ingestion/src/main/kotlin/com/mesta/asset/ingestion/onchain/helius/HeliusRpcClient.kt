@@ -59,7 +59,7 @@ class HeliusRpcClient(
             mapper
                 .createObjectNode()
                 .put("encoding", "jsonParsed")
-                .put("maxSupportedTransactionVersion", 0)
+                .put("maxSupportedTransactionVersion", 1)
                 .put("commitment", "finalized")
         val args =
             mapper
@@ -215,6 +215,6 @@ class HeliusRpcClient(
         const val STAKE_PROGRAM_ID = "Stake11111111111111111111111111111111111111"
 
         /** Byte offsets of `Authorized::staker` and `Authorized::withdrawer` in the stake layout. */
-        val AUTHORIZED_OFFSETS = listOf(44, 76)
+        val AUTHORIZED_OFFSETS = listOf(12, 44)
     }
 }
