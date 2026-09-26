@@ -1,9 +1,9 @@
-package com.mesta.asset.ingestion.classification
+package com.octo.ingestion.classification
 
-import com.mesta.asset.controlpanel.judgment.ClassifiedState
-import com.mesta.asset.controlpanel.judgment.DecisionLineage
-import com.mesta.asset.controlpanel.judgment.JudgmentClient
-import com.mesta.asset.controlpanel.judgment.choiceAnswer
+import com.octo.controlpanel.judgment.ClassifiedState
+import com.octo.controlpanel.judgment.DecisionLineage
+import com.octo.controlpanel.judgment.JudgmentClient
+import com.octo.controlpanel.judgment.choiceAnswer
 
 data class DocumentClassification(
     val documentType: DocumentType,

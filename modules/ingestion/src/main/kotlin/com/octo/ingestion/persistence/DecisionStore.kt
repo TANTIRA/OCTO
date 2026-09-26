@@ -1,8 +1,8 @@
-package com.mesta.asset.ingestion.persistence
+package com.octo.ingestion.persistence
 
-import com.mesta.asset.ingestion.classification.DocumentClassification
-import com.mesta.asset.ingestion.extraction.ClaimSupport
-import com.mesta.asset.ingestion.extraction.ClaimSupportPolicy
+import com.octo.ingestion.classification.DocumentClassification
+import com.octo.ingestion.extraction.ClaimSupport
+import com.octo.ingestion.extraction.ClaimSupportPolicy
 import java.util.UUID
 
 /**

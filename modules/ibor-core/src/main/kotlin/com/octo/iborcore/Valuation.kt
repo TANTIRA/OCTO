@@ -1,4 +1,4 @@
-package com.mesta.asset.iborcore
+package com.octo.iborcore
 
 import java.math.BigDecimal
 import java.time.Instant
@@ -6,7 +6,7 @@ import java.time.LocalDate
 import java.util.Currency
 import java.util.UUID
 
-/** Mirrors the `valuation-method` @values in `ontology/mesta-investment.tql` and `mesta.valuation_event`. */
+/** Mirrors the `valuation-method` @values in `ontology/octo-investment.tql` and `mesta.valuation_event`. */
 enum class ValuationMethod(
     val wireValue: String,
 ) {

@@ -1,19 +1,19 @@
-@prefix inv:  <https://mesta.asset/ontology/investment#> .
+@prefix inv:  <https://octo.asset/ontology/investment#> .
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
 @prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
 inv: a owl:Ontology ;
-    rdfs:label "Mesta-Asset investment ontology"@en ;
-    rdfs:comment """OWL mirror of ontology/mesta-investment.tql (TypeQL 3.0). OWL/SHACL is the deterministic CI gate; TypeQL remains the instance store per ADR-0003.
+    rdfs:label "OCTO investment ontology"@en ;
+    rdfs:comment """OWL mirror of ontology/octo-investment.tql (TypeQL 3.0). OWL/SHACL is the deterministic CI gate; TypeQL remains the instance store per ADR-0003.
 
 Modelling notes:
 - TypeQL relations are reified as owl:Class, one class per relation. A relation instance carries its own attributes, so relation-owned facts (committed-amount, ownership-pct, effective-date) are checkable.
-- Role properties carry rdfs:range only. rdfs:domain is omitted because TypeQL role names are reused across relations (vehicle, deal-side, company-side) and a single domain would be wrong. The relation -> role structure lives in mesta-investment-shacl.ttl.
+- Role properties carry rdfs:range only. rdfs:domain is omitted because TypeQL role names are reused across relations (vehicle, deal-side, company-side) and a single domain would be wrong. The relation -> role structure lives in octo-investment-shacl.ttl.
 - Role properties with more than one player type carry no rdfs:range (supersedes: replacement/original; source-attribution: data-side).
 - Datatype properties carry rdfs:range only: TypeQL attributes are shared across types and owned per type, so ownership is enforced by SHACL shapes, not by OWL domains."""@en ;
-    owl:versionIRI <https://mesta.asset/ontology/investment/0.4.0> .
+    owl:versionIRI <https://octo.asset/ontology/investment/1.0.0> .
 
 # ---------------------------------------------------------------------------
 # Entity classes
@@ -65,7 +65,7 @@ inv:FundSector a owl:Class ; rdfs:label "Fund sector"@en .
 inv:CompanyDomicile a owl:Class ; rdfs:label "Company domicile"@en .
 inv:FundDomicile a owl:Class ; rdfs:label "Fund domicile"@en .
 inv:Ownership a owl:Class ; rdfs:label "Ownership"@en ;
-    rdfs:comment "Recursive look-through edge. Both roles are organization-scoped per the TypeQL declaration; see TODO(issue-id) in mesta-investment.tql."@en .
+    rdfs:comment "Recursive look-through edge. Both roles are organization-scoped per the TypeQL declaration; see TODO(issue-id) in octo-investment.tql."@en .
 inv:CashFlowAttribution a owl:Class ; rdfs:label "Cash-flow attribution"@en .
 inv:ValuationOf a owl:Class ; rdfs:label "Valuation of"@en .
 inv:Supersedes a owl:Class ; rdfs:label "Supersedes"@en ;

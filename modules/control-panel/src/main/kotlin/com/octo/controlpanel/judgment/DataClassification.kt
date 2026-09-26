@@ -1,4 +1,4 @@
-package com.mesta.asset.controlpanel.judgment
+package com.octo.controlpanel.judgment
 
 /**
  * Data classes per `AGENTS.md`. Confidential and Strictly Confidential data never leaves the

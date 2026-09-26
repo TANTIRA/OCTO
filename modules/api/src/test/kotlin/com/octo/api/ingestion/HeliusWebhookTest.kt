@@ -1,12 +1,12 @@
-package com.mesta.asset.api.ingestion
+package com.octo.api.ingestion
 
-import com.mesta.asset.api.MestaAssetApplication
-import com.mesta.asset.ingestion.onchain.OnchainBalance
-import com.mesta.asset.ingestion.onchain.OnchainEvidence
-import com.mesta.asset.ingestion.onchain.OnchainStagingStore
-import com.mesta.asset.ingestion.onchain.OnchainTransfer
-import com.mesta.asset.ingestion.onchain.TokenContract
-import com.mesta.asset.ingestion.onchain.WatchSource
+import com.octo.api.OctoApplication
+import com.octo.ingestion.onchain.OnchainBalance
+import com.octo.ingestion.onchain.OnchainEvidence
+import com.octo.ingestion.onchain.OnchainStagingStore
+import com.octo.ingestion.onchain.OnchainTransfer
+import com.octo.ingestion.onchain.TokenContract
+import com.octo.ingestion.onchain.WatchSource
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
@@ -94,7 +94,7 @@ private class RecordingStore : OnchainStagingStore {
 class HeliusWebhookTest {
     private val contextRunner =
         WebApplicationContextRunner()
-            .withUserConfiguration(MestaAssetApplication::class.java)
+            .withUserConfiguration(OctoApplication::class.java)
             .withPropertyValues(
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
                 "management.endpoints.web.exposure.include=health,info,metrics,prometheus",

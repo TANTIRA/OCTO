@@ -1,4 +1,4 @@
-package com.mesta.asset.ontology
+package com.octo.ontology
 
 import org.apache.jena.rdf.model.Model
 import org.apache.jena.rdf.model.ModelFactory
@@ -14,13 +14,13 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Drift guard between `ontology/mesta-investment.tql` (TypeQL, the schema of record) and the OWL
+ * Drift guard between `ontology/octo-investment.tql` (TypeQL, the schema of record) and the OWL
  * plus SHACL artifacts.
  *
  * The mirror shape file must agree with the schema in both directions. Adding a type to the schema
  * without adding it to the mirror fails here, and so does weakening a mirror constraint that the
  * schema still requires. Business rules that deliberately exceed the schema live in
- * `mesta-investment-policy-shacl.ttl` and are not checked against it.
+ * `octo-investment-policy-shacl.ttl` and are not checked against it.
  */
 class TypeQlSchemaDriftTest {
     private val dir: Path =
@@ -29,9 +29,9 @@ class TypeQlSchemaDriftTest {
                 ?: error("ontology.dir system property is not set — see modules/ontology/build.gradle.kts"),
         )
 
-    private val schema = TypeQlSchema.parse(dir.resolve("mesta-investment.tql"))
+    private val schema = TypeQlSchema.parse(dir.resolve("octo-investment.tql"))
     private val owl = load(dir.resolve(OntologyValidator.ONTOLOGY_FILE))
-    private val mirror = load(dir.resolve("mesta-investment-shacl.ttl"))
+    private val mirror = load(dir.resolve("octo-investment-shacl.ttl"))
 
     @Test
     fun `every TypeQL attribute is an OWL datatype property and vice versa`() {
@@ -279,7 +279,7 @@ class TypeQlSchemaDriftTest {
     }
 
     private companion object {
-        const val INV = "https://mesta.asset/ontology/investment#"
+        const val INV = "https://octo.asset/ontology/investment#"
         const val SH = "http://www.w3.org/ns/shacl#"
 
         fun sh(local: String) = ResourceFactory.createProperty(SH + local)

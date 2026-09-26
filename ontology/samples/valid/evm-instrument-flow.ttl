@@ -1,8 +1,8 @@
-@prefix inv: <https://mesta.asset/ontology/investment#> .
+@prefix inv: <https://octo.asset/ontology/investment#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 # Synthetic EVM sample — the Arbitrum counterpart of onchain-instrument-flow.ttl. Must
-# conform to mesta-investment-shacl.ttl (schema mirror) and mesta-investment-policy-shacl.ttl
+# conform to octo-investment-shacl.ttl (schema mirror) and octo-investment-policy-shacl.ttl
 # (business rules). Addresses are shape-valid dummies; no real wallet, project, or
 # transaction data (the USDC contract is the real Arbitrum One deployment, cited as an
 # example of the erc20 instrument kind).

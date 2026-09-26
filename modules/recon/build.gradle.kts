@@ -20,8 +20,8 @@ kover {
     reports {
         filters {
             excludes {
-                classes("com.mesta.asset.recon.matching.persistence.*")
-                classes("com.mesta.asset.recon.compliance.persistence.*")
+                classes("com.octo.recon.matching.persistence.*")
+                classes("com.octo.recon.compliance.persistence.*")
             }
         }
     }

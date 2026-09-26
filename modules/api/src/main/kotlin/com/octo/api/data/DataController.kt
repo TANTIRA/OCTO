@@ -1,8 +1,8 @@
-package com.mesta.asset.api.data
+package com.octo.api.data
 
-import com.mesta.asset.api.access.TenantDirectory
-import com.mesta.asset.ingestion.persistence.TimeSeriesQuery
-import com.mesta.asset.ingestion.persistence.TimeSeriesReader
+import com.octo.api.access.TenantDirectory
+import com.octo.ingestion.persistence.TimeSeriesQuery
+import com.octo.ingestion.persistence.TimeSeriesReader
 import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal

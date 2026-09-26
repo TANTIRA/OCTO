@@ -1,7 +1,7 @@
-package com.mesta.asset.ingestion.onchain
+package com.octo.ingestion.onchain
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.mesta.asset.ingestion.onchain.helius.HeliusTransferNormalizer
+import com.octo.ingestion.onchain.helius.HeliusTransferNormalizer
 import java.util.UUID
 
 /**

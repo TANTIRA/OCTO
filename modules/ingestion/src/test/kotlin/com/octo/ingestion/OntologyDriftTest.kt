@@ -1,7 +1,7 @@
-package com.mesta.asset.ingestion
+package com.octo.ingestion
 
-import com.mesta.asset.ingestion.classification.DocumentClassificationCriteria
-import com.mesta.asset.ingestion.classification.DocumentType
+import com.octo.ingestion.classification.DocumentClassificationCriteria
+import com.octo.ingestion.classification.DocumentType
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals

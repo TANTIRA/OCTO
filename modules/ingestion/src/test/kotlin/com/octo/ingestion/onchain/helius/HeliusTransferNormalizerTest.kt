@@ -1,8 +1,8 @@
-package com.mesta.asset.ingestion.onchain.helius
+package com.octo.ingestion.onchain.helius
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.mesta.asset.ingestion.onchain.TransferDirection
-import com.mesta.asset.ingestion.onchain.TransferKind
+import com.octo.ingestion.onchain.TransferDirection
+import com.octo.ingestion.onchain.TransferKind
 import java.math.BigInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals

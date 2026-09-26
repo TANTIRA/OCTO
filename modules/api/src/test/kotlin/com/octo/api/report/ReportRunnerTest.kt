@@ -1,10 +1,10 @@
-package com.mesta.asset.api.report
+package com.octo.api.report
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.mesta.asset.workflow.report.JobStatus
-import com.mesta.asset.workflow.report.ReportRequest
-import com.mesta.asset.workflow.report.ReportType
+import com.octo.workflow.report.JobStatus
+import com.octo.workflow.report.ReportRequest
+import com.octo.workflow.report.ReportType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.UUID

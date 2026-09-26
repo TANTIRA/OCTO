@@ -1,4 +1,4 @@
-package com.mesta.asset.ontology
+package com.octo.ontology
 
 import com.typedb.driver.TypeDB
 import com.typedb.driver.api.Credentials
@@ -14,7 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * Proves the canonical `ontology/mesta-investment.tql` actually applies to a real TypeDB server —
+ * Proves the canonical `ontology/octo-investment.tql` actually applies to a real TypeDB server —
  * a .tql file that parses for the drift guard but fails `define` (reserved labels, bad ownership,
  * circular subs) would otherwise only surface at first deployment.
  *
@@ -36,7 +36,7 @@ class TypeDbSchemaIT {
         val schema =
             File(
                 System.getProperty("ontology.dir"),
-                "mesta-investment.tql",
+                "octo-investment.tql",
             ).readText()
         val address = "${typedb.host}:${typedb.getMappedPort(1729)}"
 
@@ -46,14 +46,14 @@ class TypeDbSchemaIT {
                 Credentials("admin", "password"),
                 DriverOptions(DriverTlsConfig.disabled()),
             ).use { driver ->
-                driver.databases().create("mesta-schema-it")
+                driver.databases().create("octo-schema-it")
 
-                driver.transaction("mesta-schema-it", Transaction.Type.SCHEMA).use { tx ->
+                driver.transaction("octo-schema-it", Transaction.Type.SCHEMA).use { tx ->
                     tx.query(schema).resolve()
                     tx.commit()
                 }
 
-                driver.transaction("mesta-schema-it", Transaction.Type.READ).use { tx ->
+                driver.transaction("octo-schema-it", Transaction.Type.READ).use { tx ->
                     // 'entity'/'thing' are reserved in TypeQL 3, so verify through a real label:
                     // organization has subtypes in the schema (fund-manager, limited-partner, …).
                     val organizationSubtypes =

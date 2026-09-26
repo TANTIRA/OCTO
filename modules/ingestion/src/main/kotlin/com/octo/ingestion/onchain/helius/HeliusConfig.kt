@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.onchain.helius
+package com.octo.ingestion.onchain.helius
 
 /**
  * Connection details for Helius read-only endpoints. `apiKey` is a Confidential credential: it

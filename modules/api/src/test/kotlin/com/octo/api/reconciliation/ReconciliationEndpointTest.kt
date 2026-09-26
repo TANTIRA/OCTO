@@ -1,11 +1,11 @@
-package com.mesta.asset.api.reconciliation
+package com.octo.api.reconciliation
 
-import com.mesta.asset.api.MestaAssetApplication
-import com.mesta.asset.api.access.TenantAccess
-import com.mesta.asset.api.access.TenantDirectory
-import com.mesta.asset.api.access.TenantRole
-import com.mesta.asset.recon.matching.IborRecord
-import com.mesta.asset.recon.matching.persistence.ReconciliationStore
+import com.octo.api.OctoApplication
+import com.octo.api.access.TenantAccess
+import com.octo.api.access.TenantDirectory
+import com.octo.api.access.TenantRole
+import com.octo.recon.matching.IborRecord
+import com.octo.recon.matching.persistence.ReconciliationStore
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
@@ -35,11 +35,11 @@ class ReconciliationEndpointTest {
     private val day = LocalDate.parse("2026-06-30")
     private val kept = IborRecord(UUID.randomUUID(), "admin-a", "t-1", BigDecimal("-100"), usd, day)
     private val store = FakeReconciliationStore(listOf(kept))
-    private val opened = mutableListOf<com.mesta.asset.workflow.Task>()
+    private val opened = mutableListOf<com.octo.workflow.Task>()
 
     private val contextRunner =
         WebApplicationContextRunner()
-            .withUserConfiguration(MestaAssetApplication::class.java)
+            .withUserConfiguration(OctoApplication::class.java)
             .withBean(
                 TenantDirectory::class.java,
                 Supplier {

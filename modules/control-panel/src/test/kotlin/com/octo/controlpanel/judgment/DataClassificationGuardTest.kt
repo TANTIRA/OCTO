@@ -1,4 +1,4 @@
-package com.mesta.asset.controlpanel.judgment
+package com.octo.controlpanel.judgment
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

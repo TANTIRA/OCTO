@@ -1,11 +1,11 @@
-package com.mesta.asset.api.compliance
+package com.octo.api.compliance
 
-import com.mesta.asset.api.MestaAssetApplication
-import com.mesta.asset.api.access.TenantAccess
-import com.mesta.asset.api.access.TenantDirectory
-import com.mesta.asset.api.access.TenantRole
-import com.mesta.asset.recon.compliance.persistence.ComplianceStore
-import com.mesta.asset.workflow.Task
+import com.octo.api.OctoApplication
+import com.octo.api.access.TenantAccess
+import com.octo.api.access.TenantDirectory
+import com.octo.api.access.TenantRole
+import com.octo.recon.compliance.persistence.ComplianceStore
+import com.octo.workflow.Task
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
@@ -35,7 +35,7 @@ class ComplianceEndpointTest {
 
     private val contextRunner =
         WebApplicationContextRunner()
-            .withUserConfiguration(MestaAssetApplication::class.java)
+            .withUserConfiguration(OctoApplication::class.java)
             .withBean(
                 TenantDirectory::class.java,
                 Supplier {

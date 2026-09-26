@@ -1,12 +1,12 @@
-package com.mesta.asset.api
+package com.octo.api
 
-import com.mesta.asset.controlpanel.judgment.DecisionLineage
-import com.mesta.asset.ingestion.classification.DocumentClassification
-import com.mesta.asset.ingestion.classification.DocumentType
-import com.mesta.asset.ingestion.extraction.ClaimSupport
-import com.mesta.asset.ingestion.extraction.ClaimSupportPolicy
-import com.mesta.asset.ingestion.persistence.JdbcDecisionStore
-import com.mesta.asset.ingestion.persistence.Provenance
+import com.octo.controlpanel.judgment.DecisionLineage
+import com.octo.ingestion.classification.DocumentClassification
+import com.octo.ingestion.classification.DocumentType
+import com.octo.ingestion.extraction.ClaimSupport
+import com.octo.ingestion.extraction.ClaimSupportPolicy
+import com.octo.ingestion.persistence.JdbcDecisionStore
+import com.octo.ingestion.persistence.Provenance
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway

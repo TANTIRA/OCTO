@@ -1,10 +1,10 @@
-package com.mesta.asset.ingestion.marketdata
+package com.octo.ingestion.marketdata
 
-import com.mesta.asset.ingestion.marketdata.alphavantage.AlphaVantageApi
-import com.mesta.asset.ingestion.marketdata.alphavantage.AlphaVantageNormalizer
-import com.mesta.asset.ingestion.persistence.Observation
-import com.mesta.asset.ingestion.persistence.ObservationProvenance
-import com.mesta.asset.ingestion.persistence.TimeSeriesWriter
+import com.octo.ingestion.marketdata.alphavantage.AlphaVantageApi
+import com.octo.ingestion.marketdata.alphavantage.AlphaVantageNormalizer
+import com.octo.ingestion.persistence.Observation
+import com.octo.ingestion.persistence.ObservationProvenance
+import com.octo.ingestion.persistence.TimeSeriesWriter
 import java.util.UUID
 
 /**

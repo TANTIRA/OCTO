@@ -18,15 +18,15 @@ kover {
         filters {
             excludes {
                 classes(
-                    "com.mesta.asset.ingestion.persistence.*",
-                    "com.mesta.asset.ingestion.onchain.persistence.*",
+                    "com.octo.ingestion.persistence.*",
+                    "com.octo.ingestion.onchain.persistence.*",
                 )
             }
         }
     }
 }
 
-val ontologySchema = rootProject.file("ontology/mesta-investment.tql")
+val ontologySchema = rootProject.file("ontology/octo-investment.tql")
 
 tasks.withType<Test> {
     systemProperty("ontology.file", ontologySchema.absolutePath)

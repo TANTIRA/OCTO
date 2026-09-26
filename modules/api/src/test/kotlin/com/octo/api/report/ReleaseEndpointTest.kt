@@ -1,18 +1,18 @@
-package com.mesta.asset.api.report
+package com.octo.api.report
 
-import com.mesta.asset.api.MestaAssetApplication
-import com.mesta.asset.api.access.TenantAccess
-import com.mesta.asset.api.access.TenantDirectory
-import com.mesta.asset.api.access.TenantRole
-import com.mesta.asset.workflow.Task
-import com.mesta.asset.workflow.TaskEvent
-import com.mesta.asset.workflow.TaskState
-import com.mesta.asset.workflow.next
-import com.mesta.asset.workflow.opened
-import com.mesta.asset.workflow.persistence.TaskProvenance
-import com.mesta.asset.workflow.report.ReportJobs
-import com.mesta.asset.workflow.report.ReportRequest
-import com.mesta.asset.workflow.report.ReportType
+import com.octo.api.OctoApplication
+import com.octo.api.access.TenantAccess
+import com.octo.api.access.TenantDirectory
+import com.octo.api.access.TenantRole
+import com.octo.workflow.Task
+import com.octo.workflow.TaskEvent
+import com.octo.workflow.TaskState
+import com.octo.workflow.next
+import com.octo.workflow.opened
+import com.octo.workflow.persistence.TaskProvenance
+import com.octo.workflow.report.ReportJobs
+import com.octo.workflow.report.ReportRequest
+import com.octo.workflow.report.ReportType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
@@ -52,7 +52,7 @@ class ReleaseEndpointTest {
 
     private val contextRunner =
         WebApplicationContextRunner()
-            .withUserConfiguration(MestaAssetApplication::class.java)
+            .withUserConfiguration(OctoApplication::class.java)
             .withBean(
                 TenantDirectory::class.java,
                 Supplier {

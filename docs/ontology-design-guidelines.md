@@ -1,6 +1,6 @@
 # Ontology Design Guidelines
 
-Design principles and review checklist for `ontology/mesta-investment.tql` and all future Ontology changes. Adapted from established ontology-platform best practices, translated to TypeDB/TypeQL 3.0 and the private-equity domain. Ontology changes are T2 and CTO-owned per `AGENTS.md`.
+Design principles and review checklist for `ontology/octo-investment.tql` and all future Ontology changes. Adapted from established ontology-platform best practices, translated to TypeDB/TypeQL 3.0 and the private-equity domain. Ontology changes are T2 and CTO-owned per `AGENTS.md`.
 
 ## Principles in priority order
 
@@ -15,7 +15,7 @@ Design principles and review checklist for `ontology/mesta-investment.tql` and a
 
 Entity types represent real investment concepts — `fund`, `deal`, `limited-partner`, `valuation-event` — never source tables or API payloads. Source quirks (`FUND_NM`, `DT_LAST_MOD`) stay inside `ingestion` adapter mappings.
 
-**Mesta-Asset anti-patterns:**
+**OCTO anti-patterns:**
 
 - A `PreqinFundRow` or `CrmExportLine` entity type — source shape leaking into the domain
 - 1:1 column mapping producing attributes like `fund.record12` or `deal.misc_field`
@@ -30,7 +30,7 @@ Entity types represent real investment concepts — `fund`, `deal`, `limited-par
 
 One canonical type per concept. Shared shape → shared attribute types or a supertype; shared logic → TypeQL function or metric-DSL definition.
 
-**Mesta-Asset anti-patterns:**
+**OCTO anti-patterns:**
 
 - `FundCashFlow`, `LpCashFlow`, `DealCashFlow` — three types for one concept; we use one `ledger-event` + `cash-flow-attribution` relation
 - `SalesContact`, `InvestorContact`, `MgmtContact` — one `person` + `contact-for`/`employment`/`board-seat` relations carry the distinction
@@ -52,7 +52,7 @@ entity portfolio-review, owns review-date, owns outcome;
 relation review-of, relates review-side @card(1), relates subject-side @card(1);
 ```
 
-**Mesta-Asset anti-patterns:**
+**OCTO anti-patterns:**
 
 - Adding `hedge-fund-specific-field` attributes to `fund` — null for every PE fund
 - Editing `commitment` to add a strategy-specific clause — extend with a linked type instead
@@ -64,7 +64,7 @@ Security boundary: extensions inherit the classification of the core type they t
 
 TypeQL supports single inheritance; composition comes from **role-playing** and **shared attributes** — the practical equivalent of capability interfaces.
 
-**How Mesta-Asset composes:**
+**How OCTO composes:**
 
 - Capabilities are roles: anything that can own something plays `ownership:owner`; anything ownable plays `ownership:asset`. A `fund` can be both (fund-of-funds) without a new type.
 - Shared attributes are mixins: `external-id`, `effective-date`, `currency-code`, `recorded-at` attach to any type.
@@ -96,7 +96,7 @@ TypeQL supports single inheritance; composition comes from **role-playing** and 
 
 **Store each fact once; derive the rest.**
 
-| Value type | Characteristics | Mesta-Asset mechanism | Example |
+| Value type | Characteristics | OCTO mechanism | Example |
 | --- | --- | --- | --- |
 | Pre-computed | From attributes on the same entity; inputs change only via ingestion | Pipeline transform in `ingestion` | `display-name` normalized from legal name |
 | Dynamically derived | Depends on linked entities or ledger events that change via actions | TypeQL function or metric-DSL definition evaluated at query time | `fund.committed-amount` reconciles against `sum(commitment.committed-amount)`; TVPI derives from `ledger-event` + `valuation-event` |
@@ -174,9 +174,9 @@ Domain boundaries drive the policy: deal teams see their deals; IR sees LP-facin
 
 ## Anti-pattern catalog
 
-Translated to the Mesta-Asset stack: pipelines = `ingestion` jobs, actions = governed commands in `api`/`workflow`, automations = workflow triggers and alert rules, functions = TypeQL functions and the metric DSL, schedules = batch jobs.
+Translated to the OCTO stack: pipelines = `ingestion` jobs, actions = governed commands in `api`/`workflow`, automations = workflow triggers and alert rules, functions = TypeQL functions and the metric DSL, schedules = batch jobs.
 
-| Anti-pattern | Mesta-Asset form | Resolution |
+| Anti-pattern | OCTO form | Resolution |
 | --- | --- | --- |
 | **System Silos** | `PreqinFund`, `CrmCompany`, `AdminExportLp` — one type per vendor | One canonical type; merge in adapters with declared precedence rules (`recon` arbitrates conflicts) |
 | **Kitchen Sink** | `_batch-id`, `source-row-num`, `etl-timestamp` as domain attributes | Technical metadata stays in staging/provenance records; domain attributes must answer "would a user search or decide on this?" |
@@ -228,7 +228,7 @@ Structural review (SHACL, TypeQL compile, PR checklist) proves the Ontology is c
 
 Derive questions from the firm's operating rhythm — what partners ask Monday morning, what IR needs before LP calls, which answers currently require "the person who knows." Never derive them by inspecting what the Ontology already covers — that only validates existing coverage.
 
-### Mesta-Asset drill sequences
+### OCTO drill sequences
 
 Each sequence moves broad → granular: establish the situation, trace contributing factors, assess impact.
 

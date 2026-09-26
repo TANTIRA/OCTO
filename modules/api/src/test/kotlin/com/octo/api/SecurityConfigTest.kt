@@ -1,4 +1,4 @@
-package com.mesta.asset.api
+package com.octo.api
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -19,7 +19,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 class SecurityConfigTest {
     private val contextRunner =
         WebApplicationContextRunner()
-            .withUserConfiguration(MestaAssetApplication::class.java)
+            .withUserConfiguration(OctoApplication::class.java)
             .withPropertyValues(
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
                 // Mirrors application.yml — the context runner does not load it.

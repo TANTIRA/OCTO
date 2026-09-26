@@ -1,11 +1,11 @@
-package com.mesta.asset.iborcore
+package com.octo.iborcore
 
 import java.math.BigInteger
 import java.time.Instant
 import java.util.UUID
 
 /**
- * Mirrors the `instrument-flow-type` @values in `ontology/mesta-investment.tql` and the check
+ * Mirrors the `instrument-flow-type` @values in `ontology/octo-investment.tql` and the check
  * constraints on `mesta.onchain_transfer.transfer_kind` / `mesta.instrument_flow.flow_type` —
  * one string travels staging -> token ledger -> TypeDB and is never re-translated.
  *

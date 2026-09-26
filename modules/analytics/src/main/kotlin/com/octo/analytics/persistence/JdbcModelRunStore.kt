@@ -1,4 +1,4 @@
-package com.mesta.asset.analytics.persistence
+package com.octo.analytics.persistence
 
 import java.sql.ResultSet
 import java.time.Instant

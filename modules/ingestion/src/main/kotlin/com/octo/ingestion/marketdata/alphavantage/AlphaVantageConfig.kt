@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.marketdata.alphavantage
+package com.octo.ingestion.marketdata.alphavantage
 
 /**
  * Connection details for the Alpha Vantage `GET /query` endpoint. `apiKey` is a Confidential

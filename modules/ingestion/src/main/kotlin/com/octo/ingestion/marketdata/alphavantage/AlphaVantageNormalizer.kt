@@ -1,7 +1,7 @@
-package com.mesta.asset.ingestion.marketdata.alphavantage
+package com.octo.ingestion.marketdata.alphavantage
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.mesta.asset.ingestion.marketdata.MarketDataPoint
+import com.octo.ingestion.marketdata.MarketDataPoint
 import java.math.BigDecimal
 import java.time.LocalDate
 

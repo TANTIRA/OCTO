@@ -1,4 +1,4 @@
-package com.mesta.asset.lookthrough
+package com.octo.lookthrough
 
 import java.math.BigDecimal
 import java.util.Currency

@@ -1,4 +1,4 @@
-package com.mesta.asset.controlpanel.judgment
+package com.octo.controlpanel.judgment
 
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule

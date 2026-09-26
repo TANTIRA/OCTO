@@ -1,6 +1,6 @@
-package com.mesta.asset.api.asset
+package com.octo.api.asset
 
-import com.mesta.asset.api.asset.persistence.JdbcAssetStore
+import com.octo.api.asset.persistence.JdbcAssetStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

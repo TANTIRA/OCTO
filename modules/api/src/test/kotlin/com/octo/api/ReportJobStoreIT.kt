@@ -1,9 +1,9 @@
-package com.mesta.asset.api
+package com.octo.api
 
-import com.mesta.asset.workflow.report.JdbcReportJobStore
-import com.mesta.asset.workflow.report.JobStatus
-import com.mesta.asset.workflow.report.ReportRequest
-import com.mesta.asset.workflow.report.ReportType
+import com.octo.workflow.report.JdbcReportJobStore
+import com.octo.workflow.report.JobStatus
+import com.octo.workflow.report.ReportRequest
+import com.octo.workflow.report.ReportType
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway

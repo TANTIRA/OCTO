@@ -1,7 +1,7 @@
-package com.mesta.asset.ingestion.extraction
+package com.octo.ingestion.extraction
 
-import com.mesta.asset.controlpanel.judgment.NoulCriteria
-import com.mesta.asset.controlpanel.judgment.NoulQuestion
+import com.octo.controlpanel.judgment.NoulCriteria
+import com.octo.controlpanel.judgment.NoulQuestion
 
 /**
  * Thresholds live here so a reviewer can see the decision boundary without reading the assessor.

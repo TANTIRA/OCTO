@@ -8,7 +8,7 @@ plugins {
 }
 
 allprojects {
-    group = "com.mesta.asset"
+    group = "com.octo"
     version = "0.1.0-SNAPSHOT"
 
     repositories {

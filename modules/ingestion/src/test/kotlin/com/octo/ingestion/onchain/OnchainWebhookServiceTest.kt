@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.onchain
+package com.octo.ingestion.onchain
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.math.BigInteger

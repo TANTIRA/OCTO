@@ -1,10 +1,10 @@
-package com.mesta.asset.api.compliance
+package com.octo.api.compliance
 
-import com.mesta.asset.recon.compliance.ComplianceRule
-import com.mesta.asset.recon.compliance.Evaluation
-import com.mesta.asset.recon.compliance.Result
-import com.mesta.asset.recon.compliance.persistence.ComplianceProvenance
-import com.mesta.asset.recon.compliance.persistence.ComplianceStore
+import com.octo.recon.compliance.ComplianceRule
+import com.octo.recon.compliance.Evaluation
+import com.octo.recon.compliance.Result
+import com.octo.recon.compliance.persistence.ComplianceProvenance
+import com.octo.recon.compliance.persistence.ComplianceStore
 import java.sql.SQLException
 import java.util.UUID
 

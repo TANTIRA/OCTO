@@ -1,4 +1,4 @@
-package com.mesta.asset.iborcore
+package com.octo.iborcore
 
 import java.math.BigInteger
 import java.time.Instant

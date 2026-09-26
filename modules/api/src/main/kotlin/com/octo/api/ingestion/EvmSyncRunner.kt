@@ -1,7 +1,7 @@
-package com.mesta.asset.api.ingestion
+package com.octo.api.ingestion
 
-import com.mesta.asset.ingestion.onchain.evm.EvmBalanceCollector
-import com.mesta.asset.ingestion.onchain.evm.EvmScanService
+import com.octo.ingestion.onchain.evm.EvmBalanceCollector
+import com.octo.ingestion.onchain.evm.EvmScanService
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import org.slf4j.LoggerFactory

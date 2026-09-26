@@ -1,4 +1,4 @@
-package com.mesta.asset.api
+package com.octo.api
 
 import com.tngtech.archunit.core.importer.ClassFileImporter
 import com.tngtech.archunit.core.importer.ImportOption
@@ -16,16 +16,16 @@ import org.junit.jupiter.api.Test
 class ModuleBoundaryTest {
     private val modulePackages =
         mapOf(
-            "analytics" to "com.mesta.asset.analytics",
-            "api" to "com.mesta.asset.api",
-            "control-panel" to "com.mesta.asset.controlpanel",
-            "deal-sourcing" to "com.mesta.asset.dealsourcing",
-            "ibor-core" to "com.mesta.asset.iborcore",
-            "ingestion" to "com.mesta.asset.ingestion",
-            "lookthrough" to "com.mesta.asset.lookthrough",
-            "ontology" to "com.mesta.asset.ontology",
-            "recon" to "com.mesta.asset.recon",
-            "workflow" to "com.mesta.asset.workflow",
+            "analytics" to "com.octo.analytics",
+            "api" to "com.octo.api",
+            "control-panel" to "com.octo.controlpanel",
+            "deal-sourcing" to "com.octo.dealsourcing",
+            "ibor-core" to "com.octo.iborcore",
+            "ingestion" to "com.octo.ingestion",
+            "lookthrough" to "com.octo.lookthrough",
+            "ontology" to "com.octo.ontology",
+            "recon" to "com.octo.recon",
+            "workflow" to "com.octo.workflow",
         )
 
     /** What each module is allowed to reach. api composes everything; everyone else is closed. */
@@ -40,7 +40,7 @@ class ModuleBoundaryTest {
     private val productionClasses =
         ClassFileImporter()
             .withImportOption(ImportOption.DoNotIncludeTests())
-            .importPackages("com.mesta.asset")
+            .importPackages("com.octo")
 
     @Test
     fun `module dependencies stay inside the declared matrix`() {
@@ -68,9 +68,9 @@ class ModuleBoundaryTest {
     fun `recon keeps JDBC inside persistence packages`() {
         noClasses()
             .that()
-            .resideInAPackage("com.mesta.asset.recon..")
+            .resideInAPackage("com.octo.recon..")
             .and()
-            .resideOutsideOfPackages("com.mesta.asset.recon..persistence..")
+            .resideOutsideOfPackages("com.octo.recon..persistence..")
             .should()
             .dependOnClassesThat()
             .resideInAnyPackage("java.sql..", "javax.sql..")
@@ -84,10 +84,10 @@ class ModuleBoundaryTest {
     fun `helius vendor types stay inside the ingestion module`() {
         noClasses()
             .that()
-            .resideOutsideOfPackage("com.mesta.asset.ingestion..")
+            .resideOutsideOfPackage("com.octo.ingestion..")
             .should()
             .dependOnClassesThat()
-            .resideInAPackage("com.mesta.asset.ingestion.onchain.helius..")
+            .resideInAPackage("com.octo.ingestion.onchain.helius..")
             .`as`("vendor payload shapes stop inside the helius adapter package — ADR-0001")
             .check(productionClasses)
     }
@@ -96,10 +96,10 @@ class ModuleBoundaryTest {
     fun `evm vendor types stay inside the ingestion module`() {
         noClasses()
             .that()
-            .resideOutsideOfPackages("com.mesta.asset.ingestion..", "com.mesta.asset.api.ingestion..")
+            .resideOutsideOfPackages("com.octo.ingestion..", "com.octo.api.ingestion..")
             .should()
             .dependOnClassesThat()
-            .resideInAPackage("com.mesta.asset.ingestion.onchain.evm..")
+            .resideInAPackage("com.octo.ingestion.onchain.evm..")
             .`as`("chain-adapter internals stop inside the evm package; api.ingestion is the composition root — ADR-0001")
             .check(productionClasses)
     }
@@ -108,10 +108,10 @@ class ModuleBoundaryTest {
     fun `alphavantage vendor types stay inside the ingestion module`() {
         noClasses()
             .that()
-            .resideOutsideOfPackage("com.mesta.asset.ingestion..")
+            .resideOutsideOfPackage("com.octo.ingestion..")
             .should()
             .dependOnClassesThat()
-            .resideInAPackage("com.mesta.asset.ingestion.marketdata.alphavantage..")
+            .resideInAPackage("com.octo.ingestion.marketdata.alphavantage..")
             .`as`("vendor payload shapes stop inside the alphavantage adapter package — ADR-0001")
             .check(productionClasses)
     }

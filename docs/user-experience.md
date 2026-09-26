@@ -1,6 +1,6 @@
 # User Experience
 
-Experience principles and interaction patterns for Mesta-Asset. Built on [user-workflows.md](user-workflows.md) (tasks) and [user-journey.md](user-journey.md) (adoption over time).
+Experience principles and interaction patterns for OCTO. Built on [user-workflows.md](user-workflows.md) (tasks) and [user-journey.md](user-journey.md) (adoption over time).
 
 ## Principles
 

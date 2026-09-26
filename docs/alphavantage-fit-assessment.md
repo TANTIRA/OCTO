@@ -1,6 +1,6 @@
 # Alpha Vantage — fit assessment
 
-Evaluation of [Alpha Vantage](https://www.alphavantage.co/documentation/) as a market-data source for Mesta-Asset. Read on 2026-09-26. Unlike the earlier assessments an adapter slice already exists as scaffolding (`modules/ingestion/.../marketdata/`): it is not wired to a scheduler, pulls nothing until the gates below clear, and is written so deleting it is a one-directory revert.
+Evaluation of [Alpha Vantage](https://www.alphavantage.co/documentation/) as a market-data source for OCTO. Read on 2026-09-26. Unlike the earlier assessments an adapter slice already exists as scaffolding (`modules/ingestion/.../marketdata/`): it is not wired to a scheduler, pulls nothing until the gates below clear, and is written so deleting it is a one-directory revert.
 
 - **Risk tier:** T0 for this document. T2 for the ingestion adapter, because it writes market data that analytics treats as financial fact.
 - **Status:** proposed, not approved. Blocked on the licence question below and on the same instrument-concept gap as [xStocks](xstocks-fit-assessment.md), [Arbitrum](arbitrum-fit-assessment.md), and [TradingView](tradingview-mcp-fit-assessment.md).
@@ -29,13 +29,13 @@ Two API quirks the adapter must absorb:
 
 The free key is evaluation-scale — roughly 25 requests per day — and its terms do not cover sustained commercial use. Premium plans raise the rate budget, and Alpha Vantage sells commercial terms, but nothing in the docs grants a platform sold to funds the right to store and re-serve the data.
 
-Mesta-Asset writes vendor values into the bi-temporal `timeseries_observation` store and lets analytics derive benchmarks and valuations from them — redistribution-adjacent, exactly the use the free terms exclude.
+OCTO writes vendor values into the bi-temporal `timeseries_observation` store and lets analytics derive benchmarks and valuations from them — redistribution-adjacent, exactly the use the free terms exclude.
 
 **Nothing below matters until a written licence or premium plan exists.** Same gate as TradingView; Alpha Vantage is the friendlier vendor (premium tiers are priced for programmatic use) but the signature is still required.
 
 ## Where the endpoints would fit, if licensed
 
-| Endpoint | Mesta use | Methodology or doc |
+| Endpoint | OCTO use | Methodology or doc |
 | --- | --- | --- |
 | `TIME_SERIES_DAILY`, index levels | Public-market benchmark levels for KS-PME and Direct Alpha (§2.4–2.5); public comparables in the value bridge (§4.3) | `analytics/Performance.kt` takes a `Map<LocalDate, BigDecimal>` today |
 | `FX_DAILY` | Currency translation for multi-currency portfolios and LP reports | `analytics/Bridge.kt` |

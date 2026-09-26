@@ -1,4 +1,4 @@
-package com.mesta.asset.analytics
+package com.octo.analytics
 
 import java.math.BigDecimal
 import java.time.LocalDate

@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.http
+package com.octo.ingestion.http
 
 import java.time.Duration
 import kotlin.test.Test

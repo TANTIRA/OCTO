@@ -1,6 +1,6 @@
 # TradingView MCP server — fit assessment
 
-Evaluation of the [TradingView MCP server](https://www.tradingview.com/mcp/docs) as a market-data, fundamentals, news, and calendar source for Mesta-Asset. Documentation-only: no tool was called, no account was connected, and no data was pulled. Read on 2026-09-24, together with the [TradingView terms](https://www.tradingview.com/policies/), which matter more than the tool list.
+Evaluation of the [TradingView MCP server](https://www.tradingview.com/mcp/docs) as a market-data, fundamentals, news, and calendar source for OCTO. Documentation-only: no tool was called, no account was connected, and no data was pulled. Read on 2026-09-24, together with the [TradingView terms](https://www.tradingview.com/policies/), which matter more than the tool list.
 
 - **Risk tier:** T2 for any ingestion adapter, because it writes market and financial data, and for any AI feature that reads it. Tool-server review by the Security Blue Team first, per AGENTS.md.
 - **Status:** proposed, not approved. Blocked on the licence question below and on the same instrument-concept gap as [xStocks](xstocks-fit-assessment.md) and [Arbitrum](arbitrum-fit-assessment.md).
@@ -27,13 +27,13 @@ A hosted MCP server at `https://mcp.tradingview.com/mcp`, authenticated with OAu
 
 The terms say the content and market data on the platform, "including but not limited to charts, alerts, webhooks, and any other forms of information, are licensed for exclusive display-only use", limited to "personal or internal business purposes". Prohibited non-display uses include "price referencing", "algorithmic decision-making", and "using data in operations control or risk management programs". Third parties may not "create, offer, or operate any product or service" that relies on TradingView data for non-display purposes. Commercial use of the services or APIs needs a separate agreement.
 
-Mesta-Asset is a platform sold to funds. Its analytics reference prices (§2.4 KS-PME needs benchmark levels), its risk measures are risk management (§3), and its screening is decision support (deal sourcing). Feeding TradingView data into any of that is the non-display use the terms exclude. Storing it in the IBOR or a bi-temporal data service is redistribution to the platform's users.
+OCTO is a platform sold to funds. Its analytics reference prices (§2.4 KS-PME needs benchmark levels), its risk measures are risk management (§3), and its screening is decision support (deal sourcing). Feeding TradingView data into any of that is the non-display use the terms exclude. Storing it in the IBOR or a bi-temporal data service is redistribution to the platform's users.
 
 **Nothing below matters until a written data licence exists.** The MCP server does not change the licence; it changes the client.
 
 ## Where the tools would fit, if licensed
 
-| Tool group | Mesta use | Methodology or doc |
+| Tool group | OCTO use | Methodology or doc |
 | --- | --- | --- |
 | OHLCV bars, index levels | Public-market benchmark levels for KS-PME and Direct Alpha (§2.4–2.5), public comparables in the value bridge (§4.3) | `analytics/Performance.kt` takes a `Map<LocalDate, BigDecimal>` today |
 | Screener columns, fundamentals, financial history | Peer multiples for §5.3 comparables, market inputs to WACC (§5.2), operating benchmarks for portfolio companies | `analytics/Comparables.kt` takes `PeerMultiple`s |

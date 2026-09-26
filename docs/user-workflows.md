@@ -1,6 +1,6 @@
 # User Workflows
 
-End-to-end operating workflows for Mesta-Asset, derived from the platform blueprint and reference screens (Portfolio Overview, Fund Metrics, Investment Metrics, Company Details, Investment Control Panel).
+End-to-end operating workflows for OCTO, derived from the platform blueprint and reference screens (Portfolio Overview, Fund Metrics, Investment Metrics, Company Details, Investment Control Panel).
 
 ## Personas
 

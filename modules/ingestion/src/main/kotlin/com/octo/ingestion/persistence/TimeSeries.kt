@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.persistence
+package com.octo.ingestion.persistence
 
 import java.math.BigDecimal
 import java.time.Instant

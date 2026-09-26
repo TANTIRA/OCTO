@@ -1,4 +1,4 @@
-package com.mesta.asset.api.access
+package com.octo.api.access
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt

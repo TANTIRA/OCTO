@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.onchain.helius
+package com.octo.ingestion.onchain.helius
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

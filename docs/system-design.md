@@ -1,6 +1,6 @@
 # System Design
 
-This document gathers the Mesta-Asset system design into one place: High-Level Architecture, High-Level Design, Low-Level Design, and the end-to-end architecture. The ADRs stay the source of each decision. This document shows how the decisions fit together, and each section links back to the ADR it relies on.
+This document gathers the OCTO system design into one place: High-Level Architecture, High-Level Design, Low-Level Design, and the end-to-end architecture. The ADRs stay the source of each decision. This document shows how the decisions fit together, and each section links back to the ADR it relies on.
 
 **Status legend** used in the tables and diagram notes:
 
@@ -8,7 +8,7 @@ This document gathers the Mesta-Asset system design into one place: High-Level A
 | --- | --- |
 | ✅ | Implemented on `main` |
 | 🟡 | Implemented in an open draft PR |
-| ⬜ | Planned; tracked in [#6](https://github.com/TANTIRA/Mesta-Asset/issues/6), design not yet agreed |
+| ⬜ | Planned; tracked in [#6](https://github.com/TANTIRA/OCTO/issues/6), design not yet agreed |
 
 Sources: [ADR-0001](adr/0001-platform-architecture.md), [ADR-0002](adr/0002-self-hosted-supabase.md), [ADR-0003](adr/0003-typedb-ontology-store.md), [AI architecture](ai-architecture.md), [decision-model integration map](decision-model-integration-map.md), [quantitative methodology](quantitative-methodology.md), [data security and governance](data-security-governance.md), `infra/docker-compose.yml`.
 
@@ -31,8 +31,8 @@ flowchart TB
   end
 
   subgraph APP["Application tier — private network 'app'"]
-    WEB["mesta-web — SPA"]
-    API["mesta-api — Kotlin / Spring Boot modular monolith"]
+    WEB["octo-web — SPA"]
+    API["octo-api — Kotlin / Spring Boot modular monolith"]
   end
 
   subgraph DATA["Data tier — private network 'data'"]
@@ -74,10 +74,10 @@ flowchart TB
 
 | Component | Technology | Owner | Status |
 | --- | --- | --- | --- |
-| `mesta-api` | Kotlin 2.2, Java 21, Spring Boot 3.5, Gradle | Mesta-Asset team | ✅ scaffold, auth boundary, migrations |
-| `mesta-web` | Separate frontend image (ADR-0001 §6) | Mesta-Asset team | ⬜ |
+| `octo-api` | Kotlin 2.2, Java 21, Spring Boot 3.5, Gradle | OCTO team | ✅ scaffold, auth boundary, migrations |
+| `octo-web` | Separate frontend image (ADR-0001 §6) | OCTO team | ⬜ |
 | PostgreSQL, Auth, Storage | Self-hosted Supabase (ADR-0002) | Platform / DevOps | ✅ compose, override |
-| TypeDB | TypeDB 3, schema `ontology/mesta-investment.tql` (ADR-0003) | CTO (ontology) | ✅ schema + CI validation |
+| TypeDB | TypeDB 3, schema `ontology/octo-investment.tql` (ADR-0003) | CTO (ontology) | ✅ schema + CI validation |
 | Decision model | `typesafe/jev-1.13` via OpenRouter | AI Tech Lead | ✅ client, 2 decision points |
 | Backup / PITR | Operator-provided (ADR-0002) | Platform / DevOps | ⬜ runbook |
 
@@ -116,9 +116,9 @@ Rules:
 
 | Module | Responsibility | Tier | Status |
 | --- | --- | --- | --- |
-| `ibor-core` | Supersession-resolved ledger, commitment positions, investor cash flows | T2 | 🟡 [#11](https://github.com/TANTIRA/Mesta-Asset/issues/11) |
-| `analytics` | DPI, RVPI, TVPI, XIRR, KS-PME, Direct Alpha, commitment status | T2 | 🟡 [#9](https://github.com/TANTIRA/Mesta-Asset/pull/9) |
-| `lookthrough` | Path-sum exposure; gross, net, long and short measures | T2 | 🟡 [#10](https://github.com/TANTIRA/Mesta-Asset/pull/10) |
+| `ibor-core` | Supersession-resolved ledger, commitment positions, investor cash flows | T2 | 🟡 [#11](https://github.com/TANTIRA/OCTO/issues/11) |
+| `analytics` | DPI, RVPI, TVPI, XIRR, KS-PME, Direct Alpha, commitment status | T2 | 🟡 [#9](https://github.com/TANTIRA/OCTO/pull/9) |
+| `lookthrough` | Path-sum exposure; gross, net, long and short measures | T2 | 🟡 [#10](https://github.com/TANTIRA/OCTO/pull/10) |
 | `ingestion` | Document classification, claim support, append-only decision staging | T2 | ✅ |
 | `control-panel` | Judgment client, data-classification guard | T2 | ✅ |
 | `ontology` | SHACL validation, TypeQL ↔ OWL drift checks | T2 | ✅ |
@@ -153,7 +153,7 @@ Consequence: `ibor-core` never stores attribution. The caller resolves the event
 
 ### 2.3 Capability map against the benchmarks
 
-| Benchmark feature | Mesta-Asset capability | Module | Status |
+| Benchmark feature | OCTO capability | Module | Status |
 | --- | --- | --- | --- |
 | Aladdin IBOR — "one database, one system, one process" | Append-only ledger; positions derived, never written | `ibor-core` | ✅ ledger · 🟡 derivation |
 | Aladdin Performance & Attribution | PE performance (§2); Brinson (§4.2) | `analytics` | 🟡 · ⬜ |

@@ -1,11 +1,11 @@
-package com.mesta.asset.api.compliance
+package com.octo.api.compliance
 
-import com.mesta.asset.recon.compliance.ComplianceRule
-import com.mesta.asset.recon.compliance.Evaluation
-import com.mesta.asset.recon.compliance.persistence.ComplianceProvenance
-import com.mesta.asset.recon.compliance.persistence.ComplianceStore
-import com.mesta.asset.recon.compliance.persistence.JdbcComplianceStore
-import com.mesta.asset.workflow.persistence.JdbcTaskStore
+import com.octo.recon.compliance.ComplianceRule
+import com.octo.recon.compliance.Evaluation
+import com.octo.recon.compliance.persistence.ComplianceProvenance
+import com.octo.recon.compliance.persistence.ComplianceStore
+import com.octo.recon.compliance.persistence.JdbcComplianceStore
+import com.octo.workflow.persistence.JdbcTaskStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

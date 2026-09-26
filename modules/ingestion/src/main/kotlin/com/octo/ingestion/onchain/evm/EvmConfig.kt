@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.onchain.evm
+package com.octo.ingestion.onchain.evm
 
 /**
  * Connection details for an EVM JSON-RPC endpoint. Unlike Helius the adapter is

@@ -6,7 +6,7 @@
 
 ## Context
 
-Mesta-Asset is a vendor-neutral private-equity investment platform that consolidates fragmented deal sourcing and multi-vendor portfolio operations into a single system. Blueprint requirements:
+OCTO is a vendor-neutral private-equity investment platform that consolidates fragmented deal sourcing and multi-vendor portfolio operations into a single system. Blueprint requirements:
 
 - One Database, One System, One Process. A single IBOR (Investment Book of Record) as the golden source for positions, commitments, and cash flows.
 - A standardized investment Ontology (funds, portfolio companies, LPs, GPs) as the canonical data framework, with look-through to underlying companies.

@@ -1,4 +1,4 @@
-package com.mesta.asset.analytics
+package com.octo.analytics
 
 import kotlin.math.PI
 import kotlin.math.abs

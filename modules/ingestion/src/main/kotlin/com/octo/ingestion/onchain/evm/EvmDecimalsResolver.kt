@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.onchain.evm
+package com.octo.ingestion.onchain.evm
 
 /**
  * Resolves ERC-20 `decimals` for the contracts a scan encounters. The instrument registry

@@ -1,8 +1,8 @@
-package com.mesta.asset.api
+package com.octo.api
 
-import com.mesta.asset.iborcore.commitmentPosition
-import com.mesta.asset.iborcore.latestValuation
-import com.mesta.asset.iborcore.persistence.JdbcIborReader
+import com.octo.iborcore.commitmentPosition
+import com.octo.iborcore.latestValuation
+import com.octo.iborcore.persistence.JdbcIborReader
 import org.assertj.core.api.Assertions.assertThat
 import org.flywaydb.core.Flyway
 import org.junit.jupiter.api.Test

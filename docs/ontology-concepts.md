@@ -1,12 +1,12 @@
 # Ontology Concepts — Reference Mapping
 
-How the canonical ontology-platform concepts map onto Mesta-Asset's implementation. The reference model describes a digital-twin Ontology: object types, properties, link types, action types, roles, functions, interfaces, and object views. Mesta-Asset implements the same concepts on vendor-neutral technology: TypeDB/TypeQL 3.0 for the semantic graph, PostgreSQL for the ledger, OWL/SHACL for formal validation, and Kotlin services for behavior.
+How the canonical ontology-platform concepts map onto OCTO's implementation. The reference model describes a digital-twin Ontology: object types, properties, link types, action types, roles, functions, interfaces, and object views. OCTO implements the same concepts on vendor-neutral technology: TypeDB/TypeQL 3.0 for the semantic graph, PostgreSQL for the ledger, OWL/SHACL for formal validation, and Kotlin services for behavior.
 
 ## Concept map
 
-| Reference concept | Mesta-Asset equivalent | Where it lives |
+| Reference concept | OCTO equivalent | Where it lives |
 | --- | --- | --- |
-| Ontology (digital twin) | Investment Ontology — canonical model of prospects, funds, companies, LPs, GPs, documents, and events | `ontology/mesta-investment.tql` + OWL/SHACL in Git |
+| Ontology (digital twin) | Investment Ontology — canonical model of prospects, funds, companies, LPs, GPs, documents, and events | `ontology/octo-investment.tql` + OWL/SHACL in Git |
 | Object type | TypeQL `entity` type (e.g. `fund`, `deal`, `operating-company`) | `ontology/` schema |
 | Object | Entity instance | TypeDB instance |
 | Object set | Query result set / typed collection | TypeQL `match` results |
@@ -25,7 +25,7 @@ How the canonical ontology-platform concepts map onto Mesta-Asset's implementati
 
 ## Semantic differences that matter
 
-| Reference behavior | Mesta-Asset behavior | Why |
+| Reference behavior | OCTO behavior | Why |
 | --- | --- | --- |
 | Link = relationship between two objects | Relation can carry attributes (`owns effective-date`, `owns committed-amount`) and N roles | PE relationships are almost always dated and quantified |
 | Action type = bundled edits + side effects | Command + workflow step: every action is validated, permissioned, audit-logged, and optionally approval-gated | Financial writes require provenance and T2 controls |
@@ -36,7 +36,7 @@ How the canonical ontology-platform concepts map onto Mesta-Asset's implementati
 
 ## Correspondence to the dataset model
 
-The reference frames ontology as analogous to datasets — dataset : object type, row : object, column : property, join : link. Mesta-Asset keeps this framing for ingestion:
+The reference frames ontology as analogous to datasets — dataset : object type, row : object, column : property, join : link. OCTO keeps this framing for ingestion:
 
 - Each vendor dataset maps to entity types and attribute types in the Ontology.
 - Source rows become instances; joins become typed relations with roles.

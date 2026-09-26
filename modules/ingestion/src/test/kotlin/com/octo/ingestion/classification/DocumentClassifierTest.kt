@@ -1,13 +1,13 @@
-package com.mesta.asset.ingestion.classification
+package com.octo.ingestion.classification
 
-import com.mesta.asset.controlpanel.judgment.ChoiceAnswer
-import com.mesta.asset.controlpanel.judgment.ChoiceQuestion
-import com.mesta.asset.controlpanel.judgment.ClassifiedState
-import com.mesta.asset.controlpanel.judgment.DataClassification
-import com.mesta.asset.controlpanel.judgment.JudgmentResult
-import com.mesta.asset.controlpanel.judgment.NoulAnswer
-import com.mesta.asset.controlpanel.judgment.UnexpectedAnswerException
-import com.mesta.asset.ingestion.StubJudgmentClient
+import com.octo.controlpanel.judgment.ChoiceAnswer
+import com.octo.controlpanel.judgment.ChoiceQuestion
+import com.octo.controlpanel.judgment.ClassifiedState
+import com.octo.controlpanel.judgment.DataClassification
+import com.octo.controlpanel.judgment.JudgmentResult
+import com.octo.controlpanel.judgment.NoulAnswer
+import com.octo.controlpanel.judgment.UnexpectedAnswerException
+import com.octo.ingestion.StubJudgmentClient
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

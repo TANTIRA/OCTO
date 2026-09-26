@@ -1,14 +1,14 @@
-package com.mesta.asset.api.compliance
+package com.octo.api.compliance
 
-import com.mesta.asset.analytics.CoverageReport
-import com.mesta.asset.api.access.TenantDirectory
-import com.mesta.asset.api.access.TenantRole
-import com.mesta.asset.lookthrough.ExposureReport
-import com.mesta.asset.recon.compliance.ComplianceCheck
-import com.mesta.asset.recon.compliance.ComplianceInputs
-import com.mesta.asset.recon.compliance.ComplianceRule
-import com.mesta.asset.recon.compliance.persistence.ComplianceProvenance
-import com.mesta.asset.recon.compliance.persistence.ComplianceStore
+import com.octo.analytics.CoverageReport
+import com.octo.api.access.TenantDirectory
+import com.octo.api.access.TenantRole
+import com.octo.lookthrough.ExposureReport
+import com.octo.recon.compliance.ComplianceCheck
+import com.octo.recon.compliance.ComplianceInputs
+import com.octo.recon.compliance.ComplianceRule
+import com.octo.recon.compliance.persistence.ComplianceProvenance
+import com.octo.recon.compliance.persistence.ComplianceStore
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.springframework.http.HttpStatus

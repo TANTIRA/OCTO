@@ -1,9 +1,9 @@
-package com.mesta.asset.api.asset
+package com.octo.api.asset
 
-import com.mesta.asset.api.MestaAssetApplication
-import com.mesta.asset.api.access.TenantAccess
-import com.mesta.asset.api.access.TenantDirectory
-import com.mesta.asset.api.access.TenantRole
+import com.octo.api.OctoApplication
+import com.octo.api.access.TenantAccess
+import com.octo.api.access.TenantDirectory
+import com.octo.api.access.TenantRole
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -34,7 +34,7 @@ class AssetEndpointTest {
 
     private val contextRunner =
         WebApplicationContextRunner()
-            .withUserConfiguration(MestaAssetApplication::class.java)
+            .withUserConfiguration(OctoApplication::class.java)
             .withBean(
                 TenantDirectory::class.java,
                 Supplier {

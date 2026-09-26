@@ -1,4 +1,4 @@
-package com.mesta.asset.workflow.report
+package com.octo.workflow.report
 
 import java.time.Instant
 import java.util.UUID

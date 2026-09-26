@@ -1,11 +1,11 @@
 <!-- TANTIRA repo template. Source of truth: repo TANTIRA. Fill every [ ] placeholder. Do not edit the "Company rules" sections — they are identical in every repo. -->
 
-# AGENTS.md — Mesta-Asset
+# AGENTS.md — OCTO
 
 Private-equity investment platform: a standardized Ontology (prospects, funds, portfolio companies, LPs, GPs) on a single IBOR, consolidating CRMs, financial and market-data providers, documents, and third-party/open-source feeds — with configurable deal screening, AI-assisted due diligence and IC reporting, performance analytics, low-code models, alerts, NL queries, LP reports, and governed workflows. One database, one system, one process.
 
 - **Product line:** Operations
-- **Owners (CODEOWNERS team):** @TANTIRA/mesta-asset
+- **Owners (CODEOWNERS team):** @TANTIRA/octo
 - **Default risk tier:** T1 — anything writing financial data (IBOR, reconciliation, migrations, auth, vendor ingestion) is T2. See Risk tiers below.
 - **Runtime:** Kotlin on Java 21, Spring Boot 3, Gradle (Kotlin DSL), self-hosted Supabase PostgreSQL + Flyway
 
@@ -15,7 +15,7 @@ Private-equity investment platform: a standardized Ontology (prospects, funds, p
 ./gradlew build                                     # install dependencies and compile
 ./gradlew bootRun                                   # run locally — migrations apply at boot via Spring Flyway
 ./gradlew test                                      # run the full test suite
-./gradlew test --tests 'com.mesta.asset.FooTest'    # run a single test
+./gradlew test --tests 'com.octo.FooTest'    # run a single test
 ./gradlew check                                     # lint and format check
 ./gradlew bootJar                                   # production build
 flyway migrate                                      # ad-hoc migration (flyway CLI; the Gradle plugin is gone — it was broken on Gradle 9)
@@ -40,7 +40,7 @@ Run `./gradlew check` and `./gradlew test` before every pull request. If a comma
 | `modules/*/src/test/` | Tests | Normal PR |
 | `infra/supabase/`, `infra/`, `.github/workflows/`, `Dockerfile` | Pinned self-hosted Supabase deployment, pipelines, and infrastructure | Needs Platform, DevOps, and Security review; tier T2 |
 | `db/migrations/` | Flyway migrations | Never edit a migration that already ran; add a new one |
-| `ontology/` | OWL/SHACL shapes and TypeQL 3.0 investment schema (`mesta-investment.tql`) | T2 — CTO owns; SemVer; deprecate before deleting |
+| `ontology/` | OWL/SHACL shapes and TypeQL 3.0 investment schema (`octo-investment.tql`) | T2 — CTO owns; SemVer; deprecate before deleting |
 | `.env*`, keys, certificates | Secrets | Never commit. `.env.example` holds names only, no values |
 
 Do not create new top-level directories without an ADR.

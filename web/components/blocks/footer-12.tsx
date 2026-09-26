@@ -149,7 +149,7 @@ export default function Footer12() {
         >
           <div className="col-span-2 sm:col-span-4 lg:col-span-1">
             <p className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-white">
-              Mesta-Asset
+              OCTO
             </p>
             <p className="mt-3 max-w-[28ch] text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
               Private-markets infrastructure. One database, one system, one
@@ -182,7 +182,7 @@ export default function Footer12() {
           className="mt-14 flex flex-col gap-4 border-t border-neutral-200 pt-6 dark:border-neutral-800 sm:flex-row sm:items-center sm:justify-between"
         >
           <p className="text-sm text-neutral-500 dark:text-neutral-500">
-            © 2026 Mesta-Asset
+            © 2026 OCTO
           </p>
           <div className="flex items-center gap-1">
             <a

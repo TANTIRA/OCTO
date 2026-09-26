@@ -1,6 +1,6 @@
-package com.mesta.asset.api.access
+package com.octo.api.access
 
-import com.mesta.asset.api.access.persistence.JdbcAccessStore
+import com.octo.api.access.persistence.JdbcAccessStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

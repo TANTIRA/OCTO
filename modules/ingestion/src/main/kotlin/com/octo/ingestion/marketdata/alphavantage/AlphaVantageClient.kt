@@ -1,10 +1,10 @@
-package com.mesta.asset.ingestion.marketdata.alphavantage
+package com.octo.ingestion.marketdata.alphavantage
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.mesta.asset.ingestion.http.HttpTransport
-import com.mesta.asset.ingestion.http.RetryPolicy
-import com.mesta.asset.ingestion.http.TransportResponse
+import com.octo.ingestion.http.HttpTransport
+import com.octo.ingestion.http.RetryPolicy
+import com.octo.ingestion.http.TransportResponse
 import java.io.IOException
 import java.net.URI
 import java.net.URLEncoder

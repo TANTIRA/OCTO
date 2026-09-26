@@ -42,7 +42,7 @@ export function Hero15() {
             className="mt-6 sm:mt-12 max-w-2xl"
           >
             <p className="text-sm sm:text-base md:text-lg font-medium text-neutral-800 dark:text-white leading-relaxed">
-              Mesta-Asset is the investment platform for private markets.
+              OCTO is the investment platform for private markets.
             </p>
             <p className="text-sm sm:text-base md:text-lg font-normal text-neutral-500 dark:text-neutral-400 leading-relaxed mt-0.5">
               Funds, deals, portfolio companies, and LPs — normalized into a

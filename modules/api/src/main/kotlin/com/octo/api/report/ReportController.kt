@@ -1,13 +1,13 @@
-package com.mesta.asset.api.report
+package com.octo.api.report
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.mesta.asset.api.access.TenantDirectory
-import com.mesta.asset.api.access.TenantRole
-import com.mesta.asset.workflow.report.ReportJob
-import com.mesta.asset.workflow.report.ReportJobs
-import com.mesta.asset.workflow.report.ReportRequest
-import com.mesta.asset.workflow.report.ReportType
+import com.octo.api.access.TenantDirectory
+import com.octo.api.access.TenantRole
+import com.octo.workflow.report.ReportJob
+import com.octo.workflow.report.ReportJobs
+import com.octo.workflow.report.ReportRequest
+import com.octo.workflow.report.ReportType
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.springframework.http.HttpStatus

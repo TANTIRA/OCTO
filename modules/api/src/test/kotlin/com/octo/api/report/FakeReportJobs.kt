@@ -1,9 +1,9 @@
-package com.mesta.asset.api.report
+package com.octo.api.report
 
-import com.mesta.asset.workflow.report.JobStatus
-import com.mesta.asset.workflow.report.ReportJob
-import com.mesta.asset.workflow.report.ReportJobs
-import com.mesta.asset.workflow.report.ReportRequest
+import com.octo.workflow.report.JobStatus
+import com.octo.workflow.report.ReportJob
+import com.octo.workflow.report.ReportJobs
+import com.octo.workflow.report.ReportRequest
 import java.time.Instant
 import java.util.UUID
 

@@ -1,7 +1,7 @@
-package com.mesta.asset.ingestion.onchain.helius
+package com.octo.ingestion.onchain.helius
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.mesta.asset.ingestion.onchain.BalanceSource
+import com.octo.ingestion.onchain.BalanceSource
 import java.math.BigInteger
 import java.time.Instant
 import kotlin.test.Test

@@ -1,14 +1,14 @@
-package com.mesta.asset.api.compliance
+package com.octo.api.compliance
 
-import com.mesta.asset.analytics.CoverageReport
-import com.mesta.asset.lookthrough.ExposureReport
-import com.mesta.asset.recon.compliance.ComplianceCheck
-import com.mesta.asset.recon.compliance.ComplianceInputs
-import com.mesta.asset.recon.compliance.ComplianceRule
-import com.mesta.asset.recon.compliance.Result
-import com.mesta.asset.recon.compliance.persistence.ComplianceProvenance
-import com.mesta.asset.workflow.Task
-import com.mesta.asset.workflow.TaskKind
+import com.octo.analytics.CoverageReport
+import com.octo.lookthrough.ExposureReport
+import com.octo.recon.compliance.ComplianceCheck
+import com.octo.recon.compliance.ComplianceInputs
+import com.octo.recon.compliance.ComplianceRule
+import com.octo.recon.compliance.Result
+import com.octo.recon.compliance.persistence.ComplianceProvenance
+import com.octo.workflow.Task
+import com.octo.workflow.TaskKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
@@ -79,10 +79,10 @@ class ComplianceRunnerTest {
         // Another runner records the breach between our breachTask lookup and our record: simulate by pre-recording after the check.
         val racing =
             ComplianceRunner(
-                object : com.mesta.asset.recon.compliance.persistence.ComplianceStore by store {
+                object : com.octo.recon.compliance.persistence.ComplianceStore by store {
                     override fun breachTask(
                         tenantId: UUID,
-                        evaluation: com.mesta.asset.recon.compliance.Evaluation,
+                        evaluation: com.octo.recon.compliance.Evaluation,
                     ) = store.breachTask(tenantId, evaluation).also {
                         if (it ==
                             null

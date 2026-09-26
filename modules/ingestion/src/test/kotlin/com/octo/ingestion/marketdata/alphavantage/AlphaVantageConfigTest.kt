@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.marketdata.alphavantage
+package com.octo.ingestion.marketdata.alphavantage
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

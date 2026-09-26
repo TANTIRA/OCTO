@@ -1,4 +1,4 @@
-package com.mesta.asset.api.access
+package com.octo.api.access
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy

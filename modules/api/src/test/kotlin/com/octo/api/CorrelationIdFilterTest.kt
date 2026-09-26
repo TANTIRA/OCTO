@@ -1,4 +1,4 @@
-package com.mesta.asset.api
+package com.octo.api
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

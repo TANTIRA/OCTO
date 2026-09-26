@@ -1,10 +1,10 @@
-package com.mesta.asset.api
+package com.octo.api
 
-import com.mesta.asset.analytics.persistence.JdbcModelRunStore
-import com.mesta.asset.analytics.persistence.ModelRun
-import com.mesta.asset.analytics.persistence.ModelRunOutput
-import com.mesta.asset.analytics.persistence.ModelStatus
-import com.mesta.asset.analytics.persistence.OutputKind
+import com.octo.analytics.persistence.JdbcModelRunStore
+import com.octo.analytics.persistence.ModelRun
+import com.octo.analytics.persistence.ModelRunOutput
+import com.octo.analytics.persistence.ModelStatus
+import com.octo.analytics.persistence.OutputKind
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway

@@ -1,4 +1,4 @@
-@prefix inv: <https://mesta.asset/ontology/investment#> .
+@prefix inv: <https://octo.asset/ontology/investment#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 # Synthetic negative fixtures. A minimal valid skeleton carries the entities that breaches

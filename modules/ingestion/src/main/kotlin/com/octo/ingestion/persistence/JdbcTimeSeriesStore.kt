@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.persistence
+package com.octo.ingestion.persistence
 
 import java.time.LocalDate
 import java.time.OffsetDateTime

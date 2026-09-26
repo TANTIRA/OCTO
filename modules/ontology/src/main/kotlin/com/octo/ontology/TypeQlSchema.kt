@@ -1,4 +1,4 @@
-package com.mesta.asset.ontology
+package com.octo.ontology
 
 import java.nio.file.Path
 
@@ -53,7 +53,7 @@ data class TqlType(
 )
 
 /**
- * The subset of `ontology/mesta-investment.tql` that the OWL and SHACL artifacts must agree with.
+ * The subset of `ontology/octo-investment.tql` that the OWL and SHACL artifacts must agree with.
  *
  * The parser is deliberately narrow: it understands the declaration forms actually used in the
  * schema file. A form it does not understand is a parse failure, not a silent skip.

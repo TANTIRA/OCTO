@@ -1,6 +1,6 @@
-package com.mesta.asset.api.access
+package com.octo.api.access
 
-import com.mesta.asset.api.MestaAssetApplication
+import com.octo.api.OctoApplication
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -25,7 +25,7 @@ class MeAccessTest {
 
     private val contextRunner =
         WebApplicationContextRunner()
-            .withUserConfiguration(MestaAssetApplication::class.java)
+            .withUserConfiguration(OctoApplication::class.java)
             // The stub stands in for AccessConfiguration's JdbcAccessStore-backed directory; primary wins the injection.
             .withBean(
                 TenantDirectory::class.java,

@@ -1,8 +1,8 @@
 # Decision model — integration map
 
-Where the `typesafe/jev-1.13` decision model plugs into Mesta-Asset, mapped against the actual
-ontology types in `ontology/mesta-investment.tql`. Client implementation lives in
-`modules/control-panel/src/main/kotlin/com/mesta/asset/controlpanel/judgment/`.
+Where the `typesafe/jev-1.13` decision model plugs into OCTO, mapped against the actual
+ontology types in `ontology/octo-investment.tql`. Client implementation lives in
+`modules/control-panel/src/main/kotlin/com/octo/controlpanel/judgment/`.
 
 - **Model:** `typesafe/jev-1.13` via the OpenRouter decisions endpoint
 - **Risk tier:** T2 — models used for decisions. Preconditions listed at the end

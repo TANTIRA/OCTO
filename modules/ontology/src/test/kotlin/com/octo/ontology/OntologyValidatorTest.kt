@@ -1,4 +1,4 @@
-package com.mesta.asset.ontology
+package com.octo.ontology
 
 import java.nio.file.Files
 import java.nio.file.Path

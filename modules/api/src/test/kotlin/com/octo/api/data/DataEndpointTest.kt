@@ -1,12 +1,12 @@
-package com.mesta.asset.api.data
+package com.octo.api.data
 
-import com.mesta.asset.api.MestaAssetApplication
-import com.mesta.asset.api.access.TenantAccess
-import com.mesta.asset.api.access.TenantDirectory
-import com.mesta.asset.api.access.TenantRole
-import com.mesta.asset.ingestion.persistence.Observation
-import com.mesta.asset.ingestion.persistence.TimeSeriesQuery
-import com.mesta.asset.ingestion.persistence.TimeSeriesReader
+import com.octo.api.OctoApplication
+import com.octo.api.access.TenantAccess
+import com.octo.api.access.TenantDirectory
+import com.octo.api.access.TenantRole
+import com.octo.ingestion.persistence.Observation
+import com.octo.ingestion.persistence.TimeSeriesQuery
+import com.octo.ingestion.persistence.TimeSeriesReader
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -52,7 +52,7 @@ class DataEndpointTest {
 
     private val contextRunner =
         WebApplicationContextRunner()
-            .withUserConfiguration(MestaAssetApplication::class.java)
+            .withUserConfiguration(OctoApplication::class.java)
             .withBean(
                 TenantDirectory::class.java,
                 Supplier {

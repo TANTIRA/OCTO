@@ -1,8 +1,8 @@
-@prefix inv: <https://mesta.asset/ontology/investment#> .
+@prefix inv: <https://octo.asset/ontology/investment#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-# Synthetic sample graph. Must conform to mesta-investment-shacl.ttl (schema mirror) and
-# mesta-investment-policy-shacl.ttl (business rules). No real firm, fund, LP, or company data.
+# Synthetic sample graph. Must conform to octo-investment-shacl.ttl (schema mirror) and
+# octo-investment-policy-shacl.ttl (business rules). No real firm, fund, LP, or company data.
 
 inv:fund-manager-aurora a inv:FundManager ;
     inv:legalName "Aurora Capital Partners Pte Ltd" ;

@@ -1,10 +1,10 @@
-@prefix inv:  <https://mesta.asset/ontology/investment#> .
+@prefix inv:  <https://octo.asset/ontology/investment#> .
 @prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
-# Faithful SHACL mirror of ontology/mesta-investment.tql.
+# Faithful SHACL mirror of ontology/octo-investment.tql.
 #
 # Parity rules, enforced by TypeQlSchemaDriftTest:
 #   attribute @values(...)  -> sh:in
@@ -15,7 +15,7 @@
 #   relates R @card(1)      -> sh:minCount 1 on R
 #
 # Unannotated `owns` is @card(0..1) per ADR-0003, so it gets no sh:minCount. Business rules that
-# require more than the schema does live in mesta-investment-policy-shacl.ttl, not here.
+# require more than the schema does live in octo-investment-policy-shacl.ttl, not here.
 
 # --- Entities --------------------------------------------------------------
 

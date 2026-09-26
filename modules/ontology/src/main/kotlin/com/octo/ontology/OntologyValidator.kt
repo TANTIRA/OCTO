@@ -1,4 +1,4 @@
-package com.mesta.asset.ontology
+package com.octo.ontology
 
 import org.apache.jena.rdf.model.Model
 import org.apache.jena.rdf.model.ModelFactory
@@ -35,7 +35,7 @@ data class ValidationOutcome(
 )
 
 /**
- * Deterministic OWL/SHACL validation for the Mesta-Asset investment ontology.
+ * Deterministic OWL/SHACL validation for the OCTO investment ontology.
  *
  * Loads the OWL ontology plus one or more SHACL shape graphs, then validates data graphs with RDFS
  * inference so the class hierarchy in the ontology (`FundManager` ⊑ `Organization` ⊑ `Party`) is
@@ -87,12 +87,12 @@ class OntologyValidator private constructor(
         /** Shape files that make up the gate: the schema mirror and the policy layer. */
         val SHAPE_FILES =
             listOf(
-                "mesta-investment-shacl.ttl",
-                "mesta-investment-policy-shacl.ttl",
+                "octo-investment-shacl.ttl",
+                "octo-investment-policy-shacl.ttl",
             )
 
         /** OWL ontology file name. */
-        const val ONTOLOGY_FILE = "mesta-investment-owl.ttl"
+        const val ONTOLOGY_FILE = "octo-investment-owl.ttl"
 
         /** Load the ontology and the standard shape set from an `ontology/` directory. */
         fun loadDefault(ontologyDir: Path): OntologyValidator =

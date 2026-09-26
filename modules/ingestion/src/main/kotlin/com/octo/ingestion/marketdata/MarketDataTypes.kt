@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.marketdata
+package com.octo.ingestion.marketdata
 
 import java.math.BigDecimal
 import java.time.LocalDate

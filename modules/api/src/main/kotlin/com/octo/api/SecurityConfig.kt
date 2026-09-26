@@ -1,6 +1,6 @@
-package com.mesta.asset.api
+package com.octo.api
 
-import com.mesta.asset.api.ingestion.HeliusWebhookAuthFilter
+import com.octo.api.ingestion.HeliusWebhookAuthFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order

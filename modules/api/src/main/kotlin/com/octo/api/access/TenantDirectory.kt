@@ -1,4 +1,4 @@
-package com.mesta.asset.api.access
+package com.octo.api.access
 
 import java.util.UUID
 

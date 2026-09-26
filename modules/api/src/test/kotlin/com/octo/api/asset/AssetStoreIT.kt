@@ -1,9 +1,9 @@
-package com.mesta.asset.api.asset
+package com.octo.api.asset
 
-import com.mesta.asset.api.access.Tenant
-import com.mesta.asset.api.access.persistence.AccessProvenance
-import com.mesta.asset.api.access.persistence.JdbcAccessStore
-import com.mesta.asset.api.asset.persistence.JdbcAssetStore
+import com.octo.api.access.Tenant
+import com.octo.api.access.persistence.AccessProvenance
+import com.octo.api.access.persistence.JdbcAccessStore
+import com.octo.api.asset.persistence.JdbcAssetStore
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway

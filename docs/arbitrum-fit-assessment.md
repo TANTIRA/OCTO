@@ -1,6 +1,6 @@
 # Arbitrum — fit assessment
 
-Evaluation of [Arbitrum](https://docs.arbitrum.io/llms-full.txt) as a settlement network and onchain data source for Mesta-Asset. No RPC calls were made; this is a documentation-only assessment of the published docs.
+Evaluation of [Arbitrum](https://docs.arbitrum.io/llms-full.txt) as a settlement network and onchain data source for OCTO. No RPC calls were made; this is a documentation-only assessment of the published docs.
 
 - **Risk tier:** T0 for this document. T2 for a read-only ingestion adapter, because it writes financial facts to the ledger. T3 for anything that holds keys, signs, bridges, or deploys contracts
 - **Status:** superseded into a design. The instrument blocker is resolved (`instrument`/`instrument_flow` exist since V10) and the adapter design lives in [arbitrum-ingestion-design.md](arbitrum-ingestion-design.md); the `ledger_event` mapping below predates that table
@@ -114,7 +114,7 @@ Third-party fast bridges avoid the wait, but the docs note that third parties ru
 | Excluded | Reason |
 | --- | --- |
 | Keys, wallets, signing, bridging funds, deploying Solidity or Stylus contracts | T3 in `AGENTS.md`. Agents never hold a deployer key or wallet |
-| Running a node, validator, batch poster, or Arbitrum chain | Infrastructure below the platform. ADR-0001 scopes Mesta-Asset above the administrator and custodian layer |
+| Running a node, validator, batch poster, or Arbitrum chain | Infrastructure below the platform. ADR-0001 scopes OCTO above the administrator and custodian layer |
 | Trade execution, Timeboost, priority gas auctions | Trade execution is out of scope per ADR-0001 |
 | Valuing private portfolio companies | An oracle price feed is not a valuation input for an unlisted company |
 | Sanctions screening by the chain | Compliance filtering (ArbOS 61) is an optional chain-owner feature, off by default and not intended for Arbitrum One. KYC and AML stay with the counterparty |

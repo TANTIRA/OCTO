@@ -1,9 +1,9 @@
-package com.mesta.asset.ingestion
+package com.octo.ingestion
 
-import com.mesta.asset.controlpanel.judgment.ClassifiedState
-import com.mesta.asset.controlpanel.judgment.JudgmentClient
-import com.mesta.asset.controlpanel.judgment.JudgmentQuestion
-import com.mesta.asset.controlpanel.judgment.JudgmentResult
+import com.octo.controlpanel.judgment.ClassifiedState
+import com.octo.controlpanel.judgment.JudgmentClient
+import com.octo.controlpanel.judgment.JudgmentQuestion
+import com.octo.controlpanel.judgment.JudgmentResult
 
 internal class StubJudgmentClient(
     private val result: JudgmentResult,

@@ -1,10 +1,10 @@
-@prefix inv:  <https://mesta.asset/ontology/investment#> .
+@prefix inv:  <https://octo.asset/ontology/investment#> .
 @prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
-# Business rules that go BEYOND the TypeQL schema. mesta-investment-shacl.ttl mirrors the schema
+# Business rules that go BEYOND the TypeQL schema. octo-investment-shacl.ttl mirrors the schema
 # exactly; this file adds requirements the schema leaves at the @card(0..1) default.
 #
 # These are policy, not parity. Each one cites the document it comes from, and each is a T2
@@ -56,10 +56,10 @@ inv:ExtractedClaimProvenanceShape a sh:NodeShape ;
         sh:message "An extracted claim must be the claim-side of an extraction-source; a claim with no source document is ungrounded."@en ;
         sh:select """
             SELECT $this WHERE {
-                $this a <https://mesta.asset/ontology/investment#ExtractedClaim> .
+                $this a <https://octo.asset/ontology/investment#ExtractedClaim> .
                 FILTER NOT EXISTS {
-                    ?link a <https://mesta.asset/ontology/investment#ExtractionSource> ;
-                          <https://mesta.asset/ontology/investment#claimSide> $this .
+                    ?link a <https://octo.asset/ontology/investment#ExtractionSource> ;
+                          <https://octo.asset/ontology/investment#claimSide> $this .
                 }
             }
         """ ;
@@ -83,10 +83,10 @@ inv:LedgerEventAttributionShape a sh:NodeShape ;
         sh:message "A ledger event must be the event-side of a cash-flow-attribution; an unattributed event cannot be reconciled."@en ;
         sh:select """
             SELECT $this WHERE {
-                $this a <https://mesta.asset/ontology/investment#LedgerEvent> .
+                $this a <https://octo.asset/ontology/investment#LedgerEvent> .
                 FILTER NOT EXISTS {
-                    ?link a <https://mesta.asset/ontology/investment#CashFlowAttribution> ;
-                          <https://mesta.asset/ontology/investment#eventSide> $this .
+                    ?link a <https://octo.asset/ontology/investment#CashFlowAttribution> ;
+                          <https://octo.asset/ontology/investment#eventSide> $this .
                 }
             }
         """ ;
@@ -119,10 +119,10 @@ inv:InstrumentFlowAttributionShape a sh:NodeShape ;
         sh:message "An instrument flow must be the flow-side of an instrument-flow-of; an unattributed flow cannot be reconciled."@en ;
         sh:select """
             SELECT $this WHERE {
-                $this a <https://mesta.asset/ontology/investment#InstrumentFlow> .
+                $this a <https://octo.asset/ontology/investment#InstrumentFlow> .
                 FILTER NOT EXISTS {
-                    ?link a <https://mesta.asset/ontology/investment#InstrumentFlowOf> ;
-                          <https://mesta.asset/ontology/investment#flowSide> $this .
+                    ?link a <https://octo.asset/ontology/investment#InstrumentFlowOf> ;
+                          <https://octo.asset/ontology/investment#flowSide> $this .
                 }
             }
         """ ;

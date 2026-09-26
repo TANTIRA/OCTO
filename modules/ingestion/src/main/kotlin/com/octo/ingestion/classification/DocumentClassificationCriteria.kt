@@ -1,6 +1,6 @@
-package com.mesta.asset.ingestion.classification
+package com.octo.ingestion.classification
 
-import com.mesta.asset.controlpanel.judgment.ChoiceQuestion
+import com.octo.controlpanel.judgment.ChoiceQuestion
 
 /**
  * The question, its option descriptions, and the review threshold in one place, so a reviewer can

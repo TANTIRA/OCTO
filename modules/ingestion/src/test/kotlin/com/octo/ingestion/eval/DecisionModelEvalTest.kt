@@ -1,8 +1,8 @@
-package com.mesta.asset.ingestion.eval
+package com.octo.ingestion.eval
 
-import com.mesta.asset.controlpanel.judgment.DecisionModelConfig
-import com.mesta.asset.controlpanel.judgment.JdkHttpTransport
-import com.mesta.asset.controlpanel.judgment.OpenRouterDecisionsClient
+import com.octo.controlpanel.judgment.DecisionModelConfig
+import com.octo.controlpanel.judgment.JdkHttpTransport
+import com.octo.controlpanel.judgment.OpenRouterDecisionsClient
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.Test
 import kotlin.test.assertTrue

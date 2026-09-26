@@ -113,7 +113,7 @@ export default function CTA2() {
         >
           Be among the first
           <br />
-          to run Mesta-Asset
+          to run OCTO
         </motion.h1>
 
         <motion.button
@@ -150,7 +150,7 @@ export default function CTA2() {
 
         <div className="hidden sm:flex items-center gap-2">
           <span className="text-base sm:text-lg font-medium text-neutral-900 dark:text-white">
-            Mesta-Asset
+            OCTO
           </span>
         </div>
 

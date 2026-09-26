@@ -1,7 +1,7 @@
-package com.mesta.asset.api.access
+package com.octo.api.access
 
-import com.mesta.asset.api.access.persistence.AccessProvenance
-import com.mesta.asset.api.access.persistence.JdbcAccessStore
+import com.octo.api.access.persistence.AccessProvenance
+import com.octo.api.access.persistence.JdbcAccessStore
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway

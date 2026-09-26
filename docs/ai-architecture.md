@@ -1,10 +1,10 @@
 # AI Architecture — Reference Mapping
 
-How the AIP architecture's twelve capability blocks map onto Mesta-Asset modules and controls. The reference is a general AI platform; Mesta-Asset adopts the capability model as fixed platform services behind governed module boundaries — not a self-serve platform layer.
+How the AIP architecture's twelve capability blocks map onto OCTO modules and controls. The reference is a general AI platform; OCTO adopts the capability model as fixed platform services behind governed module boundaries — not a self-serve platform layer.
 
 ## Block-by-block mapping
 
-| # | AIP capability | Mesta-Asset equivalent | Module | Status |
+| # | AIP capability | OCTO equivalent | Module | Status |
 | --- | --- | --- | --- | --- |
 | 1 | Secure LLM integration, hosting, access — model catalog, moderation, PII detection, cache, quotas, BYOM | Approved-model registry; prompt/context firewall (untrusted doc handling); per-feature cost and quota limits; output citation checks | `control-panel` + platform config | Adopted |
 | 2 | End-to-end observability | Prompt/retrieval/output/edit/approval lineage; eval results; cost, latency, drift dashboards; audit events | `control-panel` + observability stack | Adopted |
@@ -21,7 +21,7 @@ How the AIP architecture's twelve capability blocks map onto Mesta-Asset modules
 
 ## Consumers
 
-The reference serves agents, operational, developer, analyst, and governance teams plus automations. Mesta-Asset's consumer map:
+The reference serves agents, operational, developer, analyst, and governance teams plus automations. OCTO's consumer map:
 
 | Consumer | Serves through |
 | --- | --- |

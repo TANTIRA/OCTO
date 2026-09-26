@@ -1,10 +1,10 @@
-package com.mesta.asset.recon.compliance.persistence
+package com.octo.recon.compliance.persistence
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.mesta.asset.recon.compliance.ComplianceCheck
-import com.mesta.asset.recon.compliance.ComplianceRule
-import com.mesta.asset.recon.compliance.Evaluation
+import com.octo.recon.compliance.ComplianceCheck
+import com.octo.recon.compliance.ComplianceRule
+import com.octo.recon.compliance.Evaluation
 import java.math.BigDecimal
 import java.util.Currency
 import java.util.UUID
