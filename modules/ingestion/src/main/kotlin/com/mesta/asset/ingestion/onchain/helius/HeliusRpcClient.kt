@@ -62,7 +62,7 @@ class HeliusRpcClient(
             mapper
                 .createObjectNode()
                 .put("encoding", "jsonParsed")
-                .put("maxSupportedTransactionVersion", 0)
+                .put("maxSupportedTransactionVersion", 1)
                 .put("commitment", "finalized")
         val args =
             mapper
@@ -71,6 +71,36 @@ class HeliusRpcClient(
                 .add(params)
         val result = rpc("getTransaction", args)
         return if (result.isNull) null else result
+    }
+
+    override fun transactionsForAddress(
+        address: String,
+        limit: Int,
+        paginationToken: String?,
+        slotGt: Long?,
+    ): JsonNode {
+        val filters = mapper.createObjectNode()
+        filters.put("status", "succeeded")
+        filters.put("tokenAccounts", "balanceChanged")
+        if (slotGt != null) {
+            filters.set<JsonNode>("slot", mapper.createObjectNode().put("gt", slotGt))
+        }
+        val params = mapper.createObjectNode()
+        params.put("transactionDetails", "full")
+        params.put("encoding", "jsonParsed")
+        params.put("maxSupportedTransactionVersion", 1)
+        params.put("commitment", "finalized")
+        params.put("sortOrder", "desc")
+        params.put("limit", limit)
+        params.set<JsonNode>("filters", filters)
+        if (paginationToken != null) params.put("paginationToken", paginationToken)
+        return rpc(
+            "getTransactionsForAddress",
+            mapper
+                .createArrayNode()
+                .add(address)
+                .add(params),
+        )
     }
 
     override fun balance(address: String): Long {
@@ -218,6 +248,6 @@ class HeliusRpcClient(
         const val STAKE_PROGRAM_ID = "Stake11111111111111111111111111111111111111"
 
         /** Byte offsets of `Authorized::staker` and `Authorized::withdrawer` in the stake layout. */
-        val AUTHORIZED_OFFSETS = listOf(44, 76)
+        val AUTHORIZED_OFFSETS = listOf(12, 44)
     }
 }

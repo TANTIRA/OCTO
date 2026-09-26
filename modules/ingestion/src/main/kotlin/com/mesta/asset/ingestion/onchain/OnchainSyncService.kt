@@ -13,13 +13,15 @@ data class SyncResult(
 )
 
 /**
- * The polling half of onchain ingestion: walk each watched address's signature history
- * newest-first, fetch + normalize each transaction, batch-stage the legs. Idempotent end to
- * end — the staging unique key is the only dedupe, so a re-run or a webhook overlapping the
- * same signatures inserts nothing twice.
+ * The polling half of onchain ingestion: scan each watched address's full transaction history
+ * newest-first via `getTransactionsForAddress` — the `tokenAccounts: "balanceChanged"` filter
+ * makes Helius resolve the wallet's ATAs server-side, so a transfer that touches only a token
+ * account (the wallet never appears in `accountKeys`) is still ingested and attributed to the
+ * owner by the normalizer's `owner` field. Idempotent end to end — the staging unique key is
+ * the only dedupe, so a re-run or a webhook overlapping the same signatures inserts nothing twice.
  *
- * Cursor: the signature at the highest staged slot, passed as `until` — derived from staging,
- * never stored. A crashed pass restarts safely because staging rows are already facts.
+ * Cursor: the highest staged slot, passed as `filters.slot.gt` — derived from staging, never
+ * stored. A crashed pass restarts safely because staging rows are already facts.
  */
 class OnchainSyncService(
     private val rpc: HeliusRpcApi,
@@ -40,27 +42,26 @@ class OnchainSyncService(
     ): SyncResult {
         val runId = UUID.randomUUID()
         val correlationId = UUID.randomUUID()
-        val until = store.newestSignature(watch.chain, watch.address)
+        val newestSlot = store.newestSlot(watch.chain, watch.address)
 
-        var before: String? = null
+        var pageToken: String? = null
         var signaturesSeen = 0
         var transactionsFetched = 0
         val legs = mutableListOf<OnchainTransfer>()
 
         var pages = 0
         while (pages < maxPages) {
-            val page = rpc.signaturesForAddress(watch.address, pageLimit, before, until)
-            if (!page.isArray || page.isEmpty) break
-            for (sigInfo in page) {
+            val page = rpc.transactionsForAddress(watch.address, pageLimit, pageToken, newestSlot)
+            val data = page.path("data")
+            if (!data.isArray || data.isEmpty) break
+            for (tx in data) {
                 signaturesSeen++
-                val signature = sigInfo.path("signature").asText()
-                val tx = rpc.transaction(signature) ?: continue
                 transactionsFetched++
                 legs += normalizer.normalize(tx, watch.address)
             }
-            before = page.last().path("signature").asText()
+            pageToken = page.path("paginationToken").takeIf { it.isTextual }?.asText()
+            if (pageToken == null) break
             pages++
-            if (page.size() < pageLimit) break
         }
 
         val staged = store.insertTransfers(legs, runId, correlationId, actor)

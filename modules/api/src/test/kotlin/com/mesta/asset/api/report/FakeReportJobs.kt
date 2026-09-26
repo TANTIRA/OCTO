@@ -31,6 +31,15 @@ class FakeReportJobs : ReportJobs {
         error: String,
     ) = move(id, JobStatus.ERROR) { it.copy(error = error) }
 
+    override fun attachApproval(
+        id: UUID,
+        taskId: UUID,
+    ): ReportJob {
+        val job = jobs.getValue(id)
+        check(job.status == JobStatus.DONE && job.approvalTaskId == null) { "one approval task, after done" }
+        return job.copy(approvalTaskId = taskId).also { jobs[id] = it }
+    }
+
     private fun move(
         id: UUID,
         to: JobStatus,

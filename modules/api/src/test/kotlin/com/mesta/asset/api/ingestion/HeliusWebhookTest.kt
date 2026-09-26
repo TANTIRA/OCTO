@@ -50,10 +50,12 @@ private class RecordingStore : OnchainStagingStore {
 
     override fun activeWatchedAddresses(chain: String) = listOf(WatchSource(chain, WATCHED, null, null))
 
-    override fun newestSignature(
+    override fun newestSlot(
         chain: String,
         wallet: String,
-    ) = null
+    ): Long? = null
+
+    override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
 
     override fun newestStagedSlot(chain: String): Long? = null
 

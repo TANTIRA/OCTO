@@ -27,6 +27,26 @@ interface HeliusRpcApi {
     /** `getTransaction` with `jsonParsed` encoding; null when the signature is unknown. */
     fun transaction(signature: String): JsonNode?
 
+    /**
+     * `getTransactionsForAddress` (Helius extension), newest-first, `transactionDetails: "full"`,
+     * `filters.tokenAccounts: "balanceChanged"` — every finalized transaction where the wallet
+     * OR one of its token accounts changed balance. `getSignaturesForAddress` only sees the
+     * wallet itself, so an SPL transfer that touches only the wallet's ATA is invisible to it;
+     * the `balanceChanged` filter closes that coverage gap server-side.
+     *
+     * [slotGt] is the incremental cursor — only slots above the newest staged slot return —
+     * and `paginationToken` ("slot:position") pages backward, so two transactions in the same
+     * slot cannot hide each other the way a signature `until` cursor can. Returns the raw
+     * `result` node: `data` holds `getTransaction`-shaped objects, `paginationToken` is absent
+     * when the scan is exhausted.
+     */
+    fun transactionsForAddress(
+        address: String,
+        limit: Int = 100,
+        paginationToken: String? = null,
+        slotGt: Long? = null,
+    ): JsonNode
+
     /** `getBalance` — native SOL lamports. */
     fun balance(address: String): Long
 
