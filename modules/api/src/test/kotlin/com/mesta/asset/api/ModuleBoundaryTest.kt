@@ -95,7 +95,9 @@ class ModuleBoundaryTest {
     fun `evm vendor types stay inside the ingestion module`() {
         noClasses()
             .that()
-            .resideOutsideOfPackage("com.mesta.asset.ingestion..", "com.mesta.asset.api.ingestion..")
+            .resideOutsideOfPackage("com.mesta.asset.ingestion..")
+            .and()
+            .resideOutsideOfPackage("com.mesta.asset.api.ingestion..")
             .should()
             .dependOnClassesThat()
             .resideInAPackage("com.mesta.asset.ingestion.onchain.evm..")
