@@ -91,7 +91,12 @@ class EvmTransferNormalizer {
 
     /** Topics carry the address as a 32-byte word; the last 20 bytes are the address. */
     private fun topicAddress(topic: JsonNode): String =
-        "0x" + topic.asText().removePrefix("0x").takeLast(40).lowercase()
+        "0x" +
+            topic
+                .asText()
+                .removePrefix("0x")
+                .takeLast(40)
+                .lowercase()
 
     companion object {
         const val ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"

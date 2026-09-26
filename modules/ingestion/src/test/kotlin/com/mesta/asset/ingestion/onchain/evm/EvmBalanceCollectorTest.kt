@@ -30,8 +30,7 @@ private class BalanceFakeRpc : EvmRpcApi {
 
     override fun chainId() = 42161L
 
-    override fun finalizedBlock(): JsonNode =
-        mapper.readTree("""{"number":"0x100","hash":"0xhead","timestamp":"0x65f00000"}""")
+    override fun finalizedBlock(): JsonNode = mapper.readTree("""{"number":"0x100","hash":"0xhead","timestamp":"0x65f00000"}""")
 
     override fun blockByNumber(number: Long): JsonNode? = null
 
@@ -71,10 +70,12 @@ private class BalanceFakeStore(
 
     override fun activeWatchedAddresses(chain: String) = watched.filter { it.chain == chain }
 
-    override fun newestSignature(
+    override fun newestSlot(
         chain: String,
         wallet: String,
-    ) = null
+    ): Long? = null
+
+    override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
 
     override fun newestStagedSlot(chain: String): Long? = null
 
@@ -148,7 +149,10 @@ class EvmBalanceCollectorTest {
         // USDC and USDC.e stay two instruments — keyed by contract, never by symbol.
         assertEquals(
             setOf(EB_USDC, EB_USDCE),
-            store.snapshots.filter { it.mintAddress != null }.map { it.mintAddress }.toSet(),
+            store.snapshots
+                .filter { it.mintAddress != null }
+                .map { it.mintAddress }
+                .toSet(),
         )
     }
 

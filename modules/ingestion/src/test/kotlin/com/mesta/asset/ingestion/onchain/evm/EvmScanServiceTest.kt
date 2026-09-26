@@ -28,6 +28,7 @@ private class ScanFakeRpc(
     /** (from, to, fromSide) -> logs; missing key returns an empty page. */
     var logPages = mutableMapOf<Triple<Long, Long, Boolean>, JsonNode>()
     val logCalls = mutableListOf<Triple<Long, Long, Boolean>>()
+
     /** Ranges that throw an RPC-level error once — the provider window cap. */
     val failOnce = mutableSetOf<Pair<Long, Long>>()
     var decimals = mutableMapOf<String, Int>()
@@ -82,10 +83,12 @@ private class ScanFakeStore(
 
     override fun activeWatchedAddresses(chain: String) = watched.filter { it.chain == chain }
 
-    override fun newestSignature(
+    override fun newestSlot(
         chain: String,
         wallet: String,
-    ) = null
+    ): Long? = cursor
+
+    override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
 
     override fun newestStagedSlot(chain: String): Long? = cursor
 
@@ -133,7 +136,9 @@ private fun transferLog(
     ObjectMapper().readTree(
         """
         {"address":"$contract",
-         "topics":["${EvmRpcClient.TRANSFER_TOPIC}","0x${"0".repeat(24)}${from.removePrefix("0x")}","0x${"0".repeat(24)}${to.removePrefix("0x")}"],
+         "topics":["${EvmRpcClient.TRANSFER_TOPIC}","0x${"0".repeat(
+            24,
+        )}${from.removePrefix("0x")}","0x${"0".repeat(24)}${to.removePrefix("0x")}"],
          "data":"0x${amount.toString(16)}",
          "blockNumber":"0x${block.toString(16)}",
          "transactionHash":"$txHash",
@@ -143,8 +148,7 @@ private fun transferLog(
         """.trimIndent(),
     )
 
-private fun logs(vararg entries: JsonNode): JsonNode =
-    ObjectMapper().createArrayNode().apply { entries.forEach { add(it) } }
+private fun logs(vararg entries: JsonNode): JsonNode = ObjectMapper().createArrayNode().apply { entries.forEach { add(it) } }
 
 private fun service(
     rpc: EvmRpcApi,
@@ -202,8 +206,8 @@ class EvmScanServiceTest {
         val rpc = ScanFakeRpc(head = 10)
         val log = transferLog(from = SW_OTHER, to = SW_WALLET, block = 8)
         // A to==from watched wallet appears in BOTH topic filters; the log is still one fact.
-        rpc.logPages[Triple(0L, 10L, false)] = logs(log)
-        rpc.logPages[Triple(0L, 10L, true)] = logs(log)
+        rpc.logPages[Triple(0L, 9L, false)] = logs(log)
+        rpc.logPages[Triple(0L, 9L, true)] = logs(log)
         val store = ScanFakeStore(SW_WALLET).apply { contracts = listOf(TokenContract(SW_CONTRACT, 6)) }
 
         val report = service(rpc, store).scan()
@@ -217,10 +221,16 @@ class EvmScanServiceTest {
     @Test
     fun `registered contracts resolve decimals from the registry, unknown ones skip`() {
         val rpc = ScanFakeRpc(head = 10)
-        rpc.logPages[Triple(0L, 10L, false)] =
+        rpc.logPages[Triple(0L, 9L, false)] =
             logs(
                 transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "0xt1", block = 8),
-                transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "0xt2", block = 9, contract = "0xunknowncontract0000000000000000000000"),
+                transferLog(
+                    from = SW_OTHER,
+                    to = SW_WALLET,
+                    txHash = "0xt2",
+                    block = 9,
+                    contract = "0xunknowncontract0000000000000000000000",
+                ),
             )
         val store = ScanFakeStore(SW_WALLET).apply { contracts = listOf(TokenContract(SW_CONTRACT, 6)) }
 
@@ -233,7 +243,7 @@ class EvmScanServiceTest {
     @Test
     fun `unregistered contracts fall back to a decimals call`() {
         val rpc = ScanFakeRpc(head = 10).apply { decimals[SW_CONTRACT] = 18 }
-        rpc.logPages[Triple(0L, 10L, false)] = logs(transferLog(from = SW_OTHER, to = SW_WALLET, block = 8))
+        rpc.logPages[Triple(0L, 9L, false)] = logs(transferLog(from = SW_OTHER, to = SW_WALLET, block = 8))
         val store = ScanFakeStore(SW_WALLET)
 
         val report = service(rpc, store).scan()

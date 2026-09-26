@@ -12,6 +12,5 @@ class EvmDecimalsResolver(
 ) {
     private val cache = mutableMapOf<String, Int?>()
 
-    fun resolve(contract: String): Int? =
-        cache.getOrPut(contract) { registered[contract] ?: rpc.decimals(contract) }
+    fun resolve(contract: String): Int? = cache.getOrPut(contract) { registered[contract] ?: rpc.decimals(contract) }
 }

@@ -9,14 +9,18 @@ dependencies {
     testImplementation(libs.kotlin.test)
 }
 
-// JdbcDecisionStore is thin JDBC glue exercised end-to-end by DecisionStoreIT in :modules:api.
-// Coverage attribution is per-module, so without this filter the class reads 0% and would drag
-// an otherwise fully unit-tested module below the 70% gate.
+// JdbcDecisionStore and JdbcOnchainStagingStore are thin JDBC glue exercised end-to-end by
+// DecisionStoreIT and OnchainStagingStoreIT in :modules:api. Coverage attribution is
+// per-module, so without this filter the classes read 0% and would drag an otherwise fully
+// unit-tested module below the 70% gate.
 kover {
     reports {
         filters {
             excludes {
-                classes("com.mesta.asset.ingestion.persistence.*")
+                classes(
+                    "com.mesta.asset.ingestion.persistence.*",
+                    "com.mesta.asset.ingestion.onchain.persistence.*",
+                )
             }
         }
     }

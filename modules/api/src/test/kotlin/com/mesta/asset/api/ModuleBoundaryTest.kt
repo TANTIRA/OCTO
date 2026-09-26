@@ -74,13 +74,9 @@ class ModuleBoundaryTest {
             .should()
             .dependOnClassesThat()
             .resideInAnyPackage("java.sql..", "javax.sql..")
-            .`as`("recon domain compares fetched rows; only its persistence adapters may open a connection")
-            .resideOutsideOfPackage("com.mesta.asset.recon..persistence..")
-            .should()
-            .dependOnClassesThat()
-            .resideInAnyPackage("java.sql..", "javax.sql..")
-            .`as`("recon compares fetched rows in pure functions; only *.persistence readers open connections and nothing writes a correction")
-            .allowEmptyShould(true)
+            .`as`(
+                "recon compares fetched rows in pure functions; only *.persistence readers open connections and nothing writes a correction",
+            ).allowEmptyShould(true)
             .check(productionClasses)
     }
 
@@ -100,6 +96,7 @@ class ModuleBoundaryTest {
     fun `evm vendor types stay inside the ingestion module`() {
         noClasses()
             .that()
+            .resideOutsideOfPackages("com.mesta.asset.ingestion..", "com.mesta.asset.api.ingestion..")
             .resideOutsideOfPackage("com.mesta.asset.ingestion..")
             .and()
             .resideOutsideOfPackage("com.mesta.asset.api.ingestion..")

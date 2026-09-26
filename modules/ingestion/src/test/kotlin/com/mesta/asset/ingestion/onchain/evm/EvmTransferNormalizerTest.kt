@@ -31,7 +31,9 @@ private fun log(
     ObjectMapper().readTree(
         """
         {"address":"$contract",
-         "topics":["${EvmRpcClient.TRANSFER_TOPIC}","0x${"0".repeat(24)}${from.removePrefix("0x")}","0x${"0".repeat(24)}${to.removePrefix("0x")}"],
+         "topics":["${EvmRpcClient.TRANSFER_TOPIC}","0x${"0".repeat(
+            24,
+        )}${from.removePrefix("0x")}","0x${"0".repeat(24)}${to.removePrefix("0x")}"],
          "data":"0x${amount.toString(16)}",
          "blockNumber":"0x${block.toString(16)}",
          "transactionHash":"$txHash",
@@ -135,9 +137,12 @@ class EvmTransferNormalizerTest {
     fun `malformed logs do not throw — they produce nothing`() {
         val noTopics = ObjectMapper().readTree("""{"topics":[],"data":"0x1"}""")
         assertTrue(legs(noTopics, WATCHED).isEmpty())
-        val badData = ObjectMapper().readTree(
-            """{"topics":["${EvmRpcClient.TRANSFER_TOPIC}","0x${"0".repeat(24)}${OTHER.removePrefix("0x")}","0x${"0".repeat(24)}${WATCHED.removePrefix("0x")}"],"data":"0x","removed":false}""",
-        )
+        val badData =
+            ObjectMapper().readTree(
+                """{"topics":["${EvmRpcClient.TRANSFER_TOPIC}","0x${"0".repeat(
+                    24,
+                )}${OTHER.removePrefix("0x")}","0x${"0".repeat(24)}${WATCHED.removePrefix("0x")}"],"data":"0x","removed":false}""",
+            )
         assertTrue(legs(badData, WATCHED).isEmpty())
     }
 }
