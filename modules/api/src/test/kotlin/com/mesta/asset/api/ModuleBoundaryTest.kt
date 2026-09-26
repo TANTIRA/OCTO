@@ -89,4 +89,16 @@ class ModuleBoundaryTest {
             .`as`("vendor payload shapes stop inside the helius adapter package — ADR-0001")
             .check(productionClasses)
     }
+
+    @Test
+    fun `alphavantage vendor types stay inside the ingestion module`() {
+        noClasses()
+            .that()
+            .resideOutsideOfPackage("com.mesta.asset.ingestion..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("com.mesta.asset.ingestion.marketdata.alphavantage..")
+            .`as`("vendor payload shapes stop inside the alphavantage adapter package — ADR-0001")
+            .check(productionClasses)
+    }
 }
