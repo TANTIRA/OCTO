@@ -50,8 +50,7 @@ private class EvidenceFakeRpc : EvmRpcApi {
     override fun transactionCount(address: String): Long = nonce
 }
 
-private fun adapter(rpc: EvidenceFakeRpc) =
-    EvmEvidenceAdapter(rpc, EvmConfig("https://rpc.example", CHAIN_ARBITRUM_ONE, 42161L))
+private fun adapter(rpc: EvidenceFakeRpc) = EvmEvidenceAdapter(rpc, EvmConfig("https://rpc.example", CHAIN_ARBITRUM_ONE, 42161L))
 
 class EvmEvidenceAdapterTest {
     @Test

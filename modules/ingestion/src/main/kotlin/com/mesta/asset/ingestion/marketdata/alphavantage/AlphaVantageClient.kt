@@ -68,8 +68,7 @@ class AlphaVantageClient(
     private val sleeper: (Duration) -> Unit = { Thread.sleep(it) },
     private val mapper: ObjectMapper = ObjectMapper(),
 ) : AlphaVantageApi {
-    override fun dailyEquity(symbol: String): JsonNode =
-        query(mapOf("function" to "TIME_SERIES_DAILY", "symbol" to symbol))
+    override fun dailyEquity(symbol: String): JsonNode = query(mapOf("function" to "TIME_SERIES_DAILY", "symbol" to symbol))
 
     override fun dailyFx(
         fromSymbol: String,

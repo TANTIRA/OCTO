@@ -14,8 +14,7 @@ class AlphaVantageNormalizer {
 
     fun dailyFx(payload: JsonNode): List<MarketDataPoint> = dailySeries(payload, "Time Series FX (Daily)", FX_FIELDS)
 
-    fun dailyCrypto(payload: JsonNode): List<MarketDataPoint> =
-        dailySeries(payload, "Time Series (Digital Currency Daily)", CRYPTO_FIELDS)
+    fun dailyCrypto(payload: JsonNode): List<MarketDataPoint> = dailySeries(payload, "Time Series (Digital Currency Daily)", CRYPTO_FIELDS)
 
     private fun dailySeries(
         payload: JsonNode,
