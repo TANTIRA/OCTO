@@ -144,13 +144,11 @@ class OnchainSyncServiceTest {
     private val normalizer = HeliusTransferNormalizer()
 
     @Test
-    fun `first sync backfills with no until cursor`() {
+    fun `first sync backfills with no cursor`() {
         val rpc =
             FakeRpc(
-                listOf(listOf("sig1", "sig2")),
-                mapOf(
-                    "sig1" to solTx("sig1", WALLET, 0, 100),
-                    "sig2" to solTx("sig2", WALLET, 100, 300),
+                listOf(
+                    listOf(solTx("sig1", WALLET, 0, 100), solTx("sig2", WALLET, 100, 300)) to null,
                 ),
             )
         val store = FakeStore()
@@ -160,49 +158,71 @@ class OnchainSyncServiceTest {
         assertEquals(1, results.size)
         assertEquals(2, results[0].signaturesSeen)
         assertEquals(2, results[0].transfersStaged)
-        assertEquals(null, rpc.signatureCalls[0].third) // no cursor on a cold wallet
+        assertEquals(null, rpc.txCalls[0].third) // no slot filter on a cold wallet
         assertEquals(2, store.batches.single().size)
     }
 
     @Test
-    fun `incremental sync passes the newest staged signature as until`() {
-        val rpc = FakeRpc(listOf(listOf("sigNew")), mapOf("sigNew" to solTx("sigNew", WALLET, 0, 50)))
-        val store = FakeStore().apply { cursor = "sigBoundary" }
+    fun `incremental sync passes the newest staged slot as the slot filter`() {
+        val rpc = FakeRpc(listOf(listOf(solTx("sigNew", WALLET, 0, 50)) to null))
+        val store = FakeStore().apply { cursorSlot = 250_000_010L }
         val service = OnchainSyncService(rpc, normalizer, store, pageLimit = 100)
 
         service.syncAll()
-        assertEquals("sigBoundary", rpc.signatureCalls[0].third)
+        assertEquals(250_000_010L, rpc.txCalls[0].third)
     }
 
     @Test
-    fun `a second page is fetched with before set to the last signature`() {
+    fun `a second page is fetched with the pagination token`() {
         val rpc =
             FakeRpc(
-                listOf(listOf("sigA", "sigB"), listOf("sigC")),
-                mapOf("sigA" to solTx("sigA", WALLET, 0, 1), "sigB" to solTx("sigB", WALLET, 1, 2), "sigC" to solTx("sigC", WALLET, 2, 3)),
+                listOf(
+                    listOf(solTx("sigA", WALLET, 0, 1), solTx("sigB", WALLET, 1, 2)) to "100:2",
+                    listOf(solTx("sigC", WALLET, 2, 3)) to null,
+                ),
             )
         val store = FakeStore()
         val service = OnchainSyncService(rpc, normalizer, store, pageLimit = 2)
 
         val result = service.syncAll().single()
         assertEquals(3, result.signaturesSeen)
-        assertEquals("sigB", rpc.signatureCalls[1].second)
+        assertEquals("100:2", rpc.txCalls[1].second)
     }
 
     @Test
-    fun `a null transaction is skipped but the page continues`() {
-        val rpc = FakeRpc(listOf(listOf("gone", "sigOk")), mapOf("sigOk" to solTx("sigOk", WALLET, 0, 7)))
+    fun `a transaction with no legs for the wallet is seen but stages nothing`() {
+        val failed =
+            ObjectMapper().readTree(
+                """
+                {"slot":250000003,"blockTime":1726000200,
+                 "transaction":{"signatures":["sigFail"],"message":{"accountKeys":[{"pubkey":"$WALLET"}]}},
+                 "meta":{"err":{"InstructionError":[0,"Custom"]},"preBalances":[9],"postBalances":[4],
+                  "preTokenBalances":[],"postTokenBalances":[]}}
+                """.trimIndent(),
+            )
+        val rpc = FakeRpc(listOf(listOf(failed, solTx("sigOk", WALLET, 0, 7)) to null))
         val store = FakeStore()
         val result = OnchainSyncService(rpc, normalizer, store).syncAll().single()
         assertEquals(2, result.signaturesSeen)
-        assertEquals(1, result.transactionsFetched)
         assertEquals(1, result.transfersStaged)
+    }
+
+    @Test
+    fun `a transfer touching only the wallet ATA is ingested for the owner`() {
+        // Regression: getSignaturesForAddress could never return this transaction — the wallet
+        // is absent from accountKeys. The balanceChanged filter returns it; the normalizer
+        // attributes the leg to the owner via meta's owner field.
+        val rpc = FakeRpc(listOf(listOf(ataTx("sigAta", ATA, WALLET, 1_000, 5_000)) to null))
+        val store = FakeStore()
+        val result = OnchainSyncService(rpc, normalizer, store).syncAll().single()
+        assertEquals(1, result.transfersStaged)
+        assertEquals("solana:sigAta:$ATA:tok:0", store.batches.single().single())
     }
 
     @Test
     fun `duplicate legs stage zero on replay`() {
         val tx = solTx("sigDup", WALLET, 0, 100)
-        val rpc = FakeRpc(listOf(listOf("sigDup")), mapOf("sigDup" to tx))
+        val rpc = FakeRpc(listOf(listOf(tx) to null))
         val store =
             object : FakeStore() {
                 override fun insertTransfers(
@@ -214,25 +234,6 @@ class OnchainSyncServiceTest {
                     batches += transfers.map { it.externalId }
                     return 0 // unique key refused every row
                 }
-
-                override fun insertSnapshots(
-                    balances: List<OnchainBalance>,
-                    ingestionRunId: UUID,
-                    correlationId: UUID,
-                    actor: String,
-                ): Int = 0
-
-                override fun latestSnapshots(
-                    chain: String,
-                    wallet: String,
-                ): List<OnchainBalance> = emptyList()
-
-                override fun insertEvidence(
-                    evidence: List<OnchainEvidence>,
-                    ingestionRunId: UUID,
-                    correlationId: UUID,
-                    actor: String,
-                ): Int = evidence.size
             }
         val result = OnchainSyncService(rpc, normalizer, store).syncAll().single()
         assertEquals(0, result.transfersStaged)
@@ -241,7 +242,7 @@ class OnchainSyncServiceTest {
 
     @Test
     fun `legs carry the normalized transfer shape`() {
-        val rpc = FakeRpc(listOf(listOf("sigX")), mapOf("sigX" to solTx("sigX", WALLET, 10, 110)))
+        val rpc = FakeRpc(listOf(listOf(solTx("sigX", WALLET, 10, 110)) to null))
         val store = FakeStore()
         OnchainSyncService(rpc, normalizer, store).syncAll()
         val id = store.batches.single().single()

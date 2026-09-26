@@ -56,6 +56,31 @@ class HeliusRpcClientTest {
     }
 
     @Test
+    fun `transactionsForAddress requests full ATA coverage at finalized`() {
+        val transport =
+            FakeTransport(
+                okJson("""{"jsonrpc":"2.0","id":1,"result":{"data":[],"paginationToken":"1055:5"}}"""),
+            )
+        val result =
+            client(transport).transactionsForAddress("walletX", limit = 50, paginationToken = "1055:5", slotGt = 42)
+
+        val body = transport.bodyOf(0)
+        assertEquals("getTransactionsForAddress", body["method"].asText())
+        assertEquals("walletX", body["params"][0].asText())
+        val params = body["params"][1]
+        assertEquals("full", params["transactionDetails"].asText())
+        assertEquals("jsonParsed", params["encoding"].asText())
+        assertEquals(1, params["maxSupportedTransactionVersion"].asInt())
+        assertEquals("finalized", params["commitment"].asText())
+        assertEquals("desc", params["sortOrder"].asText())
+        assertEquals("1055:5", params["paginationToken"].asText())
+        assertEquals("balanceChanged", params["filters"]["tokenAccounts"].asText())
+        assertEquals("succeeded", params["filters"]["status"].asText())
+        assertEquals(42, params["filters"]["slot"]["gt"].asLong())
+        assertEquals("1055:5", result["paginationToken"].asText())
+    }
+
+    @Test
     fun `balance reads lamports from result value`() {
         val transport =
             FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"result":{"context":{"slot":7},"value":123456789}}"""))

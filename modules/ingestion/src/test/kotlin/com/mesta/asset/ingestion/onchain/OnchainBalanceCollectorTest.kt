@@ -103,6 +103,13 @@ private class StubRpc(
 
     override fun transaction(signature: String): JsonNode? = null
 
+    override fun transactionsForAddress(
+        address: String,
+        limit: Int,
+        paginationToken: String?,
+        slotGt: Long?,
+    ): JsonNode = throw UnsupportedOperationException()
+
     override fun balance(address: String): Long {
         if (fail) throw HeliusException("rpc boom", 500)
         return lamports
