@@ -8,10 +8,6 @@ import com.mesta.asset.ingestion.onchain.OnchainStagingStore
 import com.mesta.asset.ingestion.onchain.OnchainTransfer
 import com.mesta.asset.ingestion.onchain.WatchSource
 import java.math.BigDecimal
-import com.mesta.asset.ingestion.onchain.ONCHAIN_SOURCE_SYSTEM
-import com.mesta.asset.ingestion.onchain.OnchainStagingStore
-import com.mesta.asset.ingestion.onchain.OnchainTransfer
-import com.mesta.asset.ingestion.onchain.WatchSource
 import java.sql.Timestamp
 import java.util.UUID
 import javax.sql.DataSource
@@ -175,7 +171,6 @@ class JdbcOnchainStagingStore(
                 .prepareStatement(
                     """
                     select distinct on (coalesce(token_account, mint_address))
-                    select distinct on (mint_address)
                            wallet, token_account, mint_address, amount_raw, decimals,
                            usd_value, source, slot, as_of
                       from mesta.onchain_balance_snapshot s
@@ -184,7 +179,6 @@ class JdbcOnchainStagingStore(
                            select 1 from mesta.onchain_balance_snapshot x
                             where x.supersedes_id = s.id)
                      order by coalesce(token_account, mint_address), as_of desc
-                     order by mint_address, as_of desc
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
