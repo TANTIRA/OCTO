@@ -33,9 +33,8 @@ class ModuleBoundaryTest {
         mapOf(
             "api" to modulePackages.keys - "api",
             "ingestion" to setOf("control-panel"),
-            "recon" to setOf("ibor-core"),
             // #106: compliance rules evaluate the look-through exposure (#10) and coverage ratio (#45) as given.
-            "recon" to setOf("analytics", "lookthrough"),
+            "recon" to setOf("ibor-core", "analytics", "lookthrough"),
         )
 
     private val productionClasses =
