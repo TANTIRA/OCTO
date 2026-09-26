@@ -44,6 +44,9 @@ class OnchainWebhookService(
 
         val finalized = finality.finalizedSignatures(payload.mapNotNull(::signatureOf).toSet())
         val transfers =
+            payload.flatMap { tx ->
+                watchedAccounts(tx, watched, tokenOwners).flatMap { normalizer.normalize(tx, it) }
+            }
             payload
                 .filter { signatureOf(it) in finalized }
                 .flatMap { tx ->
