@@ -1,4 +1,4 @@
-package com.mesta.asset.ingestion.onchain.helius
+package com.mesta.asset.ingestion.http
 
 import java.time.Duration
 import kotlin.test.Test

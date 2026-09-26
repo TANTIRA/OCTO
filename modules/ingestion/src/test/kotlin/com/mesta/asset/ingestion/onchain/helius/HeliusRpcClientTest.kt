@@ -1,5 +1,9 @@
 package com.mesta.asset.ingestion.onchain.helius
 
+import com.mesta.asset.ingestion.http.FakeTransport
+import com.mesta.asset.ingestion.http.HttpTransport
+import com.mesta.asset.ingestion.http.okJson
+import com.mesta.asset.ingestion.http.statusOf
 import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
