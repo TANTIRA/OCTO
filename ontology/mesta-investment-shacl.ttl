@@ -239,7 +239,7 @@ inv:ScreeningOfShape a sh:NodeShape ;
 inv:InstrumentShape a sh:NodeShape ;
     sh:targetClass inv:Instrument ;
     sh:property [ sh:path inv:instrumentId ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "An instrument must have an instrumentId (mirrors 'owns instrument-id @key')."@en ] ;
-    sh:property [ sh:path inv:instrumentKind ; sh:datatype xsd:string ; sh:in ( "native-token" "spl-token" "token-2022" "nft" "stake-account" "other" ) ; sh:message "instrumentKind must be one of the instrument-kind @values."@en ] ;
+    sh:property [ sh:path inv:instrumentKind ; sh:datatype xsd:string ; sh:in ( "native-token" "spl-token" "token-2022" "nft" "stake-account" "erc20" "other" ) ; sh:message "instrumentKind must be one of the instrument-kind @values."@en ] ;
     sh:property [ sh:path inv:chainId ; sh:datatype xsd:string ; sh:message "chainId must be a string."@en ] ;
     sh:property [ sh:path inv:decimals ; sh:datatype xsd:integer ; sh:minInclusive 0 ; sh:maxInclusive 255 ; sh:message "decimals must be within 0..255."@en ] .
 
@@ -247,9 +247,18 @@ inv:SolanaMintShape a sh:NodeShape ;
     sh:targetClass inv:SolanaMint ;
     sh:property [ sh:path inv:solanaAddress ; sh:datatype xsd:string ; sh:pattern "^[1-9A-HJ-NP-Za-km-z]{32,44}$" ; sh:message "solanaAddress must match ^[1-9A-HJ-NP-Za-km-z]{32,44}$."@en ] .
 
+inv:EvmContractShape a sh:NodeShape ;
+    sh:targetClass inv:EvmContract ;
+    sh:property [ sh:path inv:evmAddress ; sh:datatype xsd:string ; sh:pattern "^0x[0-9a-f]{40}$" ; sh:message "evmAddress must match ^0x[0-9a-f]{40}$."@en ] .
+
 inv:WalletShape a sh:NodeShape ;
     sh:targetClass inv:Wallet ;
     sh:property [ sh:path inv:solanaAddress ; sh:datatype xsd:string ; sh:minCount 1 ; sh:pattern "^[1-9A-HJ-NP-Za-km-z]{32,44}$" ; sh:message "A wallet must have a solanaAddress matching ^[1-9A-HJ-NP-Za-km-z]{32,44}$ (mirrors 'owns solana-address @key')."@en ] ;
+    sh:property [ sh:path inv:chainId ; sh:datatype xsd:string ; sh:message "chainId must be a string."@en ] .
+
+inv:EvmWalletShape a sh:NodeShape ;
+    sh:targetClass inv:EvmWallet ;
+    sh:property [ sh:path inv:evmAddress ; sh:datatype xsd:string ; sh:minCount 1 ; sh:pattern "^0x[0-9a-f]{40}$" ; sh:message "An evm-wallet must have an evmAddress matching ^0x[0-9a-f]{40}$ (mirrors 'owns evm-address @key')."@en ] ;
     sh:property [ sh:path inv:chainId ; sh:datatype xsd:string ; sh:message "chainId must be a string."@en ] .
 
 inv:InstrumentFlowShape a sh:NodeShape ;

@@ -57,7 +57,7 @@ class OntologyValidatorTest {
 
     private companion object {
         /**
-         * One message per deliberate breach in samples/invalid/constraint-breaches.ttl: eight from
+         * One message per deliberate breach in samples/invalid/constraint-breaches.ttl: nine from
          * the schema mirror and six from the policy layer.
          */
         val EXPECTED_BREACHES =
@@ -74,6 +74,7 @@ class OntologyValidatorTest {
                 "A supersedes link must record a rationale; corrections are never unexplained.",
                 "A ledger event must be the event-side of a cash-flow-attribution; an unattributed event cannot be reconciled.",
                 "A wallet must have a solanaAddress matching ^[1-9A-HJ-NP-Za-km-z]{32,44}$ (mirrors 'owns solana-address @key').",
+                "An evm-wallet must have an evmAddress matching ^0x[0-9a-f]{40}$ (mirrors 'owns evm-address @key').",
                 "An instrument flow must carry an instrumentFlowType; an untyped token flow cannot be reconciled.",
                 "An instrument flow must be the flow-side of an instrument-flow-of; an unattributed flow cannot be reconciled.",
             )
