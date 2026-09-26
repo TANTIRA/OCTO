@@ -125,7 +125,7 @@ class HeliusRpcClientTest {
             assertEquals("getProgramAccounts", body["method"].asText())
             assertEquals(HeliusRpcClient.STAKE_PROGRAM_ID, body["params"][0].asText())
             val memcmp = body["params"][1]["filters"][0]["memcmp"]
-            assertEquals(listOf(44, 76)[i], memcmp["offset"].asInt())
+            assertEquals(listOf(12, 44)[i], memcmp["offset"].asInt())
             assertEquals("walletX", memcmp["bytes"].asText())
             assertEquals("base58", memcmp["encoding"].asText())
             assertEquals("finalized", body["params"][1]["commitment"].asText())
