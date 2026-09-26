@@ -55,6 +55,48 @@ class OnchainMigrationIT {
     }
 
     @Test
+    fun `the arbitrum instruments are seeded — native ETH and both USDC deployments`() {
+        assertThat(
+            count(
+                "select count(*) from mesta.instrument " +
+                    "where external_key = 'arbitrum-one:native' and instrument_kind = 'native-token' " +
+                    "and mint_address is null and decimals = 18",
+            ),
+        ).describedAs("seeded native ETH instrument").isEqualTo(1)
+        // Native USDC and bridged USDC.e are distinct instruments keyed by contract —
+        // never merged by symbol.
+        assertThat(
+            count(
+                "select count(*) from mesta.instrument " +
+                    "where chain = 'arbitrum-one' and instrument_kind = 'erc20' " +
+                    "and mint_address in ('0xaf88d065e77c8cc2239327c5edb3a432268e5831', " +
+                    "'0xff970a61a04b1ca14834a43f5de4533ebddb5cc8')",
+            ),
+        ).describedAs("seeded USDC and USDC.e instruments").isEqualTo(2)
+    }
+
+    @Test
+    fun `an evm transfer on an arbitrum chain is accepted`() {
+        assertThat(insertEvmTransfer()).isNotNull()
+    }
+
+    @Test
+    fun `an evm-shaped wallet is rejected on solana and vice versa`() {
+        assertThatThrownBy { insertTransfer(wallet = evmWallet()) }
+            .isInstanceOf(SQLException::class.java)
+        assertThatThrownBy { insertEvmTransfer(wallet = trackedAddress()) }
+            .isInstanceOf(SQLException::class.java)
+        assertThatThrownBy { insertEvmTransfer(mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v") }
+            .isInstanceOf(SQLException::class.java)
+    }
+
+    @Test
+    fun `an unfinalized transfer is still rejected on an arbitrum chain`() {
+        assertThatThrownBy { insertEvmTransfer(commitment = "safe") }
+            .isInstanceOf(SQLException::class.java)
+    }
+
+    @Test
     fun `a finalized transfer is accepted`() {
         assertThat(insertTransfer()).isNotNull()
     }
@@ -177,6 +219,9 @@ class OnchainMigrationIT {
     // Valid base58: no 0/O/I/l, 32-44 chars.
     private fun trackedAddress() = "7${"V".repeat(3)}${"A".repeat(39)}"
 
+    // Valid EVM address: 0x + 40 lowercase hex.
+    private fun evmWallet() = "0x${UUID.randomUUID().toString().replace("-", "")}${"a".repeat(8)}"
+
     private fun insertTrackedAddress(address: String) {
         connection.createStatement().use {
             it.executeUpdate(
@@ -220,6 +265,37 @@ class OnchainMigrationIT {
             statement.setString(5, wallet)
             statement.setObject(6, UUID.randomUUID())
             statement.setObject(7, UUID.randomUUID())
+            statement.executeQuery().use { rows ->
+                return if (rows.next()) rows.getObject(1, UUID::class.java) else null
+            }
+        }
+    }
+
+    private fun insertEvmTransfer(
+        externalId: String = "arbitrum-one:0xtx-${UUID.randomUUID()}:w:log:0",
+        commitment: String = "finalized",
+        wallet: String = evmWallet(),
+        mint: String? = "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+    ): UUID? {
+        val sql =
+            """
+            insert into mesta.onchain_transfer
+                (external_id, chain, signature, slot, block_time, commitment, wallet,
+                 mint_address, amount_raw, decimals, direction, transfer_kind,
+                 source_system, actor, ingestion_run_id, correlation_id)
+            values (?, 'arbitrum-one', ?, ?, now(), ?, ?, ?, 250000000, 6, 'in', 'transfer-in',
+                    'rpc-arbitrum-one', 'integration-test', ?, ?)
+            returning id
+            """.trimIndent()
+        connection.prepareStatement(sql).use { statement ->
+            statement.setString(1, externalId)
+            statement.setString(2, "0x${UUID.randomUUID().toString().replace("-", "")}${"b".repeat(32)}")
+            statement.setLong(3, 42_000_000L)
+            statement.setString(4, commitment)
+            statement.setString(5, wallet)
+            statement.setString(6, mint)
+            statement.setObject(7, UUID.randomUUID())
+            statement.setObject(8, UUID.randomUUID())
             statement.executeQuery().use { rows ->
                 return if (rows.next()) rows.getObject(1, UUID::class.java) else null
             }

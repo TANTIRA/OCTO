@@ -41,13 +41,16 @@ define
   attribute confidence-level, value double @range(0..1);
 
   # ============================================================
-  # Attributes — onchain instruments and flows (Solana first)
+  # Attributes — onchain instruments and flows (Solana and EVM)
   # ============================================================
 
   # Base58 Solana address (no 0, O, I, l), 32-44 chars.
   attribute solana-address, value string @regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$");
+  # EVM address, lowercase 0x hex — checksummed forms are normalized at the
+  # adapter boundary so one address has exactly one representation.
+  attribute evm-address, value string @regex("^0x[0-9a-f]{40}$");
   attribute instrument-id, value string;
-  attribute instrument-kind, value string @values("native-token", "spl-token", "token-2022", "nft", "stake-account", "other");
+  attribute instrument-kind, value string @values("native-token", "spl-token", "token-2022", "nft", "stake-account", "erc20", "other");
   attribute instrument-flow-type, value string @values("transfer-in", "transfer-out", "staking-reward", "airdrop", "unlock", "vesting-claim", "mint", "burn", "other");
   # The chain an instrument or wallet lives on, e.g. "solana". Left as a free
   # string: the chain list is an adapter-domain concern that evolves faster
@@ -222,8 +225,9 @@ define
   # ============================================================
 
   # Anything a wallet can hold that is not an ISO currency. instrument-id is
-  # the canonical key ("solana:native", "solana:mint:<address>"); mints and
-  # symbols are metadata, never keys.
+  # the canonical key ("solana:native", "solana:mint:<address>",
+  # "arbitrum-one:contract:<address>"); mints, contracts, and symbols are
+  # metadata, never keys.
   entity instrument,
     owns instrument-id @key,
     owns instrument-kind,
@@ -234,8 +238,22 @@ define
   entity solana-mint, sub instrument,
     owns solana-address @unique;
 
+  # An ERC-20/EVM contract-as-instrument — the evm-mint parallel to solana-mint.
+  entity evm-contract, sub instrument,
+    owns evm-address @unique;
+
   entity wallet,
     owns solana-address @key,
+    owns chain-id,
+    plays instrument-flow-of:wallet-side,
+    plays wallet-custody:wallet-side;
+
+  # The EVM wallet is a separate entity rather than a widened `wallet`: rekeying
+  # `wallet` would be a MAJOR change, and a parallel entity is additive
+  # (arbitrum-ingestion-design.md §Ontology). A multi-chain wallet supertype is
+  # deferred to the second EVM chain, when the shared shape is known.
+  entity evm-wallet,
+    owns evm-address @key,
     owns chain-id,
     plays instrument-flow-of:wallet-side,
     plays wallet-custody:wallet-side;
