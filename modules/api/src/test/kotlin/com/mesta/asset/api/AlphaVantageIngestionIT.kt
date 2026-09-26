@@ -72,8 +72,7 @@ class AlphaVantageIngestionIT {
             }
         }
 
-    private fun target(datasetId: UUID) =
-        MarketDataTarget(datasetId, "equity:IBM", MarketDataFunction.EQUITY_DAILY, "IBM")
+    private fun target(datasetId: UUID) = MarketDataTarget(datasetId, "equity:IBM", MarketDataFunction.EQUITY_DAILY, "IBM")
 
     private fun dailyPayload(close: String) =
         """{"Meta Data":{"2. Symbol":"IBM"},
@@ -97,14 +96,15 @@ class AlphaVantageIngestionIT {
 
         dataSource.connection.use { c ->
             c.createStatement().use { s ->
-                s.executeQuery(
-                    "select source_system, actor from mesta.timeseries_observation " +
-                        "where dataset_id = '$dataset' and field = 'close'",
-                ).use { r ->
-                    assertThat(r.next()).isTrue()
-                    assertThat(r.getString(1)).isEqualTo(MARKETDATA_SOURCE_SYSTEM)
-                    assertThat(r.getString(2)).isEqualTo("alphavantage-poller")
-                }
+                s
+                    .executeQuery(
+                        "select source_system, actor from mesta.timeseries_observation " +
+                            "where dataset_id = '$dataset' and field = 'close'",
+                    ).use { r ->
+                        assertThat(r.next()).isTrue()
+                        assertThat(r.getString(1)).isEqualTo(MARKETDATA_SOURCE_SYSTEM)
+                        assertThat(r.getString(2)).isEqualTo("alphavantage-poller")
+                    }
             }
         }
     }
@@ -122,8 +122,20 @@ class AlphaVantageIngestionIT {
         service(dailyPayload("101.5")).sync(target(dataset))
 
         val range = TimeSeriesQuery(dataset, LocalDate.parse("2026-09-20"), LocalDate.parse("2026-09-26"), fields = setOf("close"))
-        assertThat(store.query(range).single().value.toPlainString()).isEqualTo("101.5000000000")
-        assertThat(store.query(range.copy(asOfTime = loaded)).single().value.toPlainString()).isEqualTo("101.0000000000")
+        assertThat(
+            store
+                .query(range)
+                .single()
+                .value
+                .toPlainString(),
+        ).isEqualTo("101.5000000000")
+        assertThat(
+            store
+                .query(range.copy(asOfTime = loaded))
+                .single()
+                .value
+                .toPlainString(),
+        ).isEqualTo("101.0000000000")
     }
 
     @Test
