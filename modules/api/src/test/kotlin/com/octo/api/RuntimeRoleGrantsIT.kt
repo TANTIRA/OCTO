@@ -16,6 +16,10 @@ import java.sql.SQLException
  * and the api connects as a separate runtime role, the way `infra/docker-compose.yml` wires
  * `DB_MIGRATION_USER` and `DB_USER`. The other ITs run everything as one superuser, so a missing
  * grant is invisible to them. Skipped when Docker is unavailable.
+ *
+ * Since V27 the runtime role is also subject to row-level security, so the connection declares
+ * `app.tenant_ids = '*'` once — the TenantScope.All the service paths actually run under —
+ * because a session with no scope GUCs fails closed by design (RowLevelSecurityIT proves that).
  */
 @Testcontainers(disabledWithoutDocker = true)
 class RuntimeRoleGrantsIT {
@@ -159,7 +163,9 @@ class RuntimeRoleGrantsIT {
                 .placeholders(mapOf("runtime_role" to RUNTIME))
                 .load()
                 .migrate()
-            DriverManager.getConnection(postgres.jdbcUrl, RUNTIME, RUNTIME)
+            DriverManager.getConnection(postgres.jdbcUrl, RUNTIME, RUNTIME).apply {
+                createStatement().use { it.execute("select set_config('app.tenant_ids', '*', false)") }
+            }
         }
     }
 }
