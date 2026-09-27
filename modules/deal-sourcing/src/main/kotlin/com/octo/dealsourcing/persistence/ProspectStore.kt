@@ -69,6 +69,7 @@ interface ProspectStore {
 
     /**
      * Up to [limit] prospects of the tenant currently standing at [stage], newest registrations
+     * first, after skipping [offset] — a bounded page, never the whole stage.
      * first, after skipping [offset] — a bounded page, never the whole stage. The store enforces
      * [PIPELINE_PAGE_LIMIT] itself so a caller outside the api edge can still never hold an
      * unbounded read open.

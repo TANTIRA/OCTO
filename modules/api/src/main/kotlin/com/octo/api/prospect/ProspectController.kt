@@ -112,6 +112,9 @@ interface ScreeningRules {
     ): List<ScreeningRuleRow>
 }
 
+/** One pipeline read returns at most this many prospects — every read is bounded. */
+private const val PIPELINE_PAGE_LIMIT = 500
+
 /** Field-length bounds the edge enforces before any text reaches a `text` column. */
 private const val NAME_LIMIT = 300
 private const val FIELD_LIMIT = 200
@@ -120,6 +123,7 @@ private const val DESCRIPTION_LIMIT = 10_000
 /** A screening rule constrains at most this many allowed values per field. */
 private const val CRITERIA_LIST_LIMIT = 100
 
+/** Stages at or past `due-diligence` — the only stages that can have a committed landing claiming a checklist. */
 /** Stages reachable only through `due-diligence` — each a live claim on the checklist that stage opened. */
 private val CHECKLIST_CLAIM_STAGES = setOf(ProspectStage.DUE_DILIGENCE, ProspectStage.IC_REVIEW, ProspectStage.INVESTED)
 
@@ -246,6 +250,9 @@ class ProspectController(
 
     /**
      * `GET /api/v1/prospects/{id}/events` — the append-only audit trail itself: every transition with
+     * actor, rationale, business/recorded time, provenance correlation, and the task lineage it
+     * claims — the checklist a `due-diligence` landing runs on, the approval that authorized an
+     * `invested`. Read-side mirror of why the store keeps events, not just state.
      * actor, rationale, business/recorded time, provenance correlation, and the IC task that
      * authorized an `invested`. Read-side mirror of why the store keeps events, not just state.
      */
@@ -323,6 +330,15 @@ class ProspectController(
             runCatching { current.next(event) }.getOrNull()
                 ?: return ResponseEntity.status(HttpStatus.CONFLICT).build()
         // The checklist opens before the event commits: if this open fails nothing is written
+        // anywhere, and a retried transition still finds the task it needs (deduped below). The
+        // landing records which task it claims — like `invested` records its approval — so a lost
+        // race reads back whether the committed landing named this request's task before deciding
+        // to cancel it: a claimed task serves the winner, an unclaimed one is an orphan no one can
+        // ever close.
+        val checklist =
+            if (landing.stage == ProspectStage.DUE_DILIGENCE) openDiligenceChecklist(id, jwt.subject) else null
+        val appendEvent =
+            checklist?.let { (event as ProspectEvent.Advanced).copy(taskId = it.taskId) } ?: event
         // anywhere, and a retried transition still finds the task it needs (deduped below). If the
         // append then loses its race, the checklist that was minted for the landing is cancelled —
         // unless the race it lost was a racing caller landing `due-diligence` on the task it found
@@ -334,11 +350,21 @@ class ProspectController(
             try {
                 prospects.append(
                     id,
+                    appendEvent,
                     event,
                     ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
                     TenantScope.User(userId),
                 )
             } catch (_: NoSuchElementException) {
+                checklist?.mintedId?.let { cancelOrphanedChecklist(it, jwt.subject) }
+                return ResponseEntity.notFound().build()
+            } catch (_: IllegalArgumentException) {
+                cancelUnlessClaimed(checklist, id, userId, jwt.subject)
+                return ResponseEntity.status(HttpStatus.CONFLICT).build()
+            } catch (failure: Exception) {
+                // Any other store failure commits nothing either — the minted checklist gets the same cleanup.
+                cancelUnlessClaimed(checklist, id, userId, jwt.subject)
+                throw failure
                 checklist?.let { cancelOrphanedChecklist(it, jwt.subject) }
                 return ResponseEntity.notFound().build()
             } catch (_: IllegalArgumentException) {
@@ -349,10 +375,20 @@ class ProspectController(
         return ResponseEntity.ok(after.view())
     }
 
+    /** The task the landing runs on ([taskId], recorded on its event) and, only when this call minted it, [mintedId] — the sole task the call may cancel if the landing never commits. */
+    private data class Checklist(
+        val taskId: UUID,
+        val mintedId: UUID?,
+    )
+
     /**
      * Landing in `due-diligence` needs an evidence checklist: an EVIDENCE_REQUEST task on the
      * prospect. Idempotent — a transition retried after the task opened but before the event
      * committed reuses the checklist it left; the task state machine tracks who gathers and
+     * closes it; diligence output (DDQ, docs) is a later slice. The landing records [Checklist.taskId]
+     * on its event — the same lineage `invested` keeps for its approval — so a lost race reads the
+     * claim back. Only a task this call minted may ever be cancelled on its behalf; a reused one
+     * belongs to an earlier attempt and outlives this failure.
      * closes it; diligence output (DDQ, docs) is a later slice. Returns the id of the task it
      * opened, or null when it reused one already in flight — only a task this call opened may be
      * cancelled if the transition then fails.
@@ -360,6 +396,7 @@ class ProspectController(
     private fun openDiligenceChecklist(
         prospectId: UUID,
         requester: String,
+    ): Checklist {
     ): UUID? {
         val candidate =
             Task(
@@ -374,6 +411,39 @@ class ProspectController(
         // a second checklist. The id is only safe to hand back for cancellation when this call
         // inserted: a reused task belongs to an earlier attempt and outlives this failure.
         val opened = tasks.openUnlessOpen(candidate, TaskProvenance("api", UUID.randomUUID()))
+        return Checklist(opened.task.id, opened.task.id.takeIf { it == candidate.id })
+    }
+
+    /**
+     * Whether the task this request minted is the checklist the pipeline runs on. The prospect must
+     * stand at `due-diligence` or beyond — earlier stages and a terminal pass claim nothing — and
+     * the committed `due-diligence` landing must name this task. A landing row written before claim
+     * lineage existed (no task id), or a post-DD stage whose landing row is missing, keeps the task:
+     * a doubtful claim must never cancel a checklist that may be in service.
+     */
+    private fun checklistClaimed(
+        prospectId: UUID,
+        taskId: UUID,
+        userId: UUID,
+    ): Boolean {
+        val rows = prospects.history(prospectId, TenantScope.User(userId)) ?: return false
+        val stage = rows.lastOrNull()?.stageTo ?: ProspectStage.SOURCED
+        if (stage !in CHECKLIST_CLAIM_STAGES) return false
+        val landing = rows.firstOrNull { it.stageTo == ProspectStage.DUE_DILIGENCE } ?: return true
+        return landing.taskId == null || landing.taskId == taskId
+    }
+
+    /** Cancels a checklist this request minted unless a committed landing claims it — the cleanup every failed append path shares. A claim read that itself fails keeps the task: cancelling a checklist that may be in service is the one outcome this path must never cause. */
+    private fun cancelUnlessClaimed(
+        checklist: Checklist?,
+        prospectId: UUID,
+        userId: UUID,
+        actor: String,
+    ) {
+        val mintedId = checklist?.mintedId ?: return
+        val claimed = runCatching { checklistClaimed(prospectId, mintedId, userId) }.getOrDefault(true)
+        if (!claimed) cancelOrphanedChecklist(mintedId, actor)
+    }
         return opened.task.id.takeIf { it == candidate.id }
     }
 

@@ -52,6 +52,8 @@ class ProspectStoreIT {
             }
         }
 
+    /** A workflow_task row an event can name — V19's FK needs the task to exist. */
+    private fun task(kind: String = "approval"): UUID =
     /** A workflow_task row the `invested` event can name — V19's FK needs the task to exist. */
     private fun task(): UUID =
         dataSource.connection.use { connection ->
@@ -59,6 +61,7 @@ class ProspectStoreIT {
                 statement
                     .executeQuery(
                         "insert into mesta.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
+                            "values ('$kind', 'prospect', 'x', 'test', 'test', gen_random_uuid()) returning id",
                             "values ('approval', 'prospect', 'x', 'test', 'test', gen_random_uuid()) returning id",
                     ).use { rows ->
                         rows.next()
@@ -98,6 +101,16 @@ class ProspectStoreIT {
             provenance,
             TenantScope.All,
         )
+        val checklist = task("evidence-request")
+        store.append(
+            p.id,
+            ProspectEvent.Advanced(
+                "analyst-1",
+                t0.plusSeconds(2),
+                ProspectStage.SCREENING,
+                ProspectStage.DUE_DILIGENCE,
+                taskId = checklist,
+            ),
         store.append(
             p.id,
             ProspectEvent.Advanced("analyst-1", t0.plusSeconds(2), ProspectStage.SCREENING, ProspectStage.DUE_DILIGENCE),
@@ -138,6 +151,8 @@ class ProspectStoreIT {
         val rows = store.history(p.id, TenantScope.All)!!
         assertThat(rows.map { it.eventType }).containsExactly("advanced", "advanced", "advanced", "invested")
         assertThat(rows.map { it.seq }).isSorted() // identity is table-global; append order is what matters
+        assertThat(rows[1].taskId).isEqualTo(checklist) // the due-diligence landing records the checklist it claims
+        assertThat(rows[0].taskId).isNull() // a non-due-diligence advance names no task
         assertThat(rows.last().rationale).isEqualTo("conviction in the corridor thesis")
         assertThat(rows.last().taskId).isNotNull()
         assertThat(rows.last().correlationId).isEqualTo(provenance.correlationId)

@@ -76,6 +76,13 @@ class ProspectStateTest {
     }
 
     @Test
+    fun `only a due-diligence landing claims a checklist`() {
+        assertFailsWith<IllegalArgumentException> {
+            ProspectEvent.Advanced("a", at(1), ProspectStage.SOURCED, ProspectStage.SCREENING, taskId = UUID.randomUUID())
+        }
+    }
+
+    @Test
     fun `events must move time forward`() {
         assertFailsWith<IllegalArgumentException> {
             replay(

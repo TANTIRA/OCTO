@@ -68,6 +68,13 @@ sealed interface ProspectEvent {
         override val at: Instant,
         val from: ProspectStage,
         val to: ProspectStage,
+        /** The evidence checklist a `due-diligence` landing claims — the lineage a losing race reads back. */
+        val taskId: UUID? = null,
+    ) : ProspectEvent {
+        init {
+            require(taskId == null || to == ProspectStage.DUE_DILIGENCE) { "only a due-diligence landing claims a checklist" }
+        }
+    }
     ) : ProspectEvent
 
     data class Passed(
