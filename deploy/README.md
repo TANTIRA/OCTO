@@ -58,6 +58,37 @@ Set in the Dokploy compose environment (never committed). Keys mirror
 | `supa-octo.mesta.click` | supabase kong :8000 | own compose project |
 | `neo4j-octo.mesta.click` | neo4j :7474 | Browser only — bolt stays private |
 
+## Rate limiting (Traefik, via Dokploy)
+
+No application-level rate limiting exists by design — the proxy owns it.
+Dokploy's Traefik accepts per-router middlewares on each domain entry; the
+middleware itself is declared once as a file-provider dynamic config on the
+Dokploy host (default: `/etc/dokploy/traefik/dynamic/`):
+
+```yaml
+# /etc/dokploy/traefik/dynamic/octo-rate-limit.yml
+http:
+  middlewares:
+    octo-ratelimit:
+      rateLimit:
+        average: 100        # requests/second sustained, per source IP
+        period: 1s
+        burst: 200          # short spikes above average
+        sourceCriterion:
+          ipStrategy:
+            depth: 1        # X-Forwarded-For leftmost — Traefik fronts the api
+```
+
+Attach it in Dokploy → project → **Domains** → each domain's middleware field:
+`octo-ratelimit@file`. Apply to `api-octo.mesta.click` first (the
+unauthenticated attack surface); `octo.mesta.click`/`admin-octo.mesta.click`
+can share the same middleware. The webhook route gets the same limit — its
+shared-secret check is cheap, and bursts there are also just retries.
+
+Tune `average`/`burst` against real traffic once Prometheus scrapes
+`http.server.requests`; start conservative, watch for false 429s on import
+batches (`IMPORT_BATCH_LIMIT`-sized bursts are legitimate).
+
 ## Gotchas (all learned the hard way)
 
 - **Healthchecks and Traefik:** Dokploy drops *unhealthy* containers from the
