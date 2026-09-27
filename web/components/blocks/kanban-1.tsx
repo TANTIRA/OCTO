@@ -345,17 +345,17 @@ export default function Kanban1() {
       setComposing(null);
       return;
     }
-    const n = 242 + seq.current;
+    const n = 246 + seq.current;
     const id = `n${n}`;
     seq.current += 1;
     setCards((p) => ({
       ...p,
       [id]: {
         id,
-        ref: `HAL-${n}`,
+        ref: `D-${n}`,
         title,
-        tag: "Triage",
-        assignee: "Ana Reyes",
+        tag: "New",
+        assignee: "Unassigned",
         comments: 0,
         files: 0,
         priority: "Medium",
