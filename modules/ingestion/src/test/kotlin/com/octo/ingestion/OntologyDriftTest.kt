@@ -44,7 +44,7 @@ class OntologyDriftTest {
 
     private fun attributeValues(name: String): List<String> {
         val declaration =
-            Regex("""attribute\s+$name,\s+value\s+string\s+@values\(([^)]*)\)""")
+            Regex("""name:\s*$name\s*\|\s*value:\s*string\s*\|\s*@values\(([^)]*)\)""")
                 .find(ontology)
 
         assertTrue(declaration != null, "attribute '$name' with @values not found in the ontology")

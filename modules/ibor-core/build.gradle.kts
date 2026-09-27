@@ -6,7 +6,7 @@ dependencies {
     testImplementation(libs.kotlin.test)
 }
 
-val ontologySchema = rootProject.file("ontology/octo-investment.tql")
+val ontologySchema = rootProject.file("ontology/octo-investment.cypher")
 
 tasks.withType<Test> {
     systemProperty("ontology.file", ontologySchema.absolutePath)

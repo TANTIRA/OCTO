@@ -39,7 +39,7 @@ enum class TransferDirection(
 
 /**
  * Mirrors `instrument-flow-type @values` in the ontology and the V10 CHECK constraints. The
- * same string travels staging -> instrument_flow -> TypeDB, so it is never translated again.
+ * same string travels staging -> instrument_flow -> graph, so it is never translated again.
  */
 enum class TransferKind(
     val db: String,
