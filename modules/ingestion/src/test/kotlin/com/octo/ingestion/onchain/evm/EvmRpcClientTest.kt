@@ -165,6 +165,19 @@ class EvmRpcClientTest {
     }
 
     @Test
+    fun `a malformed balance fails closed as an rpc error, never a fabricated zero`() {
+        val transport = FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"result":"0xzz"}"""))
+        val e = assertFailsWith<EvmException> { client(transport).nativeBalance("0xabc") }
+        assertNull(e.status)
+    }
+
+    @Test
+    fun `malformed eth_call returns read as absent rather than coerced`() {
+        val transport = FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"result":"0xzz"}"""))
+        assertNull(client(transport).decimals("0xcontract"))
+    }
+
+    @Test
     fun `the api key rides as a bearer token`() {
         val transport = FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"result":"0xa4b1"}"""))
         client(transport).chainId()
