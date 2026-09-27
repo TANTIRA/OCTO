@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
-import com.octo.workflow.TenantScope
+import com.octo.persistence.TenantScope
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
 import com.octo.workflow.report.ReportRequest

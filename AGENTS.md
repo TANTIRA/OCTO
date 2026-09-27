@@ -37,6 +37,7 @@ Run `./gradlew check` and `./gradlew test` before every pull request. If a comma
 | `modules/control-panel/` | AI alerting rules, NL query, email drafting, news matching | T2 — agents that act; see AI features below |
 | `modules/api/` | REST API, auth boundary | Auth endpoints T2 |
 | `modules/ontology/` | OWL/SHACL validator and Cypher schema parser — the CI gate for `ontology/` | T2 — loosening the gate weakens ontology review |
+| `modules/persistence/` | Shared `TenantScope` + scoped JDBC connection plumbing every module's stores run under (#197) | T2 — the RLS seam; getting scoping wrong is a cross-tenant leak |
 | `modules/*/src/test/` | Tests | Normal PR |
 | `infra/supabase/`, `infra/`, `.github/workflows/`, `Dockerfile` | Pinned self-hosted Supabase deployment, pipelines, and infrastructure | Needs Platform, DevOps, and Security review; tier T2 |
 | `db/migrations/` | Flyway migrations | Never edit a migration that already ran; add a new one |

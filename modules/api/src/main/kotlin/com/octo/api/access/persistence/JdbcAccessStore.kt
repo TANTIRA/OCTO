@@ -6,11 +6,11 @@ import com.octo.api.access.Tenant
 import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
-import com.octo.api.access.TenantScope
 import com.octo.api.access.next
 import com.octo.api.access.registered
 import com.octo.api.access.replay
-import com.octo.api.access.scoped
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Instant

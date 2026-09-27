@@ -1,11 +1,11 @@
 package com.octo.api.compliance
 
+import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.Evaluation
 import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
-import com.octo.recon.persistence.TenantScope
 import java.sql.SQLException
 import java.util.UUID
 

@@ -1,6 +1,6 @@
 package com.octo.api.report
 
-import com.octo.workflow.TenantScope
+import com.octo.persistence.TenantScope
 import com.octo.workflow.report.JobStatus
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs

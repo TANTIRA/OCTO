@@ -5,11 +5,11 @@ import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectSource
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
-import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.next
 import com.octo.dealsourcing.registered
 import com.octo.dealsourcing.replay
-import com.octo.dealsourcing.scoped
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Instant

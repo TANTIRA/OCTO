@@ -1,4 +1,4 @@
-package com.octo.workflow
+package com.octo.persistence
 
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
@@ -56,11 +56,33 @@ class ScopedConnectionTest {
         assertEquals(listOf("setAutoCommit:false", "rollback", "close"), jdbc.lifecycle)
     }
 
+    @Test
+    fun `a failed commit rolls back rather than returning a half-written scope`() {
+        val jdbc = FakeJdbc().apply { failOnCommit = true }
+        assertFailsWith<java.sql.SQLException> {
+            jdbc.dataSource.scoped(TenantScope.All) { "ok" }
+        }
+        assertEquals(listOf("setAutoCommit:false", "commit", "rollback", "close"), jdbc.lifecycle)
+    }
+
+    @Test
+    fun `a scope that cannot be applied rolls back before the block runs`() {
+        val jdbc = FakeJdbc().apply { failOnExecute = true }
+        var blockRan = false
+        assertFailsWith<java.sql.SQLException> {
+            jdbc.dataSource.scoped(TenantScope.All) { blockRan = true }
+        }
+        assertEquals(false, blockRan)
+        assertEquals(listOf("setAutoCommit:false", "rollback", "close"), jdbc.lifecycle)
+    }
+
     /** A minimal JDBC stack: the statement records its SQL and bound params, the connection its lifecycle calls. */
     private class FakeJdbc {
         val bound = mutableMapOf<Int, String?>()
         val statementSql = mutableListOf<String>()
         val lifecycle = mutableListOf<String>()
+        var failOnCommit = false
+        var failOnExecute = false
         private var closed = false
         private var autoCommit = true
 
@@ -68,7 +90,7 @@ class ScopedConnectionTest {
             proxy(PreparedStatement::class.java) { method, args ->
                 when (method.name) {
                     "setString" -> bound[args[0] as Int] = args[1] as String?
-                    "execute" -> true
+                    "execute" -> if (failOnExecute) throw java.sql.SQLException("execute failed") else true
                     "close" -> null
                     else -> defaultValue(method)
                 }
@@ -89,6 +111,7 @@ class ScopedConnectionTest {
                     "getAutoCommit" -> autoCommit
                     "commit" -> {
                         lifecycle += "commit"
+                        if (failOnCommit) throw java.sql.SQLException("commit failed")
                         null
                     }
                     "rollback" -> {

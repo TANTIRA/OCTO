@@ -1,5 +1,7 @@
 package com.octo.analytics.persistence
 
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.sql.ResultSet
 import java.time.Instant
 import java.time.LocalDate

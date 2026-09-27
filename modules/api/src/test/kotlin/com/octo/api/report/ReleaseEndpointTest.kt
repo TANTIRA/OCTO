@@ -4,10 +4,10 @@ import com.octo.api.OctoApplication
 import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskEvent
 import com.octo.workflow.TaskState
-import com.octo.workflow.TenantScope
 import com.octo.workflow.next
 import com.octo.workflow.opened
 import com.octo.workflow.persistence.TaskProvenance

@@ -13,6 +13,7 @@ include(
     "modules:ingestion",
     "modules:lookthrough",
     "modules:ontology",
+    "modules:persistence",
     "modules:recon",
     "modules:workflow",
 )

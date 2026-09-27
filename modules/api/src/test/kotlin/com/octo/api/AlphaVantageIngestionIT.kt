@@ -10,8 +10,8 @@ import com.octo.ingestion.marketdata.alphavantage.AlphaVantageClient
 import com.octo.ingestion.marketdata.alphavantage.AlphaVantageConfig
 import com.octo.ingestion.marketdata.alphavantage.AlphaVantageNormalizer
 import com.octo.ingestion.persistence.JdbcTimeSeriesStore
-import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesQuery
+import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.flywaydb.core.Flyway
 import org.junit.jupiter.api.Test

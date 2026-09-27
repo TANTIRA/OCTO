@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     implementation(project(":modules:control-panel"))
+    implementation(project(":modules:persistence"))
     implementation(libs.jackson.databind)
 
     testImplementation(libs.kotlin.test)

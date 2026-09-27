@@ -4,12 +4,12 @@ import com.octo.dealsourcing.Prospect
 import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
-import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.persistence.JdbcProspectStore
 import com.octo.dealsourcing.persistence.JdbcScreeningRuleStore
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
+import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskState
 import com.octo.workflow.persistence.JdbcTaskStore

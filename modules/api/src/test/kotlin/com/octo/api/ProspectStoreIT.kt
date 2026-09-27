@@ -4,10 +4,10 @@ import com.octo.dealsourcing.Prospect
 import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectSource
 import com.octo.dealsourcing.ProspectStage
-import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.persistence.JdbcProspectStore
 import com.octo.dealsourcing.persistence.JdbcScreeningRuleStore
 import com.octo.dealsourcing.persistence.ProspectProvenance
+import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway

@@ -4,7 +4,7 @@ import com.octo.dealsourcing.Prospect
 import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
-import com.octo.dealsourcing.TenantScope
+import com.octo.persistence.TenantScope
 import java.time.Instant
 import java.util.UUID
 

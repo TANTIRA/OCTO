@@ -10,12 +10,12 @@ import com.octo.dealsourcing.ProspectState
 import com.octo.dealsourcing.ScreeningCriteria
 import com.octo.dealsourcing.ScreeningOutcome
 import com.octo.dealsourcing.ScreeningVerdict
-import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.evaluateAll
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
 import com.octo.dealsourcing.registered
+import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState

@@ -1,6 +1,7 @@
 package com.octo.api
 
 import com.octo.analytics.CoverageReport
+import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceInputs
 import com.octo.recon.compliance.ComplianceRule
@@ -8,7 +9,6 @@ import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.evaluate
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.JdbcComplianceStore
-import com.octo.recon.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway

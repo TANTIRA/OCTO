@@ -1,7 +1,7 @@
 package com.octo.dealsourcing.persistence
 
-import com.octo.dealsourcing.TenantScope
-import com.octo.dealsourcing.scoped
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.sql.ResultSet
 import java.util.UUID
 import javax.sql.DataSource

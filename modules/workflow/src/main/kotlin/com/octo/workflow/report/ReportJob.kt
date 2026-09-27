@@ -1,6 +1,6 @@
 package com.octo.workflow.report
 
-import com.octo.workflow.TenantScope
+import com.octo.persistence.TenantScope
 import java.time.Instant
 import java.util.UUID
 

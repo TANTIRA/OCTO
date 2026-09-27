@@ -1,13 +1,13 @@
 package com.octo.api.asset.persistence
 
-import com.octo.api.access.TenantScope
-import com.octo.api.access.scoped
 import com.octo.api.asset.Asset
 import com.octo.api.asset.AssetProvenance
 import com.octo.api.asset.AssetRecord
 import com.octo.api.asset.AssetStore
 import com.octo.api.asset.AssetType
 import com.octo.api.asset.Identifier
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.sql.Connection
 import java.time.OffsetDateTime
 import java.util.UUID

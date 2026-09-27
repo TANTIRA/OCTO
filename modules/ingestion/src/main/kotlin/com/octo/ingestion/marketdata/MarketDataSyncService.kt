@@ -4,8 +4,8 @@ import com.octo.ingestion.marketdata.alphavantage.AlphaVantageApi
 import com.octo.ingestion.marketdata.alphavantage.AlphaVantageNormalizer
 import com.octo.ingestion.persistence.Observation
 import com.octo.ingestion.persistence.ObservationProvenance
-import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesWriter
+import com.octo.persistence.TenantScope
 import java.util.UUID
 
 /**

@@ -1,7 +1,7 @@
 package com.octo.api.asset
 
 import com.octo.api.access.TenantDirectory
-import com.octo.api.access.TenantScope
+import com.octo.persistence.TenantScope
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt

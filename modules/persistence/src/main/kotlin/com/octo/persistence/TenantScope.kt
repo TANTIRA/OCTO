@@ -1,4 +1,4 @@
-package com.octo.ingestion.persistence
+package com.octo.persistence
 
 import java.sql.Connection
 import java.util.UUID
@@ -6,9 +6,12 @@ import javax.sql.DataSource
 
 /**
  * The tenant boundary one store call executes under (#197). `scoped` mirrors it into the
- * transaction-local GUCs `app.user_id` / `app.tenant_ids`, which the row-level-security
- * policies read — a call that forgets to scope fails closed (the policies see no user and
- * no tenants), never open.
+ * transaction-local GUCs `app.user_id` / `app.tenant_ids`.
+ *
+ * The row-level-security policies that read those GUCs land in the RLS slice of #197 — until they
+ * exist, isolation comes from each store query's own `tenant_id` predicates plus the membership
+ * checks at the API edge, exactly as before. Once the policies ship, a call that forgets to scope
+ * fails closed (the policies see no user and no tenants), never open.
  *
  * Service scopes are not a privilege escalation: the caller is already trusted code; the
  * boundary protects against the *omitted* `tenant_id` filter, not against the caller itself.
@@ -33,7 +36,7 @@ sealed interface TenantScope {
  * dies with the transaction, so a pooled connection can never carry scope to the next borrower)
  * and commits or rolls back around [block].
  */
-internal inline fun <T> DataSource.scoped(
+inline fun <T> DataSource.scoped(
     scope: TenantScope,
     block: (Connection) -> T,
 ): T =
@@ -50,7 +53,8 @@ internal inline fun <T> DataSource.scoped(
         }
     }
 
-private fun Connection.applyTenantScope(scope: TenantScope) {
+@PublishedApi
+internal fun Connection.applyTenantScope(scope: TenantScope) {
     prepareStatement("select set_config('app.user_id', ?, true), set_config('app.tenant_ids', ?, true)").use { statement ->
         when (scope) {
             is TenantScope.User -> {

@@ -9,13 +9,13 @@ import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectSource
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
-import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.next
 import com.octo.dealsourcing.persistence.ProspectEventRow
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
 import com.octo.dealsourcing.registered
+import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState
