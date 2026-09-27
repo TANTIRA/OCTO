@@ -110,6 +110,7 @@ class ProspectStoreIT {
             store.append(
                 p.id,
                 ProspectEvent.Invested("ic-chair", t0.plusSeconds(4), "conviction in the corridor thesis", task()),
+                ProspectEvent.Invested("ic-chair", t0.plusSeconds(4), "conviction in the corridor thesis"),
                 provenance,
                 TenantScope.All,
             )
@@ -161,6 +162,7 @@ class ProspectStoreIT {
             store.append(
                 p.id,
                 ProspectEvent.Invested("ic-chair", t0.plusSeconds(1), "early conviction", task()),
+                ProspectEvent.Invested("ic-chair", t0.plusSeconds(1), "early conviction"),
                 provenance,
                 TenantScope.All,
             )

@@ -15,6 +15,7 @@ data class EvmScanReport(
     val logsSeen: Int,
     val legsStaged: Int,
     val skippedContracts: List<String>,
+    val malformedLogs: List<String>,
     val windowShrinks: Int,
 )
 
@@ -50,7 +51,7 @@ class EvmScanService(
                 .toSet()
         val head = finalizedHead()
         if (watched.isEmpty()) {
-            return EvmScanReport(config.chain, 0, head, 0, 0, 0, emptyList(), 0)
+            return EvmScanReport(config.chain, 0, head, 0, 0, 0, emptyList(), emptyList(), 0)
         }
 
         val registered =
@@ -58,7 +59,7 @@ class EvmScanService(
                 .tokenContracts(config.chain)
                 .associate { it.mintAddress.lowercase() to it.decimals }
         val decimals = EvmDecimalsResolver(rpc, registered)
-        val blockTimes = mutableMapOf<Long, Instant>()
+        val blockTimes = mutableMapOf<Long, Instant?>()
         val runId = UUID.randomUUID()
         val correlationId = UUID.randomUUID()
 
@@ -67,6 +68,7 @@ class EvmScanService(
         var legsStaged = 0
         var shrinks = 0
         val skippedContracts = linkedSetOf<String>()
+        val malformedLogs = linkedSetOf<String>()
 
         var from = maxOf((store.newestStagedSlot(config.chain) ?: -1L) + 1, config.startBlock)
         var window = config.maxBlockWindow
@@ -78,6 +80,7 @@ class EvmScanService(
                 logsSeen += outcome.logs
                 legsStaged += store.insertTransfers(outcome.legs, runId, correlationId, actor)
                 skippedContracts += outcome.skippedContracts
+                malformedLogs += outcome.malformedLogs
                 from = to + 1
             } catch (e: EvmException) {
                 if (e.status != null || window <= 1L) throw e
@@ -85,7 +88,17 @@ class EvmScanService(
                 shrinks++
             }
         }
-        return EvmScanReport(config.chain, watched.size, head, windows, logsSeen, legsStaged, skippedContracts.toList(), shrinks)
+        return EvmScanReport(
+            config.chain,
+            watched.size,
+            head,
+            windows,
+            logsSeen,
+            legsStaged,
+            skippedContracts.toList(),
+            malformedLogs.toList(),
+            shrinks,
+        )
     }
 
     private fun scanWindow(
@@ -93,7 +106,7 @@ class EvmScanService(
         to: Long,
         watched: Set<String>,
         decimals: EvmDecimalsResolver,
-        blockTimes: MutableMap<Long, Instant>,
+        blockTimes: MutableMap<Long, Instant?>,
     ): WindowOutcome {
         val logs = linkedMapOf<String, JsonNode>()
         val watchedList = watched.toList()
@@ -107,25 +120,41 @@ class EvmScanService(
         }
 
         val skipped = mutableListOf<String>()
+        val malformed = mutableListOf<String>()
         val legs = mutableListOf<OnchainTransfer>()
         for (log in logs.values) {
+            // A log that cannot identify itself is never staged as a fact: no tx hash, log index,
+            // or block number means no dedup key and no audit trail. The skip is recorded — the
+            // cursor still advances past it (per-chain staging cursor), so the runbook surfaces
+            // the gap rather than silently re-scanning or fabricating identity (#196's rule).
+            val txHash = log.path("transactionHash").asText()
+            val logIndex = log.path("logIndex").asQuantityOrNull()
+            val block = log.path("blockNumber").asQuantityOrNull()?.toLong()
             val contract = log.path("address").asText().lowercase()
+            if (txHash.isBlank() || logIndex == null || block == null || contract.isBlank()) {
+                malformed += describe(log)
+                continue
+            }
             val resolved = decimals.resolve(contract)
             if (resolved == null) {
                 skipped += contract
                 continue
             }
-            val block = log.path("blockNumber").asQuantity().toLong()
             val blockTime =
-                blockTimes.getOrPut(block) {
-                    val node =
-                        rpc.blockByNumber(block)
-                            ?: throw EvmException("evm rpc block $block unavailable")
-                    Instant.ofEpochSecond(node.path("timestamp").asQuantity().toLong())
+                blockTimes.computeIfAbsent(block) {
+                    rpc
+                        .blockByNumber(block)
+                        ?.path("timestamp")
+                        ?.asQuantityOrNull()
+                        ?.let { runCatching { Instant.ofEpochSecond(it.toLong()) }.getOrNull() }
                 }
+            if (blockTime == null) {
+                malformed += "block $block has no readable timestamp (tx $txHash)"
+                continue
+            }
             legs += normalizer.normalize(log, watched, resolved, blockTime, config.chain, config.sourceSystem)
         }
-        return WindowOutcome(logs.size, legs, skipped)
+        return WindowOutcome(logs.size, legs, skipped, malformed)
     }
 
     /** One eth_chainId check per process — a wrong-endpoint deploy fails on the first scan. */
@@ -144,12 +173,24 @@ class EvmScanService(
         if (number == null || !number.isTextual) {
             throw EvmException("endpoint does not expose a 'finalized' block tag for ${config.chain}")
         }
-        return number.asQuantity().toLong()
+        return number
+            .asQuantityOrNull()
+            ?.toLong()
+            ?: throw EvmException("endpoint returned a malformed 'finalized' block number for ${config.chain}")
+    }
+
+    /** A human-readable descriptor for a log whose identity fields were unreadable. */
+    private fun describe(log: JsonNode): String {
+        val tx = log.path("transactionHash").asText().ifBlank { "?" }
+        val idx = log.path("logIndex").asText().ifBlank { "?" }
+        val block = log.path("blockNumber").asText().ifBlank { "?" }
+        return "log $idx of tx $tx at block $block is missing identity fields"
     }
 
     private data class WindowOutcome(
         val logs: Int,
         val legs: List<OnchainTransfer>,
         val skippedContracts: List<String>,
+        val malformedLogs: List<String>,
     )
 }

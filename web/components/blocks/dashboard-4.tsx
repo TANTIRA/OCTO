@@ -6,6 +6,20 @@ const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join("");
 import { RefreshCw } from "lucide-react";
 
+type Status = "investing" | "watch" | "exiting" | "harvesting";
+
+const DOT: Record<Status, string> = {
+  investing: "bg-neutral-300 dark:bg-neutral-600",
+  watch: "bg-amber-500",
+  exiting: "bg-red-500",
+  harvesting: "bg-neutral-300 dark:bg-neutral-600",
+};
+
+const WORD: Record<Status, string> = {
+  investing: "Investing",
+  watch: "Watch",
+  exiting: "Exiting",
+  harvesting: "Harvesting",
 type Status = "operational" | "degraded" | "down" | "maintenance";
 
 const DOT: Record<Status, string> = {
@@ -85,6 +99,53 @@ function Sparkline({ values }: { values: number[] }) {
   );
 }
 
+type Fund = {
+  name: string;
+  vintage: string;
+  nav: string;
+  tvpi: string;
+  status: Status;
+};
+
+const FUNDS: Fund[] = [
+  {
+    name: "OCTO Flagship Fund II",
+    vintage: "2023 · Buyout",
+    nav: "$486.2m",
+    tvpi: "1.71×",
+    status: "investing",
+  },
+  {
+    name: "OCTO Flagship Fund I",
+    vintage: "2019 · Buyout",
+    nav: "$184.7m",
+    tvpi: "1.58×",
+    status: "harvesting",
+  },
+  {
+    name: "OCTO Opportunities I",
+    vintage: "2024 · Growth / credit",
+    nav: "$96.4m",
+    tvpi: "1.32×",
+    status: "investing",
+  },
+  {
+    name: "Antero Co-Invest SPV",
+    vintage: "2025 · Single deal",
+    nav: "$31.5m",
+    tvpi: "1.12×",
+    status: "watch",
+  },
+  {
+    name: "OCTO Venture FoF",
+    vintage: "2022 · Fund of funds",
+    nav: "$13.6m",
+    tvpi: "0.94×",
+    status: "exiting",
+  },
+];
+
+type Alert = {
 type Service = {
   name: string;
   region: string;
@@ -141,6 +202,7 @@ type Incident = {
   dot: string;
 };
 
+const ALERTS: Alert[] = [
 const INCIDENTS: Incident[] = [
   {
     title: "Covenant breach — Helios Data Centers",
@@ -309,6 +371,7 @@ export default function Dashboard4() {
             <div className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)">
               <div className="flex h-12 items-center bg-neutral-50 px-4 dark:bg-neutral-900/60">
                 <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                  Funds
                   Services
                 </h2>
               </div>
@@ -326,12 +389,14 @@ export default function Dashboard4() {
                       scope="col"
                       className="hidden h-9 px-3 text-right text-xs font-medium text-neutral-500 sm:table-cell"
                     >
+                      NAV
                       Latency
                     </th>
                     <th
                       scope="col"
                       className="hidden h-9 px-3 text-right text-xs font-medium text-neutral-500 sm:table-cell"
                     >
+                      TVPI
                       Uptime
                     </th>
                     <th
@@ -343,6 +408,7 @@ export default function Dashboard4() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/70">
+                  {FUNDS.map((s, i) => (
                   {SERVICES.map((s, i) => (
                     <tr
                       key={`${s.name}-${i}`}
@@ -353,6 +419,14 @@ export default function Dashboard4() {
                           {s.name}
                         </p>
                         <p className="truncate font-mono text-[11px] text-neutral-500">
+                          {s.vintage}
+                        </p>
+                      </td>
+                      <td className="hidden px-3 text-right text-[13px] tabular-nums text-neutral-600 sm:table-cell dark:text-neutral-400">
+                        {s.nav}
+                      </td>
+                      <td className="hidden px-3 text-right text-[13px] tabular-nums text-neutral-600 sm:table-cell dark:text-neutral-400">
+                        {s.tvpi}
                           {s.region}
                         </p>
                       </td>
@@ -379,6 +453,14 @@ export default function Dashboard4() {
             <div className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)">
               <div className="flex h-12 items-center justify-between bg-neutral-50 px-4 dark:bg-neutral-900/60">
                 <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                  Alerts
+                </h2>
+                <span className="inline-flex h-5 shrink-0 items-center rounded-[var(--rb-r-xs,4px)] bg-neutral-200/70 px-1.5 text-[11px] font-medium tabular-nums text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                  {ALERTS.length}
+                </span>
+              </div>
+              <ul className="flex flex-col gap-1.5 p-1.5">
+                {ALERTS.map((inc, i) => (
                   Incidents
                 </h2>
                 <span className="inline-flex h-5 shrink-0 items-center rounded-[var(--rb-r-xs,4px)] bg-neutral-200/70 px-1.5 text-[11px] font-medium tabular-nums text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">

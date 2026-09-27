@@ -50,11 +50,18 @@ class EvmTransferNormalizer {
                 ?: return emptyList()
         if (amount.signum() == 0) return emptyList()
 
-        val txHash = log.path("transactionHash").asText()
-        val logIndex = log.path("logIndex").asQuantity().toLong()
-        val slot = log.path("blockNumber").asQuantity().toLong()
+        // Identity fields that cannot be read produce no legs — a leg without its tx hash and
+        // log index has neither a dedup key nor an audit trail (the #196 rule, EVM edition).
+        val txHash = log.path("transactionHash").asText().takeIf { it.isNotBlank() } ?: return emptyList()
+        val logIndex = log.path("logIndex").asQuantityOrNull()?.toLong() ?: return emptyList()
+        val slot = log.path("blockNumber").asQuantityOrNull()?.toLong() ?: return emptyList()
         val blockHash = log.path("blockHash").asText().ifEmpty { null }
-        val contract = log.path("address").asText().lowercase()
+        val contract =
+            log
+                .path("address")
+                .asText()
+                .lowercase()
+                .takeIf { it.isNotBlank() } ?: return emptyList()
 
         return buildList {
             for (wallet in setOf(from, to) - ZERO_ADDRESS) {

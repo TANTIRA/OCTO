@@ -345,6 +345,7 @@ export default function Kanban1() {
       setComposing(null);
       return;
     }
+    const n = 246 + seq.current;
     const n = 242 + seq.current;
     const id = `n${n}`;
     seq.current += 1;
@@ -352,6 +353,10 @@ export default function Kanban1() {
       ...p,
       [id]: {
         id,
+        ref: `D-${n}`,
+        title,
+        tag: "New",
+        assignee: "Unassigned",
         ref: `HAL-${n}`,
         title,
         tag: "Triage",

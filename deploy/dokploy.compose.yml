@@ -79,6 +79,12 @@ services:
     build:
       context: ../web
       dockerfile: Dockerfile
+      args:
+        # Baked into the client bundle by next build; publishable anon key.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        # Also baked at build: rewrites() reads it when next.config evaluates.
+        API_INTERNAL_URL: http://api:8080
     image: ${WEB_IMAGE:-octo-web}:${WEB_IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
@@ -90,6 +96,9 @@ services:
     depends_on:
       - api
     healthcheck:
+      # 127.0.0.1, not localhost: the standalone server binds IPv4 0.0.0.0 and
+      # busybox wget tries ::1 first on alpine, which reports unhealthy falsely.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/"]
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
       interval: 30s
       timeout: 5s
