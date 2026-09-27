@@ -7,6 +7,7 @@ import com.octo.recon.compliance.ComplianceInputs
 import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.persistence.ComplianceProvenance
+import com.octo.recon.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import org.assertj.core.api.Assertions.assertThat
@@ -15,7 +16,6 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.Currency
 import java.util.UUID
-import com.octo.recon.persistence.TenantScope
 
 class ComplianceRunnerTest {
     private val store = FakeComplianceStore()
@@ -42,7 +42,12 @@ class ComplianceRunnerTest {
             provenance,
             TenantScope.All,
         )
-        store.defineRule(tenantId, ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))), provenance, TenantScope.All)
+        store.defineRule(
+            tenantId,
+            ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))),
+            provenance,
+            TenantScope.All,
+        )
         store.defineRule(
             tenantId,
             ComplianceRule("eur", 1, "EUR", ComplianceCheck.CurrencyExposureLimit(Currency.getInstance("EUR"), BigDecimal("0.4"))),
@@ -78,7 +83,12 @@ class ComplianceRunnerTest {
         assertThat(runner.run(tenantId, inputs("1.5"), "runner", UUID.randomUUID())).isEmpty()
         assertThat(store.recorded).isEmpty()
 
-        store.defineRule(tenantId, ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))), provenance, TenantScope.All)
+        store.defineRule(
+            tenantId,
+            ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))),
+            provenance,
+            TenantScope.All,
+        )
         // Another runner records the breach between our breachTask lookup and our record: simulate by pre-recording after the check.
         val racing =
             ComplianceRunner(

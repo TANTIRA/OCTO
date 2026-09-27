@@ -5,6 +5,7 @@ import com.octo.analytics.persistence.ModelRun
 import com.octo.analytics.persistence.ModelRunOutput
 import com.octo.analytics.persistence.ModelStatus
 import com.octo.analytics.persistence.OutputKind
+import com.octo.analytics.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
@@ -17,7 +18,6 @@ import java.sql.SQLException
 import java.time.LocalDate
 import java.util.UUID
 import javax.sql.DataSource
-import com.octo.analytics.persistence.TenantScope
 
 /** V9's model-run store end to end as the runtime role (#102, methodology §9.6). Skipped when Docker is unavailable. */
 @Testcontainers(disabledWithoutDocker = true)
@@ -56,7 +56,9 @@ class ModelRunStoreIT {
     fun `a version is immutable and a bad output rolls the whole run back`() {
         val first = run("factor-v1")
         store.record(first, scope = TenantScope.All)
-        assertSqlState(UNIQUE_VIOLATION) { store.record(first.copy(id = UUID.randomUUID(), parameters = """{"beta": 1.1}"""), scope = TenantScope.All) }
+        assertSqlState(UNIQUE_VIOLATION) {
+            store.record(first.copy(id = UUID.randomUUID(), parameters = """{"beta": 1.1}"""), scope = TenantScope.All)
+        }
 
         val broken = run("factor-v2")
         assertSqlState(CHECK_VIOLATION) {
@@ -72,7 +74,9 @@ class ModelRunStoreIT {
         assertSqlState(RESTRICT_VIOLATION) { execute(owner, "update mesta.model_run set status = 'retired' where id = '${run.id}'") }
         assertSqlState(RESTRICT_VIOLATION) { execute(owner, "delete from mesta.model_run_output where run_id = '${run.id}'") }
         assertSqlState(CHECK_VIOLATION) { store.record(run("kalman-v2").copy(parameters = "42"), scope = TenantScope.All) }
-        assertSqlState(CHECK_VIOLATION) { store.record(run("kalman-v3").copy(supersedesId = run.id, rationale = " "), scope = TenantScope.All) }
+        assertSqlState(
+            CHECK_VIOLATION,
+        ) { store.record(run("kalman-v3").copy(supersedesId = run.id, rationale = " "), scope = TenantScope.All) }
     }
 
     private fun run(version: String) =

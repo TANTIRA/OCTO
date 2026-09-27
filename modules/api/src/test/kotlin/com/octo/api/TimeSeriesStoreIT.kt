@@ -3,6 +3,7 @@ package com.octo.api
 import com.octo.ingestion.persistence.JdbcTimeSeriesStore
 import com.octo.ingestion.persistence.Observation
 import com.octo.ingestion.persistence.ObservationProvenance
+import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesQuery
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -16,7 +17,6 @@ import java.math.BigDecimal
 import java.sql.SQLException
 import java.time.LocalDate
 import java.util.UUID
-import com.octo.ingestion.persistence.TenantScope
 
 /** `JdbcTimeSeriesStore` against the real V12 schema: the bi-temporal query semantics and atomic writes. Skipped without Docker. */
 @Testcontainers(disabledWithoutDocker = true)
@@ -68,9 +68,14 @@ class TimeSeriesStoreIT {
         val (ds, tenant) = dataset()
         assertThat(store.datasetTenant(ds, TenantScope.All)).isEqualTo(tenant)
         val loaded =
-            store.write(listOf(nav(ds, q2, "100"), nav(ds, q1, "90"), nav(ds, q2, "0.12", field = "irr")), provenance, TenantScope.All).maxOf {
-                it.recordedAt!!
-            }
+            store
+                .write(
+                    listOf(nav(ds, q2, "100"), nav(ds, q1, "90"), nav(ds, q2, "0.12", field = "irr")),
+                    provenance,
+                    TenantScope.All,
+                ).maxOf {
+                    it.recordedAt!!
+                }
         val restated = store.write(listOf(nav(ds, q2, "101").copy(supersedesId = null)), provenance, TenantScope.All).single()
         assertThat(restated.recordedAt).isAfter(loaded)
 

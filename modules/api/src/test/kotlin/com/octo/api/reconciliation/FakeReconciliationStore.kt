@@ -3,10 +3,10 @@ package com.octo.api.reconciliation
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.IborRecord
 import com.octo.recon.matching.persistence.ReconciliationStore
+import com.octo.recon.persistence.TenantScope
 import java.sql.SQLException
 import java.time.ZoneId
 import java.util.UUID
-import com.octo.recon.persistence.TenantScope
 
 /** In-memory `ReconciliationStore` with V15's one-task-per-key rule, for the runner and endpoint tests. */
 class FakeReconciliationStore(
@@ -39,7 +39,7 @@ class FakeReconciliationStore(
         correlationId: UUID,
         scope: TenantScope,
     ): UUID {
-        if (taskId != null && existingTask(tenantId, brk) != null) throw SQLException("reconciliation_break_one_task", "23505")
+        if (taskId != null && existingTask(tenantId, brk, scope) != null) throw SQLException("reconciliation_break_one_task", "23505")
         rows += Row(runId, brk, taskId)
         return UUID.randomUUID()
     }

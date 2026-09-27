@@ -7,6 +7,7 @@ import com.octo.api.access.TenantRole
 import com.octo.workflow.Task
 import com.octo.workflow.TaskEvent
 import com.octo.workflow.TaskState
+import com.octo.workflow.TenantScope
 import com.octo.workflow.next
 import com.octo.workflow.opened
 import com.octo.workflow.persistence.TaskProvenance
@@ -30,7 +31,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import java.time.Instant
 import java.util.UUID
 import java.util.function.Supplier
-import com.octo.workflow.TenantScope
 
 /** The release gate end to end with in-memory stores: a task is opened once for a done job, and the result shows only after approval. */
 class ReleaseEndpointTest {
@@ -118,7 +118,7 @@ class ReleaseEndpointTest {
                 .andExpect(jsonPath("$.result").doesNotExist())
             mvc.perform(post("/api/v1/reports/$id/release").with(asUser(analyst))).andExpect(status().isConflict)
 
-            val taskId = jobs.load(id)!!.approvalTaskId!!
+            val taskId = jobs.load(id, TenantScope.All)!!.approvalTaskId!!
             assertThat(taskStates.getValue(taskId).task.requestedBy).isEqualTo(analyst.toString())
             taskStates[taskId] = taskStates.getValue(taskId).next(TaskEvent.Approved("approver-1", Instant.now()))
             mvc
@@ -150,6 +150,7 @@ class ReleaseEndpointTest {
                             analyst.toString(),
                             UUID.randomUUID(),
                         ),
+                        TenantScope.All,
                     ).id
             mvc.perform(post("/api/v1/reports/$queued/release").with(asUser(analyst))).andExpect(status().isConflict)
             mvc.perform(get("/api/v1/reports/${UUID.randomUUID()}/release").with(asUser(analyst))).andExpect(status().isNotFound)

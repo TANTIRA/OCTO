@@ -8,6 +8,7 @@ import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.evaluate
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.JdbcComplianceStore
+import com.octo.recon.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
@@ -21,7 +22,6 @@ import java.sql.SQLException
 import java.time.LocalDate
 import java.util.Currency
 import java.util.UUID
-import com.octo.recon.persistence.TenantScope
 
 /** `JdbcComplianceStore` against the real V14 schema: rule definitions round-trip by version, evaluations record, breaches dedupe. Skipped without Docker. */
 @Testcontainers(disabledWithoutDocker = true)
@@ -91,7 +91,12 @@ class ComplianceStoreIT {
             provenance,
             TenantScope.All,
         )
-        store.defineRule(tenantId, ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))), provenance, TenantScope.All)
+        store.defineRule(
+            tenantId,
+            ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))),
+            provenance,
+            TenantScope.All,
+        )
 
         val rules = store.activeRules(tenantId, TenantScope.All)
         assertThat(rules.map { it.id to it.version }).containsExactly("conc" to 2, "cov" to 1, "eur" to 1)
@@ -113,12 +118,28 @@ class ComplianceStoreIT {
         val taskId = task()
         store.record(tenantId, breach, taskId, UUID.randomUUID(), TenantScope.All)
         assertThat(store.breachTask(tenantId, breach, TenantScope.All)).isEqualTo(taskId)
-        assertThatThrownBy { store.record(tenantId, breach, task(), UUID.randomUUID(), TenantScope.All) }.isInstanceOf(SQLException::class.java)
+        assertThatThrownBy {
+            store.record(
+                tenantId,
+                breach,
+                task(),
+                UUID.randomUUID(),
+                TenantScope.All,
+            )
+        }.isInstanceOf(SQLException::class.java)
 
         val pass = breach.copy(result = Result.PASS, explanation = "restated")
         store.record(tenantId, pass, null, UUID.randomUUID(), TenantScope.All)
         // A task is allowed only on a breach.
-        assertThatThrownBy { store.record(tenantId, pass, task(), UUID.randomUUID(), TenantScope.All) }.isInstanceOf(SQLException::class.java)
+        assertThatThrownBy {
+            store.record(
+                tenantId,
+                pass,
+                task(),
+                UUID.randomUUID(),
+                TenantScope.All,
+            )
+        }.isInstanceOf(SQLException::class.java)
     }
 
     private companion object {

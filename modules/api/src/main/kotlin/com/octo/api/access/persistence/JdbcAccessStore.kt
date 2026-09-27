@@ -7,10 +7,10 @@ import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.api.access.TenantScope
-import com.octo.api.access.scoped
 import com.octo.api.access.next
 import com.octo.api.access.registered
 import com.octo.api.access.replay
+import com.octo.api.access.scoped
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Instant
@@ -99,8 +99,8 @@ class JdbcAccessStore(
         userId: UUID,
         event: MembershipEvent,
         provenance: AccessProvenance,
-    ): MembershipState {
-        return dataSource.scoped(TenantScope.All) { connection ->
+    ): MembershipState =
+        dataSource.scoped(TenantScope.All) { connection ->
             val before =
                 replayLocked(connection, tenantId, userId)
                     ?: throw NoSuchElementException("no member $userId in tenant $tenantId")
@@ -108,7 +108,6 @@ class JdbcAccessStore(
             insertEvent(connection, tenantId, userId, event, provenance)
             after
         }
-    }
 
     /**
      * The tenants [userId] currently holds a role in. The state machine guarantees the latest event

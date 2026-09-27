@@ -67,7 +67,8 @@ class ComplianceController(
         @Valid @RequestBody body: EvaluationBody,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<List<OutcomeView>> {
-        val role = roleIn(userId(jwt) ?: return ResponseEntity.notFound().build(), body.tenantId) ?: return ResponseEntity.notFound().build()
+        val role =
+            roleIn(userId(jwt) ?: return ResponseEntity.notFound().build(), body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val inputs =
             ComplianceInputs(
