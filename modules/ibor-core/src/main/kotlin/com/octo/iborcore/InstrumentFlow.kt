@@ -5,9 +5,9 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * Mirrors the `instrument-flow-type` @values in `ontology/octo-investment.tql` and the check
+ * Mirrors the `instrument-flow-type` @values in `ontology/octo-investment.cypher` and the check
  * constraints on `mesta.onchain_transfer.transfer_kind` / `mesta.instrument_flow.flow_type` —
- * one string travels staging -> token ledger -> TypeDB and is never re-translated.
+ * one string travels staging -> token ledger -> graph and is never re-translated.
  *
  * [inbound] is the sign the flow contributes to a wallet's token position: true credits,
  * false debits, null for `other` — a fact we keep but cannot sign without human review, so it

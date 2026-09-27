@@ -8,7 +8,7 @@ import java.util.Currency
 import java.util.UUID
 
 /**
- * Mirrors the `flow-type` @values in `ontology/octo-investment.tql` and the check constraint on
+ * Mirrors the `flow-type` @values in `ontology/octo-investment.cypher` and the check constraint on
  * `mesta.ledger_event`. [investorFlow] marks the types that enter the investor cash-flow series;
  * fees, expenses, carry and other income are reported but excluded (owner decision on #6).
  */
@@ -82,7 +82,7 @@ data class CommitmentPosition(
 )
 
 /**
- * Derives the position of one commitment. Attribution lives in TypeDB (ADR-0003), so the caller
+ * Derives the position of one commitment. Attribution lives in the graph store (ADR-0004), so the caller
  * passes the ids of the events attributed to the commitment as [members]. Supersession is resolved
  * over [ledger] first, so a correction that moves an event elsewhere removes it here.
  */
@@ -130,7 +130,7 @@ data class DealPosition(
 )
 
 /**
- * Derives a deal position from the ledger events and valuations attributed to an investment in TypeDB
+ * Derives a deal position from the ledger events and valuations attributed to an investment in the graph store
  * (`cash-flow-attribution`, `valuation-of`; ADR-0003, #6 decision of 2026-09-25). Same derivation as
  * [commitmentPosition], so a correction that moves an event elsewhere leaves this deal. Recallable
  * distributions count as realized until a recall records a new contribution.

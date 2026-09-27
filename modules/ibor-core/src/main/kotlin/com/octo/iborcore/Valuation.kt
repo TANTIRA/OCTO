@@ -6,7 +6,7 @@ import java.time.LocalDate
 import java.util.Currency
 import java.util.UUID
 
-/** Mirrors the `valuation-method` @values in `ontology/octo-investment.tql` and `mesta.valuation_event`. */
+/** Mirrors the `valuation-method` @values in `ontology/octo-investment.cypher` and `mesta.valuation_event`. */
 enum class ValuationMethod(
     val wireValue: String,
 ) {
@@ -25,7 +25,7 @@ enum class ValuationMethod(
     }
 }
 
-/** One row of `mesta.valuation_event`. The valued subject is attributed in TypeDB (`valuation-of`). */
+/** One row of `mesta.valuation_event`. The valued subject is attributed in the graph store (`valuation-of`). */
 data class ValuationEvent(
     val id: UUID,
     val amount: BigDecimal,

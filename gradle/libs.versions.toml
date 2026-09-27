@@ -7,7 +7,7 @@ jena = "6.1.0"
 ktlint = "12.3.0"
 kover = "0.9.1"
 archunit = "1.4.1"
-typedb = "3.12.0"
+neo4j-driver = "5.28.15"
 testcontainers = "1.21.3"
 
 [libraries]
@@ -32,7 +32,7 @@ testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.re
 testcontainers-postgres = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
-typedb-driver = { module = "com.typedb:typedb-driver", version.ref = "typedb" }
+neo4j-driver = { module = "org.neo4j.driver:neo4j-java-driver", version.ref = "neo4j-driver" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

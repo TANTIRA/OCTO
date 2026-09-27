@@ -14,27 +14,27 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Drift guard between `ontology/octo-investment.tql` (TypeQL, the schema of record) and the OWL
- * plus SHACL artifacts.
+ * Drift guard between `ontology/octo-investment.cypher` (the schema of record, in the dual-format
+ * comment convention) and the OWL plus SHACL artifacts.
  *
  * The mirror shape file must agree with the schema in both directions. Adding a type to the schema
  * without adding it to the mirror fails here, and so does weakening a mirror constraint that the
  * schema still requires. Business rules that deliberately exceed the schema live in
  * `octo-investment-policy-shacl.ttl` and are not checked against it.
  */
-class TypeQlSchemaDriftTest {
+class CypherSchemaDriftTest {
     private val dir: Path =
         Path.of(
             System.getProperty("ontology.dir")
                 ?: error("ontology.dir system property is not set — see modules/ontology/build.gradle.kts"),
         )
 
-    private val schema = TypeQlSchema.parse(dir.resolve("octo-investment.tql"))
+    private val schema = CypherSchema.parse(dir.resolve("octo-investment.cypher"))
     private val owl = load(dir.resolve(OntologyValidator.ONTOLOGY_FILE))
     private val mirror = load(dir.resolve("octo-investment-shacl.ttl"))
 
     @Test
-    fun `every TypeQL attribute is an OWL datatype property and vice versa`() {
+    fun `every schema attribute is an OWL datatype property and vice versa`() {
         val declared =
             owl
                 .listSubjectsWithProperty(RDF.type, OWL.DatatypeProperty)
@@ -50,7 +50,7 @@ class TypeQlSchemaDriftTest {
     }
 
     @Test
-    fun `every TypeQL entity and relation is an OWL class and vice versa`() {
+    fun `every schema entity and relation is an OWL class and vice versa`() {
         val declared =
             owl
                 .listSubjectsWithProperty(RDF.type, OWL.Class)
@@ -66,7 +66,7 @@ class TypeQlSchemaDriftTest {
     }
 
     @Test
-    fun `TypeQL subtyping is mirrored as rdfs subClassOf`() {
+    fun `schema subtyping is mirrored as rdfs subClassOf`() {
         val expected =
             schema.types.values
                 .filter { it.superType != null }
@@ -86,7 +86,7 @@ class TypeQlSchemaDriftTest {
     }
 
     @Test
-    fun `every TypeQL role is an OWL object property and vice versa`() {
+    fun `every schema role is an OWL object property and vice versa`() {
         val declared =
             owl
                 .listSubjectsWithProperty(RDF.type, OWL.ObjectProperty)
@@ -135,7 +135,7 @@ class TypeQlSchemaDriftTest {
                 .map(::kebabToPascal)
                 .toSet()
         for (target in shapes.keys) {
-            assertTrue(target in knownTypes, "mirror shape targets $target, which is not a TypeQL type")
+            assertTrue(target in knownTypes, "mirror shape targets $target, which is not a schema type")
         }
 
         for (type in schema.types.values) {
@@ -286,7 +286,7 @@ class TypeQlSchemaDriftTest {
 
         fun local(uri: String): String = uri.substringAfterLast('#').substringAfterLast('/')
 
-        /** TypeQL value type -> XSD local name. */
+        /** Schema value type -> XSD local name. */
         fun xsdLocal(valueType: String): String =
             when (valueType) {
                 "string" -> "string"
@@ -295,7 +295,7 @@ class TypeQlSchemaDriftTest {
                 "double" -> "double"
                 "date" -> "date"
                 "datetime" -> "dateTime"
-                else -> error("unmapped TypeQL value type: $valueType")
+                else -> error("unmapped schema value type: $valueType")
             }
     }
 }

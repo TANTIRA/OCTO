@@ -1,7 +1,7 @@
 package com.octo.ingestion.classification
 
 /**
- * Mirrors the `document-type` attribute in `ontology/octo-investment.tql`. A drift test fails if
+ * Mirrors the `document-type` attribute in `ontology/octo-investment.cypher`. A drift test fails if
  * the enumeration and the schema diverge.
  */
 enum class DocumentType(
