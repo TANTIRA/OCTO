@@ -17,6 +17,11 @@ import java.time.Instant
  * transactions (`meta.err != null`) yield nothing: their only movement is the fee leg, which is
  * dust the plan deliberately excludes.
  *
+ * Fail-closed on malformed payloads: a leg whose amount, balance, or decimals cannot be parsed
+ * is skipped and reported in [TransferParse.skipped] — never coerced to zero, which would
+ * fabricate a full-balance transfer that never happened. A missing `blockTime` falls back to
+ * [observedAt] (the convention `HeliusStakingNormalizer` established) instead of epoch 0.
+ *
  * Deterministic identity: `externalId = "solana:<sig>:<account>:<leg>"` where leg is
  * `bal:<accountIndex>` for native SOL or `tok:<accountIndex>` for SPL — the same transaction
  * normalized by poller or webhook produces the same ids.
@@ -25,15 +30,21 @@ class HeliusTransferNormalizer {
     fun normalize(
         tx: JsonNode,
         wallet: String,
-    ): List<OnchainTransfer> {
+        observedAt: Instant,
+    ): TransferParse {
         val meta = tx.path("meta")
-        if (!meta.path("err").isNull) return emptyList()
+        if (!meta.path("err").isNull) return TransferParse(emptyList(), emptyList())
         val transaction = tx.path("transaction")
         val keys = transaction.path("message").path("accountKeys")
-        if (!keys.isArray) return emptyList()
+        if (!keys.isArray) return TransferParse(emptyList(), emptyList())
 
         val signature = transaction.path("signatures").path(0).asText()
-        val blockTime = Instant.ofEpochSecond(tx.path("blockTime").asLong())
+        val blockTime =
+            tx
+                .path("blockTime")
+                .takeIf { it.isNumber }
+                ?.let { Instant.ofEpochSecond(it.asLong()) }
+                ?: observedAt
         val blockHash =
             tx.path("blockHash").asText().ifEmpty { null }
                 ?: transaction
@@ -44,6 +55,7 @@ class HeliusTransferNormalizer {
         val slot = tx.path("slot").asLong()
 
         val legs = mutableListOf<OnchainTransfer>()
+        val skipped = mutableListOf<String>()
 
         // Native SOL: diff every lamport balance; only the watched wallet's legs are facts for us.
         val pre = meta.path("preBalances")
@@ -51,7 +63,13 @@ class HeliusTransferNormalizer {
         for (i in 0 until maxOf(pre.size(), post.size())) {
             val account = accountAt(keys, i)
             if (account != wallet) continue
-            val delta = lamports(post, i) - lamports(pre, i)
+            val after = lamports(post, i)
+            val before = lamports(pre, i)
+            if (after == null || before == null) {
+                skipped += "bal:$i (non-numeric balance)"
+                continue
+            }
+            val delta = after - before
             if (delta == BigInteger.ZERO) continue
             legs +=
                 OnchainTransfer(
@@ -80,9 +98,23 @@ class HeliusTransferNormalizer {
             val entry = after ?: before ?: continue
             val owner = entry.path("owner").asText().orEmpty()
             if (owner != wallet) continue
-            val delta = (after?.amountRaw() ?: BigInteger.ZERO) - (before?.amountRaw() ?: BigInteger.ZERO)
-            if (delta == BigInteger.ZERO) continue
             val accountIndex = entry.path("accountIndex").asInt()
+            val mint = entry.path("mint").asText()
+            val afterAmt = after?.amountRawOrNull()
+            val beforeAmt = before?.amountRawOrNull()
+            // An absent side is a real zero (account created/closed); an unparseable present
+            // side is a malformed payload — skip the leg rather than diff against a fake zero.
+            if ((after != null && afterAmt == null) || (before != null && beforeAmt == null)) {
+                skipped += "tok:$accountIndex:$mint (malformed amount)"
+                continue
+            }
+            val delta = (afterAmt ?: BigInteger.ZERO) - (beforeAmt ?: BigInteger.ZERO)
+            if (delta == BigInteger.ZERO) continue
+            val decimals = entry.decimalsOrNull()
+            if (decimals == null) {
+                skipped += "tok:$accountIndex:$mint (missing decimals)"
+                continue
+            }
             val account = accountAt(keys, accountIndex)
             legs +=
                 OnchainTransfer(
@@ -94,15 +126,21 @@ class HeliusTransferNormalizer {
                     wallet = wallet,
                     counterparty = null,
                     tokenAccount = account,
-                    mintAddress = entry.path("mint").asText(),
+                    mintAddress = mint,
                     amountRaw = delta.abs(),
-                    decimals = entry.decimals(),
+                    decimals = decimals,
                     direction = if (delta.signum() > 0) TransferDirection.IN else TransferDirection.OUT,
                     transferKind = if (delta.signum() > 0) TransferKind.TRANSFER_IN else TransferKind.TRANSFER_OUT,
                 )
         }
-        return legs
+        return TransferParse(legs, skipped)
     }
+
+    /** What one transaction normalized to: [legs] are facts, [skipped] are legs that could not be trusted. */
+    data class TransferParse(
+        val legs: List<OnchainTransfer>,
+        val skipped: List<String>,
+    )
 
     /** Account keys are either plain strings or {pubkey, signer, ...} objects in jsonParsed. */
     private fun accountAt(
@@ -123,19 +161,25 @@ class HeliusTransferNormalizer {
             emptyMap()
         }
 
+    /** Null when the element is absent or non-numeric — a delta against it cannot be trusted. */
     private fun lamports(
         balances: JsonNode,
         index: Int,
-    ): BigInteger = balances.path(index).takeIf { it.isNumber }?.bigIntegerValue() ?: BigInteger.ZERO
+    ): BigInteger? = balances.path(index).takeIf { it.isNumber }?.bigIntegerValue()
 
-    private fun JsonNode.amountRaw(): BigInteger =
+    /** Null when the amount is missing, non-textual, or unparseable — never coerced to zero. */
+    private fun JsonNode.amountRawOrNull(): BigInteger? =
         path("uiTokenAmount")
             .path("amount")
             .takeIf { it.isTextual }
-            ?.let { BigInteger(it.asText()) }
-            ?: BigInteger.ZERO
+            ?.let { it.asText().toBigIntegerOrNull() }
 
-    private fun JsonNode.decimals(): Int = path("uiTokenAmount").path("decimals").asInt()
+    /** Null when decimals is absent or non-numeric — a wrong decimals silently misprices the leg. */
+    private fun JsonNode.decimalsOrNull(): Int? =
+        path("uiTokenAmount")
+            .path("decimals")
+            .takeIf { it.isInt }
+            ?.asInt()
 
     companion object {
         const val SOL_DECIMALS = 9

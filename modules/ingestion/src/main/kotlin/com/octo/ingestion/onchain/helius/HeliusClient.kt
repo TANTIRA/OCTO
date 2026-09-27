@@ -50,7 +50,11 @@ interface HeliusRpcApi {
     /** `getBalance` — native SOL lamports. */
     fun balance(address: String): Long
 
-    /** `getTokenAccountsByOwner` under the SPL Token program, parsed. */
+    /**
+     * `getTokenAccountsByOwner` under the SPL Token **and** Token-2022 programs, parsed — a
+     * wallet's holdings can live under either, so both are queried and merged deduped by pubkey.
+     * Returns the `result` node (`value` holds the account objects).
+     */
     fun tokenAccountsByOwner(address: String): JsonNode
 
     /**

@@ -6,17 +6,24 @@ import com.octo.workflow.report.ReportJobs
 import com.octo.workflow.report.ReportRequest
 import java.time.Instant
 import java.util.UUID
+import com.octo.workflow.TenantScope
 
 /** In-memory `ReportJobs` with V13's transition rule, for the endpoint and runner tests. */
 class FakeReportJobs : ReportJobs {
     val jobs = linkedMapOf<UUID, ReportJob>()
 
-    override fun submit(request: ReportRequest): ReportJob {
+    override fun submit(
+        request: ReportRequest,
+        scope: TenantScope,
+    ): ReportJob {
         val now = Instant.now()
         return ReportJob(UUID.randomUUID(), request, JobStatus.NEW, null, null, null, null, now, now).also { jobs[it.id] = it }
     }
 
-    override fun load(id: UUID) = jobs[id]
+    override fun load(
+        id: UUID,
+        scope: TenantScope,
+    ) = jobs[id]
 
     override fun claimNext() = jobs.values.firstOrNull { it.status == JobStatus.NEW }?.let { move(it.id, JobStatus.EXECUTING) }
 

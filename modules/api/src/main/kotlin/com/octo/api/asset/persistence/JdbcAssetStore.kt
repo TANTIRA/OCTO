@@ -1,5 +1,7 @@
 package com.octo.api.asset.persistence
 
+import com.octo.api.access.TenantScope
+import com.octo.api.access.scoped
 import com.octo.api.asset.Asset
 import com.octo.api.asset.AssetProvenance
 import com.octo.api.asset.AssetRecord
@@ -20,6 +22,7 @@ class JdbcAssetStore(
         asset: Asset,
         identifiers: List<Identifier>,
         provenance: AssetProvenance,
+        scope: TenantScope,
     ) {
         val assetSql =
             """
@@ -27,44 +30,40 @@ class JdbcAssetStore(
                                      rationale, source_system, actor, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
-        dataSource.connection.use { connection ->
-            connection.autoCommit = false
-            try {
-                connection.prepareStatement(assetSql).use { statement ->
+        dataSource.scoped(scope) { connection ->
+            connection.prepareStatement(assetSql).use { statement ->
+                statement.setObject(1, asset.id)
+                statement.setObject(2, asset.tenantId)
+                statement.setString(3, asset.type.wireValue)
+                statement.setString(4, asset.assetClass)
+                statement.setString(5, asset.displayName)
+                statement.setString(6, asset.region)
+                statement.setArray(7, connection.createArrayOf("text", asset.tags.toTypedArray()))
+                statement.setString(8, asset.typedbIid)
+                statement.setObject(9, asset.supersedesId)
+                statement.setString(10, asset.rationale)
+                statement.setString(11, provenance.sourceSystem)
+                statement.setString(12, provenance.actor)
+                statement.setObject(13, provenance.correlationId)
+                statement.executeUpdate()
+            }
+            connection.prepareStatement("insert into mesta.asset_xref (asset_id, scheme, value) values (?, ?, ?)").use { statement ->
+                for (identifier in identifiers) {
                     statement.setObject(1, asset.id)
-                    statement.setObject(2, asset.tenantId)
-                    statement.setString(3, asset.type.wireValue)
-                    statement.setString(4, asset.assetClass)
-                    statement.setString(5, asset.displayName)
-                    statement.setString(6, asset.region)
-                    statement.setArray(7, connection.createArrayOf("text", asset.tags.toTypedArray()))
-                    statement.setString(8, asset.typedbIid)
-                    statement.setObject(9, asset.supersedesId)
-                    statement.setString(10, asset.rationale)
-                    statement.setString(11, provenance.sourceSystem)
-                    statement.setString(12, provenance.actor)
-                    statement.setObject(13, provenance.correlationId)
-                    statement.executeUpdate()
+                    statement.setString(2, identifier.scheme)
+                    statement.setString(3, identifier.value)
+                    statement.addBatch()
                 }
-                connection.prepareStatement("insert into mesta.asset_xref (asset_id, scheme, value) values (?, ?, ?)").use { statement ->
-                    for (identifier in identifiers) {
-                        statement.setObject(1, asset.id)
-                        statement.setString(2, identifier.scheme)
-                        statement.setString(3, identifier.value)
-                        statement.addBatch()
-                    }
-                    statement.executeBatch()
-                }
-                connection.commit()
-            } catch (e: Exception) {
-                connection.rollback()
-                throw e
+                statement.executeBatch()
             }
         }
     }
 
-    override fun load(id: UUID): AssetRecord? =
-        dataSource.connection.use { connection ->
+    override fun load(
+        id: UUID,
+        scope: TenantScope,
+    ): AssetRecord? =
+        dataSource.scoped(scope) { connection ->
             val asset =
                 connection.prepareStatement("select * from mesta.asset where id = ?").use { statement ->
                     statement.setObject(1, id)

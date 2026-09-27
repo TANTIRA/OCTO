@@ -1,6 +1,7 @@
 package com.octo.api.data
 
 import com.octo.ingestion.persistence.JdbcTimeSeriesStore
+import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesQuery
 import com.octo.ingestion.persistence.TimeSeriesReader
 import org.springframework.beans.factory.ObjectProvider
@@ -16,9 +17,15 @@ class DataConfiguration {
     fun jdbcTimeSeriesReader(dataSource: ObjectProvider<DataSource>): TimeSeriesReader {
         val store by lazy { JdbcTimeSeriesStore(dataSource.getObject()) }
         return object : TimeSeriesReader {
-            override fun datasetTenant(datasetId: UUID) = store.datasetTenant(datasetId)
+            override fun datasetTenant(
+                datasetId: UUID,
+                scope: TenantScope,
+            ) = store.datasetTenant(datasetId, scope)
 
-            override fun query(query: TimeSeriesQuery) = store.query(query)
+            override fun query(
+                query: TimeSeriesQuery,
+                scope: TenantScope,
+            ) = store.query(query, scope)
         }
     }
 }

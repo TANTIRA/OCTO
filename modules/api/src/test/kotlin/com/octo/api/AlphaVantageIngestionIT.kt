@@ -21,6 +21,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+import com.octo.ingestion.persistence.TenantScope
 
 /**
  * End-to-end coverage of the Alpha Vantage adapter slice against the real V12 schema: a canned
@@ -88,7 +89,7 @@ class AlphaVantageIngestionIT {
         assertThat(result.pointsWritten).isEqualTo(5)
 
         val rows =
-            store.query(TimeSeriesQuery(dataset, LocalDate.parse("2026-09-20"), LocalDate.parse("2026-09-26")))
+            store.query(scope = TenantScope.All, query = TimeSeriesQuery(dataset, LocalDate.parse("2026-09-20"), LocalDate.parse("2026-09-26")))
         assertThat(rows.map { it.seriesKey }.toSet()).containsExactly("equity:IBM")
         assertThat(rows.map { it.field }.toSet()).containsExactlyInAnyOrder("open", "high", "low", "close", "volume")
         assertThat(rows.single { it.field == "close" }.value.toPlainString()).isEqualTo("101.0000000000")
@@ -116,7 +117,7 @@ class AlphaVantageIngestionIT {
         svc.sync(target(dataset))
         val loaded =
             store
-                .query(TimeSeriesQuery(dataset, LocalDate.parse("2026-09-20"), LocalDate.parse("2026-09-26")))
+                .query(TimeSeriesQuery(dataset, LocalDate.parse("2026-09-20"), LocalDate.parse("2026-09-26")), TenantScope.All)
                 .maxOf { it.recordedAt ?: Instant.MIN }
 
         service(dailyPayload("101.5")).sync(target(dataset))
@@ -124,14 +125,14 @@ class AlphaVantageIngestionIT {
         val range = TimeSeriesQuery(dataset, LocalDate.parse("2026-09-20"), LocalDate.parse("2026-09-26"), fields = setOf("close"))
         assertThat(
             store
-                .query(range)
+                .query(range, TenantScope.All)
                 .single()
                 .value
                 .toPlainString(),
         ).isEqualTo("101.5000000000")
         assertThat(
             store
-                .query(range.copy(asOfTime = loaded))
+                .query(range.copy(asOfTime = loaded), TenantScope.All)
                 .single()
                 .value
                 .toPlainString(),
@@ -145,7 +146,7 @@ class AlphaVantageIngestionIT {
 
         assertThat(result.error).contains("rate limit")
         assertThat(result.pointsWritten).isZero()
-        assertThat(store.query(TimeSeriesQuery(dataset, LocalDate.parse("2026-01-01"), LocalDate.parse("2026-12-31")))).isEmpty()
+        assertThat(store.query(scope = TenantScope.All, query = TimeSeriesQuery(dataset, LocalDate.parse("2026-01-01"), LocalDate.parse("2026-12-31")))).isEmpty()
     }
 
     private companion object {

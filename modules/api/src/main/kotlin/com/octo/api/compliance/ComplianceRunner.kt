@@ -5,6 +5,7 @@ import com.octo.recon.compliance.Evaluation
 import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.evaluate
 import com.octo.recon.compliance.persistence.ComplianceStore
+import com.octo.recon.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import com.octo.workflow.persistence.TaskProvenance
@@ -42,24 +43,26 @@ class ComplianceRunner(
         inputs: ComplianceInputs,
         requestedBy: String,
         correlationId: UUID,
-    ): List<Outcome> =
-        evaluate(store.activeRules(tenantId), inputs).map { evaluation ->
+    ): List<Outcome> {
+        val scope = TenantScope.Tenants(listOf(tenantId))
+        return evaluate(store.activeRules(tenantId, scope), inputs).map { evaluation ->
             if (evaluation.result != Result.BREACH) {
-                store.record(tenantId, evaluation, null, correlationId)
+                store.record(tenantId, evaluation, null, correlationId, scope)
                 return@map Outcome(evaluation, null, recorded = true)
             }
-            store.breachTask(tenantId, evaluation)?.let { return@map Outcome(evaluation, it, recorded = false) }
+            store.breachTask(tenantId, evaluation, scope)?.let { return@map Outcome(evaluation, it, recorded = false) }
             val task = Task(UUID.randomUUID(), TaskKind.REVIEW, "compliance-breach", evaluation.key(), requestedBy, Instant.now())
             tasks.open(task, TaskProvenance("api", correlationId))
             try {
-                store.record(tenantId, evaluation, task.id, correlationId)
+                store.record(tenantId, evaluation, task.id, correlationId, scope)
                 Outcome(evaluation, task.id, recorded = true)
             } catch (e: SQLException) {
                 // ponytail: the task opened for the losing runner stays open with no evaluation; close it in a sweep if races turn out to be common.
-                val winner = store.breachTask(tenantId, evaluation) ?: throw e
+                val winner = store.breachTask(tenantId, evaluation, scope) ?: throw e
                 Outcome(evaluation, winner, recorded = false)
             }
         }
+    }
 
     private fun Evaluation.key() = "${rule.id}/$subject/$asOf"
 }

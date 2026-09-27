@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.workflow.TenantScope
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
 import com.octo.workflow.report.ReportRequest
@@ -38,7 +39,8 @@ class ReportController(
         @Valid @RequestBody body: SubmitRequest,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<JobView> {
-        val access = tenants.tenantsOf(userId(jwt) ?: return ResponseEntity.notFound().build()).firstOrNull { it.tenantId == body.tenantId }
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val access = tenants.tenantsOf(userId).firstOrNull { it.tenantId == body.tenantId }
         if (access == null || access.role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val type = ReportType.entries.firstOrNull { it.wireValue == body.type } ?: return ResponseEntity.badRequest().build()
         val job =
@@ -53,6 +55,7 @@ class ReportController(
                     requestedBy = jwt.subject,
                     correlationId = UUID.randomUUID(),
                 ),
+                TenantScope.User(userId),
             )
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(job.view())
     }
@@ -62,8 +65,8 @@ class ReportController(
         @PathVariable id: UUID,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<JobView> {
-        val job = jobs.load(id) ?: return ResponseEntity.notFound().build()
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
         if (tenants.tenantsOf(userId).none { it.tenantId == job.request.tenantId }) return ResponseEntity.notFound().build()
         return ResponseEntity.ok(job.view())
     }

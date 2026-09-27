@@ -76,6 +76,7 @@ class JdbcModelRunStore(
     fun record(
         run: ModelRun,
         outputs: List<ModelRunOutput> = emptyList(),
+        scope: TenantScope,
     ): ModelRun {
         val runSql =
             """
@@ -86,57 +87,53 @@ class JdbcModelRunStore(
             returning recorded_at
             """.trimIndent()
         val outputSql = "insert into mesta.model_run_output (run_id, as_of_date, kind, values) values (?, ?, ?, ?::jsonb)"
-        dataSource.connection.use { connection ->
-            connection.autoCommit = false
-            try {
-                val recordedAt =
-                    connection.prepareStatement(runSql).use { statement ->
-                        statement.setObject(1, run.id)
-                        statement.setObject(2, run.tenantId)
-                        statement.setString(3, run.family)
-                        statement.setString(4, run.version)
-                        statement.setString(5, run.methodology)
-                        statement.setString(6, run.stateDefinitions)
-                        statement.setString(7, run.featureSet)
-                        statement.setString(8, run.frequency)
-                        statement.setObject(9, run.dataVintage)
-                        statement.setObject(10, run.trainingWindow?.start)
-                        statement.setObject(11, run.trainingWindow?.endInclusive)
-                        statement.setObject(12, run.validationWindow?.start)
-                        statement.setObject(13, run.validationWindow?.endInclusive)
-                        statement.setString(14, run.parameters)
-                        statement.setString(15, run.diagnostics)
-                        statement.setString(16, run.status.wireValue)
-                        statement.setObject(17, run.supersedesId)
-                        statement.setString(18, run.rationale)
-                        statement.setString(19, run.actor)
-                        statement.setObject(20, run.correlationId)
-                        statement.executeQuery().use { rows ->
-                            rows.next()
-                            rows.getObject("recorded_at", OffsetDateTime::class.java).toInstant()
-                        }
+        return dataSource.scoped(scope) { connection ->
+            val recordedAt =
+                connection.prepareStatement(runSql).use { statement ->
+                    statement.setObject(1, run.id)
+                    statement.setObject(2, run.tenantId)
+                    statement.setString(3, run.family)
+                    statement.setString(4, run.version)
+                    statement.setString(5, run.methodology)
+                    statement.setString(6, run.stateDefinitions)
+                    statement.setString(7, run.featureSet)
+                    statement.setString(8, run.frequency)
+                    statement.setObject(9, run.dataVintage)
+                    statement.setObject(10, run.trainingWindow?.start)
+                    statement.setObject(11, run.trainingWindow?.endInclusive)
+                    statement.setObject(12, run.validationWindow?.start)
+                    statement.setObject(13, run.validationWindow?.endInclusive)
+                    statement.setString(14, run.parameters)
+                    statement.setString(15, run.diagnostics)
+                    statement.setString(16, run.status.wireValue)
+                    statement.setObject(17, run.supersedesId)
+                    statement.setString(18, run.rationale)
+                    statement.setString(19, run.actor)
+                    statement.setObject(20, run.correlationId)
+                    statement.executeQuery().use { rows ->
+                        rows.next()
+                        rows.getObject("recorded_at", OffsetDateTime::class.java).toInstant()
                     }
-                connection.prepareStatement(outputSql).use { statement ->
-                    for (output in outputs) {
-                        statement.setObject(1, run.id)
-                        statement.setObject(2, output.asOfDate)
-                        statement.setString(3, output.kind.wireValue)
-                        statement.setString(4, output.values)
-                        statement.addBatch()
-                    }
-                    statement.executeBatch()
                 }
-                connection.commit()
-                return run.copy(recordedAt = recordedAt)
-            } catch (e: Exception) {
-                connection.rollback()
-                throw e
+            connection.prepareStatement(outputSql).use { statement ->
+                for (output in outputs) {
+                    statement.setObject(1, run.id)
+                    statement.setObject(2, output.asOfDate)
+                    statement.setString(3, output.kind.wireValue)
+                    statement.setString(4, output.values)
+                    statement.addBatch()
+                }
+                statement.executeBatch()
             }
+            run.copy(recordedAt = recordedAt)
         }
     }
 
-    fun load(id: UUID): ModelRun? =
-        dataSource.connection.use { connection ->
+    fun load(
+        id: UUID,
+        scope: TenantScope,
+    ): ModelRun? =
+        dataSource.scoped(scope) { connection ->
             connection.prepareStatement("select * from mesta.model_run where id = ?").use { statement ->
                 statement.setObject(1, id)
                 statement.executeQuery().use { rows -> if (rows.next()) rows.toRun() else null }
@@ -147,8 +144,9 @@ class JdbcModelRunStore(
     fun outputs(
         runId: UUID,
         kind: OutputKind,
+        scope: TenantScope,
     ): List<ModelRunOutput> =
-        dataSource.connection.use { connection ->
+        dataSource.scoped(scope) { connection ->
             val sql = "select as_of_date, kind, values::text from mesta.model_run_output where run_id = ? and kind = ? order by as_of_date"
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, runId)

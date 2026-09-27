@@ -20,6 +20,20 @@ const WORD: Record<Status, string> = {
   watch: "Watch",
   exiting: "Exiting",
   harvesting: "Harvesting",
+type Status = "operational" | "degraded" | "down" | "maintenance";
+
+const DOT: Record<Status, string> = {
+  operational: "bg-neutral-300 dark:bg-neutral-600",
+  degraded: "bg-amber-500",
+  down: "bg-red-500",
+  maintenance: "bg-neutral-300 dark:bg-neutral-600",
+};
+
+const WORD: Record<Status, string> = {
+  operational: "Investing",
+  degraded: "Watch",
+  down: "Exiting",
+  maintenance: "Harvesting",
 };
 
 const STATS = [
@@ -132,6 +146,56 @@ const FUNDS: Fund[] = [
 ];
 
 type Alert = {
+type Service = {
+  name: string;
+  region: string;
+  latency: string;
+  uptime: string;
+  status: Status;
+};
+
+// Funds list reuses the Service row shape: name, region → vintage · strategy,
+// latency → NAV, uptime → TVPI.
+
+const SERVICES: Service[] = [
+  {
+    name: "OCTO Flagship Fund II",
+    region: "2023 · Buyout",
+    latency: "$486.2m",
+    uptime: "1.71×",
+    status: "operational",
+  },
+  {
+    name: "OCTO Flagship Fund I",
+    region: "2019 · Buyout",
+    latency: "$184.7m",
+    uptime: "1.58×",
+    status: "maintenance",
+  },
+  {
+    name: "OCTO Opportunities I",
+    region: "2024 · Growth / credit",
+    latency: "$96.4m",
+    uptime: "1.32×",
+    status: "operational",
+  },
+  {
+    name: "Antero Co-Invest SPV",
+    region: "2025 · Single deal",
+    latency: "$31.5m",
+    uptime: "1.12×",
+    status: "degraded",
+  },
+  {
+    name: "OCTO Venture FoF",
+    region: "2022 · Fund of funds",
+    latency: "$13.6m",
+    uptime: "0.94×",
+    status: "down",
+  },
+];
+
+type Incident = {
   title: string;
   state: string;
   when: string;
@@ -139,6 +203,7 @@ type Alert = {
 };
 
 const ALERTS: Alert[] = [
+const INCIDENTS: Incident[] = [
   {
     title: "Covenant breach — Helios Data Centers",
     state: "Investigating",
@@ -307,6 +372,7 @@ export default function Dashboard4() {
               <div className="flex h-12 items-center bg-neutral-50 px-4 dark:bg-neutral-900/60">
                 <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
                   Funds
+                  Services
                 </h2>
               </div>
               <table className="w-full border-collapse text-left">
@@ -324,12 +390,14 @@ export default function Dashboard4() {
                       className="hidden h-9 px-3 text-right text-xs font-medium text-neutral-500 sm:table-cell"
                     >
                       NAV
+                      Latency
                     </th>
                     <th
                       scope="col"
                       className="hidden h-9 px-3 text-right text-xs font-medium text-neutral-500 sm:table-cell"
                     >
                       TVPI
+                      Uptime
                     </th>
                     <th
                       scope="col"
@@ -341,6 +409,7 @@ export default function Dashboard4() {
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/70">
                   {FUNDS.map((s, i) => (
+                  {SERVICES.map((s, i) => (
                     <tr
                       key={`${s.name}-${i}`}
                       className="h-11 transition-colors duration-150 hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
@@ -358,6 +427,14 @@ export default function Dashboard4() {
                       </td>
                       <td className="hidden px-3 text-right text-[13px] tabular-nums text-neutral-600 sm:table-cell dark:text-neutral-400">
                         {s.tvpi}
+                          {s.region}
+                        </p>
+                      </td>
+                      <td className="hidden px-3 text-right text-[13px] tabular-nums text-neutral-600 sm:table-cell dark:text-neutral-400">
+                        {s.latency}
+                      </td>
+                      <td className="hidden px-3 text-right text-[13px] tabular-nums text-neutral-600 sm:table-cell dark:text-neutral-400">
+                        {s.uptime}
                       </td>
                       <td className="px-3 last:pr-4">
                         <span className="flex items-center justify-end gap-1.5 whitespace-nowrap text-[13px] text-neutral-600 dark:text-neutral-400">
@@ -384,6 +461,14 @@ export default function Dashboard4() {
               </div>
               <ul className="flex flex-col gap-1.5 p-1.5">
                 {ALERTS.map((inc, i) => (
+                  Incidents
+                </h2>
+                <span className="inline-flex h-5 shrink-0 items-center rounded-[var(--rb-r-xs,4px)] bg-neutral-200/70 px-1.5 text-[11px] font-medium tabular-nums text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                  {INCIDENTS.length}
+                </span>
+              </div>
+              <ul className="flex flex-col gap-1.5 p-1.5">
+                {INCIDENTS.map((inc, i) => (
                   <li
                     key={i}
                     className="flex min-h-11 items-start gap-2.5 rounded-[var(--rb-r-lg,10px)] bg-neutral-50 px-3 py-2.5 dark:bg-neutral-800/50"

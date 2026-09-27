@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.workflow.Task
+import com.octo.workflow.TenantScope
 import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState
 import com.octo.workflow.TaskStatus
@@ -51,8 +52,9 @@ class ReleaseController(
         @PathVariable id: UUID,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<ReleaseView> {
-        val job = jobs.load(id) ?: return ResponseEntity.notFound().build()
-        val role = roleIn(jwt, job) ?: return ResponseEntity.notFound().build()
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, job) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         if (job.status != JobStatus.DONE || job.approvalTaskId != null) return ResponseEntity.status(HttpStatus.CONFLICT).build()
         val task = Task(UUID.randomUUID(), TaskKind.APPROVAL, "report-job", id.toString(), jwt.subject, Instant.now())
@@ -66,18 +68,18 @@ class ReleaseController(
         @PathVariable id: UUID,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<ReleaseView> {
-        val job = jobs.load(id) ?: return ResponseEntity.notFound().build()
-        roleIn(jwt, job) ?: return ResponseEntity.notFound().build()
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        roleIn(userId, job) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(job.release(job.approvalTaskId?.let(tasks::state)))
     }
 
     private fun roleIn(
-        jwt: Jwt,
+        userId: UUID,
         job: ReportJob,
-    ): TenantRole? {
-        val userId = runCatching { UUID.fromString(jwt.subject) }.getOrNull() ?: return null
-        return tenants.tenantsOf(userId).firstOrNull { it.tenantId == job.request.tenantId }?.role
-    }
+    ): TenantRole? = tenants.tenantsOf(userId).firstOrNull { it.tenantId == job.request.tenantId }?.role
+
+    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
 
     /** [result] is present only once the approval task is approved: before that the artifact stays inside. */
     data class ReleaseView(

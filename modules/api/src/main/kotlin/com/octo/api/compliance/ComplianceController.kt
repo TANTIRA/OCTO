@@ -9,6 +9,7 @@ import com.octo.recon.compliance.ComplianceInputs
 import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
+import com.octo.recon.persistence.TenantScope
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.springframework.http.HttpStatus
@@ -40,13 +41,14 @@ class ComplianceController(
         @Valid @RequestBody body: RuleBody,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<RuleView> {
-        val role = roleIn(jwt, body.tenantId) ?: return ResponseEntity.notFound().build()
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role != TenantRole.APPROVER && role != TenantRole.ADMIN) return ResponseEntity.notFound().build()
         val rule =
             runCatching {
                 ComplianceRule(body.ruleId, body.version, body.name, body.check.toCheck())
             }.getOrElse { return ResponseEntity.badRequest().build() }
-        store.defineRule(body.tenantId, rule, ComplianceProvenance(jwt.subject, UUID.randomUUID()))
+        store.defineRule(body.tenantId, rule, ComplianceProvenance(jwt.subject, UUID.randomUUID()), TenantScope.User(userId))
         return ResponseEntity.status(HttpStatus.CREATED).body(rule.view())
     }
 
@@ -55,8 +57,9 @@ class ComplianceController(
         @RequestParam tenantId: UUID,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<List<RuleView>> {
-        roleIn(jwt, tenantId) ?: return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(store.activeRules(tenantId).map { it.view() })
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        roleIn(userId, tenantId) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(store.activeRules(tenantId, TenantScope.User(userId)).map { it.view() })
     }
 
     @PostMapping("/api/v1/compliance/evaluations")
@@ -64,7 +67,7 @@ class ComplianceController(
         @Valid @RequestBody body: EvaluationBody,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<List<OutcomeView>> {
-        val role = roleIn(jwt, body.tenantId) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId(jwt) ?: return ResponseEntity.notFound().build(), body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val inputs =
             ComplianceInputs(
@@ -104,12 +107,11 @@ class ComplianceController(
     }
 
     private fun roleIn(
-        jwt: Jwt,
+        userId: UUID,
         tenantId: UUID,
-    ): TenantRole? {
-        val userId = runCatching { UUID.fromString(jwt.subject) }.getOrNull() ?: return null
-        return tenants.tenantsOf(userId).firstOrNull { it.tenantId == tenantId }?.role
-    }
+    ): TenantRole? = tenants.tenantsOf(userId).firstOrNull { it.tenantId == tenantId }?.role
+
+    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
 
     /** `type` is `concentration-limit`, `currency-exposure-limit` or `coverage-floor`; the other fields depend on it. */
     data class CheckBody(

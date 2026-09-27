@@ -2,6 +2,7 @@ package com.octo.api.report
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.workflow.Task
+import com.octo.workflow.TenantScope
 import com.octo.workflow.persistence.JdbcTaskStore
 import com.octo.workflow.persistence.TaskProvenance
 import com.octo.workflow.report.JdbcReportJobStore
@@ -24,9 +25,15 @@ class ReportConfiguration {
     fun jdbcReportJobs(dataSource: ObjectProvider<DataSource>): ReportJobs {
         val store by lazy { JdbcReportJobStore(dataSource.getObject()) }
         return object : ReportJobs {
-            override fun submit(request: ReportRequest) = store.submit(request)
+            override fun submit(
+                request: ReportRequest,
+                scope: TenantScope,
+            ) = store.submit(request, scope)
 
-            override fun load(id: UUID) = store.load(id)
+            override fun load(
+                id: UUID,
+                scope: TenantScope,
+            ) = store.load(id, scope)
 
             override fun claimNext() = store.claimNext()
 

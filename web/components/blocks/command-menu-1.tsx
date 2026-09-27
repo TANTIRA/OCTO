@@ -313,6 +313,11 @@ export default function CommandMenu1() {
     },
     [activeCommand, close],
   );
+  const run = useCallback(() => {
+    setQuery("");
+    setActiveIndex(0);
+    close();
+  }, [close]);
 
   const move = (delta: number) => {
     setActiveIndex((i) => {
@@ -344,6 +349,7 @@ export default function CommandMenu1() {
         if (!activeCommand) break;
         event.preventDefault();
         run(activeCommand);
+        run();
         break;
     }
   };
@@ -490,6 +496,7 @@ export default function CommandMenu1() {
                                   event.preventDefault();
                                   setActiveIndex(index);
                                   run(command);
+                                  run();
                                 }}
                                 className={cx(
                                   "flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-[var(--rb-r-lg,10px)] px-2.5 py-2 text-left transition-colors duration-150 active:bg-neutral-200 dark:active:bg-neutral-700",

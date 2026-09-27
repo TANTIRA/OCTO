@@ -18,6 +18,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+} from "lucide-react";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join("");
@@ -108,6 +109,10 @@ export default function Authentication3() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [recovering, setRecovering] = useState(false);
+  const [email, setEmail] = useState("dana.whitfield@northwind.com");
+  const [password, setPassword] = useState("");
+  const [reveal, setReveal] = useState(false);
+  const [index, setIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const quote = QUOTES[index];
@@ -178,6 +183,8 @@ export default function Authentication3() {
     setNotice(
       "If an account exists for that address, a reset link is on its way.",
     );
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
   };
 
   return (
@@ -238,6 +245,9 @@ export default function Authentication3() {
                     className={cx("text-xs", linkClass, focus)}
                   >
                     {recovering ? "Sending…" : "Forgot password?"}
+                    className={cx("text-xs", linkClass, focus)}
+                  >
+                    Forgot password?
                   </button>
                 </div>
                 <div className="relative">
@@ -305,6 +315,10 @@ export default function Authentication3() {
                 {pending && (
                   <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                 )}
+              <button
+                type="submit"
+                className={cx(btnPrimary, transition, focus)}
+              >
                 Sign in
               </button>
             </form>

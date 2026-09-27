@@ -346,6 +346,7 @@ export default function Kanban1() {
       return;
     }
     const n = 246 + seq.current;
+    const n = 242 + seq.current;
     const id = `n${n}`;
     seq.current += 1;
     setCards((p) => ({
@@ -356,6 +357,10 @@ export default function Kanban1() {
         title,
         tag: "New",
         assignee: "Unassigned",
+        ref: `HAL-${n}`,
+        title,
+        tag: "Triage",
+        assignee: "Ana Reyes",
         comments: 0,
         files: 0,
         priority: "Medium",

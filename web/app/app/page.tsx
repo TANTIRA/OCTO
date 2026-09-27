@@ -10,5 +10,12 @@ export default function AppPage() {
         <CommandMenu1 />
       </div>
     </AuthGate>
+
+export default function AppPage() {
+  return (
+    <div className="h-dvh w-full">
+      <AppShell2 />
+      <CommandMenu1 />
+    </div>
   );
 }

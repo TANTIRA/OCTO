@@ -6,6 +6,7 @@ import com.octo.recon.matching.persistence.ReconciliationStore
 import java.sql.SQLException
 import java.time.ZoneId
 import java.util.UUID
+import com.octo.recon.persistence.TenantScope
 
 /** In-memory `ReconciliationStore` with V15's one-task-per-key rule, for the runner and endpoint tests. */
 class FakeReconciliationStore(
@@ -27,6 +28,7 @@ class FakeReconciliationStore(
     override fun existingTask(
         tenantId: UUID,
         brk: Break,
+        scope: TenantScope,
     ) = rows.firstOrNull { it.taskId != null && it.brk.sameKey(brk) }?.taskId
 
     override fun record(
@@ -35,6 +37,7 @@ class FakeReconciliationStore(
         brk: Break,
         taskId: UUID?,
         correlationId: UUID,
+        scope: TenantScope,
     ): UUID {
         if (taskId != null && existingTask(tenantId, brk) != null) throw SQLException("reconciliation_break_one_task", "23505")
         rows += Row(runId, brk, taskId)

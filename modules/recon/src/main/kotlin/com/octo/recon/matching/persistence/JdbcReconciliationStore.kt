@@ -3,6 +3,8 @@ package com.octo.recon.matching.persistence
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.IborRecord
+import com.octo.recon.persistence.TenantScope
+import com.octo.recon.persistence.scoped
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.util.Currency
@@ -21,6 +23,7 @@ interface ReconciliationStore {
     fun existingTask(
         tenantId: UUID,
         brk: Break,
+        scope: TenantScope,
     ): UUID?
 
     /** Records one finding of [runId]; a break with a task claims V15's one-task slot for its key. Returns the row id. */
@@ -30,6 +33,7 @@ interface ReconciliationStore {
         brk: Break,
         taskId: UUID?,
         correlationId: UUID,
+        scope: TenantScope,
     ): UUID
 }
 
@@ -87,6 +91,7 @@ class JdbcReconciliationStore(
     override fun existingTask(
         tenantId: UUID,
         brk: Break,
+        scope: TenantScope,
     ): UUID? {
         val sql =
             """
@@ -94,7 +99,7 @@ class JdbcReconciliationStore(
             where tenant_id = ? and kind = ? and source_system = ? and source_ref is not distinct from ? and ledger_event_id is not distinct from ?
               and task_id is not null
             """.trimIndent()
-        return dataSource.connection.use { connection ->
+        return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setString(2, brk.kind.wireValue)
@@ -112,6 +117,7 @@ class JdbcReconciliationStore(
         brk: Break,
         taskId: UUID?,
         correlationId: UUID,
+        scope: TenantScope,
     ): UUID {
         val sql =
             """
@@ -119,7 +125,7 @@ class JdbcReconciliationStore(
             values (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)
             returning id
             """.trimIndent()
-        return dataSource.connection.use { connection ->
+        return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setObject(2, runId)

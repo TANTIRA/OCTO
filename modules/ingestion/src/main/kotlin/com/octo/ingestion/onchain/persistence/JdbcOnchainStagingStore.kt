@@ -7,6 +7,8 @@ import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.WatchSource
+import com.octo.ingestion.persistence.TenantScope
+import com.octo.ingestion.persistence.scoped
 import java.math.BigDecimal
 import java.sql.Timestamp
 import java.util.UUID
@@ -20,8 +22,10 @@ import javax.sql.DataSource
 class JdbcOnchainStagingStore(
     private val dataSource: DataSource,
 ) : OnchainStagingStore {
+    // Platform watch discovery legitimately spans tenants (#197): `All` is the explicit
+    // contract, not a missing scope — the staging tables this feeds carry no tenant_id.
     override fun activeWatchedAddresses(chain: String): List<WatchSource> =
-        dataSource.connection.use { c ->
+        dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """

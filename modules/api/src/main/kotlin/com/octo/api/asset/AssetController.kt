@@ -1,6 +1,7 @@
 package com.octo.api.asset
 
 import com.octo.api.access.TenantDirectory
+import com.octo.api.access.TenantScope
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
@@ -25,8 +26,8 @@ class AssetController(
         @PathVariable id: UUID,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<AssetResponse> {
-        val record = assets.load(id) ?: return ResponseEntity.notFound().build()
         val userId = runCatching { UUID.fromString(jwt.subject) }.getOrNull() ?: return ResponseEntity.notFound().build()
+        val record = assets.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
         if (tenants.tenantsOf(userId).none { it.tenantId == record.asset.tenantId }) return ResponseEntity.notFound().build()
         return ResponseEntity.ok(
             AssetResponse(

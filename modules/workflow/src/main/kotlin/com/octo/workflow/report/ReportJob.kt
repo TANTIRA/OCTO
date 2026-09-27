@@ -1,5 +1,6 @@
 package com.octo.workflow.report
 
+import com.octo.workflow.TenantScope
 import java.time.Instant
 import java.util.UUID
 
@@ -66,9 +67,15 @@ data class ReportJob(
 
 /** The job store the endpoints and the runner depend on. */
 interface ReportJobs {
-    fun submit(request: ReportRequest): ReportJob
+    fun submit(
+        request: ReportRequest,
+        scope: TenantScope,
+    ): ReportJob
 
-    fun load(id: UUID): ReportJob?
+    fun load(
+        id: UUID,
+        scope: TenantScope,
+    ): ReportJob?
 
     /** Moves the oldest `new` job to `executing` and returns it, or null when the queue is empty. Two runners never claim the same job. */
     fun claimNext(): ReportJob?
