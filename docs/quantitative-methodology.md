@@ -1,6 +1,6 @@
 # Quantitative Methodology
 
-Canonical equations for quantitative analysts, researchers, portfolio managers, and traders using Mesta-Asset. Every calculated result must retain its formula version, input lineage, valuation date, currency, and calculation convention.
+Canonical equations for quantitative analysts, researchers, portfolio managers, and traders using OCTO. Every calculated result must retain its formula version, input lineage, valuation date, currency, and calculation convention.
 
 ## 1. Notation
 

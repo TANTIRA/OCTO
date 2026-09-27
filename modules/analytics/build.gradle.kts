@@ -11,7 +11,7 @@ kover {
     reports {
         filters {
             excludes {
-                classes("com.mesta.asset.analytics.persistence.*")
+                classes("com.octo.analytics.persistence.*")
             }
         }
     }

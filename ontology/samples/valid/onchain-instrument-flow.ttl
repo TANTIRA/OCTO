@@ -1,8 +1,8 @@
-@prefix inv: <https://mesta.asset/ontology/investment#> .
+@prefix inv: <https://octo.asset/ontology/investment#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-# Synthetic onchain sample. Must conform to mesta-investment-shacl.ttl (schema mirror) and
-# mesta-investment-policy-shacl.ttl (business rules). Addresses are shape-valid dummies;
+# Synthetic onchain sample. Must conform to octo-investment-shacl.ttl (schema mirror) and
+# octo-investment-policy-shacl.ttl (business rules). Addresses are shape-valid dummies;
 # no real wallet, project, or transaction data.
 
 inv:fund-manager-aurora a inv:FundManager ;

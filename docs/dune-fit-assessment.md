@@ -1,6 +1,6 @@
 # Dune — fit assessment
 
-Evaluation of [Dune](https://dune.com) — the blockchain data analytics platform queried through DuneSQL and the query-execution API — as an enrichment and analytics source for Mesta-Asset. No API calls were made; this is a documentation-only assessment of the published CLI reference and API surface.
+Evaluation of [Dune](https://dune.com) — the blockchain data analytics platform queried through DuneSQL and the query-execution API — as an enrichment and analytics source for OCTO. No API calls were made; this is a documentation-only assessment of the published CLI reference and API surface.
 
 - **Risk tier:** T0 for this document. T1 for a read-only enrichment/analytics adapter whose output never touches the ledger. T2 if query output ever feeds screening decisions, claim evidence, or a recon break.
 - **Status:** proposed. Dune is a candidate context provider, not a ledger-fact source. Unrelated to the instrument-ontology decision (#109) because nothing it returns may enter `instrument_flow` or `ledger_event`.

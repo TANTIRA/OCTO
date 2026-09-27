@@ -1,9 +1,9 @@
-# Mesta-Asset application stack — Dokploy compose project
+# OCTO application stack — Dokploy compose project
 # Deploy alongside the supabase project (infra/supabase/). Both attach to
 # the shared external "data" network so api can reach Postgres and Storage.
 # Secrets are injected via Dokploy project env — never commit .env.
 
-name: mesta-asset
+name: octo
 
 networks:
   app:
@@ -17,7 +17,7 @@ networks:
 services:
 
   api:
-    image: ${REGISTRY_URL}/mesta-api:${API_IMAGE_TAG}
+    image: ${REGISTRY_URL}/octo-api:${API_IMAGE_TAG}
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
@@ -36,7 +36,7 @@ services:
       AUTH_ISSUER: ${AUTH_ISSUER}
       AUTH_JWKS_URL: ${AUTH_JWKS_URL}
       TYPEDB_ADDR: typedb:1729
-      TYPEDB_DATABASE: ${TYPEDB_DATABASE:-mesta}
+      TYPEDB_DATABASE: ${TYPEDB_DATABASE:-octo}
       TYPEDB_USER: ${TYPEDB_USER}
       TYPEDB_PASSWORD: ${TYPEDB_PASSWORD}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
@@ -66,7 +66,7 @@ services:
           memory: 512M
 
   web:
-    image: ${REGISTRY_URL}/mesta-web:${WEB_IMAGE_TAG}
+    image: ${REGISTRY_URL}/octo-web:${WEB_IMAGE_TAG}
     restart: unless-stopped
     environment:
       API_BASE_URL: ${API_PUBLIC_URL}
@@ -109,4 +109,4 @@ services:
 
 volumes:
   typedb-data:
-    name: mesta-typedb-${ENVIRONMENT:-prod}
+    name: octo-typedb-${ENVIRONMENT:-prod}

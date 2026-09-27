@@ -8,7 +8,7 @@ import Contact10 from "@/components/blocks/contact-10";
 import Footer12 from "@/components/blocks/footer-12";
 
 /**
- * Mesta-Asset landing page
+ * OCTO landing page
  *
  * Composed with the React Bits Landing Builder.
  *

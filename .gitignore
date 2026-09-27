@@ -7,7 +7,6 @@ build/
 *.class
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
-.kotlin/
 
 # IDE
 .idea/
@@ -30,3 +29,7 @@ infra/.env
 # Web frontend (web/)
 node_modules/
 .next/
+
+# Supabase CLI local state
+**/supabase/.temp/
+**/supabase/.branches/

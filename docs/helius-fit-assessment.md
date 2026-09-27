@@ -1,6 +1,6 @@
 # Helius — fit assessment
 
-Evaluation of [Helius](https://www.helius.dev/llms-full.txt) as the Solana onchain data source for Mesta-Asset. No API calls were made; this is a documentation-only assessment of the published docs and API catalog.
+Evaluation of [Helius](https://www.helius.dev/llms-full.txt) as the Solana onchain data source for OCTO. No API calls were made; this is a documentation-only assessment of the published docs and API catalog.
 
 - **Risk tier:** T0 for this document. T2 for a read-only ingestion adapter, because it writes financial facts to the ledger. T3 for anything that signs or submits transactions.
 - **Status:** proposed. Solana is the first chain in scope; Helius is the designated provider. Blocked on the same decision as [xStocks](xstocks-fit-assessment.md) and [Arbitrum](arbitrum-fit-assessment.md): the ontology has no instrument concept (tracked in #109).
@@ -97,7 +97,7 @@ Helius is a hosted service behind an `api-key` query parameter with per-plan cre
 | Excluded | Reason |
 | --- | --- |
 | Sender, Priority Fee API, `send *` CLI commands | Transaction submission is signing-adjacent — T3 in `AGENTS.md`; agents never hold a deployer wallet or key |
-| Running a Solana RPC node or validator | Infrastructure below the platform; ADR-0001 scopes Mesta-Asset above the administrator and custodian layer |
+| Running a Solana RPC node or validator | Infrastructure below the platform; ADR-0001 scopes OCTO above the administrator and custodian layer |
 | Trade execution, swaps, DEX routing | Out of scope per ADR-0001 |
 | Valuing locked or illiquid token positions | A spot price is not a valuation input for a restricted token — methodology gap, separate workstream |
 | Sanctions/AML screening by the provider | KYC/AML stays with the counterparty |

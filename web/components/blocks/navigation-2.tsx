@@ -106,7 +106,7 @@ export function Navigation2() {
                   href="#"
                   className="flex items-center text-xl font-medium text-tighter text-neutral-900 dark:text-white mr-6"
                 >
-                  Mesta-Asset
+                  OCTO
                 </a>
 
                 <div className="flex items-center gap-1">
@@ -211,7 +211,7 @@ export function Navigation2() {
                   href="#"
                   className="text-xl font-medium text-tighter text-neutral-900 dark:text-white"
                 >
-                  Mesta-Asset
+                  OCTO
                 </a>
 
                 <button

@@ -9,7 +9,7 @@ export default function FAQ2() {
 
   const faqs = [
     {
-      question: "Where does Mesta-Asset actually run?",
+      question: "Where does OCTO actually run?",
       answer:
         "On your infrastructure. The platform deploys as a self-hosted stack — Supabase PostgreSQL for the ledger, TypeDB for the ontology — so client, position, and LP data never leave your perimeter. There is no external SaaS dependency for core data.",
     },

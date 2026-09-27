@@ -1,6 +1,6 @@
 # TypeSafe — fit assessment
 
-Evaluation of [TypeSafe](https://docs.typesafe.ai/llms-full.txt) as a judgment layer for Mesta-Asset. No API calls were made and no agent skill was installed; this is a documentation-only assessment.
+Evaluation of [TypeSafe](https://docs.typesafe.ai/llms-full.txt) as a judgment layer for OCTO. No API calls were made and no agent skill was installed; this is a documentation-only assessment.
 
 - **Risk tier of any implementation:** T2 — judgment used for investment decisions and financial-data classification
 - **Status:** proposed, not approved. Blocked on Security Blue Team review and an approved-model registry entry

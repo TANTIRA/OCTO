@@ -4,13 +4,15 @@ Do not hand-maintain a Supabase compose file. Vendor the official pinned release
 
 ## Setup
 
+`vendor/` is the official `docker/` directory vendored at `self-hosted/v0.8.1` (commit `8c7a4d9`, recorded in `vendor/.supabase-version`). Refresh with a new tag + diff review + staging rehearsal:
+
 ```bash
-# fetch the pinned release's docker/ directory
-git clone --depth 1 --branch self-hosted/v0.8.1 https://github.com/supabase/supabase /tmp/supabase
-cp -rf /tmp/supabase/docker/. ./vendor/          # reviewed, then committed or uploaded to Dokploy
+git clone --depth 1 --branch self-hosted/vX.Y.Z https://github.com/supabase/supabase /tmp/supabase
 ```
 
-Record the tag in the Dokploy project description and in the release notes. Upgrade = new tag + diff review + staging rehearsal.
+then either copy `docker/` over `vendor/` and review the git diff, or run `vendor/update.sh` (three-way merge that preserves `.env` and your edits; conflicts get standard merge markers).
+
+Record the tag in the Dokploy project description and in the release notes.
 
 ## Override applied
 
@@ -20,6 +22,10 @@ Record the tag in the Dokploy project description and in the release notes. Upgr
 - Keeps `db`, `studio`, `storage`, `auth`, `rest` on private networks — no host ports, no public domains.
 - Adds per-service resource limits.
 - Realtime and Edge Runtime remain removed from the base compose per ADR-0002 (deferred).
+
+## Deployed vs vendored
+
+The live OCTO Supabase on Dokploy is the **Dokploy Supabase template** (raw `composeFile` + generated env, Kong gateway, `octo-supabase-*` containers) — `update.sh` does not touch it. Updating the deployed service = bump image tags in the Dokploy composeFile after reviewing `vendor/CHANGELOG.md`, then redeploy. The vendored tree is the version-tracked reference of record for what an upstream release looks like.
 
 ## Env
 

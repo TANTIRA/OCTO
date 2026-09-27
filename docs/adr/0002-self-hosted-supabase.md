@@ -8,15 +8,15 @@
 
 ## Context
 
-Mesta-Asset handles confidential private-equity data, personal data, material non-public information, source documents, model inputs and outputs, and an append-only IBOR. Some deployments may require complete control of infrastructure, isolated operation, data residency, or restrictions that prevent use of a managed database platform.
+OCTO handles confidential private-equity data, personal data, material non-public information, source documents, model inputs and outputs, and an append-only IBOR. Some deployments may require complete control of infrastructure, isolated operation, data residency, or restrictions that prevent use of a managed database platform.
 
 The platform already standardizes on PostgreSQL. Self-hosted Supabase provides PostgreSQL plus optional authentication, object storage, API gateway, REST, Realtime, and administrative services while keeping data within infrastructure controlled by the operator.
 
-Self-hosting transfers operational responsibility to Mesta-Asset. The self-hosted product does not provide managed backups or point-in-time recovery, database branching, advanced managed metrics, hosted ETL, platform management APIs, or managed high availability. It runs as a single Supabase project. The Supabase CLI local stack is for development and testing only and is not production-hardened.
+Self-hosting transfers operational responsibility to OCTO. The self-hosted product does not provide managed backups or point-in-time recovery, database branching, advanced managed metrics, hosted ETL, platform management APIs, or managed high availability. It runs as a single Supabase project. The Supabase CLI local stack is for development and testing only and is not production-hardened.
 
 ## Decision
 
-Mesta-Asset will support **self-hosted Supabase as its production data platform**, deployed from a pinned official self-hosted release using Docker Compose on hardened Linux infrastructure.
+OCTO will support **self-hosted Supabase as its production data platform**, deployed from a pinned official self-hosted release using Docker Compose on hardened Linux infrastructure.
 
 This decision does not replace the Kotlin/Spring Boot application architecture:
 
@@ -91,7 +91,7 @@ Studio and database administration are never exposed directly to the public inte
 
 - The application connects with a non-superuser service role limited to required schemas and operations.
 - Migration credentials are separate from runtime credentials and used only by the controlled deployment job.
-- Supabase internal schemas remain isolated from Mesta-Asset domain schemas.
+- Supabase internal schemas remain isolated from OCTO domain schemas.
 - Database triggers enforce append-only ledger restrictions where practical, complementing application invariants.
 - RLS policies cover any data reachable through Supabase APIs. Policies are tested for cross-organization, cross-fund, cross-deal, and cross-document leakage.
 - Production schema changes run through Flyway and the normal T2 review path; Studio is not used for ad-hoc schema mutation.
@@ -165,7 +165,7 @@ CLI telemetry is evaluated under developer-tool policy and disabled where requir
 
 ### Negative
 
-- Mesta-Asset owns patching, hardening, availability, scalability, database maintenance, monitoring, backup, PITR, restore testing, and incident response.
+- OCTO owns patching, hardening, availability, scalability, database maintenance, monitoring, backup, PITR, restore testing, and incident response.
 - Self-hosted support is community-based unless a separate enterprise arrangement is established.
 - Each environment requires a separate stack because self-hosting is single-project.
 - Managed-platform capabilities cannot be assumed in product requirements or runbooks.

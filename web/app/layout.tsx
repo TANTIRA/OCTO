@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Mesta-Asset — One book of record for private markets",
+  title: "OCTO — One book of record for private markets",
   description:
     "Funds, deals, portfolio companies, and LPs normalized into a single governed investment ledger. One database, one system, one process.",
 };

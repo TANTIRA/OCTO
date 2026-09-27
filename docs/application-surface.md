@@ -1,10 +1,10 @@
 # Application Surface — Reference Mapping
 
-How the ontology-aware application model maps onto Mesta-Asset. The reference platform ships general-purpose object-aware applications (views, explorer, analysis canvas, app builders, workspaces, map). Mesta-Asset is a **productized** surface: the same concepts are delivered as fixed, purpose-built screens plus a small set of governed configuration surfaces — not a general app-builder ecosystem.
+How the ontology-aware application model maps onto OCTO. The reference platform ships general-purpose object-aware applications (views, explorer, analysis canvas, app builders, workspaces, map). OCTO is a **productized** surface: the same concepts are delivered as fixed, purpose-built screens plus a small set of governed configuration surfaces — not a general app-builder ecosystem.
 
 ## Concept mapping
 
-| Reference application | Mesta-Asset equivalent | Status |
+| Reference application | OCTO equivalent | Status |
 | --- | --- | --- |
 | Object Views — 360° hub per object | Dossier tabs: Company Details, Fund Metrics, prospect detail — biography data, linked objects, metrics, related workflow | Adopted |
 | Object Explorer — visual search, search-around, object sets, bulk actions | Global query bar + NL query; entity drill-down; Investment Metrics table as the object-set surface; bulk actions on selected rows | Adopted (narrower) |

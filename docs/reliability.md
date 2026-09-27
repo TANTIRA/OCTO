@@ -1,6 +1,6 @@
 # Reliability — SLOs, error budget, and production readiness
 
-How Mesta-Asset measures whether it is working for its users, and what happens when it is not. Owner: Platform, with the api module's CODEOWNERS. Reviewed quarterly and after every SEV-1. Issue #73 started it.
+How OCTO measures whether it is working for its users, and what happens when it is not. Owner: Platform, with the api module's CODEOWNERS. Reviewed quarterly and after every SEV-1. Issue #73 started it.
 
 Nothing here is measured yet: the api exposes no metrics a scraper can read (see the readiness review). The SLOs below are the targets the observability baseline is built to measure, set from the user journeys in [user-workflows.md](user-workflows.md), not from history.
 

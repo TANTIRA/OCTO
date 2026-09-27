@@ -13,7 +13,7 @@ ADR-0001 deferred a dedicated graph store, keeping PostgreSQL as the single data
 - The investment Ontology is a first-class, versioned artifact — `AGENTS.md` defines ontology as code (OWL/SHACL plus TypeQL in Git) with CTO ownership.
 - Look-through exposure, deal-sourcing relationships, extraction provenance, and AI grounding are inherently recursive and polymorphic — paths like `fund → investment → deal → operating company → subsidiary` with roles on both sides.
 
-Recursive SQL can express this, but the Ontology is the product's canonical semantic layer: it needs typed entities/relations, role-based modeling, schema-level validation, and inference-friendly structure. `ontology/mesta-investment.tql` defines the initial TypeQL 3.0 schema.
+Recursive SQL can express this, but the Ontology is the product's canonical semantic layer: it needs typed entities/relations, role-based modeling, schema-level validation, and inference-friendly structure. `ontology/octo-investment.tql` defines the initial TypeQL 3.0 schema.
 
 The decision conflicts deliberately with ADR-0001's "one database" simplification; that ADR's intent — one source of truth per data class — is preserved by assigning distinct ownership, not by storing everything in one engine.
 
@@ -68,7 +68,7 @@ The decision conflicts deliberately with ADR-0001's "one database" simplificatio
 
 ## Acceptance criteria
 
-- [ ] `ontology/mesta-investment.tql` validates against a live TypeDB 3 instance in CI
+- [ ] `ontology/octo-investment.tql` validates against a live TypeDB 3 instance in CI
 - [ ] Dual-write ingestion path with atomic failure semantics implemented
 - [ ] Graph-ledger reconciliation report passes on seeded test data
 - [ ] TypeDB backup/restore and upgrade runbooks exist

@@ -1,6 +1,6 @@
 # User Journey
 
-How a firm adopts and operates Mesta-Asset, from first contact to steady state. Complements [user-workflows.md](user-workflows.md) (task-level flows) — this file covers the journey over time.
+How a firm adopts and operates OCTO, from first contact to steady state. Complements [user-workflows.md](user-workflows.md) (task-level flows) — this file covers the journey over time.
 
 ## Adoption arc
 

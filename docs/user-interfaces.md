@@ -1,6 +1,6 @@
 # User Interfaces
 
-Interface inventory and per-screen spec for Mesta-Asset. Layouts derive from the reference screens; every panel lists its data elements and actions.
+Interface inventory and per-screen spec for OCTO. Layouts derive from the reference screens; every panel lists its data elements and actions.
 
 ## Shell
 

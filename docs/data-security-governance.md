@@ -1,6 +1,6 @@
 # Data Security and Governance
 
-Security and governance requirements for Mesta-Asset. These controls apply to deal-sourcing materials, prospect and portfolio-company information, fund and LP records, financial data, personal data, model inputs and outputs, and generated artifacts.
+Security and governance requirements for OCTO. These controls apply to deal-sourcing materials, prospect and portfolio-company information, fund and LP records, financial data, personal data, model inputs and outputs, and generated artifacts.
 
 ## Objectives
 
@@ -199,7 +199,7 @@ No provider-specific API, identifier, or schema may escape the ingestion adapter
 
 ## Self-hosted Supabase controls
 
-Self-hosted Supabase is governed by [ADR-0002](adr/0002-self-hosted-supabase.md). Because self-hosting transfers managed-service responsibilities to Mesta-Asset:
+Self-hosted Supabase is governed by [ADR-0002](adr/0002-self-hosted-supabase.md). Because self-hosting transfers managed-service responsibilities to OCTO:
 
 - run a pinned official self-hosted release on hardened production infrastructure; the Supabase CLI local stack is development/test only;
 - maintain separate stacks, keys, credentials, storage, and backups for development, test, staging, and production;

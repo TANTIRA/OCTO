@@ -2,7 +2,7 @@
 
 @AGENTS.md
 
-# Claude Code — Mesta-Asset
+# Claude Code — OCTO
 
 ## Before you start
 

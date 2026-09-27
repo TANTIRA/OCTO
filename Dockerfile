@@ -1,5 +1,5 @@
-# Mesta-Asset api image: infra/docker-compose.yml pulls ${REGISTRY_URL}/mesta-api:${API_IMAGE_TAG}.
-# Build from the repo root:  docker build -t "$REGISTRY_URL/mesta-api:$API_IMAGE_TAG" .
+# OCTO api image: infra/docker-compose.yml pulls ${REGISTRY_URL}/octo-api:${API_IMAGE_TAG}.
+# Build from the repo root:  docker build -t "$REGISTRY_URL/octo-api:$API_IMAGE_TAG" .
 #
 # Two stages so the runtime image carries a JRE and the boot jar, not the JDK, Gradle, or sources.
 # The Gradle version comes from the wrapper in the repo, not from the base image, so a bump is a
@@ -21,10 +21,10 @@ FROM eclipse-temurin:21-jre
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --home /app --shell /usr/sbin/nologin mesta
+    && useradd --system --uid 10001 --home /app --shell /usr/sbin/nologin octo
 WORKDIR /app
-COPY --from=build --chown=mesta:mesta /src/app.jar /app/app.jar
-USER mesta
+COPY --from=build --chown=octo:octo /src/app.jar /app/app.jar
+USER octo
 # Heap follows the container limit (docs/reliability.md §4): the default 25% wastes most of the 2 GB
 # compose gives the api. Exit on OOM so the orchestrator restarts a broken instance instead of a
 # half-alive one serving errors.

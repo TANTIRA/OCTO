@@ -6,7 +6,7 @@ dependencies {
     testImplementation(libs.kotlin.test)
 }
 
-val ontologySchema = rootProject.file("ontology/mesta-investment.tql")
+val ontologySchema = rootProject.file("ontology/octo-investment.tql")
 
 tasks.withType<Test> {
     systemProperty("ontology.file", ontologySchema.absolutePath)
@@ -21,7 +21,7 @@ kover {
     reports {
         filters {
             excludes {
-                classes("com.mesta.asset.iborcore.persistence.*")
+                classes("com.octo.iborcore.persistence.*")
             }
         }
     }

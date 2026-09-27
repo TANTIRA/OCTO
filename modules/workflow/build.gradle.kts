@@ -14,9 +14,9 @@ kover {
         filters {
             excludes {
                 classes(
-                    "com.mesta.asset.workflow.audit.JdbcAuditLog",
-                    "com.mesta.asset.workflow.persistence.*",
-                    "com.mesta.asset.workflow.report.JdbcReportJobStore",
+                    "com.octo.workflow.audit.JdbcAuditLog",
+                    "com.octo.workflow.persistence.*",
+                    "com.octo.workflow.report.JdbcReportJobStore",
                 )
             }
         }
