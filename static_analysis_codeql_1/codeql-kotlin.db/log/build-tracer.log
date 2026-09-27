@@ -371,3 +371,146 @@
 [T 07:20:58 48410] Passing through -javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin to underlying JVM.
 [T 07:20:58 48410] Passing through -Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar to underlying JVM.
 [T 07:20:58 48410] Intercepted JVM creation with extra hidden args: ['-javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin' '-Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar' ] (result: 1, 0).
+[T 07:22:46 49884] CodeQL CLI version 2.26.3
+[T 07:22:46 49884] Initializing tracer.
+[T 07:22:46 49884] Initializing tags.
+[T 07:22:46 49884] ID set to 000000000000C2DC_0000000000000001 (parent root)
+[T 07:22:46 49884] Initializing tracer.
+[T 07:22:46 49884] Initializing tags.
+[T 07:22:46 49884] ID set to 000000000000C2DC_0000000000000002 (parent root)
+[T 07:22:46 49884] Warning: SEMMLE_EXEC and SEMMLE_EXECP not set. Falling back to path lookup on argv[0].
+[T 07:22:46 49884] ==== Candidate to intercept: /opt/homebrew/Caskroom/codeql/2.26.3/codeql/tools/osx64/runner-osx (canonical: /opt/homebrew/Caskroom/codeql/2.26.3/codeql/tools/osx64/runner-osx) ====
+[T 07:22:46 49884] Lua: === Intercepted call to /opt/homebrew/caskroom/codeql/2.26.3/codeql/tools/osx64/runner-osx ===
+[T 07:22:46 49884] Executing the following tracer actions:
+[T 07:22:46 49884] Tracer actions:
+[T 07:22:46 49884] pre_invocations(0)
+[T 07:22:46 49884] post_invocations(0)
+[T 07:22:46 49884] trace_languages(1): [java]
+[T 07:22:46 49885] Attempting to switch stdout/stderr to 3...
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/copy-root/000001F5/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java.semmle.0000C2DC.098DEC40.slice.arm64
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/copy-root/000001F5/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java.semmle.0000C2DC.098DEC40.slice.arm64
+/Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/copy-root/000001F5/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java.semmle.0000C2DC.098DEC40.slice.arm64: replacing existing signature
+[T 07:22:46 49884] Initializing tracer.
+[T 07:22:46 49884] Initializing tags.
+[T 07:22:46 49884] ID set to 000000000000C2DC_0000000000000003 (parent 000000000000C2DC_0000000000000002)
+[T 07:22:46 49884] ==== Candidate to intercept: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java (canonical: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java) ====
+[T 07:22:46 49884] Lua: === Intercepted call to /library/java/javavirtualmachines/temurin-25.jdk/contents/home/bin/java ===
+[T 07:22:46 49884] Executing the following tracer actions:
+[T 07:22:46 49884] Tracer actions:
+[T 07:22:46 49884] pre_invocations(0)
+[T 07:22:46 49884] post_invocations(0)
+[T 07:22:46 49884] trace_languages(1): [java]
+[T 07:22:46 49884] Passing through -javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin to underlying JVM.
+[T 07:22:46 49884] Passing through -Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar to underlying JVM.
+[T 07:22:46 49884] Intercepted JVM creation with extra hidden args: ['-javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin' '-Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar' ] (result: 1, 0).
+[T 07:22:46 49895] Attempting to switch stdout/stderr to 203...
+/Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/copy-root/000001F5/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper.semmle.0000C2DC.3142AFF0.slice.arm64: replacing existing signature
+[T 07:22:46 49898] Initializing tracer.
+[T 07:22:46 49898] Initializing tags.
+[T 07:22:46 49898] ID set to 000000000000C2EA_0000000000000001 (parent 000000000000C2DC_0000000000000003)
+[T 07:22:46 49898] ==== Candidate to intercept: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper (canonical: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper) ====
+[T 07:22:46 49898] Lua: === Intercepted call to /library/java/javavirtualmachines/temurin-25.jdk/contents/home/lib/jspawnhelper ===
+[T 07:22:46 49898] Executing the following tracer actions:
+[T 07:22:46 49898] Tracer actions:
+[T 07:22:46 49898] pre_invocations(0)
+[T 07:22:46 49898] post_invocations(0)
+[T 07:22:46 49898] trace_languages(1): [java]
+[T 07:22:46 49898] Initializing tracer.
+[T 07:22:46 49898] Initializing tags.
+[T 07:22:46 49898] ID set to 000000000000C2EA_0000000000000002 (parent 000000000000C2EA_0000000000000001)
+[T 07:22:46 49898] ==== Candidate to intercept: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java (canonical: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java) ====
+[T 07:22:46 49898] Lua: === Intercepted call to /library/java/javavirtualmachines/temurin-25.jdk/contents/home/bin/java ===
+[T 07:22:46 49898] Executing the following tracer actions:
+[T 07:22:46 49898] Tracer actions:
+[T 07:22:46 49898] pre_invocations(0)
+[T 07:22:46 49898] post_invocations(0)
+[T 07:22:46 49898] trace_languages(1): [java]
+[T 07:22:46 49898] Passing through -javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin to underlying JVM.
+[T 07:22:46 49898] Passing through -Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar to underlying JVM.
+[T 07:22:47 49898] Intercepted JVM creation with extra hidden args: ['-javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin' '-Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar' ] (result: 1, 0).
+[T 07:22:52 49951] Initializing tracer.
+[T 07:22:52 49951] Initializing tags.
+[T 07:22:52 49951] ID set to 000000000000C31F_0000000000000001 (parent 000000000000C2EA_0000000000000002)
+[T 07:22:52 49951] ==== Candidate to intercept: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper (canonical: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper) ====
+[T 07:22:52 49951] Lua: === Intercepted call to /library/java/javavirtualmachines/temurin-25.jdk/contents/home/lib/jspawnhelper ===
+[T 07:22:52 49951] Executing the following tracer actions:
+[T 07:22:52 49951] Tracer actions:
+[T 07:22:52 49951] pre_invocations(0)
+[T 07:22:52 49951] post_invocations(0)
+[T 07:22:52 49951] trace_languages(1): [java]
+[T 07:22:52 49952] Attempting to switch stdout/stderr to 4...
+/Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/copy-root/000001F5/usr/libexec/java_home.semmle.0000C31F.2B1BB4A0.slice.x86_64: replacing existing signature
+/Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/copy-root/000001F5/usr/libexec/java_home.semmle.0000C31F.2B1BB4A0.slice.arm64: replacing existing signature
+[T 07:22:52 49956] Initializing tracer.
+[T 07:22:52 49956] Initializing tags.
+[T 07:22:52 49956] ID set to 000000000000C324_0000000000000001 (parent 000000000000C2EA_0000000000000002)
+[T 07:22:52 49956] ==== Candidate to intercept: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper (canonical: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper) ====
+[T 07:22:52 49956] Lua: === Intercepted call to /library/java/javavirtualmachines/temurin-25.jdk/contents/home/lib/jspawnhelper ===
+[T 07:22:52 49956] Executing the following tracer actions:
+[T 07:22:52 49956] Tracer actions:
+[T 07:22:52 49956] pre_invocations(0)
+[T 07:22:52 49956] post_invocations(0)
+[T 07:22:52 49956] trace_languages(1): [java]
+[T 07:22:52 49957] Attempting to switch stdout/stderr to 4...
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/copy-root/000001F5/Users/macbook/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.12.1+1/Contents/Home/bin/java.semmle.0000C324.2F1B3FF8.slice.arm64
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/install_name_tool: warning: changes being made to the file will invalidate the code signature in: /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/copy-root/000001F5/Users/macbook/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.12.1+1/Contents/Home/bin/java.semmle.0000C324.2F1B3FF8.slice.arm64
+/Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/copy-root/000001F5/Users/macbook/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.12.1+1/Contents/Home/bin/java.semmle.0000C324.2F1B3FF8.slice.arm64: replacing existing signature
+[T 07:22:52 49956] Initializing tracer.
+[T 07:22:52 49956] Initializing tags.
+[T 07:22:52 49956] ID set to 000000000000C324_0000000000000002 (parent 000000000000C324_0000000000000001)
+[T 07:22:52 49956] ==== Candidate to intercept: /Users/macbook/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.12.1+1/Contents/Home/bin/java (canonical: /Users/macbook/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.12.1+1/Contents/Home/bin/java) ====
+[T 07:22:52 49956] Lua: === Intercepted call to /users/macbook/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.12.1+1/contents/home/bin/java ===
+[T 07:22:52 49956] Executing the following tracer actions:
+[T 07:22:52 49956] Tracer actions:
+[T 07:22:52 49956] pre_invocations(0)
+[T 07:22:52 49956] post_invocations(0)
+[T 07:22:52 49956] trace_languages(1): [java]
+[T 07:22:52 49956] Passing through -javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin to underlying JVM.
+[T 07:22:52 49956] Passing through -Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar to underlying JVM.
+[T 07:22:53 49956] Intercepted JVM creation with extra hidden args: ['-javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin' '-Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar' ] (result: 1, 0).
+[T 07:22:54 49969] Initializing tracer.
+[T 07:22:54 49969] Initializing tags.
+[T 07:22:54 49969] ID set to 000000000000C331_0000000000000001 (parent 000000000000C2EA_0000000000000002)
+[T 07:22:54 49969] ==== Candidate to intercept: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper (canonical: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper) ====
+[T 07:22:54 49969] Lua: === Intercepted call to /library/java/javavirtualmachines/temurin-25.jdk/contents/home/lib/jspawnhelper ===
+[T 07:22:54 49969] Executing the following tracer actions:
+[T 07:22:54 49969] Tracer actions:
+[T 07:22:54 49969] pre_invocations(0)
+[T 07:22:54 49969] post_invocations(0)
+[T 07:22:54 49969] trace_languages(1): [java]
+[T 07:22:54 49969] Initializing tracer.
+[T 07:22:54 49969] Initializing tags.
+[T 07:22:54 49969] ID set to 000000000000C331_0000000000000002 (parent 000000000000C331_0000000000000001)
+[T 07:22:54 49969] ==== Candidate to intercept: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java (canonical: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java) ====
+[T 07:22:54 49969] Lua: === Intercepted call to /library/java/javavirtualmachines/temurin-25.jdk/contents/home/bin/java ===
+[T 07:22:54 49969] Executing the following tracer actions:
+[T 07:22:54 49969] Tracer actions:
+[T 07:22:54 49969] pre_invocations(0)
+[T 07:22:54 49969] post_invocations(0)
+[T 07:22:54 49969] trace_languages(1): [java]
+[T 07:22:54 49969] Passing through -javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin to underlying JVM.
+[T 07:22:54 49969] Passing through -Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar to underlying JVM.
+[T 07:22:54 49969] Intercepted JVM creation with extra hidden args: ['-javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin' '-Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar' ] (result: 1, 0).
+[T 07:23:37 50336] Initializing tracer.
+[T 07:23:37 50336] Initializing tags.
+[T 07:23:37 50336] ID set to 000000000000C4A0_0000000000000001 (parent 000000000000C2EA_0000000000000002)
+[T 07:23:37 50336] ==== Candidate to intercept: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper (canonical: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/lib/jspawnhelper) ====
+[T 07:23:37 50336] Lua: === Intercepted call to /library/java/javavirtualmachines/temurin-25.jdk/contents/home/lib/jspawnhelper ===
+[T 07:23:37 50336] Executing the following tracer actions:
+[T 07:23:37 50336] Tracer actions:
+[T 07:23:37 50336] pre_invocations(0)
+[T 07:23:37 50336] post_invocations(0)
+[T 07:23:37 50336] trace_languages(1): [java]
+[T 07:23:37 50336] Initializing tracer.
+[T 07:23:37 50336] Initializing tags.
+[T 07:23:37 50336] ID set to 000000000000C4A0_0000000000000002 (parent 000000000000C4A0_0000000000000001)
+[T 07:23:37 50336] ==== Candidate to intercept: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java (canonical: /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java) ====
+[T 07:23:37 50336] Lua: === Intercepted call to /library/java/javavirtualmachines/temurin-25.jdk/contents/home/bin/java ===
+[T 07:23:37 50336] Executing the following tracer actions:
+[T 07:23:37 50336] Tracer actions:
+[T 07:23:37 50336] pre_invocations(0)
+[T 07:23:37 50336] post_invocations(0)
+[T 07:23:37 50336] trace_languages(1): [java]
+[T 07:23:37 50336] Passing through -javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin to underlying JVM.
+[T 07:23:37 50336] Passing through -Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar to underlying JVM.
+[T 07:23:37 50336] Intercepted JVM creation with extra hidden args: ['-javaagent:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar=ignore-project,java,kotlin' '-Xbootclasspath/a:/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-java-agent.jar' ] (result: 1, 0).

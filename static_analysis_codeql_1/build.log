@@ -3855,3 +3855,136 @@ Running command in /Users/macbook/Octo: [/Library/Java/JavaVirtualMachines/temur
 [2026-09-27 14:21:32] [build-stdout] > Task :modules:analytics:compileJava NO-SOURCE
 [2026-09-27 14:21:32] [build-stdout] > Task :modules:analytics:classes UP-TO-DATE
 [2026-09-27 14:21:32] [build-stdout] > Task :modules:analytics:jar
+[2026-09-27 14:21:36] [build-stdout] > Task :modules:recon:compileKotlin
+[2026-09-27 14:21:36] [build-stdout] > Task :modules:recon:compileJava NO-SOURCE
+[2026-09-27 14:21:36] [build-stdout] > Task :modules:recon:classes UP-TO-DATE
+[2026-09-27 14:21:36] [build-stdout] > Task :modules:recon:jar
+[2026-09-27 14:21:41] [build-stdout] > Task :modules:ingestion:compileKotlin
+[2026-09-27 14:21:41] [build-stdout] > Task :modules:ingestion:compileJava NO-SOURCE
+[2026-09-27 14:21:41] [build-stdout] > Task :modules:ingestion:classes UP-TO-DATE
+[2026-09-27 14:21:41] [build-stdout] > Task :modules:ingestion:jar
+[2026-09-27 14:21:47] [build-stdout] > Task :modules:api:compileKotlin
+[2026-09-27 14:21:47] [build-stdout] > Task :modules:api:compileJava NO-SOURCE
+[2026-09-27 14:21:47] [build-stdout] BUILD SUCCESSFUL in 57s
+[2026-09-27 14:21:47] [build-stdout] 31 actionable tasks: 31 executed
+[2026-09-27 14:21:47] [build-stdout] Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.4.1/userguide/configuration_cache_enabling.html
+Finalizing database at /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db.
+Running pre-finalize script /opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/pre-finalize.sh in /Users/macbook/Octo.
+Running command in /Users/macbook/Octo: [/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/pre-finalize.sh]
+[2026-09-27 14:21:51] [build-stderr] Scanning for files in /Users/macbook/Octo...
+[2026-09-27 14:21:52] [build-stderr] /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db: Indexing files in in /Users/macbook/Octo...
+[2026-09-27 14:21:52] [build-stderr] Running command in /Users/macbook/Octo: [/opt/homebrew/Caskroom/codeql/2.26.3/codeql/xml/tools/index-files.sh, /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/files-to-index11038940854819355251.list]
+[2026-09-27 14:21:52] [build-stdout] [2026-09-27 14:21:52] [build-stdout] [2026-09-27 14:21:52] [XMLExtractor] Processed 31 files in 148 ms; produced 0 bytes of compressed TRAP
+[2026-09-27 14:21:52] [build-stdout] [2026-09-27 14:21:52] [build-stdout] 14:21:52.770 [main] INFO com.semmle.cli.SimpleExtractor.Stats -- Processed 31 files in 148 ms; produced 0 bytes of compressed TRAP
+[2026-09-27 14:21:53] [build-stderr] Scanning for files in /Users/macbook/Octo...
+[2026-09-27 14:21:54] [build-stderr] /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db: Indexing files in in /Users/macbook/Octo...
+[2026-09-27 14:21:54] [build-stderr] Running command in /Users/macbook/Octo: [/opt/homebrew/Caskroom/codeql/2.26.3/codeql/properties/tools/index-files.sh, /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/files-to-index15479826367669495958.list]
+[2026-09-27 14:21:54] [build-stdout] [2026-09-27 14:21:54] [build-stdout] [2026-09-27 14:21:54] [PropertiesExtractor] Processed 19 files in 100 ms; produced 0 bytes of compressed TRAP
+Pre-finalize script /opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/pre-finalize.sh completed in 6815 ms.
+Running TRAP import for CodeQL database at /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db...
+Importing TRAP files
+Merging relations
+Finished writing database (relations: 3.08 MiB; string pool: 5.53 MiB).
+TRAP import complete (3.5s).
+Finished zipping source archive (217.18 KiB).
+Successfully created database at /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db.
+[2026-09-27T14:22:44+07:00] METHOD 5 retry4: stopped 2 stale Gradle daemons + killed kotlin daemons before rebuild (untraced daemon reuse suspected for api)
+Initializing database at /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db.
+Running build command: [/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java, -jar, gradle/wrapper/gradle-wrapper.jar, --no-daemon, --console=plain, --no-build-cache, clean, compileKotlin, compileJava]
+Running command in /Users/macbook/Octo: [/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java, -jar, gradle/wrapper/gradle-wrapper.jar, --no-daemon, --console=plain, --no-build-cache, clean, compileKotlin, compileJava]
+[2026-09-27 14:22:46] [build-stdout] To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.4.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+[2026-09-27 14:22:47] [build-stdout] Daemon will be stopped at the end of the build 
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:lookthrough:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:persistence:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:deal-sourcing:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:ontology:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:persistence:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:lookthrough:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:deal-sourcing:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:control-panel:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:recon:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:recon:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:ibor-core:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:control-panel:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:ibor-core:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:analytics:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:analytics:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:ingestion:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:ingestion:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:workflow:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:api:clean
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:workflow:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:analytics:processResources NO-SOURCE
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:ontology:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:ingestion:processResources NO-SOURCE
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:recon:processResources NO-SOURCE
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:deal-sourcing:processResources NO-SOURCE
+[2026-09-27 14:22:53] [build-stdout] > Task :modules:workflow:processResources NO-SOURCE
+[2026-09-27 14:22:54] [build-stdout] > Task :modules:lookthrough:processResources NO-SOURCE
+[2026-09-27 14:22:54] [build-stdout] > Task :modules:control-panel:processResources NO-SOURCE
+[2026-09-27 14:22:54] [build-stdout] > Task :modules:ibor-core:processResources NO-SOURCE
+[2026-09-27 14:22:54] [build-stdout] > Task :modules:persistence:processResources NO-SOURCE
+[2026-09-27 14:23:03] [build-stdout] > Task :modules:lookthrough:compileKotlin
+[2026-09-27 14:23:03] [build-stdout] > Task :modules:persistence:compileKotlin
+[2026-09-27 14:23:03] [build-stdout] > Task :modules:persistence:compileJava NO-SOURCE
+[2026-09-27 14:23:03] [build-stdout] > Task :modules:lookthrough:compileJava NO-SOURCE
+[2026-09-27 14:23:03] [build-stdout] > Task :modules:persistence:classes UP-TO-DATE
+[2026-09-27 14:23:03] [build-stdout] > Task :modules:lookthrough:classes UP-TO-DATE
+[2026-09-27 14:23:03] [build-stdout] > Task :modules:lookthrough:jar
+[2026-09-27 14:23:03] [build-stdout] > Task :modules:persistence:jar
+[2026-09-27 14:23:07] [build-stdout] > Task :modules:ibor-core:compileKotlin
+[2026-09-27 14:23:07] [build-stdout] > Task :modules:ibor-core:compileJava NO-SOURCE
+[2026-09-27 14:23:07] [build-stdout] > Task :modules:ibor-core:classes UP-TO-DATE
+[2026-09-27 14:23:07] [build-stdout] > Task :modules:ibor-core:jar
+[2026-09-27 14:23:17] [build-stdout] > Task :modules:deal-sourcing:compileKotlin
+[2026-09-27 14:23:17] [build-stdout] > Task :modules:deal-sourcing:compileJava NO-SOURCE
+[2026-09-27 14:23:17] [build-stdout] > Task :modules:deal-sourcing:classes UP-TO-DATE
+[2026-09-27 14:23:17] [build-stdout] > Task :modules:deal-sourcing:jar
+[2026-09-27 14:23:17] [build-stdout] > Task :modules:ontology:compileKotlin
+[2026-09-27 14:23:17] [build-stdout] > Task :modules:ontology:compileJava NO-SOURCE
+[2026-09-27 14:23:18] [build-stdout] > Task :modules:workflow:compileKotlin
+[2026-09-27 14:23:18] [build-stdout] > Task :modules:workflow:compileJava NO-SOURCE
+[2026-09-27 14:23:18] [build-stdout] > Task :modules:workflow:classes UP-TO-DATE
+[2026-09-27 14:23:18] [build-stdout] > Task :modules:workflow:jar
+[2026-09-27 14:23:23] [build-stdout] > Task :modules:control-panel:compileKotlin
+[2026-09-27 14:23:28] [build-stdout] > Task :modules:control-panel:compileJava NO-SOURCE
+[2026-09-27 14:23:28] [build-stdout] > Task :modules:control-panel:classes UP-TO-DATE
+[2026-09-27 14:23:28] [build-stdout] > Task :modules:control-panel:jar
+[2026-09-27 14:23:30] [build-stdout] > Task :modules:analytics:compileKotlin
+[2026-09-27 14:23:30] [build-stdout] > Task :modules:analytics:compileJava NO-SOURCE
+[2026-09-27 14:23:30] [build-stdout] > Task :modules:analytics:classes UP-TO-DATE
+[2026-09-27 14:23:30] [build-stdout] > Task :modules:analytics:jar
+[2026-09-27 14:23:33] [build-stdout] > Task :modules:recon:compileKotlin
+[2026-09-27 14:23:33] [build-stdout] > Task :modules:recon:compileJava NO-SOURCE
+[2026-09-27 14:23:33] [build-stdout] > Task :modules:recon:classes UP-TO-DATE
+[2026-09-27 14:23:33] [build-stdout] > Task :modules:recon:jar
+[2026-09-27 14:23:37] [build-stdout] > Task :modules:ingestion:compileKotlin
+[2026-09-27 14:23:37] [build-stdout] > Task :modules:ingestion:compileJava NO-SOURCE
+[2026-09-27 14:23:37] [build-stdout] > Task :modules:ingestion:classes UP-TO-DATE
+[2026-09-27 14:23:37] [build-stdout] > Task :modules:ingestion:jar
+[2026-09-27 14:24:07] [build-stdout] > Task :modules:api:compileKotlin
+[2026-09-27 14:24:17] [build-stdout] > Task :modules:api:compileJava NO-SOURCE
+[2026-09-27 14:24:18] [build-stdout] BUILD SUCCESSFUL in 1m 31s
+[2026-09-27 14:24:18] [build-stdout] 31 actionable tasks: 31 executed
+[2026-09-27 14:24:18] [build-stdout] Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.4.1/userguide/configuration_cache_enabling.html
+Finalizing database at /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db.
+Running pre-finalize script /opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/pre-finalize.sh in /Users/macbook/Octo.
+Running command in /Users/macbook/Octo: [/opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/pre-finalize.sh]
+[2026-09-27 14:24:21] [build-stderr] Scanning for files in /Users/macbook/Octo...
+[2026-09-27 14:24:22] [build-stderr] /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db: Indexing files in in /Users/macbook/Octo...
+[2026-09-27 14:24:22] [build-stderr] Running command in /Users/macbook/Octo: [/opt/homebrew/Caskroom/codeql/2.26.3/codeql/xml/tools/index-files.sh, /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/files-to-index10985924572448208132.list]
+[2026-09-27 14:24:22] [build-stdout] [2026-09-27 14:24:22] [build-stdout] [2026-09-27 14:24:22] [XMLExtractor] Processed 31 files in 181 ms; produced 0 bytes of compressed TRAP
+[2026-09-27 14:24:22] [build-stdout] [2026-09-27 14:24:22] [build-stdout] 14:24:22.865 [main] INFO com.semmle.cli.SimpleExtractor.Stats -- Processed 31 files in 181 ms; produced 0 bytes of compressed TRAP
+[2026-09-27 14:24:23] [build-stderr] Scanning for files in /Users/macbook/Octo...
+[2026-09-27 14:24:24] [build-stderr] /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db: Indexing files in in /Users/macbook/Octo...
+[2026-09-27 14:24:24] [build-stderr] Running command in /Users/macbook/Octo: [/opt/homebrew/Caskroom/codeql/2.26.3/codeql/properties/tools/index-files.sh, /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/working/files-to-index6244573562084010635.list]
+[2026-09-27 14:24:24] [build-stdout] [2026-09-27 14:24:24] [build-stdout] [2026-09-27 14:24:24] [PropertiesExtractor] Processed 19 files in 115 ms; produced 0 bytes of compressed TRAP
+Pre-finalize script /opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/pre-finalize.sh completed in 5901 ms.
+Running TRAP import for CodeQL database at /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db...
+Importing TRAP files
+Merging relations
+Finished writing database (relations: 4.26 MiB; string pool: 9.53 MiB).
+TRAP import complete (4.4s).
+Finished zipping source archive (268.47 KiB).
+Successfully created database at /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db.

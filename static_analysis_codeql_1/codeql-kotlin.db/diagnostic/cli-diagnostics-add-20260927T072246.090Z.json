@@ -1,0 +1,3 @@
+{"timestamp":"2026-09-27T14:22:45.876278+07:00","source":{"id":"cli/file-coverage-baseline","name":"File coverage baseline telemetry"},"visibility":{"cliSummaryTable":false,"statusPage":false,"telemetry":true},"attributes":{"durationMilliseconds":236}}
+{"timestamp":"2026-09-27T14:22:46.049892+07:00","source":{"id":"cli/platform","name":"Platform"},"visibility":{"cliSummaryTable":false,"statusPage":false,"telemetry":true},"attributes":{"version":"27.0","arch":"aarch64","name":"Mac OS X"}}
+{"timestamp":"2026-09-27T14:22:46.064474+07:00","source":{"id":"cli/sip-enablement","name":"macOS SIP enablement status"},"visibility":{"cliSummaryTable":false,"statusPage":false,"telemetry":true},"attributes":{"isEnabled":true}}
