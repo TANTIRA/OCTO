@@ -8,8 +8,14 @@ import org.springframework.core.env.Environment
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator
+import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm
-import org.springframework.security.oauth2.jwt.JwtValidators
+import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.jwt.JwtClaimNames
+import org.springframework.security.oauth2.jwt.JwtClaimValidator
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
@@ -80,14 +86,40 @@ class SecurityConfig {
                     .withJwkSetUri(jwksUri)
                     .jwsAlgorithm(SignatureAlgorithm.ES256)
                     .build()
-            env
-                .getProperty("AUTH_ISSUER")
-                ?.takeIf(String::isNotBlank)
-                ?.let { decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(it)) }
+            decoder.setJwtValidator(bearerTokenValidator(env))
             http.oauth2ResourceServer { resourceServer ->
                 resourceServer.jwt { jwt -> jwt.decoder(decoder) }
             }
         }
         return http.build()
     }
+}
+
+/**
+ * Bearer-token validation for the resource-server chain: expiry always, the issuer when
+ * `AUTH_ISSUER` is configured, and the audience when `AUTH_AUDIENCE` is — GoTrue signs
+ * `aud: "authenticated"` (`GOTRUE_JWT_AUD`), so a token minted by the same issuer for a
+ * different audience still fails here.
+ */
+internal fun bearerTokenValidator(env: Environment): OAuth2TokenValidator<Jwt> {
+    val validators = mutableListOf<OAuth2TokenValidator<Jwt>>(JwtTimestampValidator())
+    env
+        .getProperty("AUTH_ISSUER")
+        ?.takeIf(String::isNotBlank)
+        ?.let { validators += JwtIssuerValidator(it) }
+    env
+        .getProperty("AUTH_AUDIENCE")
+        ?.takeIf(String::isNotBlank)
+        ?.let { audience ->
+            // JWT `aud` may be a string or a list; GoTrue emits the string form.
+            validators +=
+                JwtClaimValidator<Any>(JwtClaimNames.AUD) { aud ->
+                    when (aud) {
+                        is String -> aud == audience
+                        is Collection<*> -> audience in aud
+                        else -> false
+                    }
+                }
+        }
+    return DelegatingOAuth2TokenValidator(validators)
 }

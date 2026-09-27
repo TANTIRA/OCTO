@@ -28,6 +28,7 @@ services:
       - SUPABASE_STORAGE_ENDPOINT=${SUPABASE_STORAGE_ENDPOINT}
       - AUTH_ISSUER=${AUTH_ISSUER}
       - AUTH_JWKS_URL=${AUTH_JWKS_URL}
+      - AUTH_AUDIENCE=${AUTH_AUDIENCE:-authenticated}
       # External neo4j service (octo-neo4j-db) — reachable because api and neo4j
       # share dokploy-network. Bolt is never exposed through Traefik.
       - NEO4J_URI=${NEO4J_URI:-bolt://octo-neo4j-db:7687}
