@@ -953,6 +953,17 @@ export default function AppShell2() {
 
           <button
             type="button"
+            onClick={() => {
+              // The command menu's public API is its document-level ⌘K
+              // listener — a synthetic event opens it without prop drilling.
+              document.dispatchEvent(
+                new KeyboardEvent("keydown", {
+                  key: "k",
+                  metaKey: true,
+                  bubbles: true,
+                }),
+              );
+            }}
             className={cx(
               "inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-2.5 text-[13px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(20.5%_0_0))_90%,transparent)] active:scale-[0.97] motion-reduce:active:scale-100 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))] dark:hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(100%_0_0))_90%,transparent)]",
               focus,
