@@ -80,10 +80,16 @@ sealed interface ProspectEvent {
         }
     }
 
+    /**
+     * [taskId] is the `workflow_task` of kind `approval` whose APPROVED verdict authorizes the
+     * investment — segregation of duties is enforced by the task itself (approver ≠ requester,
+     * Task.kt) and the event keeps the lineage auditable (V19).
+     */
     data class Invested(
         override val actor: String,
         override val at: Instant,
         val rationale: String,
+        val taskId: UUID,
     ) : ProspectEvent {
         init {
             require(rationale.isNotBlank()) { "an investment decision needs a rationale" }

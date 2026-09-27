@@ -14,6 +14,11 @@ import com.octo.dealsourcing.next
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.registered
+import com.octo.workflow.Task
+import com.octo.workflow.TaskState
+import com.octo.workflow.TaskStatus
+import com.octo.workflow.opened
+import com.octo.workflow.persistence.TaskProvenance
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -41,6 +46,7 @@ class ProspectEndpointTest {
     private val viewer = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val store = FakeProspectStore()
+    private val tasks = FakeIcTasks()
 
     private val contextRunner =
         WebApplicationContextRunner()
@@ -60,6 +66,10 @@ class ProspectEndpointTest {
             ).withBean(
                 ProspectStore::class.java,
                 Supplier { store },
+                { it.isPrimary = true },
+            ).withBean(
+                IcTasks::class.java,
+                Supplier { tasks },
                 { it.isPrimary = true },
             ).withPropertyValues(
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
@@ -170,6 +180,53 @@ class ProspectEndpointTest {
         }
     }
 
+    @Test
+    fun `invested needs an approved IC task on the prospect`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict) // only an ic-review prospect gets an IC task
+
+            for (stage in listOf("screening", "due-diligence", "ic-review")) {
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/transition")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"to":"$stage"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+            }
+
+            val taskId = UUID.randomUUID().also { tasks.openAt(it, id) }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isAccepted)
+                .andExpect(jsonPath("$.taskStatus").value("open"))
+
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"invested","rationale":"corridor thesis","taskId":"$taskId"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict) // task still open — the gate holds
+
+            tasks.approve(taskId)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"invested","rationale":"corridor thesis","taskId":"$taskId"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.stage").value("invested"))
+                .andExpect(jsonPath("$.decidedBy").value(member.toString()))
+        }
+    }
+
     /** Replays through the real state machine so tests exercise production transition semantics. */
     private class FakeProspectStore : ProspectStore {
         val states = linkedMapOf<UUID, ProspectState>()
@@ -202,6 +259,34 @@ class ProspectEndpointTest {
         ): ProspectState {
             val current = states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")
             return current.next(event).also { states[prospectId] = it }
+        }
+    }
+
+    /** Task states keyed by id; `openAt` plants an approval task on the prospect, `approve` resolves it. */
+    private class FakeIcTasks : IcTasks {
+        private val states = mutableMapOf<UUID, TaskState>()
+
+        override fun open(
+            task: Task,
+            provenance: TaskProvenance,
+        ) {
+            states[task.id] = opened(task)
+        }
+
+        override fun state(taskId: UUID): TaskState? = states[taskId]
+
+        fun openAt(
+            taskId: UUID,
+            prospectId: UUID,
+        ) {
+            open(
+                Task(taskId, com.octo.workflow.TaskKind.APPROVAL, "prospect", prospectId.toString(), "requester", java.time.Instant.now()),
+                TaskProvenance("test", UUID.randomUUID()),
+            )
+        }
+
+        fun approve(taskId: UUID) {
+            states.computeIfPresent(taskId) { _, s -> s.copy(status = TaskStatus.APPROVED, decidedBy = "ic-member") }
         }
     }
 }

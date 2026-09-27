@@ -177,7 +177,7 @@ class JdbcProspectStore(
         connection
             .prepareStatement(
                 """
-                select event_type, stage_from, stage_to, actor, rationale, occurred_at
+                select event_type, stage_from, stage_to, actor, rationale, occurred_at, task_id
                 from mesta.prospect_event
                 where prospect_id = ?
                 order by seq
@@ -201,7 +201,7 @@ class JdbcProspectStore(
         return when (val type = getString(1)) {
             "advanced" -> ProspectEvent.Advanced(actor, at, stageFrom!!, stageTo!!)
             "passed" -> ProspectEvent.Passed(actor, at, stageFrom!!, getString(5))
-            "invested" -> ProspectEvent.Invested(actor, at, getString(5))
+            "invested" -> ProspectEvent.Invested(actor, at, getString(5), getObject(7, UUID::class.java))
             else -> error("unknown prospect event type $type")
         }
     }
@@ -222,8 +222,8 @@ class JdbcProspectStore(
             }
         val sql =
             """
-            insert into mesta.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, rationale, occurred_at, correlation_id)
-            values (?, ?, ?, ?, ?, ?, ?, ?)
+            insert into mesta.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, rationale, occurred_at, task_id, correlation_id)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         connection.prepareStatement(sql).use { statement ->
             statement.setObject(1, prospectId)
@@ -233,7 +233,8 @@ class JdbcProspectStore(
             statement.setString(5, event.actor)
             statement.setString(6, rationale)
             statement.setObject(7, event.at.atOffset(ZoneOffset.UTC))
-            statement.setObject(8, provenance.correlationId)
+            statement.setObject(8, (event as? ProspectEvent.Invested)?.taskId)
+            statement.setObject(9, provenance.correlationId)
             statement.executeUpdate()
         }
     }
