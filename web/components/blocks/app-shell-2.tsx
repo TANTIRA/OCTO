@@ -19,6 +19,8 @@ import {
 import Dashboard4 from "@/components/blocks/dashboard-4";
 import DataTable3 from "@/components/blocks/data-table-3";
 import Kanban1 from "@/components/blocks/kanban-1";
+import SessionMenu from "@/components/session-menu";
+import { apiFetch } from "@/lib/api";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join("");
@@ -424,13 +426,25 @@ const AREAS: Area[] = [
   },
 ];
 
-function WorkspaceSwitcher() {
-  const [workspace, setWorkspace] = useState(WORKSPACES[0].name);
+function WorkspaceSwitcher({
+  workspaces,
+}: {
+  workspaces: { name: string; members: string }[];
+}) {
+  const [workspace, setWorkspace] = useState(workspaces[0]?.name ?? "");
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Tenants arrive async — if the current pick is no longer in the list
+  // (or the list just loaded), fall back to the first entry.
+  useEffect(() => {
+    if (workspaces.length && !workspaces.some((w) => w.name === workspace)) {
+      setWorkspace(workspaces[0].name);
+    }
+  }, [workspaces, workspace]);
 
   const close = (restoreFocus: boolean) => {
     setOpen(false);
@@ -497,7 +511,7 @@ function WorkspaceSwitcher() {
     };
   }, [open]);
 
-  const active = WORKSPACES.find((item) => item.name === workspace);
+  const active = workspaces.find((item) => item.name === workspace);
 
   return (
     <div ref={rootRef} className="relative">
@@ -540,7 +554,7 @@ function WorkspaceSwitcher() {
             shown ? "scale-100 opacity-100" : "scale-95 opacity-0",
           )}
         >
-          {WORKSPACES.map((item) => (
+          {workspaces.map((item) => (
             <button
               key={item.name}
               type="button"
@@ -594,10 +608,12 @@ function WorkspaceSwitcher() {
 function NavigationFrame({
   areaId,
   onSelectArea,
+  workspaces,
   onClose,
 }: {
   areaId: string;
   onSelectArea: (id: string) => void;
+  workspaces: { name: string; members: string }[];
   onClose?: () => void;
 }) {
   const [tipFor, setTipFor] = useState<string | null>(null);
@@ -746,7 +762,7 @@ function NavigationFrame({
 
       <div className="flex w-64 min-w-0 flex-col bg-neutral-50 dark:bg-neutral-900">
         <div className="shrink-0 px-2 pb-1 pt-2">
-          <WorkspaceSwitcher />
+          <WorkspaceSwitcher workspaces={workspaces} />
         </div>
 
         <div className="relative min-h-0 flex-1">
@@ -831,6 +847,7 @@ export default function AppShell2() {
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerShown, setDrawerShown] = useState(false);
+  const [workspaces, setWorkspaces] = useState(WORKSPACES);
   const content = useScrollFade<HTMLElement>();
   const shouldFocusRef = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -856,6 +873,29 @@ export default function AppShell2() {
   const selectArea = useCallback((id: string) => {
     window.location.hash = id;
     setAreaId(id);
+  }, []);
+
+  // First real API read: the caller's tenants drive the vehicle switcher.
+  // The proxy (next.config.ts) forwards to the API with the session JWT;
+  // on any failure the seeded workspace list stays — a shell that can't
+  // reach the API still renders.
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch("/api/v1/me/access")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (cancelled || !body?.tenants?.length) return;
+        setWorkspaces(
+          body.tenants.map((t: { slug: string; role: string }) => ({
+            name: t.slug,
+            members: t.role,
+          })),
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -924,7 +964,11 @@ export default function AppShell2() {
       className="relative flex h-full min-h-[720px] w-full overflow-hidden bg-white dark:bg-neutral-950"
     >
       <aside className="hidden shrink-0 lg:flex">
-        <NavigationFrame areaId={areaId} onSelectArea={selectArea} />
+        <NavigationFrame
+          areaId={areaId}
+          onSelectArea={selectArea}
+          workspaces={workspaces}
+        />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -971,6 +1015,8 @@ export default function AppShell2() {
           >
             {area.action}
           </button>
+
+          <SessionMenu />
         </header>
 
         <div className="relative min-h-0 flex-1">
@@ -1092,6 +1138,7 @@ export default function AppShell2() {
             <NavigationFrame
               areaId={areaId}
               onSelectArea={selectArea}
+              workspaces={workspaces}
               onClose={closeDrawer}
             />
           </div>
