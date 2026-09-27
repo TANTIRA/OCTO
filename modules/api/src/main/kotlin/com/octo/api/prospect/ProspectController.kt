@@ -63,6 +63,9 @@ interface ScreeningRules {
     ): List<ScreeningRuleRow>
 }
 
+/** One import call registers at most this many prospects — adapters page larger syncs themselves. */
+private const val IMPORT_BATCH_LIMIT = 500
+
 /**
  * `/api/v1/prospects` (deal-sourcing, #201): the deterministic pipeline the Investment Analyst and CRM
  * workflows will screen on. Registration and transitions are tenant writes — a `viewer` may read every
@@ -122,7 +125,8 @@ class ProspectController(
     /**
      * `POST /api/v1/prospects/import` — the CRM/referral adapter's bulk intake. Each item registers
      * deduplicated on `(tenant, source, source_ref)`: a re-sync is a no-op, so adapters can poll
-     * freely without duplicate prospects. Items without `sourceRef` always register.
+     * freely without duplicate prospects. Items without `sourceRef` always register. Batches are
+     * capped at [IMPORT_BATCH_LIMIT] so one request can't hold an unbounded transaction open.
      */
     @PostMapping("/api/v1/prospects/import")
     fun import(
@@ -132,7 +136,9 @@ class ProspectController(
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
-        if (body.items.isEmpty()) return ResponseEntity.badRequest().build()
+        if (body.items.isEmpty() || body.items.size > IMPORT_BATCH_LIMIT) {
+            return ResponseEntity.badRequest().build()
+        }
         val registered = Instant.now()
         val items =
             body.items.mapNotNull { item ->

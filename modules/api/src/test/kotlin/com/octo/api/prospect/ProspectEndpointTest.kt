@@ -458,6 +458,20 @@ class ProspectEndpointTest {
         }
     }
 
+    @Test
+    fun `a bulk import over the batch limit is refused`() {
+        run { mvc ->
+            val items = (1..501).joinToString(",") { """{"name":"P$it","source":"crm"}""" }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId","items":[$items]}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+        }
+    }
+
     /** Task states keyed by id; `openAt` plants an approval task on the prospect, `approve` resolves it. */
     private class FakeIcTasks : IcTasks {
         private val states = mutableMapOf<UUID, TaskState>()
