@@ -2,7 +2,7 @@
 
 Design principles and review checklist for `ontology/octo-investment.cypher` and all future Ontology changes.
 
-> ⚠️ Syntax examples below predate ADR-0004 (Neo4j/Cypher) and are written in TypeQL. The principles stand; a Cypher-native revision of the examples is TODO(#189). Adapted from established ontology-platform best practices, translated to TypeDB/TypeQL 3.0 and the private-equity domain. Ontology changes are T2 and CTO-owned per `AGENTS.md`.
+> Adapted from established ontology-platform best practices; examples are written against the Neo4j/Cypher schema of record (ADR-0004) in its `// type:` comment notation — the machine-readable declarations the drift guard parses. Ontology changes are T2 and CTO-owned per `AGENTS.md`.
 
 ## Principles in priority order
 
@@ -30,7 +30,7 @@ Entity types represent real investment concepts — `fund`, `deal`, `limited-par
 
 ### 2. Do not repeat yourself
 
-One canonical type per concept. Shared shape → shared attribute types or a supertype; shared logic → TypeQL function or metric-DSL definition.
+One canonical type per concept. Shared shape → shared attribute types or a supertype; shared logic → a shared Cypher query or metric-DSL definition.
 
 **OCTO anti-patterns:**
 
@@ -47,11 +47,14 @@ Core types (`party`, `fund`, `deal`, `investment`, `ledger-event`) are load-bear
 
 **Extension patterns (preferred):**
 
-```typeql
-# New capability = new subtype or new linked type, never property creep on core
-entity hedge-fund, sub fund, owns redemption-terms;
-entity portfolio-review, owns review-date, owns outcome;
-relation review-of, relates review-side @card(1), relates subject-side @card(1);
+```cypher
+// New capability = new subtype or new linked type, never property creep on core
+// type: entity | name: hedge-fund | sub: fund
+// owns: redemption-terms
+// type: entity | name: portfolio-review
+// owns: review-date, outcome
+// type: relation | name: review-of
+// relates: review-side @card(1), subject-side @card(1)
 ```
 
 **OCTO anti-patterns:**
@@ -64,13 +67,13 @@ Security boundary: extensions inherit the classification of the core type they t
 
 ### 4. Composition over deep hierarchies
 
-TypeQL supports single inheritance; composition comes from **role-playing** and **shared attributes** — the practical equivalent of capability interfaces.
+The schema's `sub` chain is single inheritance; composition comes from **role-playing** and **shared properties** — the practical equivalent of capability interfaces.
 
 **How OCTO composes:**
 
-- Capabilities are roles: anything that can own something plays `ownership:owner`; anything ownable plays `ownership:asset`. A `fund` can be both (fund-of-funds) without a new type.
+- Capabilities are roles: anything that can own something plays `ownership:owner` (the owner side of `:OWNERSHIP`); anything ownable plays `ownership:asset`. A `fund` can be both (fund-of-funds) without a new type.
 - Shared attributes are mixins: `external-id`, `effective-date`, `currency-code`, `recorded-at` attach to any type.
-- Workflows target roles, not concrete types: look-through walks `ownership` edges regardless of what entity plays each side.
+- Workflows target roles, not concrete types: look-through walks `:OWNERSHIP` edges regardless of what label plays each side.
 
 **Anti-patterns:**
 
@@ -90,7 +93,7 @@ TypeQL supports single inheritance; composition comes from **role-playing** and 
 - [ ] Technical-only types flagged hidden
 - [ ] Consumer impact listed (API, dashboards, screening, recon, AI grounding)
 - [ ] SemVer level stated; deprecations marked before deletion
-- [ ] TypeQL 3.0 syntax verified — CI schema validation green
+- [ ] Schema syntax verified — `CypherSchema` parse and the `Neo4jSchemaIT` apply-gate green
 
 ## Structural guidance
 
@@ -101,7 +104,7 @@ TypeQL supports single inheritance; composition comes from **role-playing** and 
 | Value type | Characteristics | OCTO mechanism | Example |
 | --- | --- | --- | --- |
 | Pre-computed | From attributes on the same entity; inputs change only via ingestion | Pipeline transform in `ingestion` | `display-name` normalized from legal name |
-| Dynamically derived | Depends on linked entities or ledger events that change via actions | TypeQL function or metric-DSL definition evaluated at query time | `fund.committed-amount` reconciles against `sum(commitment.committed-amount)`; TVPI derives from `ledger-event` + `valuation-event` |
+| Dynamically derived | Depends on linked entities or ledger events that change via actions | Cypher query or metric-DSL definition evaluated at read time | `fund.committed-amount` reconciles against `sum(commitment.committed-amount)`; TVPI derives from `ledger-event` + `valuation-event` |
 | Projection | Derived value materialized for read performance | Documented projection table in PostgreSQL, rebuilt by `analytics` | Dashboard KPI tiles |
 
 **Rules:**
@@ -112,52 +115,52 @@ TypeQL supports single inheritance; composition comes from **role-playing** and 
 
 ### Structs — not supported; use relations
 
-TypeQL 3.0 has no struct value types. Grouped facts with metadata are modeled as **entities or relations carrying their own attributes**:
+The property graph has no struct value types either. Grouped facts with metadata are modeled as **properties carried together on a node or a reified relation node**:
 
-```typeql
-# Reference pattern: address struct with subfields and metadata
-# TypeQL equivalent: attribute group on the owning entity, or a
-# relation when the grouped value has its own provenance
+```cypher
+// Reference pattern: address struct with subfields and metadata
+// Cypher equivalent: property group on the owning node, or a
+// reified node when the grouped value has its own provenance
 
-attribute address-line, value string;
-attribute city, value string;
-attribute postal-code, value string;
-# ... owned together on the entity for simple cases
+// type: attribute | name: address-line | value: string
+// type: attribute | name: city | value: string
+// type: attribute | name: postal-code | value: string
+// ... carried together as node properties for simple cases
 ```
 
 For values carrying provenance — especially AI-extracted claims — use the `extracted-claim` entity + `extraction-source` relation pattern already in the schema: claim, confidence, document, and location travel together, replacing "struct with metadata."
 
 ### Interfaces — subtyping + roles
 
-TypeQL has no interface construct. The equivalents:
+Cypher has no interface construct either. The equivalents:
 
-| Reference construct | TypeQL equivalent |
+| Reference construct | Cypher equivalent |
 | --- | --- |
-| Interface with shared properties | Shared attribute types + abstract supertype |
+| Interface with shared properties | Shared property keys + abstract supertype label |
 | Capability interface (`Valuable`, `Screenable`) | Role-playing: `plays valuation-of:subject-side`, `plays screening-of:deal-side` |
-| Interface-targeted workflows | Queries/functions matching the role, not the concrete type |
-| Taxonomic interface | Subtype hierarchy (`party → organization → fund-manager`) |
+| Interface-targeted workflows | Queries matching the relationship role, not the concrete label |
+| Taxonomic interface | Label chain (`:Party → :Organization → :FundManager`) |
 
 ### Links — relations carry metadata natively
 
-TypeDB relations own attributes, so the "object-backed link" pattern is the default. Direct links are for relationships with no metadata of their own.
+Neo4j relationships own properties — and relations with more than two roles reify as nodes — so the "object-backed link" pattern stays the default. Direct links are for relationships with no metadata of their own.
 
-| Relationship | TypeQL design | Metadata carried |
+| Relationship | Cypher design | Metadata carried |
 | --- | --- | --- |
-| Fund managed by manager | `fund-management` relation | `effective-date` |
-| LP committed to fund | `commitment` relation | `committed-amount`, `currency-code`, `effective-date` |
-| Person employed at org | `employment` relation | `role-title`, `effective-date`, `end-date` |
-| Ownership edge | `ownership` relation | `ownership-pct`, `effective-date`, `end-date` |
+| Fund managed by manager | `:FUND_MANAGEMENT` relationship | `effectiveDate` |
+| LP committed to fund | `:COMMITMENT` relationship | `committedAmount`, `currencyCode`, `effectiveDate` |
+| Person employed at org | `:EMPLOYMENT` relationship | `roleTitle`, `effectiveDate`, `endDate` |
+| Ownership edge | `:OWNERSHIP` relationship | `ownershipPct`, `effectiveDate`, `endDate` |
 
-Never collapse a dated/quantified relationship into attributes on the entity — `person.current-employer` breaks on history; `employment` relation survives it.
+Never collapse a dated/quantified relationship into properties on the node — a `currentEmployer` property breaks on history; an `:EMPLOYMENT` relationship survives it.
 
 ### Naming conventions
 
-TypeQL labels are kebab-case. Our conventions:
+Ontology names are kebab-case in the `// type:` schema comments; the store renders them PascalCase labels, UPPER_SNAKE relationship types, and camelCase properties. Our conventions:
 
 | Element | Convention | Examples |
 | --- | --- | --- |
-| Entity/relation/attribute labels | kebab-case, singular, domain nouns | `operating-company`, `ledger-event`, `committed-amount` |
+| Entity/relation/attribute names | kebab-case, singular, domain nouns — `:OperatingCompany`, `:LEDGER_EVENT`, `committedAmount` renderings are derived | `operating-company`, `ledger-event`, `committed-amount` |
 | Calendar dates | `*-date` | `effective-date`, `end-date`, `as-of-date`, `founded-date` |
 | Timestamps | `*-at` | `occurred-at`, `recorded-at` |
 | Roles | `*-side` for symmetric/participant roles; semantic names for asymmetric | `owner`/`asset`, `employee`/`employer`, `event-side`/`position-side` |
@@ -176,7 +179,7 @@ Domain boundaries drive the policy: deal teams see their deals; IR sees LP-facin
 
 ## Anti-pattern catalog
 
-Translated to the OCTO stack: pipelines = `ingestion` jobs, actions = governed commands in `api`/`workflow`, automations = workflow triggers and alert rules, functions = TypeQL functions and the metric DSL, schedules = batch jobs.
+Translated to the OCTO stack: pipelines = `ingestion` jobs, actions = governed commands in `api`/`workflow`, automations = workflow triggers and alert rules, functions = Cypher queries and the metric DSL, schedules = batch jobs.
 
 | Anti-pattern | OCTO form | Resolution |
 | --- | --- | --- |
@@ -184,7 +187,7 @@ Translated to the OCTO stack: pipelines = `ingestion` jobs, actions = governed c
 | **Kitchen Sink** | `_batch-id`, `source-row-num`, `etl-timestamp` as domain attributes | Technical metadata stays in staging/provenance records; domain attributes must answer "would a user search or decide on this?" |
 | **Department Silos** | `IrLp`, `DealTeamProspect`, `OpsCompany` — per-team copies | One `limited-partner`/`deal`/`operating-company`; team specifics live in scoped attributes, relations, or views |
 | **God Object** | `instrument` holding funds, deals, securities, and companies via a `kind` attribute | Distinct types; shared shape via supertypes and role-playing |
-| **Golden Hammer** | A command users click to "refresh metrics"; a batch job assigning tasks; a TypeQL function concatenating names | Match tool to job — see table below |
+| **Golden Hammer** | A command users click to "refresh metrics"; a batch job assigning tasks; a Cypher query concatenating names | Match tool to job — see table below |
 | **Action Sprawl** | `set-deal-status`, `set-deal-owner`, `set-deal-sector` as separate commands | Business-operation commands: `advance-deal-to-diligence` bundles status, owner, tasks, notification |
 | **Time Machine** | `Fund2024`, `Fund2025`, or `valuation-v3` objects duplicating each other | One entity; history via `supersedes` + linked `valuation-event`/`ledger-event` instances |
 | **Misnomer** | `amount`, `value`, `type`, `related`, `misc` | `committed-amount`, `monetary-amount`, `ownership-pct`, relation names that read as the relationship |
@@ -198,7 +201,7 @@ Translated to the OCTO stack: pipelines = `ingestion` jobs, actions = governed c
 | Alert on metric threshold breach | Alert rule (`control-panel`) | Polling batch job, user check |
 | React to new prospect | Workflow trigger → screening eval | Scheduled scan, manual triage |
 | Analyst approves a draft | Command + approval workflow | Automation that bypasses human sign-off |
-| Concatenate display name | Ingestion transform | TypeQL function per query |
+| Concatenate display name | Ingestion transform | Cypher expression per query |
 | Continuous event feed | Streaming adapter | Minute-polling batch job |
 
 **Decision questions before building:**
@@ -206,7 +209,7 @@ Translated to the OCTO stack: pipelines = `ingestion` jobs, actions = governed c
 1. Human judgment required? → command + workflow.
 2. Data transformation at scale? → ingestion pipeline.
 3. Reaction to an Ontology change? → automation/alert rule.
-4. Computation over live graph state? → TypeQL function / metric DSL.
+4. Computation over live graph state? → Cypher query / metric DSL.
 5. Recurring refresh? → scheduled job.
 
 ### Time Machine — our sanctioned pattern
@@ -224,7 +227,7 @@ Commands are named for business operations and declare their bundle: `record-cap
 
 ## Validation practice — task-based drills
 
-Structural review (SHACL, TypeQL compile, PR checklist) proves the Ontology is coherent. It does not prove anyone can use it. Validation runs **real business questions** against the Ontology with participants — human and agent — who did not build it.
+Structural review (SHACL, `CypherSchema` parse, PR checklist) proves the Ontology is coherent. It does not prove anyone can use it. Validation runs **real business questions** against the Ontology with participants — human and agent — who did not build it.
 
 ### Source questions from operations, not from the schema
 

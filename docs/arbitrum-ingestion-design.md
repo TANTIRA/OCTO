@@ -4,7 +4,7 @@ Design for a read-only Arbitrum adapter feeding the existing onchain pipeline. T
 
 - **Risk tier:** T0 for this document. T2 for what it specifies — an ingestion adapter that writes financial facts. See `AGENTS.md` risk tiers and the fit assessment's T3 exclusions.
 - **Status:** proposed design, pending an issue. Several items are marked **decision needed** — agree them in the issue before code. Execution order and per-phase done-criteria live in [arbitrum-megaplan.md](arbitrum-megaplan.md).
-- **Grounded in:** [arbitrum-fit-assessment.md](arbitrum-fit-assessment.md), [helius-fit-assessment.md](helius-fit-assessment.md), [ADR-0001](adr/0001-platform-architecture.md), `V10__onchain_ingestion.sql`, `V16__onchain_claim_evidence.sql`, `ontology/octo-investment.tql`, `modules/ingestion/.../onchain/`, [Arbitrum docs](https://docs.arbitrum.io/llms-full.txt)
+- **Grounded in:** [arbitrum-fit-assessment.md](arbitrum-fit-assessment.md), [helius-fit-assessment.md](helius-fit-assessment.md), [ADR-0001](adr/0001-platform-architecture.md), `V10__onchain_ingestion.sql`, `V16__onchain_claim_evidence.sql`, `ontology/octo-investment.cypher`, `modules/ingestion/.../onchain/`, [Arbitrum docs](https://docs.arbitrum.io/llms-full.txt)
 
 ## What changed since the fit assessment
 
