@@ -13,35 +13,36 @@ private val MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" // devnet-styl
 private val SIG = "5wHuPkQ" + "s".repeat(80)
 
 private fun tx(
-    preLamports: List<Long>,
-    postLamports: List<Long>,
+    preLamports: List<Any>,
+    postLamports: List<Any>,
     accounts: List<String>,
     preTokens: String = "[]",
     postTokens: String = "[]",
     err: String = "null",
-    blockTime: Long = 1_726_000_000,
+    blockTime: Long? = 1_726_000_000,
     slot: Long = 250_000_000,
-): String =
-    """
-    {
-      "slot": $slot,
-      "blockTime": $blockTime,
-      "transaction": {
-        "signatures": ["$SIG"],
-        "message": {
-          "recentBlockhash": "bh123",
-          "accountKeys": [${accounts.joinToString(",") { """{"pubkey":"$it","signer":false}""" }}]
+): String {
+    val blockTimeField = blockTime?.let { "\n      \"blockTime\": $it," } ?: ""
+    return """
+        {
+          "slot": $slot,$blockTimeField
+          "transaction": {
+            "signatures": ["$SIG"],
+            "message": {
+              "recentBlockhash": "bh123",
+              "accountKeys": [${accounts.joinToString(",") { """{"pubkey":"$it","signer":false}""" }}]
+            }
+          },
+          "meta": {
+            "err": $err,
+            "preBalances": [${preLamports.joinToString(",")}],
+            "postBalances": [${postLamports.joinToString(",")}],
+            "preTokenBalances": $preTokens,
+            "postTokenBalances": $postTokens
+          }
         }
-      },
-      "meta": {
-        "err": $err,
-        "preBalances": [${preLamports.joinToString(",")}],
-        "postBalances": [${postLamports.joinToString(",")}],
-        "preTokenBalances": $preTokens,
-        "postTokenBalances": $postTokens
-      }
-    }
-    """.trimIndent()
+        """.trimIndent()
+}
 
 private fun tokenEntry(
     accountIndex: Int,
@@ -59,7 +60,12 @@ class HeliusTransferNormalizerTest {
     private fun normalize(
         json: String,
         wallet: String = WALLET,
-    ) = normalizer.normalize(mapper.readTree(json), wallet)
+    ) = normalizer.normalize(mapper.readTree(json), wallet, OBSERVED_AT).legs
+
+    private fun parse(
+        json: String,
+        wallet: String = WALLET,
+    ) = normalizer.normalize(mapper.readTree(json), wallet, OBSERVED_AT)
 
     @Test
     fun `incoming native SOL produces one IN leg in lamports`() {
@@ -145,5 +151,76 @@ class HeliusTransferNormalizerTest {
     fun `a transaction that does not touch the wallet produces nothing`() {
         val legs = normalize(tx(preLamports = listOf(1_000, 2_000), postLamports = listOf(500, 2_500), accounts = listOf("alice", "bob")))
         assertTrue(legs.isEmpty())
+    }
+
+    @Test
+    fun `a missing blockTime falls back to the observation instant rather than epoch 0`() {
+        val parsed =
+            parse(
+                tx(
+                    preLamports = listOf(1_000),
+                    postLamports = listOf(9_000),
+                    accounts = listOf(WALLET),
+                    blockTime = null,
+                ),
+            )
+        assertEquals(OBSERVED_AT, parsed.legs.single().blockTime)
+    }
+
+    @Test
+    fun `a non-numeric balance entry is skipped rather than fabricating a leg`() {
+        // Malformed payload: preBalances[0] is a string. Coercing it to 0 would stage a
+        // phantom full-amount IN transfer.
+        val parsed =
+            parse(
+                tx(
+                    preLamports = listOf("\"oops\""),
+                    postLamports = listOf(9_000),
+                    accounts = listOf(WALLET),
+                ),
+            )
+        assertTrue(parsed.legs.isEmpty())
+        assertEquals(listOf("bal:0 (non-numeric balance)"), parsed.skipped)
+    }
+
+    @Test
+    fun `a malformed token amount is skipped rather than fabricating a leg`() {
+        // A non-numeric `amount` string used to throw NumberFormatException and kill the batch.
+        val accounts = listOf("wAcct", "tAcct")
+        val badEntry = """{"accountIndex":1,"mint":"$MINT","owner":"$WALLET",
+            "uiTokenAmount":{"amount":"notanumber","decimals":6}}"""
+        val parsed =
+            parse(
+                tx(
+                    preLamports = listOf(0, 0),
+                    postLamports = listOf(0, 0),
+                    accounts = accounts,
+                    postTokens = "[$badEntry]",
+                ),
+            )
+        assertTrue(parsed.legs.isEmpty())
+        assertEquals(listOf("tok:1:$MINT (malformed amount)"), parsed.skipped)
+    }
+
+    @Test
+    fun `a token leg without decimals is skipped rather than mispriced`() {
+        val accounts = listOf("wAcct", "tAcct")
+        val noDecimals = """{"accountIndex":1,"mint":"$MINT","owner":"$WALLET",
+            "uiTokenAmount":{"amount":"400"}}"""
+        val parsed =
+            parse(
+                tx(
+                    preLamports = listOf(0, 0),
+                    postLamports = listOf(0, 0),
+                    accounts = accounts,
+                    postTokens = "[$noDecimals]",
+                ),
+            )
+        assertTrue(parsed.legs.isEmpty())
+        assertEquals(listOf("tok:1:$MINT (missing decimals)"), parsed.skipped)
+    }
+
+    companion object {
+        private val OBSERVED_AT = java.time.Instant.parse("2026-09-27T00:00:00Z")
     }
 }

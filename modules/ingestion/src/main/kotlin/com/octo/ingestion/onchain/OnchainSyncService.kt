@@ -2,6 +2,7 @@ package com.octo.ingestion.onchain
 
 import com.octo.ingestion.onchain.helius.HeliusRpcApi
 import com.octo.ingestion.onchain.helius.HeliusTransferNormalizer
+import java.time.Instant
 import java.util.UUID
 
 /** Per-address outcome of one poll pass. */
@@ -10,6 +11,7 @@ data class SyncResult(
     val signaturesSeen: Int,
     val transactionsFetched: Int,
     val transfersStaged: Int,
+    val skippedLegs: List<String> = emptyList(),
 )
 
 /**
@@ -48,6 +50,8 @@ class OnchainSyncService(
         var signaturesSeen = 0
         var transactionsFetched = 0
         val legs = mutableListOf<OnchainTransfer>()
+        val skipped = mutableListOf<String>()
+        val observedAt = Instant.now()
 
         var pages = 0
         while (pages < maxPages) {
@@ -57,7 +61,9 @@ class OnchainSyncService(
             for (tx in data) {
                 signaturesSeen++
                 transactionsFetched++
-                legs += normalizer.normalize(tx, watch.address)
+                val parsed = normalizer.normalize(tx, watch.address, observedAt)
+                legs += parsed.legs
+                skipped += parsed.skipped
             }
             pageToken = page.path("paginationToken").takeIf { it.isTextual }?.asText()
             if (pageToken == null) break
@@ -65,6 +71,6 @@ class OnchainSyncService(
         }
 
         val staged = store.insertTransfers(legs, runId, correlationId, actor)
-        return SyncResult(watch.address, signaturesSeen, transactionsFetched, staged)
+        return SyncResult(watch.address, signaturesSeen, transactionsFetched, staged, skipped)
     }
 }

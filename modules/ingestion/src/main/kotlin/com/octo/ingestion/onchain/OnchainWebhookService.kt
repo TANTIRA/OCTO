@@ -2,6 +2,7 @@ package com.octo.ingestion.onchain
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.octo.ingestion.onchain.helius.HeliusTransferNormalizer
+import java.time.Instant
 import java.util.UUID
 import java.util.logging.Logger
 
@@ -54,13 +55,18 @@ class OnchainWebhookService(
         if (pending > 0) {
             log.info("deferred $pending webhook transactions pending finality; the finalized-only poller picks them up")
         }
-        val transfers =
+        val observedAt = Instant.now()
+        val parses =
             payload
                 .filter { signatureOf(it) in finalized }
                 .flatMap { tx ->
-                    watchedAccounts(tx, watched, tokenOwners).flatMap { normalizer.normalize(tx, it) }
+                    watchedAccounts(tx, watched, tokenOwners).map { normalizer.normalize(tx, it, observedAt) }
                 }
-        return store.insertTransfers(transfers, ingestionRunId, correlationId, actor)
+        val skipped = parses.flatMap { it.skipped }
+        if (skipped.isNotEmpty()) {
+            log.warning("skipped ${skipped.size} malformed transfer legs: ${skipped.take(5).joinToString()}")
+        }
+        return store.insertTransfers(parses.flatMap { it.legs }, ingestionRunId, correlationId, actor)
     }
 
     /** The transaction's own signature — `transaction.signatures[0]`; a tx without one cannot be verified and is dropped. */
