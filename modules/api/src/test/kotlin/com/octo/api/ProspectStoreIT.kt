@@ -51,6 +51,21 @@ class ProspectStoreIT {
             }
         }
 
+    /** A workflow_task row the `invested` event can name — V19's FK needs the task to exist. */
+    private fun task(): UUID =
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement
+                    .executeQuery(
+                        "insert into mesta.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
+                            "values ('approval', 'prospect', 'x', 'test', 'test', gen_random_uuid()) returning id",
+                    ).use { rows ->
+                        rows.next()
+                        rows.getObject(1, UUID::class.java)
+                    }
+            }
+        }
+
     private fun prospect(tenantId: UUID) =
         Prospect(
             UUID.randomUUID(),
@@ -93,7 +108,7 @@ class ProspectStoreIT {
         val invested =
             store.append(
                 p.id,
-                ProspectEvent.Invested("ic-chair", t0.plusSeconds(4), "conviction in the corridor thesis"),
+                ProspectEvent.Invested("ic-chair", t0.plusSeconds(4), "conviction in the corridor thesis", task()),
                 provenance,
                 TenantScope.All,
             )
@@ -137,7 +152,7 @@ class ProspectStoreIT {
         assertThatThrownBy {
             store.append(
                 p.id,
-                ProspectEvent.Invested("ic-chair", t0.plusSeconds(1), "early conviction"),
+                ProspectEvent.Invested("ic-chair", t0.plusSeconds(1), "early conviction", task()),
                 provenance,
                 TenantScope.All,
             )

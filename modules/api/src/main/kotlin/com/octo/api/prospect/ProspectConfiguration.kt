@@ -8,6 +8,10 @@ import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.persistence.JdbcProspectStore
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
+import com.octo.workflow.Task
+import com.octo.workflow.TaskState
+import com.octo.workflow.persistence.JdbcTaskStore
+import com.octo.workflow.persistence.TaskProvenance
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -45,6 +49,19 @@ class ProspectConfiguration {
                 provenance: ProspectProvenance,
                 scope: TenantScope,
             ) = store.append(prospectId, event, provenance, scope)
+        }
+    }
+
+    @Bean
+    fun jdbcIcTasks(dataSource: ObjectProvider<DataSource>): IcTasks {
+        val store by lazy { JdbcTaskStore(dataSource.getObject()) }
+        return object : IcTasks {
+            override fun open(
+                task: Task,
+                provenance: TaskProvenance,
+            ) = store.create(task, provenance)
+
+            override fun state(taskId: UUID) = store.load(taskId)
         }
     }
 }
