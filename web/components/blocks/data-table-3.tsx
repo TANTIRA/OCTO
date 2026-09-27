@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Loader2, Pencil } from "lucide-react";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
-  c.filter(Boolean).join("");
+  c.filter(Boolean).join(" ");
 
 type SaveState = "idle" | "saving" | "saved";
 
@@ -219,7 +219,7 @@ export default function DataTable3() {
             if (e.key === "Escape") setEditing(null);
           }}
           aria-label={`Edit ${field} for ${r.workstream}`}
-          className="h-7 w-20 rounded-[var(--rb-r-sm,6px)] border border-oklch(0.922 0 0) border-neutral-200 bg-white px-2 text-right text-[13px] tabular-nums text-neutral-900 transition-colors duration-150 hover:border-neutral-300 focus:border-neutral-900 focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:hover:border-neutral-700 dark:focus:border-white dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))] dark:border-oklch(1 0 0 / 10%)"
+          className="h-7 w-20 rounded-[var(--rb-r-sm,6px)] border border-neutral-200 bg-white px-2 text-right text-[13px] tabular-nums text-neutral-900 transition-colors duration-150 hover:border-neutral-300 focus:border-neutral-900 focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:hover:border-neutral-700 dark:focus:border-white dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))]"
         />
       );
     }

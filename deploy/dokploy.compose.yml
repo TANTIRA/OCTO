@@ -34,10 +34,6 @@ services:
       - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
       - NEO4J_USER=${NEO4J_USER}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
-      - TYPEDB_ADDR=typedb:1729
-      - TYPEDB_DATABASE=${TYPEDB_DATABASE:-octo}
-      - TYPEDB_USER=${TYPEDB_USER}
-      - TYPEDB_PASSWORD=${TYPEDB_PASSWORD}
       - OPENROUTER_API_KEY
       - DECISION_MODEL
       - DECISION_MODEL_ENDPOINT
@@ -58,9 +54,6 @@ services:
     networks:
       - default
       - dokploy-network
-    depends_on:
-      typedb:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/readiness"]
       interval: 30s
@@ -79,6 +72,12 @@ services:
     build:
       context: ../web
       dockerfile: Dockerfile
+      args:
+        # Baked into the client bundle by next build; publishable anon key.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        # Also baked at build: rewrites() reads it when next.config evaluates.
+        API_INTERNAL_URL: http://api:8080
     image: ${WEB_IMAGE:-octo-web}:${WEB_IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
@@ -90,7 +89,9 @@ services:
     depends_on:
       - api
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      # 127.0.0.1, not localhost: the standalone server binds IPv4 0.0.0.0 and
+      # busybox wget tries ::1 first on alpine, which reports unhealthy falsely.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -103,30 +104,6 @@ services:
 # Graph store: the external octo-neo4j-db Dokploy service (bolt :7687 on
 # dokploy-network). It lives outside this compose so Browser and the app share
 # one graph; bolt stays private — Traefik only exposes labelled HTTP services.
-  typedb:
-    image: typedb/typedb:${TYPEDB_VERSION}
-    restart: unless-stopped
-    volumes:
-      - typedb-data:/opt/typedb/data
-    networks:
-      - default
-    healthcheck:
-      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/1729' || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 4G
-        reservations:
-          memory: 1G
-
-volumes:
-  typedb-data:
-    name: octo-typedb-${ENVIRONMENT:-prod}
 
 networks:
   dokploy-network:

@@ -1,4 +1,4 @@
--- V24__prospect_event_checklist_claim.sql
+-- V26__prospect_event_checklist_claim.sql
 -- #201 review follow-up: a due-diligence landing now names the evidence checklist it claims —
 -- the same lineage V19 gives `invested` and its approval task. Recording the claim lets a
 -- transition that loses its append race read back whether the winner's landing runs on the

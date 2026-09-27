@@ -33,7 +33,7 @@ data class Asset(
     val displayName: String,
     val region: String? = null,
     val tags: List<String> = emptyList(),
-    val typedbIid: String? = null,
+    val graphNodeId: String? = null,
     val supersedesId: UUID? = null,
     val rationale: String? = null,
 )

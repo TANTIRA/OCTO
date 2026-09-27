@@ -2,24 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const cx = (...c: (string | false | null | undefined)[]) =>
-  c.filter(Boolean).join("");
 import { RefreshCw } from "lucide-react";
 
-type Status = "operational" | "degraded" | "down" | "maintenance";
+const cx = (...c: (string | false | null | undefined)[]) =>
+  c.filter(Boolean).join(" ");
+
+type Status = "investing" | "watch" | "exiting" | "harvesting";
 
 const DOT: Record<Status, string> = {
-  operational: "bg-neutral-300 dark:bg-neutral-600",
-  degraded: "bg-amber-500",
-  down: "bg-red-500",
-  maintenance: "bg-neutral-300 dark:bg-neutral-600",
+  investing: "bg-neutral-300 dark:bg-neutral-600",
+  watch: "bg-amber-500",
+  exiting: "bg-red-500",
+  harvesting: "bg-neutral-300 dark:bg-neutral-600",
 };
 
 const WORD: Record<Status, string> = {
-  operational: "Investing",
-  degraded: "Watch",
-  down: "Exiting",
-  maintenance: "Harvesting",
+  investing: "Investing",
+  watch: "Watch",
+  exiting: "Exiting",
+  harvesting: "Harvesting",
 };
 
 const STATS = [
@@ -63,11 +64,11 @@ function Sparkline({ values }: { values: number[] }) {
       const y = 92 - ((v - min) / span) * 84;
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     })
-    .join("");
+    .join(" ");
 
   return (
     <svg
-      viewBox="0 100"
+      viewBox="0 0 100 100"
       preserveAspectRatio="none"
       aria-hidden
       className="hidden h-8 w-16 shrink-0 sm:block"
@@ -85,63 +86,60 @@ function Sparkline({ values }: { values: number[] }) {
   );
 }
 
-type Service = {
+type Fund = {
   name: string;
-  region: string;
-  latency: string;
-  uptime: string;
+  vintage: string;
+  nav: string;
+  tvpi: string;
   status: Status;
 };
 
-// Funds list reuses the Service row shape: name, region → vintage · strategy,
-// latency → NAV, uptime → TVPI.
-
-const SERVICES: Service[] = [
+const FUNDS: Fund[] = [
   {
     name: "OCTO Flagship Fund II",
-    region: "2023 · Buyout",
-    latency: "$486.2m",
-    uptime: "1.71×",
-    status: "operational",
+    vintage: "2023 · Buyout",
+    nav: "$486.2m",
+    tvpi: "1.71×",
+    status: "investing",
   },
   {
     name: "OCTO Flagship Fund I",
-    region: "2019 · Buyout",
-    latency: "$184.7m",
-    uptime: "1.58×",
-    status: "maintenance",
+    vintage: "2019 · Buyout",
+    nav: "$184.7m",
+    tvpi: "1.58×",
+    status: "harvesting",
   },
   {
     name: "OCTO Opportunities I",
-    region: "2024 · Growth / credit",
-    latency: "$96.4m",
-    uptime: "1.32×",
-    status: "operational",
+    vintage: "2024 · Growth / credit",
+    nav: "$96.4m",
+    tvpi: "1.32×",
+    status: "investing",
   },
   {
     name: "Antero Co-Invest SPV",
-    region: "2025 · Single deal",
-    latency: "$31.5m",
-    uptime: "1.12×",
-    status: "degraded",
+    vintage: "2025 · Single deal",
+    nav: "$31.5m",
+    tvpi: "1.12×",
+    status: "watch",
   },
   {
     name: "OCTO Venture FoF",
-    region: "2022 · Fund of funds",
-    latency: "$13.6m",
-    uptime: "0.94×",
-    status: "down",
+    vintage: "2022 · Fund of funds",
+    nav: "$13.6m",
+    tvpi: "0.94×",
+    status: "exiting",
   },
 ];
 
-type Incident = {
+type Alert = {
   title: string;
   state: string;
   when: string;
   dot: string;
 };
 
-const INCIDENTS: Incident[] = [
+const ALERTS: Alert[] = [
   {
     title: "Covenant breach — Helios Data Centers",
     state: "Investigating",
@@ -251,7 +249,7 @@ export default function Dashboard4() {
             type="button"
             onClick={refresh}
             disabled={refreshing}
-            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[var(--rb-r-md,8px)] border border-oklch(0.922 0 0) border-neutral-200 bg-white px-3 text-sm font-medium text-neutral-900 transition-[transform,background-color,border-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-neutral-300 hover:bg-neutral-50 active:scale-[0.97] focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:border-neutral-700 dark:hover:bg-neutral-800 dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))] dark:border-oklch(1 0 0 / 10%)"
+            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[var(--rb-r-md,8px)] border border-neutral-200 bg-white px-3 text-sm font-medium text-neutral-900 transition-[transform,background-color,border-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-neutral-300 hover:bg-neutral-50 active:scale-[0.97] focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:border-neutral-700 dark:hover:bg-neutral-800 dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))]"
           >
             <RefreshCw
               aria-hidden
@@ -271,11 +269,11 @@ export default function Dashboard4() {
           onScroll={body.onScroll}
           className="h-full overflow-y-auto p-4 sm:p-6"
         >
-          <div className="grid grid-cols-2 gap-1 rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-neutral-50 p-1 lg:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-950 dark:border-oklch(1 0 0 / 10%)">
+          <div className="grid grid-cols-2 gap-1 rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-neutral-50 p-1 lg:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-950">
             {STATS.map((s) => (
               <div
                 key={s.label}
-                className="rounded-[var(--rb-r-lg,10px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)"
+                className="rounded-[var(--rb-r-lg,10px)] border border-neutral-200/70 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
               >
                 <p className="truncate text-[13px] text-neutral-500">
                   {s.label}
@@ -306,10 +304,10 @@ export default function Dashboard4() {
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)">
+            <div className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900">
               <div className="flex h-12 items-center bg-neutral-50 px-4 dark:bg-neutral-900/60">
                 <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                  Services
+                  Funds
                 </h2>
               </div>
               <table className="w-full border-collapse text-left">
@@ -326,13 +324,13 @@ export default function Dashboard4() {
                       scope="col"
                       className="hidden h-9 px-3 text-right text-xs font-medium text-neutral-500 sm:table-cell"
                     >
-                      Latency
+                      NAV
                     </th>
                     <th
                       scope="col"
                       className="hidden h-9 px-3 text-right text-xs font-medium text-neutral-500 sm:table-cell"
                     >
-                      Uptime
+                      TVPI
                     </th>
                     <th
                       scope="col"
@@ -343,7 +341,7 @@ export default function Dashboard4() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/70">
-                  {SERVICES.map((s, i) => (
+                  {FUNDS.map((s, i) => (
                     <tr
                       key={`${s.name}-${i}`}
                       className="h-11 transition-colors duration-150 hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
@@ -353,14 +351,14 @@ export default function Dashboard4() {
                           {s.name}
                         </p>
                         <p className="truncate font-mono text-[11px] text-neutral-500">
-                          {s.region}
+                          {s.vintage}
                         </p>
                       </td>
                       <td className="hidden px-3 text-right text-[13px] tabular-nums text-neutral-600 sm:table-cell dark:text-neutral-400">
-                        {s.latency}
+                        {s.nav}
                       </td>
                       <td className="hidden px-3 text-right text-[13px] tabular-nums text-neutral-600 sm:table-cell dark:text-neutral-400">
-                        {s.uptime}
+                        {s.tvpi}
                       </td>
                       <td className="px-3 last:pr-4">
                         <span className="flex items-center justify-end gap-1.5 whitespace-nowrap text-[13px] text-neutral-600 dark:text-neutral-400">
@@ -376,17 +374,17 @@ export default function Dashboard4() {
               </table>
             </div>
 
-            <div className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)">
+            <div className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900">
               <div className="flex h-12 items-center justify-between bg-neutral-50 px-4 dark:bg-neutral-900/60">
                 <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                  Incidents
+                  Alerts
                 </h2>
                 <span className="inline-flex h-5 shrink-0 items-center rounded-[var(--rb-r-xs,4px)] bg-neutral-200/70 px-1.5 text-[11px] font-medium tabular-nums text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
-                  {INCIDENTS.length}
+                  {ALERTS.length}
                 </span>
               </div>
               <ul className="flex flex-col gap-1.5 p-1.5">
-                {INCIDENTS.map((inc, i) => (
+                {ALERTS.map((inc, i) => (
                   <li
                     key={i}
                     className="flex min-h-11 items-start gap-2.5 rounded-[var(--rb-r-lg,10px)] bg-neutral-50 px-3 py-2.5 dark:bg-neutral-800/50"

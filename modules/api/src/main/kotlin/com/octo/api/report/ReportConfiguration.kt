@@ -6,9 +6,12 @@ import com.octo.workflow.Task
 import com.octo.workflow.persistence.JdbcTaskStore
 import com.octo.workflow.persistence.TaskProvenance
 import com.octo.workflow.report.JdbcReportJobStore
+import com.octo.workflow.report.JdbcReportScheduleStore
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
 import com.octo.workflow.report.ReportRequest
+import com.octo.workflow.report.ReportSchedule
+import com.octo.workflow.report.ReportSchedules
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
@@ -69,9 +72,47 @@ class ReportConfiguration {
     }
 
     @Bean
+    fun jdbcReportSchedules(dataSource: ObjectProvider<DataSource>): ReportSchedules {
+        val store by lazy { JdbcReportScheduleStore(dataSource.getObject()) }
+        return object : ReportSchedules {
+            override fun upsert(
+                schedule: ReportSchedule,
+                scope: TenantScope,
+            ) = store.upsert(schedule, scope)
+
+            override fun load(
+                id: UUID,
+                scope: TenantScope,
+            ) = store.load(id, scope)
+
+            override fun list(
+                tenantId: UUID,
+                scope: TenantScope,
+            ) = store.list(tenantId, scope)
+
+            override fun claimDue(
+                now: java.time.Instant,
+                lease: java.time.Duration,
+            ) = store.claimDue(now, lease)
+
+            override fun markRun(
+                id: UUID,
+                nextRunAt: java.time.Instant,
+            ) = store.markRun(id, nextRunAt)
+        }
+    }
+
+    @Bean
     @ConditionalOnProperty("mesta.reports.poll", havingValue = "true", matchIfMissing = true)
     fun reportRunner(
         jobs: ReportJobs,
         json: ObjectMapper,
     ) = ReportRunner(jobs, json)
+
+    @Bean
+    @ConditionalOnProperty("mesta.reports.schedules.poll", havingValue = "true", matchIfMissing = true)
+    fun reportScheduleRunner(
+        schedules: ReportSchedules,
+        jobs: ReportJobs,
+    ) = ReportScheduleRunner(schedules, jobs)
 }

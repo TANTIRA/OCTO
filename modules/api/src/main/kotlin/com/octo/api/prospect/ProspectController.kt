@@ -14,6 +14,7 @@ import com.octo.dealsourcing.combine
 import com.octo.dealsourcing.evaluate
 import com.octo.dealsourcing.next
 import com.octo.dealsourcing.persistence.IMPORT_BATCH_LIMIT
+import com.octo.dealsourcing.persistence.PIPELINE_PAGE_LIMIT
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
@@ -110,9 +111,6 @@ interface ScreeningRules {
         scope: TenantScope,
     ): List<ScreeningRuleRow>
 }
-
-/** One pipeline read returns at most this many prospects — every read is bounded. */
-private const val PIPELINE_PAGE_LIMIT = 500
 
 /** Field-length bounds the edge enforces before any text reaches a `text` column. */
 private const val NAME_LIMIT = 300

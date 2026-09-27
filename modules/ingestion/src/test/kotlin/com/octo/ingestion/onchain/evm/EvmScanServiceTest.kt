@@ -283,6 +283,49 @@ class EvmScanServiceTest {
     }
 
     @Test
+    fun `a log without a tx hash is recorded and never staged`() {
+        val rpc = ScanFakeRpc(head = 10)
+        rpc.logPages[Triple(0L, 9L, false)] = logs(transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "", block = 8))
+        val store = ScanFakeStore(SW_WALLET).apply { contracts = listOf(TokenContract(SW_CONTRACT, 6)) }
+
+        val report = service(rpc, store).scan()
+
+        assertEquals(0, report.legsStaged)
+        assertTrue(store.transfers.isEmpty())
+        assertEquals(1, report.malformedLogs.size)
+    }
+
+    @Test
+    fun `a malformed log index skips the log without killing the window`() {
+        val rpc = ScanFakeRpc(head = 10)
+        val bad =
+            transferLog(from = SW_OTHER, to = SW_WALLET, block = 8)
+                .deepCopy<com.fasterxml.jackson.databind.node.ObjectNode>()
+                .apply { put("logIndex", "0xzz") }
+        rpc.logPages[Triple(0L, 9L, false)] =
+            logs(bad, transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "0xgood", logIndex = 1, block = 8))
+        val store = ScanFakeStore(SW_WALLET).apply { contracts = listOf(TokenContract(SW_CONTRACT, 6)) }
+
+        val report = service(rpc, store).scan()
+
+        assertEquals(1, report.legsStaged) // the well-formed log still staged
+        assertEquals(1, report.malformedLogs.size)
+    }
+
+    @Test
+    fun `a block without a readable timestamp skips its logs and says so`() {
+        val rpc = ScanFakeRpc(head = 10)
+        rpc.blocks[8] = ObjectMapper().readTree("""{"number":"0x8"}""")
+        rpc.logPages[Triple(0L, 9L, false)] = logs(transferLog(from = SW_OTHER, to = SW_WALLET, block = 8))
+        val store = ScanFakeStore(SW_WALLET).apply { contracts = listOf(TokenContract(SW_CONTRACT, 6)) }
+
+        val report = service(rpc, store).scan()
+
+        assertEquals(0, report.legsStaged)
+        assertEquals(listOf("block 8 has no readable timestamp (tx 0xtx)"), report.malformedLogs)
+    }
+
+    @Test
     fun `a chain-id mismatch refuses to scan`() {
         val rpc = ScanFakeRpc(chainId = 1L)
         assertFailsWith<IllegalArgumentException> { service(rpc, ScanFakeStore(SW_WALLET)).scan() }
