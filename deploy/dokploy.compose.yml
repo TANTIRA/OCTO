@@ -34,6 +34,10 @@ services:
       - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
       - NEO4J_USER=${NEO4J_USER}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - TYPEDB_ADDR=typedb:1729
+      - TYPEDB_DATABASE=${TYPEDB_DATABASE:-octo}
+      - TYPEDB_USER=${TYPEDB_USER}
+      - TYPEDB_PASSWORD=${TYPEDB_PASSWORD}
       - OPENROUTER_API_KEY
       - DECISION_MODEL
       - DECISION_MODEL_ENDPOINT
@@ -54,6 +58,9 @@ services:
     networks:
       - default
       - dokploy-network
+    depends_on:
+      typedb:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/readiness"]
       interval: 30s
@@ -96,6 +103,30 @@ services:
 # Graph store: the external octo-neo4j-db Dokploy service (bolt :7687 on
 # dokploy-network). It lives outside this compose so Browser and the app share
 # one graph; bolt stays private — Traefik only exposes labelled HTTP services.
+  typedb:
+    image: typedb/typedb:${TYPEDB_VERSION}
+    restart: unless-stopped
+    volumes:
+      - typedb-data:/opt/typedb/data
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/1729' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          memory: 1G
+
+volumes:
+  typedb-data:
+    name: octo-typedb-${ENVIRONMENT:-prod}
 
 networks:
   dokploy-network:
