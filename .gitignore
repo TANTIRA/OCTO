@@ -34,3 +34,6 @@ node_modules/
 # Supabase CLI local state
 **/supabase/.temp/
 **/supabase/.branches/
+
+# CodeQL static analysis output (regenerated per scan; see build.log inside dir)
+static_analysis_codeql_*/
