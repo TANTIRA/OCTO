@@ -119,6 +119,23 @@ class ProspectController(
         return ResponseEntity.ok(state.view())
     }
 
+    /**
+     * `GET /api/v1/prospects/{id}/events` — the append-only audit trail itself: every transition with
+     * actor, rationale, business/recorded time, provenance correlation, and the IC task that
+     * authorized an `invested`. Read-side mirror of why the store keeps events, not just state.
+     */
+    @GetMapping("/api/v1/prospects/{id}/events")
+    fun events(
+        @PathVariable id: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<List<EventView>> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val state = prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        roleIn(userId, state.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        val rows = prospects.history(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(rows.map { it.view() })
+    }
+
     @GetMapping("/api/v1/prospects")
     fun pipeline(
         @RequestParam tenantId: UUID,
@@ -359,6 +376,20 @@ class ProspectController(
 
     private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
 
+    private fun com.octo.dealsourcing.persistence.ProspectEventRow.view() =
+        EventView(
+            seq = seq,
+            eventType = eventType,
+            stageFrom = stageFrom?.wireValue,
+            stageTo = stageTo?.wireValue,
+            actor = actor,
+            rationale = rationale,
+            occurredAt = occurredAt,
+            recordedAt = recordedAt,
+            correlationId = correlationId,
+            taskId = taskId,
+        )
+
     private fun ProspectState.view() =
         ProspectView(
             id = prospect.id,
@@ -414,6 +445,19 @@ class ProspectController(
         val reasons: List<String>,
         val stage: String,
         val reviewTaskId: UUID? = null,
+    )
+
+    data class EventView(
+        val seq: Long,
+        val eventType: String,
+        val stageFrom: String?,
+        val stageTo: String?,
+        val actor: String,
+        val rationale: String?,
+        val occurredAt: Instant,
+        val recordedAt: Instant,
+        val correlationId: UUID,
+        val taskId: UUID?,
     )
 
     data class ProspectView(

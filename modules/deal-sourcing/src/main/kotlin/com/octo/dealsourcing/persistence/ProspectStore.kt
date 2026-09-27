@@ -5,7 +5,22 @@ import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
 import com.octo.dealsourcing.TenantScope
+import java.time.Instant
 import java.util.UUID
+
+/** One stored event row — the audit trail view: seq ordering, actor, rationale, provenance, IC task. */
+data class ProspectEventRow(
+    val seq: Long,
+    val eventType: String,
+    val stageFrom: ProspectStage?,
+    val stageTo: ProspectStage?,
+    val actor: String,
+    val rationale: String?,
+    val occurredAt: Instant,
+    val recordedAt: Instant,
+    val correlationId: UUID,
+    val taskId: UUID?,
+)
 
 /** The prospect pipeline contract services bind against; `JdbcProspectStore` behind it in production. */
 interface ProspectStore {
@@ -22,6 +37,16 @@ interface ProspectStore {
         id: UUID,
         scope: TenantScope,
     ): ProspectState?
+
+    /**
+     * The prospect's full event history in append order, or null when no prospect has that id.
+     * Audit reads need the rows themselves — actor, rationale, provenance — not just the state
+     * they replay to.
+     */
+    fun history(
+        id: UUID,
+        scope: TenantScope,
+    ): List<ProspectEventRow>?
 
     /** Every prospect of the tenant currently standing at [stage]. */
     fun listAtStage(
