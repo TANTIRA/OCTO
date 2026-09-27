@@ -1,0 +1,121 @@
+# OCTO app stack — Dokploy github-source build.
+# Dokploy clones the repo and runs `docker compose -f deploy/dokploy.compose.yml`,
+# building octo-api/octo-web on the host. Datastores live on dokploy-network
+# (octo-supabase-db, octo-supabase-pooler, octo-neo4j-db). No public ports — domains
+# route through Dokploy Traefik.
+name: octo
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: ${API_IMAGE:-octo-api}:${API_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: "5432"
+      DB_NAME: ${POSTGRES_DB:-postgres}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_MIGRATION_USER: ${DB_MIGRATION_USER}
+      DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD}
+      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
+      SUPABASE_STORAGE_ENDPOINT: ${SUPABASE_STORAGE_ENDPOINT}
+      AUTH_ISSUER: ${AUTH_ISSUER}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL}
+      TYPEDB_ADDR: typedb:1729
+      TYPEDB_DATABASE: ${TYPEDB_DATABASE:-octo}
+      TYPEDB_USER: ${TYPEDB_USER}
+      TYPEDB_PASSWORD: ${TYPEDB_PASSWORD}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DECISION_MODEL: ${DECISION_MODEL:-}
+      DECISION_MODEL_ENDPOINT: ${DECISION_MODEL_ENDPOINT:-}
+      HELIUS_API_KEY: ${HELIUS_API_KEY:-}
+      HELIUS_RPC_URL: ${HELIUS_RPC_URL:-}
+      HELIUS_WALLET_API_URL: ${HELIUS_WALLET_API_URL:-}
+      HELIUS_NETWORK: ${HELIUS_NETWORK:-}
+      HELIUS_WEBHOOK_SECRET: ${HELIUS_WEBHOOK_SECRET:-}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+      ALPHA_VANTAGE_BASE_URL: ${ALPHA_VANTAGE_BASE_URL:-}
+      ARBITRUM_RPC_URL: ${ARBITRUM_RPC_URL:-}
+      ARBITRUM_API_KEY: ${ARBITRUM_API_KEY:-}
+      ARBITRUM_CHAIN_ID: ${ARBITRUM_CHAIN_ID:-}
+      ARBITRUM_START_BLOCK: ${ARBITRUM_START_BLOCK:-}
+      ARBITRUM_MAX_BLOCK_WINDOW: ${ARBITRUM_MAX_BLOCK_WINDOW:-}
+      ARBITRUM_POLL_MS: ${ARBITRUM_POLL_MS:-}
+      ARBITRUM_POLL_INITIAL_DELAY_MS: ${ARBITRUM_POLL_INITIAL_DELAY_MS:-}
+    networks:
+      - default
+      - dokploy-network
+    depends_on:
+      typedb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/readiness"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    image: ${WEB_IMAGE:-octo-web}:${WEB_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: ${API_PUBLIC_URL}
+      AUTH_PUBLIC_URL: ${AUTH_PUBLIC_URL}
+    networks:
+      - default
+      - dokploy-network
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  typedb:
+    image: typedb/typedb:${TYPEDB_VERSION}
+    restart: unless-stopped
+    volumes:
+      - typedb-data:/opt/typedb/data
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/1729' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          memory: 1G
+
+volumes:
+  typedb-data:
+    name: octo-typedb-${ENVIRONMENT:-prod}
+
+networks:
+  dokploy-network:
+    external: true
