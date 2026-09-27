@@ -1,0 +1,15 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/nio/channels/MulticastChannel.members/MulticastChannel.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/nio/channels/MulticastChannel.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/net/InetAddress.members.trap.gz
+classes/java/net/NetworkInterface.members.trap.gz
+classes/java/nio/channels/MembershipKey.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/nio/channels/NetworkChannel.members.trap.gz

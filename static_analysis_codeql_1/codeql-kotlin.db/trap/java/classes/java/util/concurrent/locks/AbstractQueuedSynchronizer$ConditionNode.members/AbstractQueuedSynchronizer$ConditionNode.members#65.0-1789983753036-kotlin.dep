@@ -1,0 +1,17 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/concurrent/locks/AbstractQueuedSynchronizer$ConditionNode.members/AbstractQueuedSynchronizer$ConditionNode.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/concurrent/locks/AbstractQueuedSynchronizer$ConditionNode.members.trap.gz
+classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/util/concurrent/locks/AbstractQueuedSynchronizer$Node.members.trap.gz
+classes/java/lang/Thread.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/util/concurrent/ForkJoinPool$ManagedBlocker.members.trap.gz

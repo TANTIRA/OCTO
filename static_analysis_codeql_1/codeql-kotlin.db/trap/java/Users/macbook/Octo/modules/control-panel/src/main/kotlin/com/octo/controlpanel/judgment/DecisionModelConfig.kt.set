@@ -1,0 +1,21 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/control-panel/src/main/kotlin/com/octo/controlpanel/judgment/DecisionModelConfig.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/controlpanel/judgment/DecisionModelConfig$Companion.members/DecisionModelConfig$Companion.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/DecisionModelConfig.members/DecisionModelConfig.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/DecisionModelConfigKt.members/DecisionModelConfigKt.members#0.0-0-kotlin.trap.gz
+classes/java/lang/System.members/System.members#65.0-1789983753036-kotlin.trap.gz
+classes/java/lang/System$Logger.members/System$Logger.members#65.0-1789983753036-kotlin.trap.gz
+classes/java/lang/System$LoggerFinder.members/System$LoggerFinder.members#65.0-1789983753036-kotlin.trap.gz
+classes/java/io/Console.members/Console.members#65.0-1789983753036-kotlin.trap.gz
+classes/java/lang/SecurityManager.members/SecurityManager.members#65.0-1789983753036-kotlin.trap.gz
+classes/java/lang/System$Logger$Level.members/System$Logger$Level.members#65.0-1789983753036-kotlin.trap.gz

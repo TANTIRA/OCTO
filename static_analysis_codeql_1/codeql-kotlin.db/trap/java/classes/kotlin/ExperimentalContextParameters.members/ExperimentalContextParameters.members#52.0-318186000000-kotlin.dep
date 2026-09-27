@@ -1,0 +1,22 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/ExperimentalContextParameters.members/ExperimentalContextParameters.members#52.0-318186000000-kotlin.trap.gz
+
+TRAPS
+classes/kotlin/ExperimentalContextParameters.members.trap.gz
+classes/java/lang/annotation/Annotation.members.trap.gz
+classes/kotlin/Annotation.members.trap.gz
+classes/java/lang/annotation/ElementType.members.trap.gz
+classes/java/lang/annotation/Target.members.trap.gz
+classes/java/lang/annotation/RetentionPolicy.members.trap.gz
+classes/java/lang/annotation/Retention.members.trap.gz
+classes/java/lang/annotation/Documented.members.trap.gz
+classes/kotlin/RequiresOptIn.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/kotlin/RequiresOptIn$Level.members.trap.gz
+classes/kotlin/SinceKotlin.members.trap.gz
+classes/kotlin/annotation/MustBeDocumented.members.trap.gz
+classes/kotlin/annotation/Retention.members.trap.gz
+classes/kotlin/annotation/AnnotationRetention.members.trap.gz

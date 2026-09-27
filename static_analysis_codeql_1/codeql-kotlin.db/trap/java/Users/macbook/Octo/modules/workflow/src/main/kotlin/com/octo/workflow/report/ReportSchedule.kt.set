@@ -1,0 +1,15 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportSchedule.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/workflow/report/ReportSchedule.members/ReportSchedule.members#0.0-0-kotlin.trap.gz
+classes/com/octo/workflow/report/ReportSchedules.members/ReportSchedules.members#0.0-0-kotlin.trap.gz
+classes/com/octo/workflow/report/ReportScheduleKt.members/ReportScheduleKt.members#0.0-0-kotlin.trap.gz

@@ -1,0 +1,23 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueVisitor.members/NodeValueVisitor.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueVisitor.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueBoolean.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueDecimal.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueDouble.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueFloat.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueInteger.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueNode.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueLang.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueLangDir.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueString.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueSortKey.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueDateTime.members.trap.gz
+classes/org/apache/jena/sparql/expr/nodevalue/NodeValueDuration.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

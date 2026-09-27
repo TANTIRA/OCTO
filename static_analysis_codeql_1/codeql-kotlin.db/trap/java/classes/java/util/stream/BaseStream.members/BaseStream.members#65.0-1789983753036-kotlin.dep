@@ -1,0 +1,18 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/stream/BaseStream.members/BaseStream.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/stream/BaseStream.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/AutoCloseable.members.trap.gz
+classes/java/util/Iterator.members.trap.gz
+classes/kotlin/collections/MutableIterator.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/util/Spliterator.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/Runnable.members.trap.gz
+classes/kotlin/Unit.members.trap.gz

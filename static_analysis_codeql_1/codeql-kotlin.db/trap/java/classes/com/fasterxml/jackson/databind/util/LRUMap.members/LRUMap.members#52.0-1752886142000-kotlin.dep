@@ -1,0 +1,21 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/com/fasterxml/jackson/databind/util/LRUMap.members/LRUMap.members#52.0-1752886142000-kotlin.trap.gz
+
+TRAPS
+classes/com/fasterxml/jackson/databind/util/LRUMap.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/com/fasterxml/jackson/databind/util/internal/PrivateMaxEntriesMap.members.trap.gz
+classes/java/util/AbstractMap.members.trap.gz
+classes/java/util/Map.members.trap.gz
+classes/kotlin/collections/MutableMap.members.trap.gz
+classes/java/util/concurrent/ConcurrentMap.members.trap.gz
+classes/java/io/Serializable.members.trap.gz
+classes/com/fasterxml/jackson/databind/util/LookupCache.members.trap.gz
+classes/java/util/function/BiConsumer.members.trap.gz

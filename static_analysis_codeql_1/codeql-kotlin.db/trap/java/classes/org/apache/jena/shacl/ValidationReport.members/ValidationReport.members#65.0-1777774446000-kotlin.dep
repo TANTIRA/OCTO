@@ -1,0 +1,22 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/shacl/ValidationReport.members/ValidationReport.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/shacl/ValidationReport.members.trap.gz
+classes/org/apache/jena/shacl/ValidationReport$Builder.members.trap.gz
+classes/java/util/Collection.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/Iterable.members.trap.gz
+classes/kotlin/collections/MutableIterable.members.trap.gz
+classes/kotlin/collections/MutableCollection.members.trap.gz
+classes/org/apache/jena/shacl/validation/ReportEntry.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/rdf/model/Resource.members.trap.gz
+classes/org/apache/jena/rdf/model/Model.members.trap.gz
+classes/org/apache/jena/graph/Graph.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/org/apache/jena/graph/Node.members.trap.gz

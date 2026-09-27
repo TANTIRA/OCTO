@@ -1,0 +1,11 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/security/PrivilegedAction.members/PrivilegedAction.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/security/PrivilegedAction.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/FunctionalInterface.members.trap.gz

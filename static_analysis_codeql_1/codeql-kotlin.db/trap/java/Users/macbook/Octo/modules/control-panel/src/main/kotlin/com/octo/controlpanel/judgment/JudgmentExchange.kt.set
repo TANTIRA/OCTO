@@ -1,0 +1,24 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/control-panel/src/main/kotlin/com/octo/controlpanel/judgment/JudgmentExchange.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/controlpanel/judgment/TokenUsage.members/TokenUsage.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/ProviderRouting.members/ProviderRouting.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/DecisionsRequest.members/DecisionsRequest.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/DecisionsResponse.members/DecisionsResponse.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/JudgmentResult.members/JudgmentResult.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/DecisionLineage.members/DecisionLineage.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/UnexpectedAnswerException.members/UnexpectedAnswerException.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/JudgmentExchangeKt$choiceAnswer(com.octo.controlpanel.judgment.JudgmentResult,java.lang.String).members/JudgmentExchangeKt$choiceAnswer(com.octo.controlpanel.judgment.JudgmentResult,java.lang.String).members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/JudgmentExchangeKt$noulAnswer(com.octo.controlpanel.judgment.JudgmentResult,java.lang.String).members/JudgmentExchangeKt$noulAnswer(com.octo.controlpanel.judgment.JudgmentResult,java.lang.String).members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/JudgmentExchangeKt.members/JudgmentExchangeKt.members#0.0-0-kotlin.trap.gz
+classes/com/fasterxml/jackson/annotation/JsonProperty.members/JsonProperty.members#50.0-1752885240000-kotlin.trap.gz
+classes/com/fasterxml/jackson/annotation/JsonProperty$Access.members/JsonProperty$Access.members#50.0-1752885240000-kotlin.trap.gz

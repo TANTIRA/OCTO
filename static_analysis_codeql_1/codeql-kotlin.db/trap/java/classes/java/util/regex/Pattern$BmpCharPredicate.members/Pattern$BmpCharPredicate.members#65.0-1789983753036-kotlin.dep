@@ -1,0 +1,12 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/regex/Pattern$BmpCharPredicate.members/Pattern$BmpCharPredicate.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/regex/Pattern$BmpCharPredicate.members.trap.gz
+classes/java/util/regex/Pattern.members.trap.gz
+classes/java/util/regex/Pattern$CharPredicate.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

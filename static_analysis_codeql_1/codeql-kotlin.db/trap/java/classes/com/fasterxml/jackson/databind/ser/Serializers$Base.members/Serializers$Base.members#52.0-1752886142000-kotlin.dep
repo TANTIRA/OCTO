@@ -1,0 +1,24 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/com/fasterxml/jackson/databind/ser/Serializers$Base.members/Serializers$Base.members#52.0-1752886142000-kotlin.trap.gz
+
+TRAPS
+classes/com/fasterxml/jackson/databind/ser/Serializers$Base.members.trap.gz
+classes/com/fasterxml/jackson/databind/ser/Serializers.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/com/fasterxml/jackson/databind/SerializationConfig.members.trap.gz
+classes/com/fasterxml/jackson/databind/JavaType.members.trap.gz
+classes/com/fasterxml/jackson/databind/BeanDescription.members.trap.gz
+classes/com/fasterxml/jackson/databind/JsonSerializer.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonFormatVisitable.members.trap.gz
+classes/com/fasterxml/jackson/databind/type/ReferenceType.members.trap.gz
+classes/com/fasterxml/jackson/databind/jsontype/TypeSerializer.members.trap.gz
+classes/com/fasterxml/jackson/databind/type/ArrayType.members.trap.gz
+classes/com/fasterxml/jackson/databind/type/CollectionType.members.trap.gz
+classes/com/fasterxml/jackson/databind/type/CollectionLikeType.members.trap.gz
+classes/com/fasterxml/jackson/databind/type/MapType.members.trap.gz
+classes/com/fasterxml/jackson/databind/type/MapLikeType.members.trap.gz

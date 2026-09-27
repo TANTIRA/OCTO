@@ -1,0 +1,22 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/sql/Blob.members/Blob.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/sql/Blob.members.trap.gz
+classes/java/lang/Long.members.trap.gz
+classes/kotlin/Long.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/lang/Byte.members.trap.gz
+classes/kotlin/Byte.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/Cloneable.members.trap.gz
+classes/kotlin/Cloneable.members.trap.gz
+classes/java/io/Serializable.members.trap.gz
+classes/java/io/InputStream.members.trap.gz
+classes/java/io/OutputStream.members.trap.gz
+classes/kotlin/Unit.members.trap.gz

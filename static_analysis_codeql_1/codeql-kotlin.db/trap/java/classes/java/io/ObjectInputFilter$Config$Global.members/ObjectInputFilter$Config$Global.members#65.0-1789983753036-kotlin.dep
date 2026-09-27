@@ -1,0 +1,18 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/io/ObjectInputFilter$Config$Global.members/ObjectInputFilter$Config$Global.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/io/ObjectInputFilter$Config$Global.members.trap.gz
+classes/java/io/ObjectInputFilter$Config.members.trap.gz
+classes/java/io/ObjectInputFilter$FilterInfo.members.trap.gz
+classes/java/io/ObjectInputFilter$Status.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/io/ObjectInputFilter.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

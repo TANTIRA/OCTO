@@ -1,0 +1,12 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/Enum$Companion.members/Enum$Companion.members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/kotlin/Enum$Companion.members.trap.gz
+classes/java/lang/Enum.members.trap.gz
+classes/kotlin/Enum.members.trap.gz
+classes/kotlin/jvm/internal/EnumCompanionObject.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

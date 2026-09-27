@@ -1,0 +1,24 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/control-panel/src/main/kotlin/com/octo/controlpanel/judgment/JudgmentAnswer.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/controlpanel/judgment/JudgmentAnswer.members/JudgmentAnswer.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/NoulAnswer.members/NoulAnswer.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/ChoiceAnswer.members/ChoiceAnswer.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/ScoreAnswer.members/ScoreAnswer.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/JudgmentAnswerKt.members/JudgmentAnswerKt.members#0.0-0-kotlin.trap.gz
+classes/com/fasterxml/jackson/annotation/JsonSubTypes.members/JsonSubTypes.members#50.0-1752885240000-kotlin.trap.gz
+classes/com/fasterxml/jackson/annotation/JsonSubTypes$Type.members/JsonSubTypes$Type.members#50.0-1752885240000-kotlin.trap.gz
+classes/com/fasterxml/jackson/annotation/JsonTypeInfo.members/JsonTypeInfo.members#50.0-1752885240000-kotlin.trap.gz
+classes/com/fasterxml/jackson/annotation/JsonTypeInfo$Id.members/JsonTypeInfo$Id.members#50.0-1752885240000-kotlin.trap.gz
+classes/com/fasterxml/jackson/annotation/JsonTypeInfo$As.members/JsonTypeInfo$As.members#50.0-1752885240000-kotlin.trap.gz
+classes/com/fasterxml/jackson/annotation/OptBoolean.members/OptBoolean.members#50.0-1752885240000-kotlin.trap.gz
+classes/com/fasterxml/jackson/annotation/JacksonAnnotation.members/JacksonAnnotation.members#50.0-1752885240000-kotlin.trap.gz

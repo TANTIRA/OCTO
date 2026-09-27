@@ -1,0 +1,23 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/security/AlgorithmConstraints.members/AlgorithmConstraints.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/security/AlgorithmConstraints.members.trap.gz
+classes/java/security/CryptoPrimitive.members.trap.gz
+classes/java/util/Set.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/util/Collection.members.trap.gz
+classes/java/lang/Iterable.members.trap.gz
+classes/kotlin/collections/MutableIterable.members.trap.gz
+classes/kotlin/collections/MutableCollection.members.trap.gz
+classes/kotlin/collections/MutableSet.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/security/AlgorithmParameters.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/security/Key.members.trap.gz

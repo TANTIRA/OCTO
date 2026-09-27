@@ -1,0 +1,16 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/ranges/ClosedRange.members/ClosedRange.members#52.0-318186000000-kotlin.trap.gz
+
+TRAPS
+classes/kotlin/ranges/ClosedRange.members.trap.gz
+classes/java/lang/Comparable.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/kotlin/Comparable.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz

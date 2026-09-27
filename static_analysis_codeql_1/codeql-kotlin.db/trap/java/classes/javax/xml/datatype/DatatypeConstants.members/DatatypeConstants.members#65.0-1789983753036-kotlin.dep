@@ -1,0 +1,14 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/javax/xml/datatype/DatatypeConstants.members/DatatypeConstants.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/javax/xml/datatype/DatatypeConstants.members.trap.gz
+classes/javax/xml/datatype/DatatypeConstants$Field.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/javax/xml/namespace/QName.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

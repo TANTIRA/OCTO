@@ -1,0 +1,15 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/com/fasterxml/jackson/databind/JsonSerializable$Base.members/JsonSerializable$Base.members#52.0-1752886142000-kotlin.trap.gz
+
+TRAPS
+classes/com/fasterxml/jackson/databind/JsonSerializable$Base.members.trap.gz
+classes/com/fasterxml/jackson/databind/JsonSerializable.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/com/fasterxml/jackson/databind/SerializerProvider.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

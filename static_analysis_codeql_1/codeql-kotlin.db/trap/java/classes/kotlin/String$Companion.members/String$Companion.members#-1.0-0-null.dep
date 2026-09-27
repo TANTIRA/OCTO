@@ -1,0 +1,12 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/String$Companion.members/String$Companion.members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/kotlin/String$Companion.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/kotlin/jvm/internal/StringCompanionObject.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

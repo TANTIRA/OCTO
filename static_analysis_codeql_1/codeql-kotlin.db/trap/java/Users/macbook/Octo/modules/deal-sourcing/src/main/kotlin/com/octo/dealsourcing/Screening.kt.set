@@ -1,0 +1,25 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/deal-sourcing/src/main/kotlin/com/octo/dealsourcing/Screening.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/dealsourcing/ScreeningCriteria$Companion.members/ScreeningCriteria$Companion.members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/ScreeningCriteria.members/ScreeningCriteria.members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/ScreeningKt$evaluateAll(com.octo.dealsourcing.Prospect,java.util.List).members/ScreeningKt$evaluateAll(com.octo.dealsourcing.Prospect,java.util.List).members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/ScreeningKt$combine(java.util.List).members/ScreeningKt$combine(java.util.List).members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/ScreeningVerdict.members/ScreeningVerdict.members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/ScreeningOutcome.members/ScreeningOutcome.members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/ScreeningKt$evaluate(com.octo.dealsourcing.ScreeningCriteria,com.octo.dealsourcing.Prospect).members/ScreeningKt$evaluate(com.octo.dealsourcing.ScreeningCriteria,com.octo.dealsourcing.Prospect).members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/ScreeningKt$check(java.util.Set,java.lang.String,java.lang.String,java.util.List,java.util.List).members/ScreeningKt$check(java.util.Set,java.lang.String,java.lang.String,java.util.List,java.util.List).members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/ScreeningKt.members/ScreeningKt.members#0.0-0-kotlin.trap.gz
+classes/kotlin/collections/setOf(java.lang.Object[]).members/setOf(java.lang.Object[]).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/any(java.lang.Iterable,kotlin.jvm.functions.Function1).members/any(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/flatMap(java.lang.Iterable,kotlin.jvm.functions.Function1).members/flatMap(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/plus(java.util.Collection,java.lang.Iterable).members/plus(java.util.Collection,java.lang.Iterable).members#-1.0-0-null.trap.gz

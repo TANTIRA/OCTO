@@ -1,0 +1,14 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/com/octo/persistence/admits(com.octo.persistence.TenantScope,java.util.UUID).members/admits(com.octo.persistence.TenantScope,java.util.UUID).members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/com/octo/persistence/TenantScope.members.trap.gz
+classes/java/util/UUID.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/com/octo/persistence/admits(com.octo.persistence.TenantScope,java.util.UUID).members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz

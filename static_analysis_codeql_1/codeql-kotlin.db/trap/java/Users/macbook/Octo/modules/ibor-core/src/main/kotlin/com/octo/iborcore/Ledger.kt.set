@@ -1,0 +1,26 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/ibor-core/src/main/kotlin/com/octo/iborcore/Ledger.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/iborcore/FlowType.members/FlowType.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/LedgerEvent.members/LedgerEvent.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/LedgerKt$currentEvents(java.util.List,java.time.Instant).members/LedgerKt$currentEvents(java.util.List,java.time.Instant).members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/LedgerKt$resolveCurrent(java.util.List,java.time.Instant,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Functi#e9e12f67.members/LedgerKt$resolveCurrent(java.util.List,java.time.Instant,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Functi#e9e12f67.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/CommitmentPosition.members/CommitmentPosition.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/LedgerKt$commitmentPosition(java.util.List,java.util.Set,java.time.Instant,java.time.ZoneId).members/LedgerKt$commitmentPosition(java.util.List,java.util.Set,java.time.Instant,java.time.ZoneId).members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/DealPosition.members/DealPosition.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/LedgerKt$dealPosition(java.util.List,java.util.Set,java.util.List,java.util.Set,java.time.LocalDate,java.time.Ins#9a228f18.members/LedgerKt$dealPosition(java.util.List,java.util.Set,java.util.List,java.util.Set,java.time.LocalDate,java.time.Ins#9a228f18.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/LedgerKt.members/LedgerKt.members#0.0-0-kotlin.trap.gz
+classes/kotlin/collections/mapTo(java.lang.Iterable,java.util.Collection,kotlin.jvm.functions.Function1).members/mapTo(java.lang.Iterable,java.util.Collection,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/isNotEmpty(java.util.Collection).members/isNotEmpty(java.util.Collection).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/sumOfBigDecimal(java.lang.Iterable,kotlin.jvm.functions.Function1).members/sumOfBigDecimal(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/sortedBy(java.lang.Iterable,kotlin.jvm.functions.Function1).members/sortedBy(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+classes/kotlin/plus(java.math.BigDecimal,java.math.BigDecimal).members/plus(java.math.BigDecimal,java.math.BigDecimal).members#-1.0-0-null.trap.gz

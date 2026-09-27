@@ -1,0 +1,20 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/concurrent/locks/ReentrantLock$Sync.members/ReentrantLock$Sync.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/concurrent/locks/ReentrantLock$Sync.members.trap.gz
+classes/java/util/concurrent/locks/ReentrantLock.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/jdk/internal/vm/annotation/ReservedStackAccess.members.trap.gz
+classes/java/lang/Long.members.trap.gz
+classes/kotlin/Long.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/util/concurrent/locks/AbstractQueuedSynchronizer$ConditionObject.members.trap.gz
+classes/java/lang/Thread.members.trap.gz
+classes/java/util/concurrent/locks/AbstractQueuedSynchronizer.members.trap.gz

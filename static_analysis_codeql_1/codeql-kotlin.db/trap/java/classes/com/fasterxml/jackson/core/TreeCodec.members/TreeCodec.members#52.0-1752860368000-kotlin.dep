@@ -1,0 +1,14 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/com/fasterxml/jackson/core/TreeCodec.members/TreeCodec.members#52.0-1752860368000-kotlin.trap.gz
+
+TRAPS
+classes/com/fasterxml/jackson/core/TreeCodec.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/com/fasterxml/jackson/core/JsonParser.members.trap.gz
+classes/com/fasterxml/jackson/core/TreeNode.members.trap.gz
+classes/com/fasterxml/jackson/core/JsonGenerator.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

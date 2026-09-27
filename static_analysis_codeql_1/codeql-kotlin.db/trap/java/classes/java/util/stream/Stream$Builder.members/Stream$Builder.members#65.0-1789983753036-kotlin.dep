@@ -1,0 +1,15 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/stream/Stream$Builder.members/Stream$Builder.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/stream/Stream$Builder.members.trap.gz
+classes/java/util/stream/Stream.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/util/function/Consumer.members.trap.gz
+classes/java/util/stream/BaseStream.members.trap.gz
+classes/java/lang/AutoCloseable.members.trap.gz

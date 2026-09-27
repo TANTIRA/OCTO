@@ -1,0 +1,16 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/enhanced/Implementation.members/Implementation.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/enhanced/Implementation.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/graph/Node.members.trap.gz
+classes/org/apache/jena/enhanced/EnhGraph.members.trap.gz
+classes/org/apache/jena/enhanced/EnhNode.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

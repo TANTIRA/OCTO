@@ -1,0 +1,18 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/analytics/src/main/kotlin/com/octo/analytics/Lbo.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/analytics/LboKt$LBO_METHODOLOGY;property.members/LboKt$LBO_METHODOLOGY;property.members#0.0-0-kotlin.trap.gz
+classes/com/octo/analytics/LboKt$MC;property.members/LboKt$MC;property.members#0.0-0-kotlin.trap.gz
+classes/com/octo/analytics/LboInputs.members/LboInputs.members#0.0-0-kotlin.trap.gz
+classes/com/octo/analytics/LboReturns.members/LboReturns.members#0.0-0-kotlin.trap.gz
+classes/com/octo/analytics/LboKt$lboReturns(com.octo.analytics.LboInputs).members/LboKt$lboReturns(com.octo.analytics.LboInputs).members#0.0-0-kotlin.trap.gz
+classes/com/octo/analytics/LboKt.members/LboKt.members#0.0-0-kotlin.trap.gz

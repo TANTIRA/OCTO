@@ -1,0 +1,15 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/concurrent/ForkJoinPool$DefaultForkJoinWorkerThreadFactory.members/ForkJoinPool$DefaultForkJoinWorkerThreadFactory.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/concurrent/ForkJoinPool$DefaultForkJoinWorkerThreadFactory.members.trap.gz
+classes/java/util/concurrent/ForkJoinPool.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/util/concurrent/ForkJoinWorkerThread.members.trap.gz
+classes/java/security/AccessControlContext.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/util/concurrent/ForkJoinPool$ForkJoinWorkerThreadFactory.members.trap.gz

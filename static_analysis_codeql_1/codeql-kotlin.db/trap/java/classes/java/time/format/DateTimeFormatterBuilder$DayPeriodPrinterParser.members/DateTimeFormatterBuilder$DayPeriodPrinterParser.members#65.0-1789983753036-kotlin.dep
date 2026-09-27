@@ -1,0 +1,23 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/time/format/DateTimeFormatterBuilder$DayPeriodPrinterParser.members/DateTimeFormatterBuilder$DayPeriodPrinterParser.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/time/format/DateTimeFormatterBuilder$DayPeriodPrinterParser.members.trap.gz
+classes/java/time/format/DateTimeFormatterBuilder.members.trap.gz
+classes/java/time/format/DateTimePrintContext.members.trap.gz
+classes/java/lang/StringBuilder.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/time/format/DateTimeParseContext.members.trap.gz
+classes/java/lang/CharSequence.members.trap.gz
+classes/kotlin/CharSequence.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/time/format/DateTimeFormatterBuilder$DateTimePrinterParser.members.trap.gz

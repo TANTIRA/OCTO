@@ -1,0 +1,19 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/collections/single(java.util.List).members/single(java.util.List).members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/java/util/List.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/util/SequencedCollection.members.trap.gz
+classes/java/util/Collection.members.trap.gz
+classes/java/lang/Iterable.members.trap.gz
+classes/kotlin/collections/MutableIterable.members.trap.gz
+classes/kotlin/collections/MutableCollection.members.trap.gz
+classes/kotlin/collections/List.members.trap.gz
+classes/kotlin/collections/single(java.util.List).members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz

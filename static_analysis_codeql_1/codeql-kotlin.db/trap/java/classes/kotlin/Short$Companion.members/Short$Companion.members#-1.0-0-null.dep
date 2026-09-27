@@ -1,0 +1,14 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/Short$Companion.members/Short$Companion.members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/kotlin/Short$Companion.members.trap.gz
+classes/java/lang/Short.members.trap.gz
+classes/kotlin/Short.members.trap.gz
+classes/kotlin/jvm/internal/ShortCompanionObject.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

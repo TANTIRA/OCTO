@@ -1,0 +1,27 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/analytics/src/main/kotlin/com/octo/analytics/BaumWelch.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/analytics/BaumWelchKt$baumWelch(com.octo.analytics.HiddenMarkovModel,java.util.List,double,double,int).members/BaumWelchKt$baumWelch(com.octo.analytics.HiddenMarkovModel,java.util.List,double,double,int).members#0.0-0-kotlin.trap.gz
+classes/com/octo/analytics/BaumWelchKt.members/BaumWelchKt.members#0.0-0-kotlin.trap.gz
+classes/kotlin/collections/all(java.lang.Iterable,kotlin.jvm.functions.Function1).members/all(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+classes/kotlin/isFinite(double).members/isFinite(double).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/lastIndexjava.util.List;property.members/lastIndexjava.util.List;property.members#-1.0-0-null.trap.gz
+classes/kotlin/collections/indicesjava.util.Collection;property.members/indicesjava.util.Collection;property.members#-1.0-0-null.trap.gz
+classes/kotlin/ranges/until(int,int).members/until(int,int).members#-1.0-0-null.trap.gz
+classes/kotlin/Array.members/Array.members#-1.0-0-null.trap.gz
+classes/kotlin/DoubleArray.members/DoubleArray.members#-1.0-0-null.trap.gz
+classes/kotlin/collections/sumOfDouble(java.lang.Iterable).members/sumOfDouble(java.lang.Iterable).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/sumOfDouble(java.lang.Iterable,kotlin.jvm.functions.Function1).members/sumOfDouble(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+classes/kotlin/math/max(double,double).members/max(double,double).members#-1.0-0-null.trap.gz
+classes/kotlin/math/sqrt(double).members/sqrt(double).members#-1.0-0-null.trap.gz
+classes/kotlin/math/abs(double).members/abs(double).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/DoubleIterator.members/DoubleIterator.members#52.0-318186000000-kotlin.trap.gz

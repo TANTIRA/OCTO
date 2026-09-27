@@ -1,0 +1,9 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/ranges/coerceAtMost(double,double).members/coerceAtMost(double,double).members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/java/lang/Double.members.trap.gz
+classes/kotlin/Double.members.trap.gz
+classes/kotlin/ranges/coerceAtMost(double,double).members.trap.gz

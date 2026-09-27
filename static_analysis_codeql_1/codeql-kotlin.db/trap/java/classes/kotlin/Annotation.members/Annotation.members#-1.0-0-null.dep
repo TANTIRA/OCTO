@@ -1,0 +1,9 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/Annotation.members/Annotation.members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/kotlin/Annotation.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

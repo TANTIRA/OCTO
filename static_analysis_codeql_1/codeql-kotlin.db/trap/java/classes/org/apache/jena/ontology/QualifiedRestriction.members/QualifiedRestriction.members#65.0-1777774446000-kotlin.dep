@@ -1,0 +1,17 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/ontology/QualifiedRestriction.members/QualifiedRestriction.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/ontology/QualifiedRestriction.members.trap.gz
+classes/org/apache/jena/ontology/OntClass.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/ontology/OntResource.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/org/apache/jena/ontology/DataRange.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/org/apache/jena/ontology/Restriction.members.trap.gz

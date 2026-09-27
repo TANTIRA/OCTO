@@ -1,0 +1,27 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/ranges/CharRange.members/CharRange.members#52.0-318186000000-kotlin.trap.gz
+
+TRAPS
+classes/kotlin/ranges/CharRange.members.trap.gz
+classes/java/lang/Character.members.trap.gz
+classes/kotlin/Char.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/kotlin/ranges/CharRange$Companion.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/util/function/Consumer.members.trap.gz
+classes/java/util/Spliterator.members.trap.gz
+classes/kotlin/ranges/CharProgression.members.trap.gz
+classes/kotlin/ranges/ClosedRange.members.trap.gz
+classes/java/lang/Comparable.members.trap.gz
+classes/kotlin/Comparable.members.trap.gz
+classes/kotlin/ranges/OpenEndRange.members.trap.gz

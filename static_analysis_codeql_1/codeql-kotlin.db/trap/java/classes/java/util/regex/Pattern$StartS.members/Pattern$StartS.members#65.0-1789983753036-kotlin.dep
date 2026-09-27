@@ -1,0 +1,19 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/regex/Pattern$StartS.members/Pattern$StartS.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/regex/Pattern$StartS.members.trap.gz
+classes/java/util/regex/Pattern.members.trap.gz
+classes/java/util/regex/Pattern$Node.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/util/regex/Matcher.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/lang/CharSequence.members.trap.gz
+classes/kotlin/CharSequence.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/util/regex/Pattern$Start.members.trap.gz

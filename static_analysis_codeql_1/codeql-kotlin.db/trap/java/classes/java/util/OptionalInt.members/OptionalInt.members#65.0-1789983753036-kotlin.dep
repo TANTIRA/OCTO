@@ -1,0 +1,25 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/OptionalInt.members/OptionalInt.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/OptionalInt.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/util/function/IntConsumer.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Runnable.members.trap.gz
+classes/java/util/stream/IntStream.members.trap.gz
+classes/java/util/function/IntSupplier.members.trap.gz
+classes/java/util/function/Supplier.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/Throwable.members.trap.gz
+classes/kotlin/Throwable.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/jdk/internal/ValueBased.members.trap.gz

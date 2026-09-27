@@ -1,0 +1,27 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/sparql/path/PathVisitor.members/PathVisitor.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/sparql/path/PathVisitor.members.trap.gz
+classes/org/apache/jena/sparql/path/P_Link.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/sparql/path/P_ReverseLink.members.trap.gz
+classes/org/apache/jena/sparql/path/P_NegPropSet.members.trap.gz
+classes/org/apache/jena/sparql/path/P_Inverse.members.trap.gz
+classes/org/apache/jena/sparql/path/P_Mod.members.trap.gz
+classes/org/apache/jena/sparql/path/P_FixedLength.members.trap.gz
+classes/org/apache/jena/sparql/path/P_Distinct.members.trap.gz
+classes/org/apache/jena/sparql/path/P_Multi.members.trap.gz
+classes/org/apache/jena/sparql/path/P_Shortest.members.trap.gz
+classes/org/apache/jena/sparql/path/P_ZeroOrOne.members.trap.gz
+classes/org/apache/jena/sparql/path/P_ZeroOrMore1.members.trap.gz
+classes/org/apache/jena/sparql/path/P_ZeroOrMoreN.members.trap.gz
+classes/org/apache/jena/sparql/path/P_OneOrMore1.members.trap.gz
+classes/org/apache/jena/sparql/path/P_OneOrMoreN.members.trap.gz
+classes/org/apache/jena/sparql/path/P_Alt.members.trap.gz
+classes/org/apache/jena/sparql/path/P_Seq.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

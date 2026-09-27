@@ -1,0 +1,14 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/com/fasterxml/jackson/module/kotlin/KotlinFeature$Companion.members/KotlinFeature$Companion.members#52.0-318240000000-kotlin.trap.gz
+
+TRAPS
+classes/com/fasterxml/jackson/module/kotlin/KotlinFeature$Companion.members.trap.gz
+classes/com/fasterxml/jackson/module/kotlin/KotlinFeature.members.trap.gz
+classes/java/util/BitSet.members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

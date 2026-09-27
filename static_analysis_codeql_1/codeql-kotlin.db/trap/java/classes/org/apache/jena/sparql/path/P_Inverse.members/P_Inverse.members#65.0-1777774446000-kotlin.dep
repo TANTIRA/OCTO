@@ -1,0 +1,17 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/sparql/path/P_Inverse.members/P_Inverse.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/sparql/path/P_Inverse.members.trap.gz
+classes/org/apache/jena/sparql/path/Path.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/sparql/path/PathVisitor.members.trap.gz
+classes/org/apache/jena/sparql/util/NodeIsomorphismMap.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/org/apache/jena/sparql/path/P_Path1.members.trap.gz

@@ -1,0 +1,18 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/jdk/internal/util/random/RandomSupport$AbstractSplittableGenerator$RandomLongsSpliterator.members/RandomSupport$AbstractSplittableGenerator$RandomLongsSpliterator.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/jdk/internal/util/random/RandomSupport$AbstractSplittableGenerator$RandomLongsSpliterator.members.trap.gz
+classes/jdk/internal/util/random/RandomSupport$AbstractSplittableGenerator.members.trap.gz
+classes/java/util/random/RandomGenerator$SplittableGenerator.members.trap.gz
+classes/java/lang/Long.members.trap.gz
+classes/kotlin/Long.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/util/Spliterator$OfLong.members.trap.gz
+classes/java/util/function/LongConsumer.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/jdk/internal/util/random/RandomSupport$RandomSpliterator.members.trap.gz

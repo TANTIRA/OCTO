@@ -1,0 +1,11 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/ranges/reversed(kotlin.ranges.IntProgression).members/reversed(kotlin.ranges.IntProgression).members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/kotlin/ranges/IntProgression.members.trap.gz
+classes/kotlin/ranges/reversed(kotlin.ranges.IntProgression).members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz

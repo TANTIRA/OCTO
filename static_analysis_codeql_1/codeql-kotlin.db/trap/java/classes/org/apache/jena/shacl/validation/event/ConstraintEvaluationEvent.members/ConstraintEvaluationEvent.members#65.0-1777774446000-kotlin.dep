@@ -1,0 +1,12 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/shacl/validation/event/ConstraintEvaluationEvent.members/ConstraintEvaluationEvent.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/shacl/validation/event/ConstraintEvaluationEvent.members.trap.gz
+classes/org/apache/jena/shacl/parser/Constraint.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/org/apache/jena/shacl/validation/event/FocusNodeValidationEvent.members.trap.gz

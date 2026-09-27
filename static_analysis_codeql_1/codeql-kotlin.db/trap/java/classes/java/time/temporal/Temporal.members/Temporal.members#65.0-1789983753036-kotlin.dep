@@ -1,0 +1,19 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/time/temporal/Temporal.members/Temporal.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/time/temporal/Temporal.members.trap.gz
+classes/java/time/temporal/TemporalUnit.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/time/temporal/TemporalAdjuster.members.trap.gz
+classes/java/time/temporal/TemporalField.members.trap.gz
+classes/java/lang/Long.members.trap.gz
+classes/kotlin/Long.members.trap.gz
+classes/java/time/temporal/TemporalAmount.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/time/temporal/TemporalAccessor.members.trap.gz

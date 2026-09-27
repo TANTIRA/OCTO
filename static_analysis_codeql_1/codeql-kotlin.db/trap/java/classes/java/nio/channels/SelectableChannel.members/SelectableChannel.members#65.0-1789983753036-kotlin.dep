@@ -1,0 +1,20 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/nio/channels/SelectableChannel.members/SelectableChannel.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/nio/channels/SelectableChannel.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/nio/channels/spi/SelectorProvider.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/nio/channels/Selector.members.trap.gz
+classes/java/nio/channels/SelectionKey.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/nio/channels/spi/AbstractInterruptibleChannel.members.trap.gz
+classes/java/nio/channels/Channel.members.trap.gz

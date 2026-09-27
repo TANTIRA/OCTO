@@ -1,0 +1,20 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/ibor-core/src/main/kotlin/com/octo/iborcore/Valuation.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/iborcore/ValuationMethod$Companion.members/ValuationMethod$Companion.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/ValuationMethod.members/ValuationMethod.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/ValuationEvent.members/ValuationEvent.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/ValuationKt$latestValuation(java.util.List,java.util.Set,java.time.LocalDate,java.time.Instant).members/ValuationKt$latestValuation(java.util.List,java.util.Set,java.time.LocalDate,java.time.Instant).members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/ValuationKt.members/ValuationKt.members#0.0-0-kotlin.trap.gz
+classes/kotlin/collections/firstOrNull(java.lang.Iterable,kotlin.jvm.functions.Function1).members/firstOrNull(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/maxOfOrNull(java.lang.Iterable,kotlin.jvm.functions.Function1).members/maxOfOrNull(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/single(java.util.List).members/single(java.util.List).members#-1.0-0-null.trap.gz

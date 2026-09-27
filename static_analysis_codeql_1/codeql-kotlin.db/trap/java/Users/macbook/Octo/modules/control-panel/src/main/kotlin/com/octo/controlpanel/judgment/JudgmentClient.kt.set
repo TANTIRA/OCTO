@@ -1,0 +1,18 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/control-panel/src/main/kotlin/com/octo/controlpanel/judgment/JudgmentClient.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/controlpanel/judgment/ConfidentialStateRejectedException.members/ConfidentialStateRejectedException.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/JudgmentRequestException.members/JudgmentRequestException.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/TransportResponse.members/TransportResponse.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/JudgmentTransport.members/JudgmentTransport.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/JudgmentClient.members/JudgmentClient.members#0.0-0-kotlin.trap.gz
+classes/com/octo/controlpanel/judgment/JudgmentClientKt.members/JudgmentClientKt.members#0.0-0-kotlin.trap.gz

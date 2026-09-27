@@ -1,0 +1,26 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/concurrent/atomic/AtomicInteger.members/AtomicInteger.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/concurrent/atomic/AtomicInteger.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/util/function/IntUnaryOperator.members.trap.gz
+classes/java/util/function/IntBinaryOperator.members.trap.gz
+classes/java/lang/Double.members.trap.gz
+classes/kotlin/Double.members.trap.gz
+classes/java/lang/Float.members.trap.gz
+classes/kotlin/Float.members.trap.gz
+classes/java/lang/Long.members.trap.gz
+classes/kotlin/Long.members.trap.gz
+classes/java/lang/Number.members.trap.gz
+classes/kotlin/Number.members.trap.gz
+classes/java/io/Serializable.members.trap.gz

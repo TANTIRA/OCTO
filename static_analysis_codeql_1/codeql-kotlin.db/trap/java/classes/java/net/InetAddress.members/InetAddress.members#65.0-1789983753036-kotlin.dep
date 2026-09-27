@@ -1,0 +1,26 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/net/InetAddress.members/InetAddress.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/net/InetAddress.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/net/InetAddress$InetAddressHolder.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/net/NetworkInterface.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/lang/Byte.members.trap.gz
+classes/kotlin/Byte.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/Cloneable.members.trap.gz
+classes/kotlin/Cloneable.members.trap.gz
+classes/java/io/Serializable.members.trap.gz
+classes/java/net/InetAddressImpl.members.trap.gz
+classes/java/net/spi/InetAddressResolver$LookupPolicy.members.trap.gz

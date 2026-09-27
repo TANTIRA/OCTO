@@ -1,0 +1,19 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/javax/net/ssl/SSLEngineResult.members/SSLEngineResult.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/javax/net/ssl/SSLEngineResult.members.trap.gz
+classes/javax/net/ssl/SSLEngineResult$Status.members.trap.gz
+classes/javax/net/ssl/SSLEngineResult$HandshakeStatus.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Long.members.trap.gz
+classes/kotlin/Long.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

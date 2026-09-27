@@ -1,0 +1,15 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/ranges/LongProgression$Companion.members/LongProgression$Companion.members#52.0-318186000000-kotlin.trap.gz
+
+TRAPS
+classes/kotlin/ranges/LongProgression$Companion.members.trap.gz
+classes/kotlin/ranges/LongProgression.members.trap.gz
+classes/java/lang/Long.members.trap.gz
+classes/kotlin/Long.members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

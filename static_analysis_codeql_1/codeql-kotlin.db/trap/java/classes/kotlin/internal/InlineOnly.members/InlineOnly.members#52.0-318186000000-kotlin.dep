@@ -1,0 +1,24 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/internal/InlineOnly.members/InlineOnly.members#52.0-318186000000-kotlin.trap.gz
+
+TRAPS
+classes/kotlin/internal/InlineOnly.members.trap.gz
+classes/java/lang/annotation/Annotation.members.trap.gz
+classes/kotlin/Annotation.members.trap.gz
+classes/java/lang/annotation/ElementType.members.trap.gz
+classes/java/lang/annotation/Target.members.trap.gz
+classes/java/lang/annotation/RetentionPolicy.members.trap.gz
+classes/java/lang/annotation/Retention.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/Cloneable.members.trap.gz
+classes/kotlin/Cloneable.members.trap.gz
+classes/java/io/Serializable.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/kotlin/annotation/Retention.members.trap.gz
+classes/kotlin/annotation/AnnotationRetention.members.trap.gz
+classes/kotlin/annotation/Target.members.trap.gz
+classes/kotlin/annotation/AnnotationTarget.members.trap.gz

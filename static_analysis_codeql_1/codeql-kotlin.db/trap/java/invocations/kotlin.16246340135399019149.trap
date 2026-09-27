@@ -1,0 +1,468 @@
+// Intercepted:
+//     Class path: /Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-compiler-embeddable/2.2.21/b13aed5cf8412f9ee9d1e4db21bdcfebcc24f606/kotlin-compiler-embeddable-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-script-runtime/2.2.21/e9b021c4e335e4ed7a7e3b32285249ae6bb3a6c8/kotlin-script-runtime-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-reflect/1.6.10/1cbe9c92c12a94eea200d23c2bbaedaf3daf5132/kotlin-reflect-1.6.10.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-daemon-embeddable/2.2.21/78fde5db1c92786448170b351d8f8868acabd2ce/kotlin-daemon-embeddable-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm/1.8.0/ac1dc37a30a93150b704022f8d895ee1bd3a36b3/kotlinx-coroutines-core-jvm-1.8.0.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar
+//     Class:      org/jetbrains/kotlin/cli/jvm/K2JVMCompiler
+//     Method:     doExecutePhased
+//     Desc:       (Lorg/jetbrains/kotlin/cli/common/arguments/CommonCompilerArguments;Lorg/jetbrains/kotlin/config/Services;Lorg/jetbrains/kotlin/cli/common/messages/MessageCollector;)Lorg/jetbrains/kotlin/cli/common/ExitCode;
+// Kotlin version: 2.2.21
+// Using extractor: /opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-extractor-kotlin-embeddable-2.2.20-Beta2.jar
+// Working directory: /Users/macbook/Library/Application Support/kotlin/daemon
+// Arguments: -Xallow-no-source-files -classpath /Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar -d /Users/macbook/Octo/modules/lookthrough/build/classes/kotlin/main -jdk-home /Users/macbook/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.12.1+1/Contents/Home -jvm-target 21 -module-name lookthrough -no-reflect -no-stdlib '-Xplugin=/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-compiler-embeddable/2.2.21/3d287b3a20b5ca9582d01f973733cfc5e5a363d6/kotlin-scripting-compiler-embeddable-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-compiler-impl-embeddable/2.2.21/5f81790732711563152ec587631f160e9e6cb6fa/kotlin-scripting-compiler-impl-embeddable-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-jvm/2.2.21/144a2d8fc77a7e95ba7a7b6992091a60baf2e0dc/kotlin-scripting-jvm-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-common/2.2.21/9d3b00063626c0775dd91d1fc5c699d5a6e62e4e/kotlin-scripting-common-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-script-runtime/2.2.21/e9b021c4e335e4ed7a7e3b32285249ae6bb3a6c8/kotlin-script-runtime-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar' /Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo/lookthrough/Exposure.kt
+#compilation = *
+compilations(#compilation, 2, "/Users/macbook/Library/Application Support/kotlin/daemon", "/Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/invocations/kotlin.16246340135399019149.trap")
+compilation_args(#compilation, 0, "-Xallow-no-source-files")
+compilation_args(#compilation, 1, "-classpath")
+compilation_args(#compilation, 2, "/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar")
+compilation_args(#compilation, 3, "-d")
+compilation_args(#compilation, 4, "/Users/macbook/Octo/modules/lookthrough/build/classes/kotlin/main")
+compilation_args(#compilation, 5, "-jdk-home")
+compilation_args(#compilation, 6, "/Users/macbook/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.12.1+1/Contents/Home")
+compilation_args(#compilation, 7, "-jvm-target")
+compilation_args(#compilation, 8, "21")
+compilation_args(#compilation, 9, "-module-name")
+compilation_args(#compilation, 10, "lookthrough")
+compilation_args(#compilation, 11, "-no-reflect")
+compilation_args(#compilation, 12, "-no-stdlib")
+compilation_args(#compilation, 13, "-Xplugin=/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-compiler-embeddable/2.2.21/3d287b3a20b5ca9582d01f973733cfc5e5a363d6/kotlin-scripting-compiler-embeddable-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-compiler-impl-embeddable/2.2.21/5f81790732711563152ec587631f160e9e6cb6fa/kotlin-scripting-compiler-impl-embeddable-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-jvm/2.2.21/144a2d8fc77a7e95ba7a7b6992091a60baf2e0dc/kotlin-scripting-jvm-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-common/2.2.21/9d3b00063626c0775dd91d1fc5c699d5a6e62e4e/kotlin-scripting-common-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-script-runtime/2.2.21/e9b021c4e335e4ed7a7e3b32285249ae6bb3a6c8/kotlin-script-runtime-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar")
+compilation_args(#compilation, 14, "/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo/lookthrough/Exposure.kt")
+compilation_started(#compilation)
+compilation_info(#compilation, "Kotlin Compiler Version", "2.2.21")
+compilation_info(#compilation, "Kotlin Extractor Name", "codeql-extractor-kotlin-embeddable-2.2.20-Beta2
+")
+compilation_info(#compilation, "Uses Kotlin 2", "true")
+compilation_compiler_times(#compilation, -1.0, 3.623)
+// [2026-09-27 14:21:03 K] [INFO] Extraction started
+// [2026-09-27 14:21:03 K] [INFO] Kotlin extractor verbosity is 3
+// [2026-09-27 14:21:03 K] [INFO] Extraction for invocation TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/invocations/kotlin.16246340135399019149.trap
+// [2026-09-27 14:21:03 K] [INFO] Kotlin version 2.2.21
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: Usage before extractor
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'non-nmethods' is 1618496
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: * Peak for non-heap bean Metaspace is 77327776
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'profiled nmethods' is 13926720
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: * Peak for heap bean PS Old Gen is 102724416
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: * Peak for non-heap bean Compressed Class Space is 9509736
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: * Peak for heap bean PS Survivor Space is 42991160
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: * Peak for heap bean PS Eden Space is 126353408
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'non-profiled nmethods' is 2974848
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: * Total heap peak: 272068984
+// [2026-09-27 14:21:03 K] [INFO] Peak memory: * Total non-heap peak: 105357576
+#100 = @"/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo/lookthrough/Exposure.kt;sourcefile"
+files(#100, "/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo/lookthrough/Exposure.kt")
+#101 = @"/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo/lookthrough;folder"
+folders(#101, "/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo/lookthrough")
+#102 = @"/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo;folder"
+folders(#102, "/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo")
+#103 = @"/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com;folder"
+folders(#103, "/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com")
+#104 = @"/Users/macbook/Octo/modules/lookthrough/src/main/kotlin;folder"
+folders(#104, "/Users/macbook/Octo/modules/lookthrough/src/main/kotlin")
+#105 = @"/Users/macbook/Octo/modules/lookthrough/src/main;folder"
+folders(#105, "/Users/macbook/Octo/modules/lookthrough/src/main")
+#106 = @"/Users/macbook/Octo/modules/lookthrough/src;folder"
+folders(#106, "/Users/macbook/Octo/modules/lookthrough/src")
+#107 = @"/Users/macbook/Octo/modules/lookthrough;folder"
+folders(#107, "/Users/macbook/Octo/modules/lookthrough")
+#108 = @"/Users/macbook/Octo/modules;folder"
+folders(#108, "/Users/macbook/Octo/modules")
+#109 = @"/Users/macbook/Octo;folder"
+folders(#109, "/Users/macbook/Octo")
+#110 = @"/Users/macbook;folder"
+folders(#110, "/Users/macbook")
+#111 = @"/Users;folder"
+folders(#111, "/Users")
+#112 = @"/;folder"
+folders(#112, "/")
+containerparent(#112, #111)
+containerparent(#111, #110)
+containerparent(#110, #109)
+containerparent(#109, #108)
+containerparent(#108, #107)
+containerparent(#107, #106)
+containerparent(#106, #105)
+containerparent(#105, #104)
+containerparent(#104, #103)
+containerparent(#103, #102)
+containerparent(#102, #101)
+containerparent(#101, #100)
+compilation_compiling_files(#compilation, 0, #100)
+// [2026-09-27 14:21:03 K] [INFO] Extracting file /Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo/lookthrough/Exposure.kt
+// [2026-09-27 14:21:03 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo/lookthrough/Exposure.kt.trap.gz
+#113 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/jvm/functions/Function0.class;jarFile"
+#114 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/Function.class;jarFile"
+// [2026-09-27 14:21:03 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/lookthrough/OwnershipEdge.members/OwnershipEdge.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:03 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/lookthrough/OwnershipEdge.members/OwnershipEdge.members#0.0-0-kotlin.trap.gz
+#115 = @"/modules/java.base/java/util/Map.class;sourcefile"
+#116 = @"/modules/java.base/java/lang/Iterable.class;sourcefile"
+#117 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/jvm/functions/Function2.class;jarFile"
+#118 = @"/modules/java.base/java/util/Set.class;sourcefile"
+#119 = @"/modules/java.base/java/util/Collection.class;sourcefile"
+#120 = @"/modules/java.base/java/util/Map$Entry.class;sourcefile"
+#121 = @"/modules/java.base/java/util/function/BiConsumer.class;sourcefile"
+#122 = @"/modules/java.base/java/util/function/BiFunction.class;sourcefile"
+#123 = @"/modules/java.base/java/util/function/Function.class;sourcefile"
+#124 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/jvm/functions/Function1.class;jarFile"
+#125 = @"/modules/java.base/java/util/List.class;sourcefile"
+#126 = @"/modules/java.base/java/util/SequencedCollection.class;sourcefile"
+#127 = @"/modules/java.base/java/util/Comparator.class;sourcefile"
+#128 = @"/modules/java.base/java/lang/Comparable.class;sourcefile"
+// [2026-09-27 14:21:03 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/lookthrough/ExposureReport.members/ExposureReport.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:03 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/lookthrough/ExposureReport.members/ExposureReport.members#0.0-0-kotlin.trap.gz
+#129 = @"/modules/java.base/java/util/LinkedHashMap.class;sourcefile"
+#130 = @"/modules/java.base/java/util/HashMap.class;sourcefile"
+#131 = @"/modules/java.base/java/util/AbstractMap.class;sourcefile"
+#132 = @"/modules/java.base/java/util/SequencedMap.class;sourcefile"
+#133 = @"/modules/java.base/java/util/Iterator.class;sourcefile"
+#134 = @"/modules/java.base/java/util/function/Consumer.class;sourcefile"
+#135 = @"/modules/java.base/java/util/Spliterator.class;sourcefile"
+#136 = @"/modules/java.base/java/util/function/IntFunction.class;sourcefile"
+#137 = @"/modules/java.base/java/util/function/Predicate.class;sourcefile"
+#138 = @"/modules/java.base/java/util/stream/Stream.class;sourcefile"
+#139 = @"/modules/java.base/java/util/stream/BaseStream.class;sourcefile"
+#140 = @"/modules/java.base/java/util/function/UnaryOperator.class;sourcefile"
+#141 = @"/modules/java.base/java/util/ListIterator.class;sourcefile"
+#142 = @"/modules/java.base/java/util/HashMap$Node.class;sourcefile"
+#143 = @"/modules/java.base/java/util/HashMap$TreeNode.class;sourcefile"
+#144 = @"/modules/java.base/java/util/LinkedHashMap$Entry.class;sourcefile"
+#145 = @"/modules/java.base/java/lang/Class.class;sourcefile"
+#146 = @"/modules/java.base/java/lang/invoke/TypeDescriptor$OfField.class;sourcefile"
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/lookthrough/ExposureKt$lookThrough(java.lang.String,java.math.BigDecimal,java.util.Currency,java.util.List).members/ExposureKt$lookThrough(java.lang.String,java.math.BigDecimal,java.util.Currency,java.util.List).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/lookthrough/ExposureKt$lookThrough(java.lang.String,java.math.BigDecimal,java.util.Currency,java.util.List).members/ExposureKt$lookThrough(java.lang.String,java.math.BigDecimal,java.util.Currency,java.util.List).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/lookthrough/ExposureKt.members/ExposureKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/lookthrough/ExposureKt.members/ExposureKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/math/BigDecimal.members/BigDecimal.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/math/BigDecimal.members/BigDecimal.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Unit
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl NotNull
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Object
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Any
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/jvm/functions/Function0.members/Function0.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/jvm/functions/Function0.members/Function0.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/Function.members/Function.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/Function.members/Function.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/Function0.members/Function0.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/Function0.members/Function0.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/require(boolean,kotlin.jvm.functions.Function0).members/require(boolean,kotlin.jvm.functions.Function0).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/require(boolean,kotlin.jvm.functions.Function0).members/require(boolean,kotlin.jvm.functions.Function0).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Integer
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Int
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Currency.members/Currency.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Currency.members/Currency.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Map.members/Map.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Map.members/Map.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/Map.members/Map.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/Map.members/Map.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/Iterable.members/Iterable.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/Iterable.members/Iterable.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/jvm/functions/Function2.members/Function2.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/jvm/functions/Function2.members/Function2.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/Function2.members/Function2.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/Function2.members/Function2.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/fold(java.lang.Iterable,java.lang.Object,kotlin.jvm.functions.Function2).members/fold(java.lang.Iterable,java.lang.Object,kotlin.jvm.functions.Function2).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/fold(java.lang.Iterable,java.lang.Object,kotlin.jvm.functions.Function2).members/fold(java.lang.Iterable,java.lang.Object,kotlin.jvm.functions.Function2).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/MutableMap.members/MutableMap.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/MutableMap.members/MutableMap.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Set.members/Set.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Set.members/Set.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl MutableIterable
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl MutableCollection
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/MutableSet.members/MutableSet.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/MutableSet.members/MutableSet.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Map$Entry.members/Map$Entry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Map$Entry.members/Map$Entry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/MutableMap$MutableEntry.members/MutableMap$MutableEntry.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/MutableMap$MutableEntry.members/MutableMap$MutableEntry.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/function/BiConsumer.members/BiConsumer.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/function/BiConsumer.members/BiConsumer.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/function/BiFunction.members/BiFunction.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/function/BiFunction.members/BiFunction.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Serializable
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/jvm/internal/FunctionReference.members/FunctionReference.members#52.0-318186000000-kotlin.trap.gz
+#147 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/reflect/KFunction.class;jarFile"
+#148 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/reflect/KCallable.class;jarFile"
+#149 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/jvm/internal/FunctionBase.class;jarFile"
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/jvm/internal/FunctionReference.members/FunctionReference.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl SequencedCollection
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/filter(java.lang.Iterable,kotlin.jvm.functions.Function1).members/filter(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/filter(java.lang.Iterable,kotlin.jvm.functions.Function1).members/filter(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/minus(java.math.BigDecimal,java.math.BigDecimal).members/minus(java.math.BigDecimal,java.math.BigDecimal).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/minus(java.math.BigDecimal,java.math.BigDecimal).members/minus(java.math.BigDecimal,java.math.BigDecimal).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/count(java.util.Map,kotlin.jvm.functions.Function1).members/count(java.util.Map,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/count(java.util.Map,kotlin.jvm.functions.Function1).members/count(java.util.Map,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/Map$Entry.members/Map$Entry.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/Map$Entry.members/Map$Entry.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Comparator
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Comparable
+// [2026-09-27 14:21:04 K] [INFO] Skipping extracting external decl Comparable
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/groupBy(java.lang.Iterable,kotlin.jvm.functions.Function1).members/groupBy(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/groupBy(java.lang.Iterable,kotlin.jvm.functions.Function1).members/groupBy(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:04 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap.members/LinkedHashMap.members#65.0-1789983753036-kotlin.trap.gz
+#150 = @"/modules/java.base/java/util/SequencedSet.class;sourcefile"
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap.members/LinkedHashMap.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap.members/HashMap.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap.members/HashMap.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/AbstractMap.members/AbstractMap.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/AbstractMap.members/AbstractMap.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/SequencedMap.members/SequencedMap.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/SequencedMap.members/SequencedMap.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/linkedMapOf().members/linkedMapOf().members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/linkedMapOf().members/linkedMapOf().members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/check(boolean,kotlin.jvm.functions.Function0).members/check(boolean,kotlin.jvm.functions.Function0).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/check(boolean,kotlin.jvm.functions.Function0).members/check(boolean,kotlin.jvm.functions.Function0).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Iterator
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl MutableIterator
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Consumer
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Spliterator
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl IntFunction
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Predicate
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Stream
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl BaseStream
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl AutoCloseable
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl UnaryOperator
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl ListIterator
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl MutableListIterator
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl MutableList
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl CharSequence
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl CharSequence
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl joinToString
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/plus(java.util.Collection,java.lang.Object).members/plus(java.util.Collection,java.lang.Object).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/plus(java.util.Collection,java.lang.Object).members/plus(java.util.Collection,java.lang.Object).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/isNullOrEmpty(java.util.Collection).members/isNullOrEmpty(java.util.Collection).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/isNullOrEmpty(java.util.Collection).members/isNullOrEmpty(java.util.Collection).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Float
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Float
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$Node.members/HashMap$Node.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$Node.members/HashMap$Node.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$TreeNode.members/HashMap$TreeNode.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$TreeNode.members/HashMap$TreeNode.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$Entry.members/LinkedHashMap$Entry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$Entry.members/LinkedHashMap$Entry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectOutputStream.members/ObjectOutputStream.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectOutputStream.members/ObjectOutputStream.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Class
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl GenericDeclaration
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Type
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl AnnotatedElement
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl OfField
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl TypeDescriptor
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Constable
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/math/MathContext.members/MathContext.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/math/MathContext.members/MathContext.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl emptyList
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl BigInteger
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Long
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Long
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Deprecated
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Character
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Char
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Double
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Double
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/math/BigDecimal$StringBuilderHelper.members/BigDecimal$StringBuilderHelper.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/math/BigDecimal$StringBuilderHelper.members/BigDecimal$StringBuilderHelper.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/math/RoundingMode.members/RoundingMode.members#65.0-1789983753036-kotlin.trap.gz
+#151 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/enums/EnumEntries.class;jarFile"
+#152 = @"/modules/java.base/java/lang/Enum.class;sourcefile"
+#153 = @"/modules/java.base/java/util/Optional.class;sourcefile"
+#154 = @"/modules/java.base/java/lang/Enum$EnumDesc.class;sourcefile"
+#155 = @"/modules/java.base/java/lang/constant/DynamicConstantDesc.class;sourcefile"
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/math/RoundingMode.members/RoundingMode.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Short
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Short
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Byte
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Byte
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Number
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Number
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/internal/InlineOnly.members/InlineOnly.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/internal/InlineOnly.members/InlineOnly.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Locale
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Currency$SpecialCaseEntry.members/Currency$SpecialCaseEntry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Currency$SpecialCaseEntry.members/Currency$SpecialCaseEntry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Currency$OtherCurrencyEntry.members/Currency$OtherCurrencyEntry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Currency$OtherCurrencyEntry.members/Currency$OtherCurrencyEntry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl SafeVarargs
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl SinceKotlin
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/internal/PlatformDependent.members/PlatformDependent.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/internal/PlatformDependent.members/PlatformDependent.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Set
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl Iterator
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl FunctionalInterface
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl KFunction
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl KCallable
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl KAnnotatedElement
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/jvm/internal/CallableReference.members/CallableReference.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/jvm/internal/CallableReference.members/CallableReference.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/jvm/internal/FunctionBase.members/FunctionBase.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/jvm/internal/FunctionBase.members/FunctionBase.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl KParameter
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl KType
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl KTypeParameter
+// [2026-09-27 14:21:05 K] [INFO] Skipping extracting external decl KVisibility
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$ReversedLinkedHashMapView.members/LinkedHashMap$ReversedLinkedHashMapView.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$ReversedLinkedHashMapView.members/LinkedHashMap$ReversedLinkedHashMapView.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedHashIterator.members/LinkedHashMap$LinkedHashIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedHashIterator.members/LinkedHashMap$LinkedHashIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:05 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedKeySet.members/LinkedHashMap$LinkedKeySet.members#65.0-1789983753036-kotlin.trap.gz
+#156 = @"/modules/java.base/java/util/AbstractSet.class;sourcefile"
+#157 = @"/modules/java.base/java/util/AbstractCollection.class;sourcefile"
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedKeySet.members/LinkedHashMap$LinkedKeySet.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedEntrySet.members/LinkedHashMap$LinkedEntrySet.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedEntrySet.members/LinkedHashMap$LinkedEntrySet.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedValues.members/LinkedHashMap$LinkedValues.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedValues.members/LinkedHashMap$LinkedValues.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedValueIterator.members/LinkedHashMap$LinkedValueIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedValueIterator.members/LinkedHashMap$LinkedValueIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedKeyIterator.members/LinkedHashMap$LinkedKeyIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedKeyIterator.members/LinkedHashMap$LinkedKeyIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedEntryIterator.members/LinkedHashMap$LinkedEntryIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/LinkedHashMap$LinkedEntryIterator.members/LinkedHashMap$LinkedEntryIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/SequencedSet.members/SequencedSet.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/SequencedSet.members/SequencedSet.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$ValueSpliterator.members/HashMap$ValueSpliterator.members#65.0-1789983753036-kotlin.trap.gz
+#158 = @"/modules/java.base/java/util/HashMap$ValueSpliterator.class;sourcefile"
+#159 = @"/modules/java.base/java/util/HashMap$HashMapSpliterator.class;sourcefile"
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$ValueSpliterator.members/HashMap$ValueSpliterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$EntryIterator.members/HashMap$EntryIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$EntryIterator.members/HashMap$EntryIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$KeySet.members/HashMap$KeySet.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$KeySet.members/HashMap$KeySet.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$KeyIterator.members/HashMap$KeyIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$KeyIterator.members/HashMap$KeyIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$EntrySpliterator.members/HashMap$EntrySpliterator.members#65.0-1789983753036-kotlin.trap.gz
+#160 = @"/modules/java.base/java/util/HashMap$EntrySpliterator.class;sourcefile"
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$EntrySpliterator.members/HashMap$EntrySpliterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$HashIterator.members/HashMap$HashIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$HashIterator.members/HashMap$HashIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$Values.members/HashMap$Values.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$Values.members/HashMap$Values.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$ValueIterator.members/HashMap$ValueIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$ValueIterator.members/HashMap$ValueIterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$KeySpliterator.members/HashMap$KeySpliterator.members#65.0-1789983753036-kotlin.trap.gz
+#161 = @"/modules/java.base/java/util/HashMap$KeySpliterator.class;sourcefile"
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$KeySpliterator.members/HashMap$KeySpliterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$EntrySet.members/HashMap$EntrySet.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$EntrySet.members/HashMap$EntrySet.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$HashMapSpliterator.members/HashMap$HashMapSpliterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/HashMap$HashMapSpliterator.members/HashMap$HashMapSpliterator.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/AbstractMap$SimpleImmutableEntry.members/AbstractMap$SimpleImmutableEntry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/AbstractMap$SimpleImmutableEntry.members/AbstractMap$SimpleImmutableEntry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/AbstractMap$ViewCollection.members/AbstractMap$ViewCollection.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/AbstractMap$ViewCollection.members/AbstractMap$ViewCollection.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/AbstractMap$SimpleEntry.members/AbstractMap$SimpleEntry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/AbstractMap$SimpleEntry.members/AbstractMap$SimpleEntry.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/OutputStream.members/OutputStream.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/OutputStream.members/OutputStream.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectOutputStream$PutField.members/ObjectOutputStream$PutField.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectOutputStream$PutField.members/ObjectOutputStream$PutField.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectStreamClass.members/ObjectStreamClass.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectStreamClass.members/ObjectStreamClass.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Skipping extracting external decl ObjectOutput
+// [2026-09-27 14:21:06 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectStreamConstants.members/ObjectStreamConstants.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectStreamConstants.members/ObjectStreamConstants.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:06 K] [INFO] Skipping extracting external decl StringBuilder
+// [2026-09-27 14:21:06 K] [INFO] Skipping extracting external decl EnumEntries
+// [2026-09-27 14:21:06 K] [INFO] Skipping extracting external decl Enum
+// [2026-09-27 14:21:06 K] [INFO] Skipping extracting external decl Enum
+// [2026-09-27 14:21:06 K] [INFO] Skipping extracting external decl Optional
+// [2026-09-27 14:21:06 K] [INFO] Skipping extracting external decl EnumDesc
+// [2026-09-27 14:21:06 K] [INFO] Skipping extracting external decl DynamicConstantDesc
+// [2026-09-27 14:21:06 K] [INFO] Skipping extracting external decl ConstantDesc
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl Annotation
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl Annotation
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl ElementType
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl Target
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl RetentionPolicy
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl Retention
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl Retention
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl AnnotationRetention
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl Target
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl AnnotationTarget
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/reflect/KDeclarationContainer.members/KDeclarationContainer.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/reflect/KDeclarationContainer.members/KDeclarationContainer.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl AbstractSet
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl AbstractCollection
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/lang/UnsupportedOperationException.members/UnsupportedOperationException.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/lang/UnsupportedOperationException.members/UnsupportedOperationException.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/Closeable.members/Closeable.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/Closeable.members/Closeable.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/Flushable.members/Flushable.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/Flushable.members/Flushable.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectStreamClass$RecordSupport.members/ObjectStreamClass$RecordSupport.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectStreamClass$RecordSupport.members/ObjectStreamClass$RecordSupport.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectStreamClass$ClassDataSlot.members/ObjectStreamClass$ClassDataSlot.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectStreamClass$ClassDataSlot.members/ObjectStreamClass$ClassDataSlot.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl CallerSensitive
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectStreamField.members/ObjectStreamField.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectStreamField.members/ObjectStreamField.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/lang/ClassNotFoundException.members/ClassNotFoundException.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/lang/ClassNotFoundException.members/ClassNotFoundException.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputStream.members/ObjectInputStream.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputStream.members/ObjectInputStream.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl MethodHandle
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/SerializablePermission.members/SerializablePermission.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/SerializablePermission.members/SerializablePermission.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl Throwable
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl Throwable
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl RuntimeException
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl Field
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/lang/ReflectiveOperationException.members/ReflectiveOperationException.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/lang/ReflectiveOperationException.members/ReflectiveOperationException.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl InputStream
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputStream$FilterValues.members/ObjectInputStream$FilterValues.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputStream$FilterValues.members/ObjectInputStream$FilterValues.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputStream$GetField.members/ObjectInputStream$GetField.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputStream$GetField.members/ObjectInputStream$GetField.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputValidation.members/ObjectInputValidation.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputValidation.members/ObjectInputValidation.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputFilter.members/ObjectInputFilter.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputFilter.members/ObjectInputFilter.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl ObjectInput
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/BasicPermission.members/BasicPermission.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/BasicPermission.members/BasicPermission.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/lang/Exception.members/Exception.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/lang/Exception.members/Exception.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputFilter$FilterInfo.members/ObjectInputFilter$FilterInfo.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputFilter$FilterInfo.members/ObjectInputFilter$FilterInfo.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputFilter$Status.members/ObjectInputFilter$Status.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputFilter$Status.members/ObjectInputFilter$Status.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputFilter$Config.members/ObjectInputFilter$Config.members#65.0-1789983753036-kotlin.trap.gz
+#162 = @"/modules/java.base/java/util/function/BinaryOperator.class;sourcefile"
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputFilter$Config.members/ObjectInputFilter$Config.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/Permission.members/Permission.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/Permission.members/Permission.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/PermissionCollection.members/PermissionCollection.members#65.0-1789983753036-kotlin.trap.gz
+#163 = @"/modules/java.base/java/util/Enumeration.class;sourcefile"
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/PermissionCollection.members/PermissionCollection.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputFilter$Config$Global.members/ObjectInputFilter$Config$Global.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/io/ObjectInputFilter$Config$Global.members/ObjectInputFilter$Config$Global.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Skipping extracting external decl BinaryOperator
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/Guard.members/Guard.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/Guard.members/Guard.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Enumeration.members/Enumeration.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/util/Enumeration.members/Enumeration.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:07 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/lookthrough/src/main/kotlin/com/octo/lookthrough/Exposure.kt.trap.gz
+compilation_compiling_files_completed(#compilation, 0, 0)
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: Usage after extractor
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'non-nmethods' is 1691520
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: * Peak for non-heap bean Metaspace is 92680224
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'profiled nmethods' is 32812288
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: * Peak for heap bean PS Old Gen is 214468904
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: * Peak for non-heap bean Compressed Class Space is 10479632
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: * Peak for heap bean PS Survivor Space is 53975520
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: * Peak for heap bean PS Eden Space is 585629696
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'non-profiled nmethods' is 5373696
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: * Total heap peak: 854074120
+// [2026-09-27 14:21:07 K] [INFO] Peak memory: * Total non-heap peak: 143037360
+// [2026-09-27 14:21:07 K] [INFO] Extraction completed
+compilation_finished(#compilation, -1.0, 4.132, 0)

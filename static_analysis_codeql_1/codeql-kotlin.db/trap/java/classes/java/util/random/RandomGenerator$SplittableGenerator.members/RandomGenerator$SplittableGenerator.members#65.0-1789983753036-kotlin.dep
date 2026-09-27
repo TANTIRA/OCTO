@@ -1,0 +1,19 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/random/RandomGenerator$SplittableGenerator.members/RandomGenerator$SplittableGenerator.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/random/RandomGenerator$SplittableGenerator.members.trap.gz
+classes/java/util/random/RandomGenerator.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/util/stream/Stream.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/util/stream/BaseStream.members.trap.gz
+classes/java/lang/AutoCloseable.members.trap.gz
+classes/java/lang/Long.members.trap.gz
+classes/kotlin/Long.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/util/random/RandomGenerator$StreamableGenerator.members.trap.gz

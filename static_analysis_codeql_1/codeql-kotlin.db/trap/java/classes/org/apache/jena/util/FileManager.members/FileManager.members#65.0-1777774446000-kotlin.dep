@@ -1,0 +1,23 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/util/FileManager.members/FileManager.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/util/FileManager.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/util/LocationMapper.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/util/Iterator.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/kotlin/collections/MutableIterator.members.trap.gz
+classes/org/apache/jena/util/Locator.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/lang/ClassLoader.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/org/apache/jena/rdf/model/Model.members.trap.gz
+classes/java/io/InputStream.members.trap.gz
+classes/org/apache/jena/util/TypedStream.members.trap.gz

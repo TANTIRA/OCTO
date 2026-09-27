@@ -1,0 +1,16 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/deal-sourcing/src/main/kotlin/com/octo/dealsourcing/persistence/ProspectStore.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/dealsourcing/persistence/ProspectStoreKt$IMPORT_BATCH_LIMIT;property.members/ProspectStoreKt$IMPORT_BATCH_LIMIT;property.members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/persistence/ProspectEventRow.members/ProspectEventRow.members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/persistence/ProspectStore.members/ProspectStore.members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/persistence/ProspectStoreKt.members/ProspectStoreKt.members#0.0-0-kotlin.trap.gz

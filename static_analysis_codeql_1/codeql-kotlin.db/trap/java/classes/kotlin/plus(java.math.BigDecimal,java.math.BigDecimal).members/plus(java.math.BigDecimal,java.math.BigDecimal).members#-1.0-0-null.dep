@@ -1,0 +1,12 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/plus(java.math.BigDecimal,java.math.BigDecimal).members/plus(java.math.BigDecimal,java.math.BigDecimal).members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/java/math/BigDecimal.members.trap.gz
+classes/kotlin/plus(java.math.BigDecimal,java.math.BigDecimal).members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/kotlin/internal/InlineOnly.members.trap.gz

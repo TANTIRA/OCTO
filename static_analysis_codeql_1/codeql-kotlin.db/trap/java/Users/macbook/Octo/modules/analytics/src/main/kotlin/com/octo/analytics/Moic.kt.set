@@ -1,0 +1,16 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/analytics/src/main/kotlin/com/octo/analytics/Moic.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/analytics/MoicKt$MOIC_METHODOLOGY;property.members/MoicKt$MOIC_METHODOLOGY;property.members#0.0-0-kotlin.trap.gz
+classes/com/octo/analytics/DealMultiples.members/DealMultiples.members#0.0-0-kotlin.trap.gz
+classes/com/octo/analytics/MoicKt$moic(java.util.Currency,java.math.BigDecimal,java.math.BigDecimal,java.math.BigDecimal).members/MoicKt$moic(java.util.Currency,java.math.BigDecimal,java.math.BigDecimal,java.math.BigDecimal).members#0.0-0-kotlin.trap.gz
+classes/com/octo/analytics/MoicKt.members/MoicKt.members#0.0-0-kotlin.trap.gz

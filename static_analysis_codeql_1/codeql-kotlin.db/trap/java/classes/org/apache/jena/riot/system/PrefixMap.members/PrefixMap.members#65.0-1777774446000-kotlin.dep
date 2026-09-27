@@ -1,0 +1,26 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/riot/system/PrefixMap.members/PrefixMap.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/riot/system/PrefixMap.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/util/Map.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/kotlin/collections/MutableMap.members.trap.gz
+classes/java/util/function/BiConsumer.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/util/stream/Stream.members.trap.gz
+classes/java/util/stream/BaseStream.members.trap.gz
+classes/java/lang/AutoCloseable.members.trap.gz
+classes/org/apache/jena/riot/system/PrefixEntry.members.trap.gz
+classes/org/apache/jena/shared/PrefixMapping.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/org/apache/jena/atlas/lib/Pair.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz

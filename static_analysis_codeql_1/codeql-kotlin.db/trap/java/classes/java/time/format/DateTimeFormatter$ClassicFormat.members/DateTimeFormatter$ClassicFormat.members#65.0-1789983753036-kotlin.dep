@@ -1,0 +1,19 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/time/format/DateTimeFormatter$ClassicFormat.members/DateTimeFormatter$ClassicFormat.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/time/format/DateTimeFormatter$ClassicFormat.members.trap.gz
+classes/java/time/format/DateTimeFormatter.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/time/temporal/TemporalQuery.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/StringBuffer.members.trap.gz
+classes/java/text/FieldPosition.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/text/ParsePosition.members.trap.gz
+classes/java/text/Format.members.trap.gz

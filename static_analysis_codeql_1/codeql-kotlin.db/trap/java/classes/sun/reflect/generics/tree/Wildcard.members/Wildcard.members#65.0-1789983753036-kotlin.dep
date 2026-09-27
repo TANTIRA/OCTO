@@ -1,0 +1,19 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/sun/reflect/generics/tree/Wildcard.members/Wildcard.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/sun/reflect/generics/tree/Wildcard.members.trap.gz
+classes/sun/reflect/generics/tree/FieldTypeSignature.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/Cloneable.members.trap.gz
+classes/kotlin/Cloneable.members.trap.gz
+classes/java/io/Serializable.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/sun/reflect/generics/visitor/TypeTreeVisitor.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/sun/reflect/generics/tree/TypeArgument.members.trap.gz

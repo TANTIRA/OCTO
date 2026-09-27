@@ -1,0 +1,16 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonArrayFormatVisitor.members/JsonArrayFormatVisitor.members#52.0-1752886142000-kotlin.trap.gz
+
+TRAPS
+classes/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonArrayFormatVisitor.members.trap.gz
+classes/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonArrayFormatVisitor$Base.members.trap.gz
+classes/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonFormatVisitable.members.trap.gz
+classes/com/fasterxml/jackson/databind/JavaType.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonFormatTypes.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonFormatVisitorWithSerializerProvider.members.trap.gz

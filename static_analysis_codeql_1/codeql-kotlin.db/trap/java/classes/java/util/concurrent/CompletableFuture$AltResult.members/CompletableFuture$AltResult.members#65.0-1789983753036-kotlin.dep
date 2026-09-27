@@ -1,0 +1,14 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/concurrent/CompletableFuture$AltResult.members/CompletableFuture$AltResult.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/concurrent/CompletableFuture$AltResult.members.trap.gz
+classes/java/util/concurrent/CompletableFuture.members.trap.gz
+classes/java/lang/Throwable.members.trap.gz
+classes/kotlin/Throwable.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

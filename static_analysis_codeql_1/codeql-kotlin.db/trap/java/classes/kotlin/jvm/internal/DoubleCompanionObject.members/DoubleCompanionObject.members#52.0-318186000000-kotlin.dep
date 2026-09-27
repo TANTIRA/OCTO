@@ -1,0 +1,13 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/jvm/internal/DoubleCompanionObject.members/DoubleCompanionObject.members#52.0-318186000000-kotlin.trap.gz
+
+TRAPS
+classes/kotlin/jvm/internal/DoubleCompanionObject.members.trap.gz
+classes/java/lang/Double.members.trap.gz
+classes/kotlin/Double.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

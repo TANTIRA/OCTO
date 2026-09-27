@@ -1,0 +1,11 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/text/trim(java.lang.String).members/trim(java.lang.String).members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/kotlin/text/trim(java.lang.String).members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/kotlin/internal/InlineOnly.members.trap.gz

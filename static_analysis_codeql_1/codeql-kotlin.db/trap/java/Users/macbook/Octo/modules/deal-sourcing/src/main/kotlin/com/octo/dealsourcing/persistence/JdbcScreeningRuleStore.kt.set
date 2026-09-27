@@ -1,0 +1,16 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/deal-sourcing/src/main/kotlin/com/octo/dealsourcing/persistence/JdbcScreeningRuleStore.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/dealsourcing/persistence/ScreeningRuleRow.members/ScreeningRuleRow.members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/persistence/JdbcScreeningRuleStore$Latest.members/JdbcScreeningRuleStore$Latest.members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/persistence/JdbcScreeningRuleStore.members/JdbcScreeningRuleStore.members#0.0-0-kotlin.trap.gz
+classes/com/octo/dealsourcing/persistence/JdbcScreeningRuleStoreKt.members/JdbcScreeningRuleStoreKt.members#0.0-0-kotlin.trap.gz

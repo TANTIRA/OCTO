@@ -1,0 +1,6 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/com/octo/analytics/KalmanKt$kalmanFilter(com.octo.analytics.KalmanModel,java.util.List,java.util.List,kotlin.jvm.functions.Function1).members/KalmanKt$kalmanFilter(com.octo.analytics.KalmanModel,java.util.List,java.util.List,kotlin.jvm.functions.Function1).members#0.0-0-kotlin.trap.gz
+
+TRAPS

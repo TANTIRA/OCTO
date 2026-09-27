@@ -1,0 +1,26 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/jdk/internal/util/random/RandomSupport$AbstractArbitrarilyJumpableGenerator$RandomJumpsSpliterator.members/RandomSupport$AbstractArbitrarilyJumpableGenerator$RandomJumpsSpliterator.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/jdk/internal/util/random/RandomSupport$AbstractArbitrarilyJumpableGenerator$RandomJumpsSpliterator.members.trap.gz
+classes/jdk/internal/util/random/RandomSupport$AbstractArbitrarilyJumpableGenerator.members.trap.gz
+classes/java/util/random/RandomGenerator$ArbitrarilyJumpableGenerator.members.trap.gz
+classes/java/lang/Long.members.trap.gz
+classes/kotlin/Long.members.trap.gz
+classes/java/lang/Double.members.trap.gz
+classes/kotlin/Double.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/util/Spliterator.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/util/random/RandomGenerator.members.trap.gz
+classes/java/util/function/Consumer.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/jdk/internal/util/random/RandomSupport$RandomSpliterator.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/util/Comparator.members.trap.gz

@@ -1,0 +1,18 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/nio/channels/spi/SelectorProvider.members/SelectorProvider.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/nio/channels/spi/SelectorProvider.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/nio/channels/DatagramChannel.members.trap.gz
+classes/java/net/ProtocolFamily.members.trap.gz
+classes/java/nio/channels/Pipe.members.trap.gz
+classes/java/nio/channels/spi/AbstractSelector.members.trap.gz
+classes/java/nio/channels/ServerSocketChannel.members.trap.gz
+classes/java/nio/channels/SocketChannel.members.trap.gz
+classes/java/nio/channels/Channel.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

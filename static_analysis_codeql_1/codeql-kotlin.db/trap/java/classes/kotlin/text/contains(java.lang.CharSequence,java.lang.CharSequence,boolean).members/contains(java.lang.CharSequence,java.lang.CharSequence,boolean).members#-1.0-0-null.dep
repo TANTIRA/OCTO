@@ -1,0 +1,18 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/text/contains(java.lang.CharSequence,java.lang.CharSequence,boolean).members/contains(java.lang.CharSequence,java.lang.CharSequence,boolean).members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/java/lang/CharSequence.members.trap.gz
+classes/kotlin/CharSequence.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/kotlin/text/contains(java.lang.CharSequence,java.lang.CharSequence,boolean).members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

@@ -1,0 +1,21 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/sparql/algebra/table/TableData.members/TableData.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/sparql/algebra/table/TableData.members.trap.gz
+classes/org/apache/jena/sparql/core/Var.members.trap.gz
+classes/java/util/List.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/util/SequencedCollection.members.trap.gz
+classes/java/util/Collection.members.trap.gz
+classes/java/lang/Iterable.members.trap.gz
+classes/kotlin/collections/MutableIterable.members.trap.gz
+classes/kotlin/collections/MutableCollection.members.trap.gz
+classes/kotlin/collections/MutableList.members.trap.gz
+classes/org/apache/jena/sparql/engine/binding/Binding.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/sparql/algebra/table/TableN.members.trap.gz

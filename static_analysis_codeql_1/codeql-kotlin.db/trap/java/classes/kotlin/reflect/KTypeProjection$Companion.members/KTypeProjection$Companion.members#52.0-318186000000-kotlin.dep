@@ -1,0 +1,16 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/reflect/KTypeProjection$Companion.members/KTypeProjection$Companion.members#52.0-318186000000-kotlin.trap.gz
+
+TRAPS
+classes/kotlin/reflect/KTypeProjection$Companion.members.trap.gz
+classes/kotlin/reflect/KTypeProjection.members.trap.gz
+classes/kotlin/reflect/KType.members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/kotlin/jvm/JvmStatic.members.trap.gz
+classes/kotlin/jvm/JvmField.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

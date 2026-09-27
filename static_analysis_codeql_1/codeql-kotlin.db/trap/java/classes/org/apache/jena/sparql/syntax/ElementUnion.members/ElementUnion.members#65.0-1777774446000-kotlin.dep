@@ -1,0 +1,25 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/sparql/syntax/ElementUnion.members/ElementUnion.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/sparql/syntax/ElementUnion.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/sparql/syntax/Element.members.trap.gz
+classes/java/util/List.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/util/SequencedCollection.members.trap.gz
+classes/java/util/Collection.members.trap.gz
+classes/java/lang/Iterable.members.trap.gz
+classes/kotlin/collections/MutableIterable.members.trap.gz
+classes/kotlin/collections/MutableCollection.members.trap.gz
+classes/kotlin/collections/MutableList.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/org/apache/jena/sparql/util/NodeIsomorphismMap.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/org/apache/jena/sparql/syntax/ElementVisitor.members.trap.gz

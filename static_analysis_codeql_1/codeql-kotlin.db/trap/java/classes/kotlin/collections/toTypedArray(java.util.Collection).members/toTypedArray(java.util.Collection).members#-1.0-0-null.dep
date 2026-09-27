@@ -1,0 +1,21 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/collections/toTypedArray(java.util.Collection).members/toTypedArray(java.util.Collection).members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/java/util/Collection.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/Iterable.members.trap.gz
+classes/kotlin/collections/MutableIterable.members.trap.gz
+classes/kotlin/collections/Collection.members.trap.gz
+classes/java/lang/Cloneable.members.trap.gz
+classes/kotlin/Cloneable.members.trap.gz
+classes/java/io/Serializable.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/kotlin/collections/toTypedArray(java.util.Collection).members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz

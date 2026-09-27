@@ -1,0 +1,6 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/com/octo/analytics/ForecastKt$bayesianUpdate(java.lang.String,double,double,double,java.time.Instant,java.time.LocalDate).members/ForecastKt$bayesianUpdate(java.lang.String,double,double,double,java.time.Instant,java.time.LocalDate).members#0.0-0-kotlin.trap.gz
+
+TRAPS

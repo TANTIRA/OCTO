@@ -1,0 +1,11 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/ontology/DatatypeProperty.members/DatatypeProperty.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/ontology/DatatypeProperty.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/org/apache/jena/ontology/OntProperty.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz

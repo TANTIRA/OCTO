@@ -1,0 +1,21 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/nio/channels/ServerSocketChannel.members/ServerSocketChannel.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/nio/channels/ServerSocketChannel.members.trap.gz
+classes/java/nio/channels/spi/SelectorProvider.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/net/SocketAddress.members.trap.gz
+classes/java/net/SocketOption.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/net/ServerSocket.members.trap.gz
+classes/java/nio/channels/SocketChannel.members.trap.gz
+classes/java/net/ProtocolFamily.members.trap.gz
+classes/java/nio/channels/spi/AbstractSelectableChannel.members.trap.gz
+classes/java/nio/channels/NetworkChannel.members.trap.gz

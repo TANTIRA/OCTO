@@ -1,0 +1,25 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/reasoner/InfGraph.members/InfGraph.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/reasoner/InfGraph.members.trap.gz
+classes/org/apache/jena/graph/Graph.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/reasoner/Reasoner.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/org/apache/jena/graph/Node.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/org/apache/jena/reasoner/ValidityReport.members.trap.gz
+classes/org/apache/jena/util/iterator/ExtendedIterator.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/org/apache/jena/util/iterator/ClosableIterator.members.trap.gz
+classes/org/apache/jena/atlas/iterator/IteratorCloseable.members.trap.gz
+classes/java/util/Iterator.members.trap.gz
+classes/kotlin/collections/MutableIterator.members.trap.gz
+classes/org/apache/jena/atlas/lib/Closeable.members.trap.gz
+classes/org/apache/jena/graph/Triple.members.trap.gz
+classes/org/apache/jena/reasoner/Derivation.members.trap.gz

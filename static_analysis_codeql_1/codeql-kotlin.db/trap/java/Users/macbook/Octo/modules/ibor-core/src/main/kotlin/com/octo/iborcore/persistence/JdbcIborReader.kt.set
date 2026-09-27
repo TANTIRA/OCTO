@@ -1,0 +1,19 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/ibor-core/src/main/kotlin/com/octo/iborcore/persistence/JdbcIborReader.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/iborcore/persistence/JdbcIborReader$Companion.members/JdbcIborReader$Companion.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/persistence/JdbcIborReader.members/JdbcIborReader.members#0.0-0-kotlin.trap.gz
+classes/com/octo/iborcore/persistence/JdbcIborReaderKt.members/JdbcIborReaderKt.members#0.0-0-kotlin.trap.gz
+classes/kotlin/text/trimIndent(java.lang.String).members/trimIndent(java.lang.String).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/toTypedArray(java.util.Collection).members/toTypedArray(java.util.Collection).members#-1.0-0-null.trap.gz
+classes/kotlin/collections/buildList(kotlin.jvm.functions.Function1).members/buildList(kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+classes/kotlin/BuilderInference.members/BuilderInference.members#52.0-318186000000-kotlin.trap.gz

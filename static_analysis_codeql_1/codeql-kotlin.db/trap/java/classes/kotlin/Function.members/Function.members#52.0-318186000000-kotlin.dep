@@ -1,0 +1,9 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/Function.members/Function.members#52.0-318186000000-kotlin.trap.gz
+
+TRAPS
+classes/kotlin/Function.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz

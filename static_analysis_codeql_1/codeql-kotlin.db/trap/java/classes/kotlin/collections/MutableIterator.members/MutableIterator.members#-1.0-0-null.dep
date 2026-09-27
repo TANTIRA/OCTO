@@ -1,0 +1,10 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/collections/MutableIterator.members/MutableIterator.members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/kotlin/collections/MutableIterator.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/util/Iterator.members.trap.gz
+classes/kotlin/collections/Iterator.members.trap.gz

@@ -373,3 +373,33 @@
 [2026-09-27 14:20:58] [build-stdout] > Task :modules:lookthrough:processResources NO-SOURCE
 [2026-09-27 14:20:58] [build-stdout] > Task :modules:control-panel:processResources NO-SOURCE
 [2026-09-27 14:20:58] [build-stdout] > Task :modules:ibor-core:processResources NO-SOURCE
+[2026-09-27 14:21:11] [build-stdout] > Task :modules:lookthrough:compileKotlin
+[2026-09-27 14:21:11] [build-stdout] > Task :modules:persistence:compileKotlin
+[2026-09-27 14:21:11] [build-stdout] > Task :modules:persistence:compileJava NO-SOURCE
+[2026-09-27 14:21:11] [build-stdout] > Task :modules:lookthrough:compileJava NO-SOURCE
+[2026-09-27 14:21:11] [build-stdout] > Task :modules:persistence:classes UP-TO-DATE
+[2026-09-27 14:21:11] [build-stdout] > Task :modules:lookthrough:classes UP-TO-DATE
+[2026-09-27 14:21:11] [build-stdout] > Task :modules:persistence:jar
+[2026-09-27 14:21:11] [build-stdout] > Task :modules:lookthrough:jar
+[2026-09-27 14:21:14] [build-stdout] > Task :modules:ibor-core:compileKotlin
+[2026-09-27 14:21:14] [build-stdout] > Task :modules:ibor-core:compileJava NO-SOURCE
+[2026-09-27 14:21:14] [build-stdout] > Task :modules:ibor-core:classes UP-TO-DATE
+[2026-09-27 14:21:14] [build-stdout] > Task :modules:ibor-core:jar
+[2026-09-27 14:21:22] [build-stdout] > Task :modules:ontology:compileKotlin
+[2026-09-27 14:21:22] [build-stdout] > Task :modules:ontology:compileJava NO-SOURCE
+[2026-09-27 14:21:22] [build-stdout] > Task :modules:deal-sourcing:compileKotlin
+[2026-09-27 14:21:22] [build-stdout] > Task :modules:deal-sourcing:compileJava NO-SOURCE
+[2026-09-27 14:21:22] [build-stdout] > Task :modules:deal-sourcing:classes UP-TO-DATE
+[2026-09-27 14:21:22] [build-stdout] > Task :modules:deal-sourcing:jar
+[2026-09-27 14:21:23] [build-stdout] > Task :modules:workflow:compileKotlin
+[2026-09-27 14:21:23] [build-stdout] > Task :modules:workflow:compileJava NO-SOURCE
+[2026-09-27 14:21:23] [build-stdout] > Task :modules:workflow:classes UP-TO-DATE
+[2026-09-27 14:21:23] [build-stdout] > Task :modules:workflow:jar
+[2026-09-27 14:21:28] [build-stdout] > Task :modules:control-panel:compileKotlin
+[2026-09-27 14:21:32] [build-stdout] > Task :modules:control-panel:compileJava NO-SOURCE
+[2026-09-27 14:21:32] [build-stdout] > Task :modules:control-panel:classes UP-TO-DATE
+[2026-09-27 14:21:32] [build-stdout] > Task :modules:control-panel:jar
+[2026-09-27 14:21:32] [build-stdout] > Task :modules:analytics:compileKotlin
+[2026-09-27 14:21:32] [build-stdout] > Task :modules:analytics:compileJava NO-SOURCE
+[2026-09-27 14:21:32] [build-stdout] > Task :modules:analytics:classes UP-TO-DATE
+[2026-09-27 14:21:32] [build-stdout] > Task :modules:analytics:jar

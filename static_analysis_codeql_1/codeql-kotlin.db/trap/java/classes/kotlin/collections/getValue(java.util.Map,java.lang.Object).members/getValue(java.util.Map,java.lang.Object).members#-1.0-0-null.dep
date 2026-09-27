@@ -1,0 +1,15 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/kotlin/collections/getValue(java.util.Map,java.lang.Object).members/getValue(java.util.Map,java.lang.Object).members#-1.0-0-null.trap.gz
+
+TRAPS
+classes/java/util/Map.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/kotlin/collections/Map.members.trap.gz
+classes/kotlin/collections/getValue(java.util.Map,java.lang.Object).members.trap.gz
+classes/org/jetbrains/annotations/NotNull.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/kotlin/SinceKotlin.members.trap.gz

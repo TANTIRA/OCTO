@@ -1,0 +1,19 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/org/apache/jena/shacl/engine/constraint/ValueMinExclusiveConstraint.members/ValueMinExclusiveConstraint.members#65.0-1777774446000-kotlin.trap.gz
+
+TRAPS
+classes/org/apache/jena/shacl/engine/constraint/ValueMinExclusiveConstraint.members.trap.gz
+classes/org/apache/jena/graph/Node.members.trap.gz
+classes/kotlin/Unit.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/org/apache/jena/shacl/parser/ConstraintVisitor.members.trap.gz
+classes/java/lang/String.members.trap.gz
+classes/kotlin/String.members.trap.gz
+classes/java/lang/Integer.members.trap.gz
+classes/kotlin/Int.members.trap.gz
+classes/java/lang/Boolean.members.trap.gz
+classes/kotlin/Boolean.members.trap.gz
+classes/org/apache/jena/sparql/expr/NodeValue.members.trap.gz
+classes/org/apache/jena/shacl/engine/constraint/ValueRangeConstraint.members.trap.gz

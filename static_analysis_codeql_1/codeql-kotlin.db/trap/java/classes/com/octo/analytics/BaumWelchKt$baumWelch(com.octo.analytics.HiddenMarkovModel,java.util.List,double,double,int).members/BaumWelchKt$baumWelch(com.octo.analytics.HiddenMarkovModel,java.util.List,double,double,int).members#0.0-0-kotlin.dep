@@ -1,0 +1,6 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/com/octo/analytics/BaumWelchKt$baumWelch(com.octo.analytics.HiddenMarkovModel,java.util.List,double,double,int).members/BaumWelchKt$baumWelch(com.octo.analytics.HiddenMarkovModel,java.util.List,double,double,int).members#0.0-0-kotlin.trap.gz
+
+TRAPS

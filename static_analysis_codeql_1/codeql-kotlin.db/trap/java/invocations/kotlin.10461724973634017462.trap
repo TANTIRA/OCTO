@@ -1,0 +1,1537 @@
+// Intercepted:
+//     Class path: /Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-compiler-embeddable/2.2.21/b13aed5cf8412f9ee9d1e4db21bdcfebcc24f606/kotlin-compiler-embeddable-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-script-runtime/2.2.21/e9b021c4e335e4ed7a7e3b32285249ae6bb3a6c8/kotlin-script-runtime-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-reflect/1.6.10/1cbe9c92c12a94eea200d23c2bbaedaf3daf5132/kotlin-reflect-1.6.10.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-daemon-embeddable/2.2.21/78fde5db1c92786448170b351d8f8868acabd2ce/kotlin-daemon-embeddable-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm/1.8.0/ac1dc37a30a93150b704022f8d895ee1bd3a36b3/kotlinx-coroutines-core-jvm-1.8.0.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar
+//     Class:      org/jetbrains/kotlin/cli/jvm/K2JVMCompiler
+//     Method:     doExecutePhased
+//     Desc:       (Lorg/jetbrains/kotlin/cli/common/arguments/CommonCompilerArguments;Lorg/jetbrains/kotlin/config/Services;Lorg/jetbrains/kotlin/cli/common/messages/MessageCollector;)Lorg/jetbrains/kotlin/cli/common/ExitCode;
+// Kotlin version: 2.2.21
+// Using extractor: /opt/homebrew/Caskroom/codeql/2.26.3/codeql/java/tools/codeql-extractor-kotlin-embeddable-2.2.20-Beta2.jar
+// Working directory: /Users/macbook/Library/Application Support/kotlin/daemon
+// Arguments: -Xallow-no-source-files -classpath /Users/macbook/Octo/modules/persistence/build/libs/persistence-0.1.0-SNAPSHOT.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar -d /Users/macbook/Octo/modules/workflow/build/classes/kotlin/main -jdk-home /Users/macbook/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.12.1+1/Contents/Home -jvm-target 21 -module-name workflow -no-reflect -no-stdlib '-Xplugin=/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-compiler-embeddable/2.2.21/3d287b3a20b5ca9582d01f973733cfc5e5a363d6/kotlin-scripting-compiler-embeddable-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-compiler-impl-embeddable/2.2.21/5f81790732711563152ec587631f160e9e6cb6fa/kotlin-scripting-compiler-impl-embeddable-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-jvm/2.2.21/144a2d8fc77a7e95ba7a7b6992091a60baf2e0dc/kotlin-scripting-jvm-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-common/2.2.21/9d3b00063626c0775dd91d1fc5c699d5a6e62e4e/kotlin-scripting-common-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-script-runtime/2.2.21/e9b021c4e335e4ed7a7e3b32285249ae6bb3a6c8/kotlin-script-runtime-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar' /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/AuditChain.kt /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/Task.kt /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportJob.kt /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportSchedule.kt
+#compilation = *
+compilations(#compilation, 2, "/Users/macbook/Library/Application Support/kotlin/daemon", "/Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/invocations/kotlin.10461724973634017462.trap")
+compilation_args(#compilation, 0, "-Xallow-no-source-files")
+compilation_args(#compilation, 1, "-classpath")
+compilation_args(#compilation, 2, "/Users/macbook/Octo/modules/persistence/build/libs/persistence-0.1.0-SNAPSHOT.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar:/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar")
+compilation_args(#compilation, 3, "-d")
+compilation_args(#compilation, 4, "/Users/macbook/Octo/modules/workflow/build/classes/kotlin/main")
+compilation_args(#compilation, 5, "-jdk-home")
+compilation_args(#compilation, 6, "/Users/macbook/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/jdk-21.0.12.1+1/Contents/Home")
+compilation_args(#compilation, 7, "-jvm-target")
+compilation_args(#compilation, 8, "21")
+compilation_args(#compilation, 9, "-module-name")
+compilation_args(#compilation, 10, "workflow")
+compilation_args(#compilation, 11, "-no-reflect")
+compilation_args(#compilation, 12, "-no-stdlib")
+compilation_args(#compilation, 13, "-Xplugin=/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-compiler-embeddable/2.2.21/3d287b3a20b5ca9582d01f973733cfc5e5a363d6/kotlin-scripting-compiler-embeddable-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-compiler-impl-embeddable/2.2.21/5f81790732711563152ec587631f160e9e6cb6fa/kotlin-scripting-compiler-impl-embeddable-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-jvm/2.2.21/144a2d8fc77a7e95ba7a7b6992091a60baf2e0dc/kotlin-scripting-jvm-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-common/2.2.21/9d3b00063626c0775dd91d1fc5c699d5a6e62e4e/kotlin-scripting-common-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-script-runtime/2.2.21/e9b021c4e335e4ed7a7e3b32285249ae6bb3a6c8/kotlin-script-runtime-2.2.21.jar,/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar")
+compilation_args(#compilation, 14, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/AuditChain.kt")
+compilation_args(#compilation, 15, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt")
+compilation_args(#compilation, 16, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt")
+compilation_args(#compilation, 17, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/Task.kt")
+compilation_args(#compilation, 18, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt")
+compilation_args(#compilation, 19, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportJob.kt")
+compilation_args(#compilation, 20, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt")
+compilation_args(#compilation, 21, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportSchedule.kt")
+compilation_started(#compilation)
+compilation_info(#compilation, "Kotlin Compiler Version", "2.2.21")
+compilation_info(#compilation, "Kotlin Extractor Name", "codeql-extractor-kotlin-embeddable-2.2.20-Beta2
+")
+compilation_info(#compilation, "Uses Kotlin 2", "true")
+compilation_compiler_times(#compilation, -1.0, 3.078)
+// [2026-09-27 14:21:14 K] [INFO] Extraction started
+// [2026-09-27 14:21:14 K] [INFO] Kotlin extractor verbosity is 3
+// [2026-09-27 14:21:14 K] [INFO] Extraction for invocation TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/invocations/kotlin.10461724973634017462.trap
+// [2026-09-27 14:21:14 K] [INFO] Kotlin version 2.2.21
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: Usage before extractor
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'non-nmethods' is 1727168
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: * Peak for non-heap bean Metaspace is 111262576
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'profiled nmethods' is 50112064
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: * Peak for heap bean PS Old Gen is 385430144
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: * Peak for non-heap bean Compressed Class Space is 12280944
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: * Peak for heap bean PS Survivor Space is 62364768
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: * Peak for heap bean PS Eden Space is 592969728
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'non-profiled nmethods' is 7587712
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: * Total heap peak: 1040764640
+// [2026-09-27 14:21:14 K] [INFO] Peak memory: * Total non-heap peak: 182970464
+#100 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/Task.kt;sourcefile"
+files(#100, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/Task.kt")
+#101 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow;folder"
+folders(#101, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow")
+#102 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo;folder"
+folders(#102, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo")
+#103 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com;folder"
+folders(#103, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com")
+#104 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin;folder"
+folders(#104, "/Users/macbook/Octo/modules/workflow/src/main/kotlin")
+#105 = @"/Users/macbook/Octo/modules/workflow/src/main;folder"
+folders(#105, "/Users/macbook/Octo/modules/workflow/src/main")
+#106 = @"/Users/macbook/Octo/modules/workflow/src;folder"
+folders(#106, "/Users/macbook/Octo/modules/workflow/src")
+#107 = @"/Users/macbook/Octo/modules/workflow;folder"
+folders(#107, "/Users/macbook/Octo/modules/workflow")
+#108 = @"/Users/macbook/Octo/modules;folder"
+folders(#108, "/Users/macbook/Octo/modules")
+#109 = @"/Users/macbook/Octo;folder"
+folders(#109, "/Users/macbook/Octo")
+#110 = @"/Users/macbook;folder"
+folders(#110, "/Users/macbook")
+#111 = @"/Users;folder"
+folders(#111, "/Users")
+#112 = @"/;folder"
+folders(#112, "/")
+containerparent(#112, #111)
+containerparent(#111, #110)
+containerparent(#110, #109)
+containerparent(#109, #108)
+containerparent(#108, #107)
+containerparent(#107, #106)
+containerparent(#106, #105)
+containerparent(#105, #104)
+containerparent(#104, #103)
+containerparent(#103, #102)
+containerparent(#102, #101)
+containerparent(#101, #100)
+compilation_compiling_files(#compilation, 0, #100)
+// [2026-09-27 14:21:14 K] [INFO] Extracting file /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/Task.kt
+// [2026-09-27 14:21:14 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/Task.kt.trap.gz
+#113 = @"/modules/java.base/java/lang/Enum.class;sourcefile"
+#114 = @"/modules/java.base/java/lang/Comparable.class;sourcefile"
+#115 = @"/modules/java.base/java/lang/Class.class;sourcefile"
+#116 = @"/modules/java.base/java/lang/invoke/TypeDescriptor$OfField.class;sourcefile"
+#117 = @"/modules/java.base/java/util/Optional.class;sourcefile"
+#118 = @"/modules/java.base/java/lang/Enum$EnumDesc.class;sourcefile"
+#119 = @"/modules/java.base/java/lang/constant/DynamicConstantDesc.class;sourcefile"
+#120 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/enums/EnumEntries.class;jarFile"
+#121 = @"/modules/java.base/java/util/List.class;sourcefile"
+#122 = @"/modules/java.base/java/util/SequencedCollection.class;sourcefile"
+#123 = @"/modules/java.base/java/util/Collection.class;sourcefile"
+#124 = @"/modules/java.base/java/lang/Iterable.class;sourcefile"
+// [2026-09-27 14:21:14 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskKind.members/TaskKind.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:14 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskKind.members/TaskKind.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:14 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskStatus.members/TaskStatus.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:14 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskStatus.members/TaskStatus.members#0.0-0-kotlin.trap.gz
+#125 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/jvm/functions/Function0.class;jarFile"
+#126 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/Function.class;jarFile"
+// [2026-09-27 14:21:14 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/Task.members/Task.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:14 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/Task.members/Task.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Assigned.members/TaskEvent$Assigned.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Assigned.members/TaskEvent$Assigned.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Approved.members/TaskEvent$Approved.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Approved.members/TaskEvent$Approved.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Rejected.members/TaskEvent$Rejected.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Rejected.members/TaskEvent$Rejected.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$ReworkRequested.members/TaskEvent$ReworkRequested.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$ReworkRequested.members/TaskEvent$ReworkRequested.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Resubmitted.members/TaskEvent$Resubmitted.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Resubmitted.members/TaskEvent$Resubmitted.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Completed.members/TaskEvent$Completed.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Completed.members/TaskEvent$Completed.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Cancelled.members/TaskEvent$Cancelled.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent$Cancelled.members/TaskEvent$Cancelled.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent.members/TaskEvent.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskEvent.members/TaskEvent.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskState.members/TaskState.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskState.members/TaskState.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskKt$opened(com.octo.workflow.Task).members/TaskKt$opened(com.octo.workflow.Task).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskKt$opened(com.octo.workflow.Task).members/TaskKt$opened(com.octo.workflow.Task).members#0.0-0-kotlin.trap.gz
+#127 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/jvm/functions/Function2.class;jarFile"
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskKt$replay(com.octo.workflow.Task,java.util.List).members/TaskKt$replay(com.octo.workflow.Task,java.util.List).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskKt$replay(com.octo.workflow.Task,java.util.List).members/TaskKt$replay(com.octo.workflow.Task,java.util.List).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskKt$next(com.octo.workflow.TaskState,com.octo.workflow.TaskEvent).members/TaskKt$next(com.octo.workflow.TaskState,com.octo.workflow.TaskEvent).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskKt$next(com.octo.workflow.TaskState,com.octo.workflow.TaskEvent).members/TaskKt$next(com.octo.workflow.TaskState,com.octo.workflow.TaskEvent).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskKt.members/TaskKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/TaskKt.members/TaskKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Unit
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl NotNull
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Enum
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Object
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Any
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Constable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Comparable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Comparable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Serializable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Enum
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Integer
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Int
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Class
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl GenericDeclaration
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Type
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl AnnotatedElement
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl OfField
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl TypeDescriptor
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Optional
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl EnumDesc
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl DynamicConstantDesc
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl ConstantDesc
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl EnumEntries
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl SequencedCollection
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl MutableIterable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl MutableCollection
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl UUID
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Instant
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Function0
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Function0
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl require
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl CharSequence
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl CharSequence
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl isNotBlank
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl DefaultConstructorMarker
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Void
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Nothing
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Function2
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Function2
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl fold
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl NoWhenBranchMatchedException
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/Task.kt.trap.gz
+compilation_compiling_files_completed(#compilation, 0, 0)
+#128 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/AuditChain.kt;sourcefile"
+files(#128, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/AuditChain.kt")
+#129 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit;folder"
+folders(#129, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit")
+folders(#101, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow")
+folders(#102, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo")
+folders(#103, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com")
+folders(#104, "/Users/macbook/Octo/modules/workflow/src/main/kotlin")
+folders(#105, "/Users/macbook/Octo/modules/workflow/src/main")
+folders(#106, "/Users/macbook/Octo/modules/workflow/src")
+folders(#107, "/Users/macbook/Octo/modules/workflow")
+folders(#108, "/Users/macbook/Octo/modules")
+folders(#109, "/Users/macbook/Octo")
+folders(#110, "/Users/macbook")
+folders(#111, "/Users")
+folders(#112, "/")
+containerparent(#112, #111)
+containerparent(#111, #110)
+containerparent(#110, #109)
+containerparent(#109, #108)
+containerparent(#108, #107)
+containerparent(#107, #106)
+containerparent(#106, #105)
+containerparent(#105, #104)
+containerparent(#104, #103)
+containerparent(#103, #102)
+containerparent(#102, #101)
+containerparent(#101, #129)
+containerparent(#129, #128)
+compilation_compiling_files(#compilation, 1, #128)
+// [2026-09-27 14:21:15 K] [INFO] Extracting file /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/AuditChain.kt
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/AuditChain.kt.trap.gz
+#130 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/jvm/functions/Function1.class;jarFile"
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditEntry.members/AuditEntry.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditEntry.members/AuditEntry.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditRecord.members/AuditRecord.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditRecord.members/AuditRecord.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/ChainBreak.members/ChainBreak.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/ChainBreak.members/ChainBreak.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditChainKt$GENESIS;property.members/AuditChainKt$GENESIS;property.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditChainKt$GENESIS;property.members/AuditChainKt$GENESIS;property.members#0.0-0-kotlin.trap.gz
+#131 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/collections/IndexedValue.class;jarFile"
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditChainKt$verifyAuditChain(java.util.List).members/AuditChainKt$verifyAuditChain(java.util.List).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditChainKt$verifyAuditChain(java.util.List).members/AuditChainKt$verifyAuditChain(java.util.List).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditChainKt$linkHash(com.octo.workflow.audit.AuditRecord).members/AuditChainKt$linkHash(com.octo.workflow.audit.AuditRecord).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditChainKt$linkHash(com.octo.workflow.audit.AuditRecord).members/AuditChainKt$linkHash(com.octo.workflow.audit.AuditRecord).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditChainKt$micros(java.time.Instant).members/AuditChainKt$micros(java.time.Instant).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditChainKt$micros(java.time.Instant).members/AuditChainKt$micros(java.time.Instant).members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditChainKt.members/AuditChainKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/AuditChainKt.members/AuditChainKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Instant
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl UUID
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Unit
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl NotNull
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Object
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Any
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Function0
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Function0
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl require
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/none(java.lang.Iterable,kotlin.jvm.functions.Function1).members/none(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/none(java.lang.Iterable,kotlin.jvm.functions.Function1).members/none(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Serializable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Integer
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Int
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl SequencedCollection
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl MutableIterable
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl MutableCollection
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl listOf
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl CharSequence
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl CharSequence
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/text/isBlank(java.lang.CharSequence).members/isBlank(java.lang.CharSequence).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/text/isBlank(java.lang.CharSequence).members/isBlank(java.lang.CharSequence).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl DefaultConstructorMarker
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Long
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Long
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Byte
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Byte
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/IndexedValue.members/IndexedValue.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/IndexedValue.members/IndexedValue.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/withIndex(java.lang.Iterable).members/withIndex(java.lang.Iterable).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/withIndex(java.lang.Iterable).members/withIndex(java.lang.Iterable).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/contentEquals(byte[],byte[]).members/contentEquals(byte[],byte[]).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/contentEquals(byte[],byte[]).members/contentEquals(byte[],byte[]).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Void
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Nothing
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl joinToString
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/ByteArray.members/ByteArray.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/ByteArray.members/ByteArray.members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Charset
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/text/toByteArray(java.lang.String,java.nio.charset.Charset).members/toByteArray(java.lang.String,java.nio.charset.Charset).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/text/toByteArray(java.lang.String,java.nio.charset.Charset).members/toByteArray(java.lang.String,java.nio.charset.Charset).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/text/Charsets.members/Charsets.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/text/Charsets.members/Charsets.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/run(java.lang.Object,kotlin.jvm.functions.Function1).members/run(java.lang.Object,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/run(java.lang.Object,kotlin.jvm.functions.Function1).members/run(java.lang.Object,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/MessageDigest.members/MessageDigest.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/MessageDigest.members/MessageDigest.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl ChronoUnit
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Temporal
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl SinceKotlin
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl InlineOnly
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/ByteIterator.members/ByteIterator.members#52.0-318186000000-kotlin.trap.gz
+#132 = @"/modules/java.base/java/util/Iterator.class;sourcefile"
+#133 = @"/modules/java.base/java/util/function/Consumer.class;sourcefile"
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/ByteIterator.members/ByteIterator.members#52.0-318186000000-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl JvmField
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl JvmName
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Deprecated
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Provider
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl ByteBuffer
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/MessageDigestSpi.members/MessageDigestSpi.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/java/security/MessageDigestSpi.members/MessageDigestSpi.members#65.0-1789983753036-kotlin.trap.gz
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Iterator
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Consumer
+// [2026-09-27 14:21:15 K] [INFO] Skipping extracting external decl Iterator
+// [2026-09-27 14:21:15 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/AuditChain.kt.trap.gz
+compilation_compiling_files_completed(#compilation, 1, 0)
+#134 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt;sourcefile"
+files(#134, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt")
+folders(#129, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit")
+folders(#101, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow")
+folders(#102, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo")
+folders(#103, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com")
+folders(#104, "/Users/macbook/Octo/modules/workflow/src/main/kotlin")
+folders(#105, "/Users/macbook/Octo/modules/workflow/src/main")
+folders(#106, "/Users/macbook/Octo/modules/workflow/src")
+folders(#107, "/Users/macbook/Octo/modules/workflow")
+folders(#108, "/Users/macbook/Octo/modules")
+folders(#109, "/Users/macbook/Octo")
+folders(#110, "/Users/macbook")
+folders(#111, "/Users")
+folders(#112, "/")
+containerparent(#112, #111)
+containerparent(#111, #110)
+containerparent(#110, #109)
+containerparent(#109, #108)
+containerparent(#108, #107)
+containerparent(#107, #106)
+containerparent(#106, #105)
+containerparent(#105, #104)
+containerparent(#104, #103)
+containerparent(#103, #102)
+containerparent(#102, #101)
+containerparent(#101, #129)
+containerparent(#129, #134)
+compilation_compiling_files(#compilation, 2, #134)
+// [2026-09-27 14:21:15 K] [INFO] Extracting file /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt
+// [2026-09-27 14:21:15 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt.trap.gz
+#135 = @"loc,{#134},51,68,51,93"
+locations_default(#135, #134, 51, 68, 51, 93)
+#136 = *
+diagnostics(#136, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:16 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:51:90:51:93
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:51:90:51:93
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:51:55:51:94
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:51:55:51:94
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:51:55:51:94
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:51:55:51:94
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:51:96:51:106
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:51:96:51:106
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:51:96:51:106
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:51:96:51:106
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:50:33:58:33
+  ...while extracting a variable expr (entry) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:49:29:58:33
+  ...while extracting a variable (entry) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:49:29:58:33
+  ...while extracting a statement (entry) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:49:29:58:33
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:45:68:25
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:31:69:21
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:31:69:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:31:69:21
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:69:22:69:21
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:69:22:69:21
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:46:70:17
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:46:70:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:46:70:17
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:42:70:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:42:70:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:70:18:70:17
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:70:18:70:17
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:17:70:17
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:17:70:17
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:50:71:13
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:50:71:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:50:71:13
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:46:71:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:46:71:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:71:14:71:13
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:71:14:71:13
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:13:71:13
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:13:71:13
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:42:72:9
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:42:72:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:42:72:9
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:38:72:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:38:72:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:9:72:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:9:72:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:38:73:5
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:38:73:5
+  ...while extracting a function (readAll) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:5:73:5
+  ...while extracting a declaration (readAll) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:5:73:5
+  ...while extracting a class source (JdbcAuditLog) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:12:1:74:1
+  ...while extracting a declaration (JdbcAuditLog) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:12:1:74:1
+  ...while extracting a file (JdbcAuditLog.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:1:1:75:0
+", #135)
+diagnostic_for(#136, #compilation, 2, 0)
+#137 = @"loc,{#134},56,71,56,86"
+locations_default(#137, #134, 56, 71, 56, 86)
+#138 = *
+diagnostics(#138, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:16 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:56:83:56:86
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:56:83:56:86
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:56:58:56:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:56:58:56:87
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:56:58:56:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:56:58:56:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:50:33:58:33
+  ...while extracting a variable expr (entry) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:49:29:58:33
+  ...while extracting a variable (entry) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:49:29:58:33
+  ...while extracting a statement (entry) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:49:29:58:33
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:45:68:25
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:31:69:21
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:31:69:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:31:69:21
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:69:22:69:21
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:69:22:69:21
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:46:70:17
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:46:70:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:46:70:17
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:42:70:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:42:70:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:70:18:70:17
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:70:18:70:17
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:17:70:17
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:17:70:17
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:50:71:13
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:50:71:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:50:71:13
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:46:71:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:46:71:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:71:14:71:13
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:71:14:71:13
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:13:71:13
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:13:71:13
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:42:72:9
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:42:72:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:42:72:9
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:38:72:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:38:72:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:9:72:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:9:72:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:38:73:5
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:38:73:5
+  ...while extracting a function (readAll) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:5:73:5
+  ...while extracting a declaration (readAll) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:5:73:5
+  ...while extracting a class source (JdbcAuditLog) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:12:1:74:1
+  ...while extracting a declaration (JdbcAuditLog) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:12:1:74:1
+  ...while extracting a file (JdbcAuditLog.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:1:1:75:0
+", #137)
+diagnostic_for(#138, #compilation, 2, 1)
+#139 = @"/modules/java.base/java/util/Spliterator.class;sourcefile"
+#140 = @"/modules/java.base/java/util/function/IntFunction.class;sourcefile"
+#141 = @"/modules/java.base/java/util/function/Predicate.class;sourcefile"
+#142 = @"/modules/java.base/java/util/stream/Stream.class;sourcefile"
+#143 = @"/modules/java.base/java/util/stream/BaseStream.class;sourcefile"
+#144 = @"/modules/java.base/java/util/function/UnaryOperator.class;sourcefile"
+#145 = @"/modules/java.base/java/util/function/Function.class;sourcefile"
+#146 = @"/modules/java.base/java/util/Comparator.class;sourcefile"
+#147 = @"/modules/java.base/java/util/ListIterator.class;sourcefile"
+#148 = @"loc,{#134},63,68,63,93"
+locations_default(#148, #134, 63, 68, 63, 93)
+#149 = *
+diagnostics(#149, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:16 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:63:90:63:93
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:63:90:63:93
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:63:55:63:94
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:63:55:63:94
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:63:55:63:94
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:63:55:63:94
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:63:96:63:106
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:63:96:63:106
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:63:96:63:106
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:63:96:63:106
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:60:33:66:33
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:59:29:67:29
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:59:29:67:29
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:59:29:67:29
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:59:29:67:29
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:59:29:67:29
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:45:68:25
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:48:25:68:25
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:31:69:21
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:31:69:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:31:69:21
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:69:22:69:21
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:69:22:69:21
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:47:21:69:21
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:46:70:17
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:46:70:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:46:70:17
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:42:70:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:42:70:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:70:18:70:17
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:70:18:70:17
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:17:70:17
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:46:17:70:17
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:50:71:13
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:50:71:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:50:71:13
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:46:71:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:46:71:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:71:14:71:13
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:71:14:71:13
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:13:71:13
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:45:13:71:13
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:42:72:9
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:42:72:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:42:72:9
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:38:72:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:38:72:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:9:72:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:44:9:72:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:38:73:5
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:38:73:5
+  ...while extracting a function (readAll) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:5:73:5
+  ...while extracting a declaration (readAll) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:36:5:73:5
+  ...while extracting a class source (JdbcAuditLog) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:12:1:74:1
+  ...while extracting a declaration (JdbcAuditLog) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:12:1:74:1
+  ...while extracting a file (JdbcAuditLog.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt:1:1:75:0
+", #148)
+diagnostic_for(#149, #compilation, 2, 2)
+// [2026-09-27 14:21:16 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/JdbcAuditLog.members/JdbcAuditLog.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:16 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/JdbcAuditLog.members/JdbcAuditLog.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:16 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/JdbcAuditLogKt.members/JdbcAuditLogKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:16 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/audit/JdbcAuditLogKt.members/JdbcAuditLogKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl DataSource
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Unit
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl NotNull
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Object
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl trimIndent
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl AutoCloseable
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Any
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl use
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Integer
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Int
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Connection
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl PreparedStatement
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Instant
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl ZoneOffset
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl OffsetDateTime
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl UUID
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl SequencedCollection
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl MutableIterable
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl MutableCollection
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl ResultSet
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl buildList
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl MutableList
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Class
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Serializable
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl GenericDeclaration
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Type
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl AnnotatedElement
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl OfField
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl TypeDescriptor
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Constable
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Iterator
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl MutableIterator
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Consumer
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Spliterator
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl IntFunction
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Predicate
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Stream
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl BaseStream
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl UnaryOperator
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Comparator
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl ListIterator
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl MutableListIterator
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Long
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Long
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Byte
+// [2026-09-27 14:21:16 K] [INFO] Skipping extracting external decl Byte
+// [2026-09-27 14:21:16 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/audit/JdbcAuditLog.kt.trap.gz
+compilation_compiling_files_completed(#compilation, 2, 0)
+#150 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt;sourcefile"
+files(#150, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt")
+#151 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence;folder"
+folders(#151, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence")
+folders(#101, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow")
+folders(#102, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo")
+folders(#103, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com")
+folders(#104, "/Users/macbook/Octo/modules/workflow/src/main/kotlin")
+folders(#105, "/Users/macbook/Octo/modules/workflow/src/main")
+folders(#106, "/Users/macbook/Octo/modules/workflow/src")
+folders(#107, "/Users/macbook/Octo/modules/workflow")
+folders(#108, "/Users/macbook/Octo/modules")
+folders(#109, "/Users/macbook/Octo")
+folders(#110, "/Users/macbook")
+folders(#111, "/Users")
+folders(#112, "/")
+containerparent(#112, #111)
+containerparent(#111, #110)
+containerparent(#110, #109)
+containerparent(#109, #108)
+containerparent(#108, #107)
+containerparent(#107, #106)
+containerparent(#106, #105)
+containerparent(#105, #104)
+containerparent(#104, #103)
+containerparent(#103, #102)
+containerparent(#102, #101)
+containerparent(#101, #151)
+containerparent(#151, #150)
+compilation_compiling_files(#compilation, 3, #150)
+// [2026-09-27 14:21:16 K] [INFO] Extracting file /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt
+// [2026-09-27 14:21:16 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt.trap.gz
+// [2026-09-27 14:21:16 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/persistence/TaskProvenance.members/TaskProvenance.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:16 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/persistence/TaskProvenance.members/TaskProvenance.members#0.0-0-kotlin.trap.gz
+#152 = @"loc,{#150},110,51,110,66"
+locations_default(#152, #150, 110, 51, 110, 66)
+#153 = *
+diagnostics(#153, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:17 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:63:110:66
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:63:110:66
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:38:110:67
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:38:110:67
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:38:110:67
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:38:110:67
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:29:110:68
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:29:110:68
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:29:110:68
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:29:110:68
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:110:29:110:68
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:109:45:111:25
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:109:25:111:25
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:109:25:111:25
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:109:25:111:25
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:109:25:111:25
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:108:31:112:21
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:108:31:112:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:108:31:112:21
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:108:21:112:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:108:21:112:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:112:22:112:21
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:112:22:112:21
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:108:21:112:21
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:108:21:112:21
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:107:46:113:17
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:107:46:113:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:107:46:113:17
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:107:42:113:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:107:42:113:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:113:18:113:17
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:113:18:113:17
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:105:17:113:17
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:105:17:113:17
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:104:19:114:13
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:104:19:114:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:104:19:114:13
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:104:15:114:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:104:15:114:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:114:14:114:13
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:114:14:114:13
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:101:9:114:13
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:101:9:114:13
+  ...while extracting a function (subjectTaskIds) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:96:13:114:13
+  ...while extracting a declaration (subjectTaskIds) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:96:13:114:13
+  ...while extracting a class source (JdbcTaskStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:28:1:262:1
+  ...while extracting a declaration (JdbcTaskStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:28:1:262:1
+  ...while extracting a file (JdbcTaskStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:1:1:263:0
+", #152)
+diagnostic_for(#153, #compilation, 3, 0)
+#154 = @"loc,{#150},193,55,193,80"
+locations_default(#154, #150, 193, 55, 193, 80)
+#155 = *
+diagnostics(#155, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:17 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:193:77:193:80
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:193:77:193:80
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:193:42:193:81
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:193:42:193:81
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:193:42:193:81
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:193:42:193:81
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:193:83:193:93
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:193:83:193:93
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:193:83:193:93
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:193:83:193:93
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:187:21:194:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:194:22:194:21
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:194:22:194:21
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:186:21:194:21
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:186:21:194:21
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:185:39:195:17
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:185:39:195:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:185:39:195:17
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:185:35:195:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:185:35:195:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:195:18:195:17
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:195:18:195:17
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:184:17:195:17
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:184:17:195:17
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:183:19:196:13
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:183:19:196:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:183:19:196:13
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:183:15:196:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:183:15:196:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:196:14:196:13
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:196:14:196:13
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:180:9:196:13
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:180:9:196:13
+  ...while extracting a function (selectTask) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:176:13:196:13
+  ...while extracting a declaration (selectTask) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:176:13:196:13
+  ...while extracting a class source (JdbcTaskStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:28:1:262:1
+  ...while extracting a declaration (JdbcTaskStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:28:1:262:1
+  ...while extracting a file (JdbcTaskStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:1:1:263:0
+", #154)
+diagnostic_for(#155, #compilation, 3, 1)
+#156 = @"loc,{#150},212,56,212,81"
+locations_default(#156, #150, 212, 56, 212, 81)
+#157 = *
+diagnostics(#157, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:17 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:78:212:81
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:78:212:81
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:43:212:82
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:43:212:82
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:43:212:82
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:43:212:82
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:84:212:94
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:84:212:94
+  ...while extracting a variable expr (at) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:29:212:94
+  ...while extracting a variable (at) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:29:212:94
+  ...while extracting a statement (at) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:212:29:212:94
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:210:45:225:25
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:210:25:225:25
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:210:25:225:25
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:210:25:225:25
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:210:25:225:25
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:209:31:226:21
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:209:31:226:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:209:31:226:21
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:209:21:226:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:209:21:226:21
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:226:22:226:21
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:226:22:226:21
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:209:21:226:21
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:209:21:226:21
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:208:46:227:17
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:208:46:227:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:208:46:227:17
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:208:42:227:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:208:42:227:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:227:18:227:17
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:227:18:227:17
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:207:17:227:17
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:207:17:227:17
+  ...while extracting a function (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:206:19:228:13
+  ...while extracting a generated class (<anonymous>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:206:19:228:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:206:19:228:13
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:206:15:228:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:206:15:228:13
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:228:14:228:13
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:228:14:228:13
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:203:9:228:13
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:203:9:228:13
+  ...while extracting a function (selectEvents) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:199:13:228:13
+  ...while extracting a declaration (selectEvents) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:199:13:228:13
+  ...while extracting a class source (JdbcTaskStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:28:1:262:1
+  ...while extracting a declaration (JdbcTaskStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:28:1:262:1
+  ...while extracting a file (JdbcTaskStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt:1:1:263:0
+", #156)
+diagnostic_for(#157, #compilation, 3, 2)
+#158 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/Triple.class;jarFile"
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/persistence/JdbcTaskStore.members/JdbcTaskStore.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/persistence/JdbcTaskStore.members/JdbcTaskStore.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/persistence/JdbcTaskStoreKt.members/JdbcTaskStoreKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/persistence/JdbcTaskStoreKt.members/JdbcTaskStoreKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl UUID
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Unit
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl NotNull
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Object
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Integer
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Int
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Any
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl DataSource
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl AutoCloseable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl use
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Connection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl SequencedCollection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl MutableIterable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl MutableCollection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl buildList
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl MutableList
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Void
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Nothing
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl let
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Iterator
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl MutableIterator
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Consumer
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Spliterator
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Serializable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl IntFunction
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Predicate
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Stream
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl BaseStream
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl UnaryOperator
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Comparator
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl ListIterator
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl MutableListIterator
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl FunctionReference
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl PreparedStatement
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl ResultSet
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl firstOrNull
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/mapNotNull(java.lang.Iterable,kotlin.jvm.functions.Function1).members/mapNotNull(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/mapNotNull(java.lang.Iterable,kotlin.jvm.functions.Function1).members/mapNotNull(java.lang.Iterable,kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl run
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Exception
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Class
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl GenericDeclaration
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Type
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl AnnotatedElement
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl OfField
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl TypeDescriptor
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Constable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl trimIndent
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Instant
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl ZoneOffset
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl OffsetDateTime
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl NoSuchElementException
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl first
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl EnumEntries
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl error
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Triple
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl NoWhenBranchMatchedException
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/persistence/JdbcTaskStore.kt.trap.gz
+compilation_compiling_files_completed(#compilation, 3, 0)
+#159 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt;sourcefile"
+files(#159, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt")
+#160 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report;folder"
+folders(#160, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report")
+folders(#101, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow")
+folders(#102, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo")
+folders(#103, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com")
+folders(#104, "/Users/macbook/Octo/modules/workflow/src/main/kotlin")
+folders(#105, "/Users/macbook/Octo/modules/workflow/src/main")
+folders(#106, "/Users/macbook/Octo/modules/workflow/src")
+folders(#107, "/Users/macbook/Octo/modules/workflow")
+folders(#108, "/Users/macbook/Octo/modules")
+folders(#109, "/Users/macbook/Octo")
+folders(#110, "/Users/macbook")
+folders(#111, "/Users")
+folders(#112, "/")
+containerparent(#112, #111)
+containerparent(#111, #110)
+containerparent(#110, #109)
+containerparent(#109, #108)
+containerparent(#108, #107)
+containerparent(#107, #106)
+containerparent(#106, #105)
+containerparent(#105, #104)
+containerparent(#104, #103)
+containerparent(#103, #102)
+containerparent(#102, #101)
+containerparent(#101, #160)
+containerparent(#160, #159)
+compilation_compiling_files(#compilation, 4, #159)
+// [2026-09-27 14:21:18 K] [INFO] Extracting file /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt.trap.gz
+#161 = @"loc,{#159},116,34,116,49"
+locations_default(#161, #159, 116, 34, 116, 49)
+#162 = *
+diagnostics(#162, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:116:46:116:49
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:116:46:116:49
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:116:18:116:50
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:116:18:116:50
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:116:18:116:50
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:116:18:116:50
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a function (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a declaration (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a class source (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a declaration (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a file (JdbcReportJobStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:1:1:137:0
+", #161)
+diagnostic_for(#162, #compilation, 4, 0)
+#163 = @"loc,{#159},119,55,119,70"
+locations_default(#163, #159, 119, 55, 119, 70)
+#164 = *
+diagnostics(#164, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:119:67:119:70
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:119:67:119:70
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:119:32:119:71
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:119:32:119:71
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:119:32:119:71
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:119:32:119:71
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:118:17:127:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a function (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a declaration (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a class source (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a declaration (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a file (JdbcReportJobStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:1:1:137:0
+", #163)
+diagnostic_for(#164, #compilation, 4, 1)
+#165 = @"loc,{#159},126,65,126,80"
+locations_default(#165, #159, 126, 65, 126, 80)
+#166 = *
+diagnostics(#166, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:126:77:126:80
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:126:77:126:80
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:126:37:126:81
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:126:37:126:81
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:126:37:126:81
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:126:37:126:81
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:118:17:127:17
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a function (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a declaration (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a class source (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a declaration (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a file (JdbcReportJobStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:1:1:137:0
+", #165)
+diagnostic_for(#166, #compilation, 4, 2)
+#167 = @"loc,{#159},132,60,132,75"
+locations_default(#167, #159, 132, 60, 132, 75)
+#168 = *
+diagnostics(#168, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:132:72:132:75
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:132:72:132:75
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:132:30:132:76
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:132:30:132:76
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a function (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a declaration (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a class source (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a declaration (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a file (JdbcReportJobStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:1:1:137:0
+", #167)
+diagnostic_for(#168, #compilation, 4, 3)
+#169 = @"loc,{#159},133,49,133,74"
+locations_default(#169, #159, 133, 49, 133, 74)
+#170 = *
+diagnostics(#170, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:133:71:133:74
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:133:71:133:74
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:133:25:133:75
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:133:25:133:75
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:133:25:133:75
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:133:25:133:75
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:133:77:133:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:133:77:133:87
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:133:77:133:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:133:77:133:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a function (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a declaration (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a class source (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a declaration (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a file (JdbcReportJobStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:1:1:137:0
+", #169)
+diagnostic_for(#170, #compilation, 4, 4)
+#171 = @"loc,{#159},134,49,134,74"
+locations_default(#171, #159, 134, 49, 134, 74)
+#172 = *
+diagnostics(#172, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:134:71:134:74
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:134:71:134:74
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:134:25:134:75
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:134:25:134:75
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:134:25:134:75
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:134:25:134:75
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:134:77:134:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:134:77:134:87
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:134:77:134:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:134:77:134:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:135:10:135:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:115:9:135:9
+  ...while extracting a function (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a declaration (toJob) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:114:13:135:9
+  ...while extracting a class source (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a declaration (JdbcReportJobStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:12:1:136:1
+  ...while extracting a file (JdbcReportJobStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt:1:1:137:0
+", #171)
+diagnostic_for(#172, #compilation, 4, 5)
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JdbcReportJobStore.members/JdbcReportJobStore.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JdbcReportJobStore.members/JdbcReportJobStore.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JdbcReportJobStoreKt.members/JdbcReportJobStoreKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JdbcReportJobStoreKt.members/JdbcReportJobStoreKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl DataSource
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Unit
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl NotNull
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Object
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl TenantScope
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl trimIndent
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Any
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl scoped
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Connection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl AutoCloseable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl use
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl PreparedStatement
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Integer
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Int
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl UUID
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Array
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Serializable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl MutableIterable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl toTypedArray
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl SequencedCollection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl MutableCollection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl ResultSet
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Void
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Nothing
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl All
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl NoSuchElementException
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Instant
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Class
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl GenericDeclaration
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Type
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl AnnotatedElement
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl OfField
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl TypeDescriptor
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Constable
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/map(java.lang.Object[],kotlin.jvm.functions.Function1).members/map(java.lang.Object[],kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/collections/map(java.lang.Object[],kotlin.jvm.functions.Function1).members/map(java.lang.Object[],kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl OffsetDateTime
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt.trap.gz
+compilation_compiling_files_completed(#compilation, 4, 0)
+#173 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt;sourcefile"
+files(#173, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt")
+folders(#160, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report")
+folders(#101, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow")
+folders(#102, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo")
+folders(#103, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com")
+folders(#104, "/Users/macbook/Octo/modules/workflow/src/main/kotlin")
+folders(#105, "/Users/macbook/Octo/modules/workflow/src/main")
+folders(#106, "/Users/macbook/Octo/modules/workflow/src")
+folders(#107, "/Users/macbook/Octo/modules/workflow")
+folders(#108, "/Users/macbook/Octo/modules")
+folders(#109, "/Users/macbook/Octo")
+folders(#110, "/Users/macbook")
+folders(#111, "/Users")
+folders(#112, "/")
+containerparent(#112, #111)
+containerparent(#111, #110)
+containerparent(#110, #109)
+containerparent(#109, #108)
+containerparent(#108, #107)
+containerparent(#107, #106)
+containerparent(#106, #105)
+containerparent(#105, #104)
+containerparent(#104, #103)
+containerparent(#103, #102)
+containerparent(#102, #101)
+containerparent(#101, #160)
+containerparent(#160, #173)
+compilation_compiling_files(#compilation, 5, #173)
+// [2026-09-27 14:21:18 K] [INFO] Extracting file /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt.trap.gz
+#174 = @"/Users/macbook/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.21/fa374a986e128314c3db00a20aae55f72a258511/kotlin-stdlib-2.2.21.jar/kotlin/sequences/Sequence.class;jarFile"
+#175 = @"loc,{#173},124,34,124,49"
+locations_default(#175, #173, 124, 34, 124, 49)
+#176 = *
+diagnostics(#176, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:124:46:124:49
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:124:46:124:49
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:124:18:124:50
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:124:18:124:50
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:124:18:124:50
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:124:18:124:50
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a function (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a declaration (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a class source (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a declaration (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a file (JdbcReportScheduleStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:1:1:140:0
+", #175)
+diagnostic_for(#176, #compilation, 5, 0)
+#177 = @"loc,{#173},125,47,125,62"
+locations_default(#177, #173, 125, 47, 125, 62)
+#178 = *
+diagnostics(#178, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:125:59:125:62
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:125:59:125:62
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:125:24:125:63
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:125:24:125:63
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:125:24:125:63
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:125:24:125:63
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a function (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a declaration (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a class source (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a declaration (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a file (JdbcReportScheduleStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:1:1:140:0
+", #177)
+diagnostic_for(#178, #compilation, 5, 1)
+#179 = @"loc,{#173},133,50,133,75"
+locations_default(#179, #173, 133, 50, 133, 75)
+#180 = *
+diagnostics(#180, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:133:72:133:75
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:133:72:133:75
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:133:25:133:76
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:133:25:133:76
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:133:25:133:76
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:133:25:133:76
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:133:78:133:88
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:133:78:133:88
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:133:78:133:88
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:133:78:133:88
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a function (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a declaration (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a class source (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a declaration (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a file (JdbcReportScheduleStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:1:1:140:0
+", #179)
+diagnostic_for(#180, #compilation, 5, 2)
+#181 = @"loc,{#173},135,55,135,80"
+locations_default(#181, #173, 135, 55, 135, 80)
+#182 = *
+diagnostics(#182, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:135:77:135:80
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:135:77:135:80
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:135:28:135:81
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:135:28:135:81
+  ...while extracting a variable expr (tmp0_safe_receiver) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:135:28:135:81
+  ...while extracting a variable (tmp0_safe_receiver) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:135:28:135:81
+  ...while extracting a statement (tmp0_safe_receiver) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:135:28:135:81
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:135:84:135:94
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a function (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a declaration (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a class source (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a declaration (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a file (JdbcReportScheduleStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:1:1:140:0
+", #181)
+diagnostic_for(#182, #compilation, 5, 3)
+#183 = @"loc,{#173},136,49,136,74"
+locations_default(#183, #173, 136, 49, 136, 74)
+#184 = *
+diagnostics(#184, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:136:71:136:74
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:136:71:136:74
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:136:25:136:75
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:136:25:136:75
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:136:25:136:75
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:136:25:136:75
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:136:77:136:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:136:77:136:87
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:136:77:136:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:136:77:136:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a function (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a declaration (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a class source (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a declaration (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a file (JdbcReportScheduleStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:1:1:140:0
+", #183)
+diagnostic_for(#184, #compilation, 5, 4)
+#185 = @"loc,{#173},137,49,137,74"
+locations_default(#185, #173, 137, 49, 137, 74)
+#186 = *
+diagnostics(#186, "CodeQL Kotlin extractor", 5, "", "Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt", "2026-09-27 14:21:18 Couldn't find JVM intrinsic property kotlin.jvm java in kotlin.jvm.JvmClassMappingKt  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:137:71:137:74
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:137:71:137:74
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:137:25:137:75
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:137:25:137:75
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:137:25:137:75
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:137:25:137:75
+  ...while extracting a call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:137:77:137:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:137:77:137:87
+  ...while extracting a type operator call (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:137:77:137:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:137:77:137:87
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a expression (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a statement (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:138:10:138:9
+  ...while extracting a block body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a body (<no name>) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:123:9:138:9
+  ...while extracting a function (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a declaration (toSchedule) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:122:13:138:9
+  ...while extracting a class source (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a declaration (JdbcReportScheduleStore) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:16:1:139:1
+  ...while extracting a file (JdbcReportScheduleStore.kt) at file:///Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt:1:1:140:0
+", #185)
+diagnostic_for(#186, #compilation, 5, 5)
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JdbcReportScheduleStore.members/JdbcReportScheduleStore.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JdbcReportScheduleStore.members/JdbcReportScheduleStore.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JdbcReportScheduleStoreKt.members/JdbcReportScheduleStoreKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JdbcReportScheduleStoreKt.members/JdbcReportScheduleStoreKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl DataSource
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Unit
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl NotNull
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Object
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl TenantScope
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl trimIndent
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Any
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl scoped
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Connection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl AutoCloseable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl use
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl PreparedStatement
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Integer
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Int
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl UUID
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Array
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Serializable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl MutableIterable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl toTypedArray
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl SequencedCollection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl MutableCollection
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Instant
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl ZoneOffset
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl OffsetDateTime
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl ResultSet
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Void
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Nothing
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Sequence
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl toList
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function0
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Function0
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/sequences/generateSequence(kotlin.jvm.functions.Function0).members/generateSequence(kotlin.jvm.functions.Function0).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/kotlin/sequences/generateSequence(kotlin.jvm.functions.Function0).members/generateSequence(kotlin.jvm.functions.Function0).members#-1.0-0-null.trap.gz
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Duration
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl All
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl TemporalAmount
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl NoSuchElementException
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Class
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl GenericDeclaration
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Type
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl AnnotatedElement
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl OfField
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl TypeDescriptor
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl Constable
+// [2026-09-27 14:21:18 K] [INFO] Skipping extracting external decl map
+// [2026-09-27 14:21:18 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportScheduleStore.kt.trap.gz
+compilation_compiling_files_completed(#compilation, 5, 0)
+#187 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportJob.kt;sourcefile"
+files(#187, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportJob.kt")
+folders(#160, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report")
+folders(#101, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow")
+folders(#102, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo")
+folders(#103, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com")
+folders(#104, "/Users/macbook/Octo/modules/workflow/src/main/kotlin")
+folders(#105, "/Users/macbook/Octo/modules/workflow/src/main")
+folders(#106, "/Users/macbook/Octo/modules/workflow/src")
+folders(#107, "/Users/macbook/Octo/modules/workflow")
+folders(#108, "/Users/macbook/Octo/modules")
+folders(#109, "/Users/macbook/Octo")
+folders(#110, "/Users/macbook")
+folders(#111, "/Users")
+folders(#112, "/")
+containerparent(#112, #111)
+containerparent(#111, #110)
+containerparent(#110, #109)
+containerparent(#109, #108)
+containerparent(#108, #107)
+containerparent(#107, #106)
+containerparent(#106, #105)
+containerparent(#105, #104)
+containerparent(#104, #103)
+containerparent(#103, #102)
+containerparent(#102, #101)
+containerparent(#101, #160)
+containerparent(#160, #187)
+compilation_compiling_files(#compilation, 6, #187)
+// [2026-09-27 14:21:18 K] [INFO] Extracting file /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportJob.kt
+// [2026-09-27 14:21:18 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportJob.kt.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportType$Companion.members/ReportType$Companion.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportType$Companion.members/ReportType$Companion.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportType.members/ReportType.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportType.members/ReportType.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JobStatus$Companion.members/JobStatus$Companion.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JobStatus$Companion.members/JobStatus$Companion.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JobStatus.members/JobStatus.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/JobStatus.members/JobStatus.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportRequest.members/ReportRequest.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportRequest.members/ReportRequest.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportJob.members/ReportJob.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportJob.members/ReportJob.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportJobs.members/ReportJobs.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportJobs.members/ReportJobs.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportJobKt.members/ReportJobKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportJobKt.members/ReportJobKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Unit
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl NotNull
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Enum
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Object
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Any
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Constable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Comparable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Comparable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Serializable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Enum
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Integer
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Int
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Class
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl GenericDeclaration
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Type
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl AnnotatedElement
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl OfField
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl TypeDescriptor
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Optional
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl EnumDesc
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl DynamicConstantDesc
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl ConstantDesc
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Function1
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl first
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl EnumEntries
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl SequencedCollection
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl MutableIterable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl MutableCollection
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Cloneable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl UUID
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Function0
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Function0
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl require
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl CharSequence
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl CharSequence
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl isNotBlank
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl none
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl isBlank
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Instant
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Void
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Nothing
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl TenantScope
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportJob.kt.trap.gz
+compilation_compiling_files_completed(#compilation, 6, 0)
+#188 = @"/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportSchedule.kt;sourcefile"
+files(#188, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportSchedule.kt")
+folders(#160, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report")
+folders(#101, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow")
+folders(#102, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo")
+folders(#103, "/Users/macbook/Octo/modules/workflow/src/main/kotlin/com")
+folders(#104, "/Users/macbook/Octo/modules/workflow/src/main/kotlin")
+folders(#105, "/Users/macbook/Octo/modules/workflow/src/main")
+folders(#106, "/Users/macbook/Octo/modules/workflow/src")
+folders(#107, "/Users/macbook/Octo/modules/workflow")
+folders(#108, "/Users/macbook/Octo/modules")
+folders(#109, "/Users/macbook/Octo")
+folders(#110, "/Users/macbook")
+folders(#111, "/Users")
+folders(#112, "/")
+containerparent(#112, #111)
+containerparent(#111, #110)
+containerparent(#110, #109)
+containerparent(#109, #108)
+containerparent(#108, #107)
+containerparent(#107, #106)
+containerparent(#106, #105)
+containerparent(#105, #104)
+containerparent(#104, #103)
+containerparent(#103, #102)
+containerparent(#102, #101)
+containerparent(#101, #160)
+containerparent(#160, #188)
+compilation_compiling_files(#compilation, 7, #188)
+// [2026-09-27 14:21:19 K] [INFO] Extracting file /Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportSchedule.kt
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportSchedule.kt.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportSchedule.members/ReportSchedule.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportSchedule.members/ReportSchedule.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportSchedules.members/ReportSchedules.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportSchedules.members/ReportSchedules.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Will write TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportScheduleKt.members/ReportScheduleKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/classes/com/octo/workflow/report/ReportScheduleKt.members/ReportScheduleKt.members#0.0-0-kotlin.trap.gz
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl UUID
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl String
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Object
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Any
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl SequencedCollection
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Collection
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Iterable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl MutableIterable
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl MutableCollection
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl List
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Instant
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Boolean
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Unit
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl NotNull
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Function0
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Function
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Function0
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl require
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl CharSequence
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl CharSequence
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl isNotBlank
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Integer
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Int
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Enum
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Void
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Nothing
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl TenantScope
+// [2026-09-27 14:21:19 K] [INFO] Skipping extracting external decl Duration
+// [2026-09-27 14:21:19 K] [INFO] Finished writing TRAP file /Users/macbook/Octo/static_analysis_codeql_1/codeql-kotlin.db/trap/java/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/ReportSchedule.kt.trap.gz
+compilation_compiling_files_completed(#compilation, 7, 0)
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: Usage after extractor
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'non-nmethods' is 1727168
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: * Peak for non-heap bean Metaspace is 114509008
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'profiled nmethods' is 57545472
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: * Peak for heap bean PS Old Gen is 473191888
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: * Peak for non-heap bean Compressed Class Space is 12445216
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: * Peak for heap bean PS Survivor Space is 62364768
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: * Peak for heap bean PS Eden Space is 592969728
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: * Peak for non-heap bean CodeHeap 'non-profiled nmethods' is 8505088
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: * Total heap peak: 1128526384
+// [2026-09-27 14:21:19 K] [INFO] Peak memory: * Total non-heap peak: 194731952
+// [2026-09-27 14:21:19 K] [INFO] Extraction completed
+compilation_finished(#compilation, -1.0, 5.351, 0)

@@ -1,0 +1,15 @@
+TRAP dependencies 1.2
+
+TRAP
+classes/java/util/Map$Entry.members/Map$Entry.members#65.0-1789983753036-kotlin.trap.gz
+
+TRAPS
+classes/java/util/Map$Entry.members.trap.gz
+classes/java/util/Map.members.trap.gz
+classes/java/lang/Object.members.trap.gz
+classes/kotlin/Any.members.trap.gz
+classes/java/lang/Deprecated.members.trap.gz
+classes/java/util/Comparator.members.trap.gz
+classes/java/lang/Comparable.members.trap.gz
+classes/kotlin/Comparable.members.trap.gz
+classes/kotlin/collections/MutableMap$MutableEntry.members.trap.gz

@@ -1,0 +1,15 @@
+TRAP dependencies 1.2
+
+SOURCES
+/Users/macbook/Octo/modules/workflow/src/main/kotlin/com/octo/workflow/report/JdbcReportJobStore.kt
+
+INCLUDES
+
+OBJECTS
+
+INPUT_OBJECTS
+
+TRAPS
+classes/com/octo/workflow/report/JdbcReportJobStore.members/JdbcReportJobStore.members#0.0-0-kotlin.trap.gz
+classes/com/octo/workflow/report/JdbcReportJobStoreKt.members/JdbcReportJobStoreKt.members#0.0-0-kotlin.trap.gz
+classes/kotlin/collections/map(java.lang.Object[],kotlin.jvm.functions.Function1).members/map(java.lang.Object[],kotlin.jvm.functions.Function1).members#-1.0-0-null.trap.gz
