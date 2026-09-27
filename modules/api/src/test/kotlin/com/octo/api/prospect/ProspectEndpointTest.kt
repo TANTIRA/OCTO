@@ -25,6 +25,7 @@ import com.octo.workflow.opened
 import com.octo.workflow.persistence.TaskProvenance
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner
@@ -447,8 +448,8 @@ class ProspectEndpointTest {
         val states = linkedMapOf<UUID, ProspectState>()
         var failAppend: Throwable? = null
 
-        /** Stage left behind when [failAppend] fires — a racing transition's committed landing. */
-        var appendFailureLeavesStage: ProspectStage? = null
+        /** The racing caller's committed landings — replayed through the real machine, with their claim rows, before [failAppend] throws. */
+        var appendFailureLands: (() -> List<ProspectEvent>)? = null
 
         override fun create(
             prospect: Prospect,
@@ -506,11 +507,17 @@ class ProspectEndpointTest {
             scope: TenantScope,
         ): ProspectState {
             failAppend?.let {
-                appendFailureLeavesStage?.let { stage ->
-                    states[prospectId] = (states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")).copy(stage = stage)
-                }
+                appendFailureLands?.invoke()?.forEach { land -> apply(prospectId, land, provenance) }
                 throw it
             }
+            return apply(prospectId, event, provenance)
+        }
+
+        private fun apply(
+            prospectId: UUID,
+            event: ProspectEvent,
+            provenance: ProspectProvenance,
+        ): ProspectState {
             val current = states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")
             val next = current.next(event)
             states[prospectId] = next
@@ -532,7 +539,7 @@ class ProspectEndpointTest {
                         occurredAt = event.at,
                         recordedAt = java.time.Instant.now(),
                         correlationId = provenance.correlationId,
-                        taskId = (event as? ProspectEvent.Invested)?.taskId,
+                        taskId = (event as? ProspectEvent.Invested)?.taskId ?: (event as? ProspectEvent.Advanced)?.taskId,
                     ),
                 )
             return next
@@ -614,6 +621,10 @@ class ProspectEndpointTest {
             val task = tasks.opened().single()
             assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
             assertThat(task.subjectId).isEqualTo(id.toString())
+            mvc
+                .perform(get("/api/v1/prospects/$id/events").with(jwt().jwt { it.subject(member.toString()) }))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$[1].taskId").value(task.id.toString())) // the landing records the checklist it claims
         }
     }
 
@@ -1057,10 +1068,20 @@ class ProspectEndpointTest {
                         .content("""{"to":"screening"}""")
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isOk)
-            // The racing caller's landing committed while this request was in flight — the lost
-            // append replays onto the winner's stage, and the task this request opened is theirs now.
+            // The racing caller's landing committed while this request was in flight — it deduped
+            // onto the checklist this request opened and recorded the claim on its event.
             store.failAppend = IllegalArgumentException("lost the race")
-            store.appendFailureLeavesStage = ProspectStage.DUE_DILIGENCE
+            store.appendFailureLands = {
+                listOf(
+                    ProspectEvent.Advanced(
+                        "the winning caller",
+                        java.time.Instant.now(),
+                        ProspectStage.SCREENING,
+                        ProspectStage.DUE_DILIGENCE,
+                        taskId = tasks.opened().single().id,
+                    ),
+                )
+            }
             mvc
                 .perform(
                     post("/api/v1/prospects/$id/transition")
@@ -1071,6 +1092,97 @@ class ProspectEndpointTest {
             val task = tasks.opened().single() // claimed by the winning landing — it still serves
             assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
             assertThat(tasks.state(task.id)?.status).isEqualTo(TaskStatus.OPEN)
+        }
+    }
+
+    @Test
+    fun `a checklist the winner claimed stays open after the prospect moved past due-diligence`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            // The winning landing claimed this request's task, then the pipeline moved on to
+            // ic-review before the loser observed the failure — the claim still holds.
+            store.failAppend = IllegalArgumentException("lost the race")
+            store.appendFailureLands = {
+                val at = java.time.Instant.now()
+                listOf(
+                    ProspectEvent.Advanced(
+                        "the winning caller",
+                        at,
+                        ProspectStage.SCREENING,
+                        ProspectStage.DUE_DILIGENCE,
+                        taskId = tasks.opened().single().id,
+                    ),
+                    ProspectEvent.Advanced("the winning caller", at, ProspectStage.DUE_DILIGENCE, ProspectStage.IC_REVIEW),
+                )
+            }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"due-diligence"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict)
+            val task = tasks.opened().single()
+            assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
+            assertThat(tasks.state(task.id)?.status).isEqualTo(TaskStatus.OPEN)
+        }
+    }
+
+    @Test
+    fun `a checklist minted after an earlier landing claimed and closed its own is still an orphan — cancelled`() {
+        run { mvc ->
+            val id = mvc.registered()
+            // The real landing claimed its own checklist, which was gathered and completed during
+            // due-diligence — the checklist this losing request mints was never claimed by anyone.
+            val claimed = UUID.randomUUID()
+            tasks.open(
+                Task(claimed, TaskKind.EVIDENCE_REQUEST, "prospect", id.toString(), "the earlier caller", java.time.Instant.now()),
+                TaskProvenance("test", UUID.randomUUID()),
+            )
+            tasks.append(
+                claimed,
+                TaskEvent.Completed("the earlier caller", java.time.Instant.now()),
+                TaskProvenance("test", UUID.randomUUID()),
+            )
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            store.failAppend = IllegalArgumentException("lost the race")
+            store.appendFailureLands = {
+                val at = java.time.Instant.now()
+                listOf(
+                    ProspectEvent.Advanced(
+                        "the winning caller",
+                        at,
+                        ProspectStage.SCREENING,
+                        ProspectStage.DUE_DILIGENCE,
+                        taskId = claimed,
+                    ),
+                    ProspectEvent.Advanced("the winning caller", at, ProspectStage.DUE_DILIGENCE, ProspectStage.IC_REVIEW),
+                )
+            }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"due-diligence"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict)
+            val minted = tasks.opened().single { it.id != claimed } // the loser's fresh checklist — no landing named it
+            assertThat(minted.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
+            assertThat(tasks.state(minted.id)?.status).isEqualTo(TaskStatus.CANCELLED)
+            assertThat(tasks.state(claimed)?.status).isEqualTo(TaskStatus.COMPLETED) // the claimed checklist is untouched
         }
     }
 
@@ -1087,7 +1199,9 @@ class ProspectEndpointTest {
                 ).andExpect(status().isOk)
             // A terminal landing never claimed the checklist — dead prospect, dead ask.
             store.failAppend = IllegalArgumentException("lost the race")
-            store.appendFailureLeavesStage = ProspectStage.PASSED
+            store.appendFailureLands = {
+                listOf(ProspectEvent.Passed("the winning caller", java.time.Instant.now(), ProspectStage.SCREENING, "off-mandate"))
+            }
             mvc
                 .perform(
                     post("/api/v1/prospects/$id/transition")
@@ -1095,6 +1209,34 @@ class ProspectEndpointTest {
                         .content("""{"to":"due-diligence"}""")
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isConflict)
+            val task = tasks.opened().single()
+            assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
+            assertThat(tasks.state(task.id)?.status).isEqualTo(TaskStatus.CANCELLED)
+        }
+    }
+
+    @Test
+    fun `a due-diligence append the store drops still cleans the checklist it minted`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            // A store failure that is not a lost race still commits nothing: the minted checklist
+            // gets the same cleanup, and the failure reaches the caller — never a silent 200.
+            store.failAppend = IllegalStateException("the store dropped the append")
+            assertThrows<Exception> {
+                mvc.perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"due-diligence"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                )
+            }
             val task = tasks.opened().single()
             assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
             assertThat(tasks.state(task.id)?.status).isEqualTo(TaskStatus.CANCELLED)

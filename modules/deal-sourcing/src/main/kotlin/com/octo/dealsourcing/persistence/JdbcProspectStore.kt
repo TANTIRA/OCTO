@@ -356,6 +356,7 @@ class JdbcProspectStore(
                     at,
                     stageFrom ?: error("prospect_event 'advanced' row is missing stage_from"),
                     stageTo ?: error("prospect_event 'advanced' row is missing stage_to"),
+                    getObject(7, UUID::class.java),
                 )
             "passed" ->
                 ProspectEvent.Passed(
@@ -396,7 +397,7 @@ class JdbcProspectStore(
             statement.setString(5, event.actor)
             statement.setString(6, rationale)
             statement.setObject(7, event.at.atOffset(ZoneOffset.UTC))
-            statement.setObject(8, (event as? ProspectEvent.Invested)?.taskId)
+            statement.setObject(8, (event as? ProspectEvent.Invested)?.taskId ?: (event as? ProspectEvent.Advanced)?.taskId)
             statement.setObject(9, provenance.correlationId)
             statement.executeUpdate()
         }
