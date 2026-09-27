@@ -10,6 +10,8 @@ import com.octo.dealsourcing.persistence.JdbcScreeningRuleStore
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
+import com.octo.dealsourcing.persistence.ProspectProvenance
+import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.workflow.Task
 import com.octo.workflow.TaskState
 import com.octo.workflow.persistence.JdbcTaskStore
