@@ -122,6 +122,9 @@ private const val DESCRIPTION_LIMIT = 10_000
 /** A screening rule constrains at most this many allowed values per field. */
 private const val CRITERIA_LIST_LIMIT = 100
 
+/** Stages reachable only through `due-diligence` — each a live claim on the checklist that stage opened. */
+private val CHECKLIST_CLAIM_STAGES = setOf(ProspectStage.DUE_DILIGENCE, ProspectStage.IC_REVIEW, ProspectStage.INVESTED)
+
 /** The shape V20 enforces on `screening_rule.rule_id`; the edge validates it before the store sees it. */
 private val RULE_ID_SHAPE = Regex("^[a-z0-9][a-z0-9._-]{0,63}$")
 
@@ -324,7 +327,9 @@ class ProspectController(
         // The checklist opens before the event commits: if this open fails nothing is written
         // anywhere, and a retried transition still finds the task it needs (deduped below). If the
         // append then loses its race, the checklist that was minted for the landing is cancelled —
-        // a checklist that survives without its transition is an orphan no one can ever close.
+        // unless the race it lost was a racing caller landing `due-diligence` on the task it found
+        // open: that task now serves their transition, and cancelling it orphans the live pipeline.
+        // A checklist that survives without its transition is an orphan no one can ever close.
         val checklist =
             if (landing.stage == ProspectStage.DUE_DILIGENCE) openDiligenceChecklist(id, jwt.subject) else null
         val after =
@@ -339,7 +344,7 @@ class ProspectController(
                 checklist?.let { cancelOrphanedChecklist(it, jwt.subject) }
                 return ResponseEntity.notFound().build()
             } catch (_: IllegalArgumentException) {
-                checklist?.let { cancelOrphanedChecklist(it, jwt.subject) }
+                checklist?.takeUnless { checklistInService(id, userId) }?.let { cancelOrphanedChecklist(it, jwt.subject) }
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
         counter("deal.prospects.transitions", "to", to.wireValue)?.increment()
@@ -373,6 +378,17 @@ class ProspectController(
         val opened = tasks.openUnlessOpen(candidate, TaskProvenance("api", UUID.randomUUID()))
         return opened.task.id.takeIf { it == candidate.id }
     }
+
+    /**
+     * Whether the checklist this request opened is already claimed: a racing caller that found it
+     * open and landed `due-diligence` — or carried the prospect past it — made the task its ask.
+     * A prospect still before `due-diligence`, a terminal one, or one that no longer loads leaves
+     * the task orphaned instead.
+     */
+    private fun checklistInService(
+        prospectId: UUID,
+        userId: UUID,
+    ): Boolean = prospects.load(prospectId, TenantScope.User(userId))?.stage in CHECKLIST_CLAIM_STAGES
 
     /** The transition did not land, so the checklist opened for it has no state to serve — cancelled, never left open. */
     private fun cancelOrphanedChecklist(
@@ -503,7 +519,13 @@ class ProspectController(
         // Unknown keys are refused, not ignored — a typo'd field would otherwise persist a rule
         // that silently clears everything it screens.
         if (body.criteria.keys.any { it !in ScreeningCriteria.FIELD_NAMES }) return ResponseEntity.badRequest().build()
-        if (body.criteria.values.any { values -> values.size > CRITERIA_LIST_LIMIT || values.any { it.length > FIELD_LIMIT } }) {
+        // An empty allowed set is not "unconstrained" — it can never match, a rule that rejects or
+        // reviews every prospect it touches; treat it as the misconfiguration it is.
+        if (
+            body.criteria.values.any { values ->
+                values.isEmpty() || values.size > CRITERIA_LIST_LIMIT || values.any { it.length > FIELD_LIMIT }
+            }
+        ) {
             return ResponseEntity.badRequest().build()
         }
         runCatching { ScreeningCriteria.parse(body.criteria) }

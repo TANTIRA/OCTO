@@ -447,6 +447,9 @@ class ProspectEndpointTest {
         val states = linkedMapOf<UUID, ProspectState>()
         var failAppend: Throwable? = null
 
+        /** Stage left behind when [failAppend] fires — a racing transition's committed landing. */
+        var appendFailureLeavesStage: ProspectStage? = null
+
         override fun create(
             prospect: Prospect,
             actor: String,
@@ -502,7 +505,12 @@ class ProspectEndpointTest {
             provenance: ProspectProvenance,
             scope: TenantScope,
         ): ProspectState {
-            failAppend?.let { throw it }
+            failAppend?.let {
+                appendFailureLeavesStage?.let { stage ->
+                    states[prospectId] = (states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")).copy(stage = stage)
+                }
+                throw it
+            }
             val current = states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")
             val next = current.next(event)
             states[prospectId] = next
@@ -810,6 +818,8 @@ class ProspectEndpointTest {
                 listOf(
                     // 'sector' is a typo of 'sectors' — ignored at read, so refused at write
                     """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sector":["saas"]}}""",
+                    // an empty allowed set matches nothing — a reject-everything rule, not unconstrained
+                    """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sectors":[]}}""",
                     """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sectors":[$oversized]}}""",
                     """{"tenantId":"$tenantId","ruleId":"mandate","name":"${"n".repeat(301)}","criteria":{}}""",
                 )
@@ -1031,6 +1041,61 @@ class ProspectEndpointTest {
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isConflict)
             val task = tasks.opened().single() // the checklist opened, then was cancelled — never left orphaned
+            assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
+            assertThat(tasks.state(task.id)?.status).isEqualTo(TaskStatus.CANCELLED)
+        }
+    }
+
+    @Test
+    fun `a due-diligence landing that won the race keeps the checklist the loser opened`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            // The racing caller's landing committed while this request was in flight — the lost
+            // append replays onto the winner's stage, and the task this request opened is theirs now.
+            store.failAppend = IllegalArgumentException("lost the race")
+            store.appendFailureLeavesStage = ProspectStage.DUE_DILIGENCE
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"due-diligence"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict)
+            val task = tasks.opened().single() // claimed by the winning landing — it still serves
+            assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
+            assertThat(tasks.state(task.id)?.status).isEqualTo(TaskStatus.OPEN)
+        }
+    }
+
+    @Test
+    fun `a checklist opened for a landing a pass beat to it is still an orphan — cancelled`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            // A terminal landing never claimed the checklist — dead prospect, dead ask.
+            store.failAppend = IllegalArgumentException("lost the race")
+            store.appendFailureLeavesStage = ProspectStage.PASSED
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"due-diligence"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict)
+            val task = tasks.opened().single()
             assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
             assertThat(tasks.state(task.id)?.status).isEqualTo(TaskStatus.CANCELLED)
         }
