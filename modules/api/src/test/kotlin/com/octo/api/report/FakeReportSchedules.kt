@@ -1,6 +1,6 @@
 package com.octo.api.report
 
-import com.octo.workflow.TenantScope
+import com.octo.persistence.TenantScope
 import com.octo.workflow.report.ReportSchedule
 import com.octo.workflow.report.ReportSchedules
 import java.time.Duration

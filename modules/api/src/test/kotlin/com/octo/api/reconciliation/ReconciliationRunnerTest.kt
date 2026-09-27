@@ -5,7 +5,7 @@ import com.octo.recon.matching.BreakKind
 import com.octo.recon.matching.IborRecord
 import com.octo.recon.matching.SourceRecord
 import com.octo.recon.matching.Tolerance
-import com.octo.recon.persistence.TenantScope
+import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import org.assertj.core.api.Assertions.assertThat

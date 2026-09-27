@@ -1,7 +1,7 @@
 package com.octo.workflow.report
 
-import com.octo.workflow.TenantScope
-import com.octo.workflow.scoped
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.sql.ResultSet
 import java.time.Duration
 import java.time.Instant
