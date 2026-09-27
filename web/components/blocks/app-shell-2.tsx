@@ -740,24 +740,6 @@ function NavigationFrame({
             );
           })}
         </nav>
-
-        <span className="relative mt-auto" onMouseLeave={hideTip}>
-          <button
-            type="button"
-            aria-label="Ayu Wijaya, investment director"
-            onMouseEnter={() => showTip("account")}
-            onFocus={() => showTip("account")}
-            onBlur={hideTip}
-            className={cx(
-              "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-300 active:bg-neutral-300 dark:bg-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-600 dark:active:bg-neutral-600",
-              transition,
-              focus,
-            )}
-          >
-            AW
-          </button>
-          {tip("account", "Ayu Wijaya")}
-        </span>
       </div>
 
       <div className="flex w-64 min-w-0 flex-col bg-neutral-50 dark:bg-neutral-900">

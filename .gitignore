@@ -29,6 +29,7 @@ infra/.env
 # Web frontend (web/)
 node_modules/
 .next/
+*.tsbuildinfo
 
 # Supabase CLI local state
 **/supabase/.temp/

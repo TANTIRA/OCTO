@@ -6,7 +6,6 @@ import com.octo.recon.matching.SourceRecord
 import com.octo.recon.matching.Tolerance
 import com.octo.recon.matching.persistence.ReconciliationStore
 import com.octo.recon.matching.reconcile
-import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import com.octo.workflow.persistence.TaskProvenance

@@ -7,7 +7,6 @@ import com.octo.ingestion.marketdata.alphavantage.AlphaVantageException
 import com.octo.ingestion.marketdata.alphavantage.AlphaVantageNormalizer
 import com.octo.ingestion.persistence.Observation
 import com.octo.ingestion.persistence.ObservationProvenance
-import com.octo.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesWriter
 import com.octo.persistence.TenantScope
 import java.math.BigDecimal

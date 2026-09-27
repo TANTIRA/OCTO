@@ -8,7 +8,6 @@ import com.octo.ingestion.persistence.Observation
 import com.octo.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesQuery
 import com.octo.ingestion.persistence.TimeSeriesReader
-import com.octo.persistence.TenantScope
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration

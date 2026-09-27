@@ -5,7 +5,6 @@ import com.octo.ingestion.persistence.Observation
 import com.octo.ingestion.persistence.ObservationProvenance
 import com.octo.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesQuery
-import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
