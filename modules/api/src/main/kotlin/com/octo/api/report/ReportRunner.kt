@@ -53,7 +53,7 @@ class ReportRunner(
     /** Position source `inline-series`: the caller supplies the investor-signed series (§10.2) in the parameters. */
     private fun performanceReport(job: ReportJob): Map<String, Any?> {
         require(job.request.positionSourceType == "inline-series") {
-            "position source ${job.request.positionSourceType} is not supported; pass an inline-series until attribution is resolved from TypeDB"
+            "position source ${job.request.positionSourceType} is not supported; pass an inline-series until attribution is resolved from the graph store"
         }
         val input = json.readValue<PerformanceInput>(job.request.parameters)
         val series =

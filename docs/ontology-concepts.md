@@ -1,6 +1,6 @@
 # Ontology Concepts — Reference Mapping
 
-How the canonical ontology-platform concepts map onto OCTO's implementation. The reference model describes a digital-twin Ontology: object types, properties, link types, action types, roles, functions, interfaces, and object views. OCTO implements the same concepts on vendor-neutral technology: TypeDB/TypeQL 3.0 for the semantic graph, PostgreSQL for the ledger, OWL/SHACL for formal validation, and Kotlin services for behavior.
+How the canonical ontology-platform concepts map onto OCTO's implementation. The reference model describes a digital-twin Ontology: object types, properties, link types, action types, roles, functions, interfaces, and object views. OCTO implements the same concepts on vendor-neutral technology: Neo4j/Cypher for the semantic graph (ADR-0004; the TypeQL column names below refer to the pre-ADR-0004 schema — TODO(#189): refresh to Cypher equivalents), PostgreSQL for the ledger, OWL/SHACL for formal validation, and Kotlin services for behavior.
 
 ## Concept map
 

@@ -10,7 +10,7 @@ This document gathers the OCTO system design into one place: High-Level Architec
 | 🟡 | Implemented in an open draft PR |
 | ⬜ | Planned; tracked in [#6](https://github.com/TANTIRA/OCTO/issues/6), design not yet agreed |
 
-Sources: [ADR-0001](adr/0001-platform-architecture.md), [ADR-0002](adr/0002-self-hosted-supabase.md), [ADR-0003](adr/0003-typedb-ontology-store.md), [AI architecture](ai-architecture.md), [decision-model integration map](decision-model-integration-map.md), [quantitative methodology](quantitative-methodology.md), [data security and governance](data-security-governance.md), `infra/docker-compose.yml`.
+Sources: [ADR-0001](adr/0001-platform-architecture.md), [ADR-0002](adr/0002-self-hosted-supabase.md), [ADR-0004](adr/0004-neo4j-graph-store.md), [AI architecture](ai-architecture.md), [decision-model integration map](decision-model-integration-map.md), [quantitative methodology](quantitative-methodology.md), [data security and governance](data-security-governance.md), `infra/docker-compose.yml`.
 
 ---
 
@@ -39,7 +39,7 @@ flowchart TB
     PG[("Supabase PostgreSQL — IBOR ledger, workflow, audit, decision staging")]
     AUTH["Supabase Auth — JWT issuer + JWKS"]
     ST[("Supabase Storage — documents and artifacts, private buckets")]
-    TDB[("TypeDB 3 — ontology graph, attribution, ownership, provenance")]
+    TDB[("Neo4j — ontology graph, attribution, ownership, provenance")]
   end
 
   subgraph EXT["External services"]
@@ -77,7 +77,7 @@ flowchart TB
 | `octo-api` | Kotlin 2.2, Java 21, Spring Boot 3.5, Gradle | OCTO team | ✅ scaffold, auth boundary, migrations |
 | `octo-web` | Separate frontend image (ADR-0001 §6) | OCTO team | ⬜ |
 | PostgreSQL, Auth, Storage | Self-hosted Supabase (ADR-0002) | Platform / DevOps | ✅ compose, override |
-| TypeDB | TypeDB 3, schema `ontology/octo-investment.tql` (ADR-0003) | CTO (ontology) | ✅ schema + CI validation |
+| Neo4j | Neo4j Community, schema `ontology/octo-investment.cypher` (ADR-0004) | CTO (ontology) | ✅ schema + CI validation |
 | Decision model | `typesafe/jev-1.13` via OpenRouter | AI Tech Lead | ✅ client, 2 decision points |
 | Backup / PITR | Operator-provided (ADR-0002) | Platform / DevOps | ⬜ runbook |
 
@@ -101,7 +101,7 @@ flowchart LR
     DS["deal-sourcing — screening, DDQ, IC"]
     ING["ingestion — adapters, extraction, staging"]
     CP["control-panel — AI apps, judgment client"]
-    ONT["ontology — OWL/SHACL + TypeQL validation"]
+    ONT["ontology — OWL/SHACL + Cypher validation"]
   end
 
   API --> IBOR & LT & ANA & REC & WF & DS & ING & CP
@@ -121,7 +121,7 @@ Rules:
 | `lookthrough` | Path-sum exposure; gross, net, long and short measures | T2 | 🟡 [#10](https://github.com/TANTIRA/OCTO/pull/10) |
 | `ingestion` | Document classification, claim support, append-only decision staging | T2 | ✅ |
 | `control-panel` | Judgment client, data-classification guard | T2 | ✅ |
-| `ontology` | SHACL validation, TypeQL ↔ OWL drift checks | T2 | ✅ |
+| `ontology` | SHACL validation, Cypher ↔ OWL drift checks | T2 | ✅ |
 | `api` | JWT resource server, Flyway, actuator | T2 (auth) | ✅ |
 | `recon`, `workflow`, `deal-sourcing` | — | T2 | ⬜ |
 
@@ -137,7 +137,7 @@ flowchart LR
     W["Workflow state, approvals, audit"]
     R["Report artifacts, projections"]
   end
-  subgraph TDO["TypeDB owns — entities and relationships"]
+  subgraph TDO["Neo4j owns — entities and relationships"]
     E["Funds, LPs, GPs, companies, deals, investments"]
     A["cash-flow-attribution — event to vehicle / LP / position"]
     O["ownership edges — look-through"]
@@ -149,7 +149,7 @@ flowchart LR
   O --> LTX["lookthrough"]
 ```
 
-Consequence: `ibor-core` never stores attribution. The caller resolves the event ids that belong to a commitment from TypeDB and passes them to the derivation (see §3.3).
+Consequence: `ibor-core` never stores attribution. The caller resolves the event ids that belong to a commitment from Neo4j and passes them to the derivation (see §3.3).
 
 ### 2.3 Capability map against the benchmarks
 
@@ -161,7 +161,7 @@ Consequence: `ibor-core` never stores attribution. The caller resolves the event
 | Aladdin post-trade compliance | Rules evaluated after ledger writes → workflow tasks | `recon` + `workflow` | ⬜ |
 | Aladdin reconciliation / trade matching | Source vs IBOR, graph vs ledger | `recon` | ⬜ |
 | Aladdin risk (VaR/ES, factor) | Methodology §3.4, §4.1 | `analytics` | ⬜ |
-| Marquee Asset service | Asset master using ontology types (owner decision on #6) | `api` + TypeDB | ⬜ |
+| Marquee Asset service | Asset master using ontology types (owner decision on #6) | `api` + Neo4j | ⬜ |
 | Marquee Data service | Bi-temporal time series (`effective_date` + `recorded_at`) | `ingestion` + `api` | ⬜ |
 | Marquee Report service | Report jobs over the analytics engines | `analytics` + `workflow` + `api` | ⬜ |
 | Palantir AIP workflows | Evaluated agents behind a tool allowlist | `deal-sourcing`, `control-panel` | ✅ 2 decision points · ⬜ rest |
@@ -176,7 +176,7 @@ Consequence: `ibor-core` never stores attribution. The caller resolves the event
 | 4 | Ledger amounts are investor-signed | Contributions negative, distributions positive (methodology §10.2) | Owner decision, #6 |
 | 5 | Fees, expenses, carry and other income are outside the investor series | They stay on the position report and out of IRR and multiples | Owner decision, #6 |
 | 6 | Undefined metric results are `null`, never 0 | Methodology §10.7 | #9 |
-| 7 | Attribution lives in TypeDB | One owner per data class | ADR-0003 |
+| 7 | Attribution lives in Neo4j | One owner per data class | ADR-0004 |
 | 8 | Confidential data never reaches a public model | `DataClassification.mayLeavePlatform` guard | AGENTS.md, `control-panel` |
 | 9 | Self-hosted Supabase; backups and PITR are the operator's job | Data residency and control | ADR-0002 |
 
@@ -320,7 +320,7 @@ Derivation algorithm:
 
 1. **Bi-temporal cut.** Keep only events with `recordedAt <= knownAt`.
 2. **Resolve supersession over the whole ledger.** Any event targeted by a kept event is dropped. A missing target, or two events targeting the same original, is an error.
-3. **Filter to `members`.** These are the event ids attributed to the commitment in TypeDB. A correction that moves an event to another commitment therefore removes it from this one.
+3. **Filter to `members`.** These are the event ids attributed to the commitment in Neo4j. A correction that moves an event to another commitment therefore removes it from this one.
 4. **Aggregate.** Take a positive total per flow type. The single-currency check fails loudly on mixed currencies.
 5. **Build the investor series.** Keep only flow types with `investorFlow = true`. Date each flow in the zone the caller passes, then sort.
 
@@ -469,7 +469,7 @@ flowchart LR
 
   subgraph REC["Record"]
     LED[("Ledger — PostgreSQL")]
-    GR[("Graph — TypeDB")]
+    GR[("Graph — Neo4j")]
   end
 
   subgraph DER["Derive"]
@@ -506,7 +506,7 @@ sequenceDiagram
   autonumber
   actor U as Analyst
   participant API as api
-  participant TDB as TypeDB
+  participant TDB as Neo4j
   participant PG as PostgreSQL
   participant IB as ibor-core
   participant AN as analytics

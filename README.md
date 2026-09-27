@@ -59,7 +59,7 @@ Modular monolith: Kotlin on Java 21, Spring Boot 3, Gradle, Flyway, and self-hos
 - [System design — HLA, HLD, LLD, E2E architecture](docs/system-design.md)
 - [Platform architecture and end-to-end flow](docs/adr/0001-platform-architecture.md)
 - [Self-hosted Supabase architecture and operations](docs/adr/0002-self-hosted-supabase.md)
-- [TypeDB ontology store](docs/adr/0003-typedb-ontology-store.md) — schema: [`ontology/octo-investment.tql`](ontology/octo-investment.tql)
+- [Neo4j graph store](docs/adr/0004-neo4j-graph-store.md) — schema: [`ontology/octo-investment.cypher`](ontology/octo-investment.cypher)
 - [Ontology concepts — reference mapping](docs/ontology-concepts.md)
 - [Ontology design guidelines](docs/ontology-design-guidelines.md)
 - [AI architecture — platform capability mapping](docs/ai-architecture.md)
@@ -94,9 +94,9 @@ modules/
   deal-sourcing/  Screening, DDQ assistance, IC report assembly
   workflow/       Tasks, approvals, outbound-artifact gates
   control-panel/  Unified inbox: alerts, recon items, approvals, AI proposals
-  ontology/       OWL/SHACL validation and TypeQL drift checks — CI gate for ontology/
+  ontology/       OWL/SHACL validation and Cypher drift checks — CI gate for ontology/
 db/migrations/    Flyway migrations (append-only, migration identity)
-ontology/         TypeQL schema (octo-investment.tql), OWL/SHACL mirror, sample graphs (T2, SemVer)
+ontology/         Cypher schema (octo-investment.cypher), OWL/SHACL mirror, sample graphs (T2, SemVer)
 infra/            Dokploy Compose definitions and Supabase override
 docs/             Architecture, ADRs, product and methodology documentation
 ```

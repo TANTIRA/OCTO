@@ -61,7 +61,7 @@ State of `main` on 2026-09-24. ✅ passes, ⚠️ acceptable for now, ❌ must f
 | Build | the image the compose file pulls is built from this repo | ✅ | `Dockerfile` (#76): wrapper-built boot jar on a JRE, non-root |
 | Runtime | JVM heap sized to the container | ✅ | `MaxRAMPercentage=75.0` and exit-on-OOM in the image (#76) |
 | Runtime | compose healthcheck uses readiness | ✅ | `/actuator/health/readiness` (#76); `ReadinessIT` shows it drops when the database is lost |
-| Dependencies | api waits for what it needs | ⚠️ | `depends_on` covers TypeDB only; PostgreSQL lives in another compose project, so readiness plus `start_period` is the real gate |
+| Dependencies | api waits for what it needs | ⚠️ | `depends_on` covers the graph store only; PostgreSQL lives in another compose project, so readiness plus `start_period` is the real gate |
 | Auth | fails closed without a JWKS URL | ✅ | `SecurityConfig` |
 | Data | migrations run as a separate role; the runtime role cannot update or delete | ✅ | `DB_MIGRATION_*`, V3, `RuntimeRoleGrantsIT` |
 | Data | backups and point-in-time recovery | ❌ | ADR-0002 assigns it to the operator; no runbook exists (system-design.md marks it ⬜) |

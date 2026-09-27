@@ -146,7 +146,7 @@ class LedgerTest {
     fun `flow types match the ontology`() {
         val ontology = File(System.getProperty("ontology.file") ?: error("ontology.file system property is not set")).readText()
         val values =
-            Regex("""attribute\s+flow-type,\s+value\s+string\s+@values\(([^)]*)\)""")
+            Regex("""name:\s*flow-type\s*\|\s*value:\s*string\s*\|\s*@values\(([^)]*)\)""")
                 .find(ontology)
                 ?.groupValues
                 ?.get(1)
