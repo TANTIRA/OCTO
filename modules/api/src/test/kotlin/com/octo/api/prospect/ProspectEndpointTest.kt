@@ -290,6 +290,7 @@ class ProspectEndpointTest {
             scope: TenantScope,
         ): ProspectState {
             val current = states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")
+            return current.next(event).also { states[prospectId] = it }
             val next = current.next(event)
             states[prospectId] = next
             eventRows

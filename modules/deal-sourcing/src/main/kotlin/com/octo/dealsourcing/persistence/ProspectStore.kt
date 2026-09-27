@@ -5,6 +5,8 @@ import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
 import com.octo.dealsourcing.TenantScope
+import java.util.UUID
+
 import java.time.Instant
 import java.util.UUID
 

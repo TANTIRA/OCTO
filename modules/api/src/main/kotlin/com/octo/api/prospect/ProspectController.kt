@@ -15,6 +15,9 @@ import com.octo.dealsourcing.evaluateAll
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
+import com.octo.dealsourcing.TenantScope
+import com.octo.dealsourcing.persistence.ProspectProvenance
+import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.registered
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
@@ -77,6 +80,7 @@ class ProspectController(
     private val rules: ScreeningRules,
     private val tenants: TenantDirectory,
     private val json: com.fasterxml.jackson.databind.ObjectMapper,
+    private val tenants: TenantDirectory,
 ) {
     @PostMapping("/api/v1/prospects")
     fun register(
@@ -225,6 +229,8 @@ class ProspectController(
                 }
                 else -> ProspectEvent.Advanced(jwt.subject, at, current.stage, to)
             }
+        val event =
+            eventOf(body, current, jwt.subject) ?: return ResponseEntity.badRequest().build()
         val after =
             try {
                 prospects.append(
@@ -408,6 +414,25 @@ class ProspectController(
                 row.name to ScreeningCriteria.parse(fields)
             }
         return evaluateAll(prospect, parsed)
+    /** The request names only where to land; `from` is the replayed stage, never client-asserted. */
+    private fun eventOf(
+        body: TransitionRequest,
+        current: ProspectState,
+        actor: String,
+    ): ProspectEvent? {
+        val to = runCatching { ProspectStage.fromWireValue(body.to) }.getOrNull() ?: return null
+        val at = Instant.now()
+        return when (to) {
+            ProspectStage.PASSED ->
+                body.rationale
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { ProspectEvent.Passed(actor, at, current.stage, it) }
+            ProspectStage.INVESTED ->
+                body.rationale
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { ProspectEvent.Invested(actor, at, it) }
+            else -> ProspectEvent.Advanced(actor, at, current.stage, to)
+        }
     }
 
     private fun roleIn(
@@ -509,6 +534,7 @@ class ProspectController(
         val reviewTaskId: UUID? = null,
     )
 
+        val correlationId: UUID? = null,
     data class EventView(
         val seq: Long,
         val eventType: String,

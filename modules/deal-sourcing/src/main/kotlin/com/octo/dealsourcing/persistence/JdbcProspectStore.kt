@@ -77,6 +77,8 @@ class JdbcProspectStore(
         }
     }
 
+    /** The prospect's state after every stored event, or null when no prospect has that id. */
+    override fun load(
     /**
      * Registers every prospect that isn't a duplicate of an existing `(tenant, source, source_ref)`
      * row — the CRM-adapter contract: a re-sync is a no-op, not a second prospect. Returns the ids
@@ -128,6 +130,8 @@ class JdbcProspectStore(
         scope: TenantScope,
     ): ProspectState? = dataSource.scoped(scope) { connection -> replayLocked(connection, id) }
 
+    /** Every prospect of the tenant currently standing at [stage]. */
+    override fun listAtStage(
     /** The raw event rows in append order — the audit trail [load]'s replay summarizes. */
     override fun history(
         id: UUID,
