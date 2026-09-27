@@ -8,6 +8,7 @@ import org.springframework.core.env.Environment
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm
 import org.springframework.security.oauth2.jwt.JwtValidators
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.web.SecurityFilterChain
@@ -70,7 +71,15 @@ class SecurityConfig {
 
         val jwksUri = env.getProperty("AUTH_JWKS_URL")?.takeIf(String::isNotBlank)
         if (jwksUri != null) {
-            val decoder = NimbusJwtDecoder.withJwkSetUri(jwksUri).build()
+            // Supabase GoTrue signs ES256 (JWT_KEYS/JWT_JWKS keypair); the
+            // builder defaults to expecting RS256, so the algorithm must be
+            // declared or every token is rejected as "another algorithm
+            // expected" regardless of which keys the JWKS serves.
+            val decoder =
+                NimbusJwtDecoder
+                    .withJwkSetUri(jwksUri)
+                    .jwsAlgorithm(SignatureAlgorithm.ES256)
+                    .build()
             env
                 .getProperty("AUTH_ISSUER")
                 ?.takeIf(String::isNotBlank)

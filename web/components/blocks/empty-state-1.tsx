@@ -25,6 +25,7 @@ const panel =
 const STARTERS = [
   {
     icon: Plug,
+    title: "Connect a data source",
     title: "Connect a warehouse",
     body: "Postgres, BigQuery or Snowflake. Read-only credentials are enough.",
     meta: "About 2 minutes",
@@ -90,6 +91,7 @@ export default function EmptyState1() {
             Nothing in this workspace yet
           </h2>
           <p className="mx-auto mt-1.5 max-w-[420px] text-[13px] leading-relaxed text-neutral-500">
+            Point OCTO at a custodian feed and positions reconcile themselves.
             Point Northwind at a source and the first charts build themselves.
             You can change or remove a source at any time.
           </p>
