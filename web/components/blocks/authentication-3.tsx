@@ -98,7 +98,7 @@ export default function Authentication3() {
   const emailId = useId();
   const passwordId = useId();
 
-  const [email, setEmail] = useState("dana.whitfield@northwind.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [reveal, setReveal] = useState(false);
   const [index, setIndex] = useState(0);

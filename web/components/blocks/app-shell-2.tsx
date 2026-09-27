@@ -534,7 +534,7 @@ function WorkspaceSwitcher() {
         <div
           ref={menuRef}
           role="menu"
-          aria-label="Switch workspace"
+          aria-label="Switch vehicle"
           className={cx(
             "absolute left-0 right-0 top-[calc(100%+0.25rem)] z-30 origin-top rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200 bg-white p-1 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.10)] transition-[opacity,transform] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none dark:border-oklch(1 0 0 / 10%)",
             shown ? "scale-100 opacity-100" : "scale-95 opacity-0",
@@ -583,7 +583,7 @@ function WorkspaceSwitcher() {
               focusInset,
             )}
           >
-            Add workspace
+            Add vehicle
           </button>
         </div>
       )}
@@ -728,7 +728,7 @@ function NavigationFrame({
         <span className="relative mt-auto" onMouseLeave={hideTip}>
           <button
             type="button"
-            aria-label="Marta Kowalczyk, dispatch manager"
+            aria-label="Ayu Wijaya, investment director"
             onMouseEnter={() => showTip("account")}
             onFocus={() => showTip("account")}
             onBlur={hideTip}
@@ -740,7 +740,7 @@ function NavigationFrame({
           >
             MK
           </button>
-          {tip("account", "Marta Kowalczyk")}
+          {tip("account", "Ayu Wijaya")}
         </span>
       </div>
 

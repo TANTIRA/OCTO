@@ -16,9 +16,9 @@ const navGroups = [
 const dispatches = ["Weekly signal", "Release radar", "Methodology memo"];
 
 const vitals = [
-  { label: "Status", value: "All systems operational", live: true },
-  { label: "Uptime", value: "99.98%, last 90 days" },
-  { label: "Latest release", value: "v0.9. Attribution engine" },
+  { label: "Status", value: "Private beta", live: true },
+  { label: "API", value: "api-octo.mesta.click", live: false },
+  { label: "App", value: "octo.mesta.click/app", live: false },
   { label: "Next dispatch", value: "Friday, 06:00 UTC" },
 ];
 
