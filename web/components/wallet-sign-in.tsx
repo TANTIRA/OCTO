@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ConnectionProvider,
   WalletProvider,
@@ -60,8 +60,12 @@ function WalletSignInButton({
   const { publicKey, signMessage, connected } = useWallet();
   const { visible, setVisible } = useWalletModal();
   const [pending, setPending] = useState(false);
+  // One SIWS handshake at a time — the click path and the post-connect effect
+  // can both reach signIn for the same press.
+  const signing = useRef(false);
 
   const signIn = async () => {
+    if (signing.current) return;
     if (!supabase || !publicKey || !signMessage) {
       setPending(false);
       onError(
@@ -71,6 +75,7 @@ function WalletSignInButton({
       );
       return;
     }
+    signing.current = true;
     try {
       const { error } = await supabase.auth.signInWithWeb3({
         chain: "solana",
@@ -80,6 +85,7 @@ function WalletSignInButton({
       if (error) throw error;
       window.location.assign("/app");
     } catch (failure) {
+      signing.current = false;
       setPending(false);
       onError(
         failure instanceof Error ? failure.message : "Wallet sign-in failed",
@@ -91,7 +97,7 @@ function WalletSignInButton({
   // without a second click.
   useEffect(() => {
     if (pending && connected) void signIn();
-  });
+  }, [pending, connected]);
 
   // Modal dismissed without a wallet — reset so the button is clickable again.
   useEffect(() => {
