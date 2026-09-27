@@ -23,6 +23,9 @@ import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState
 import com.octo.workflow.TaskStatus
 import com.octo.workflow.persistence.TaskProvenance
+import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.MeterRegistry
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -101,7 +104,16 @@ class ProspectController(
     private val rules: ScreeningRules,
     private val tenants: TenantDirectory,
     private val json: com.fasterxml.jackson.databind.ObjectMapper,
+    meters: ObjectProvider<MeterRegistry>,
 ) {
+    private val meters = meters.getIfAvailable()
+
+    /** `deal.prospects.*` — the pipeline's business counters, tagged like the EVM runner's. */
+    private fun counter(
+        name: String,
+        vararg tags: String,
+    ): Counter? = meters?.let { Counter.builder(name).tags(*tags).register(it) }
+
     @PostMapping("/api/v1/prospects")
     fun register(
         @RequestBody body: RegisterRequest,
@@ -129,6 +141,7 @@ class ProspectController(
             ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
             TenantScope.User(userId),
         )
+        counter("deal.prospects.registered")?.increment()
         return ResponseEntity.status(HttpStatus.CREATED).body(registered(prospect).view())
     }
 
@@ -184,6 +197,8 @@ class ProspectController(
                 ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
                 TenantScope.User(userId),
             )
+        counter("deal.prospects.imported", "result", "inserted")?.increment(inserted.size.toDouble())
+        counter("deal.prospects.imported", "result", "duplicate")?.increment((items.size - inserted.size).toDouble())
         return ResponseEntity.ok(ImportView(inserted.size, items.size - inserted.size, inserted))
     }
 
@@ -283,6 +298,7 @@ class ProspectController(
             } catch (_: IllegalArgumentException) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
+        counter("deal.prospects.transitions", "to", to.wireValue)?.increment()
         return ResponseEntity.ok(after.view())
     }
 
@@ -349,6 +365,7 @@ class ProspectController(
                 .listForSubject("prospect", id.toString())
                 .firstOrNull { it.task.kind == TaskKind.APPROVAL && !it.status.terminal }
         if (existing != null) {
+            counter("deal.prospects.ic_reviews", "result", "in-flight")?.increment()
             return ResponseEntity.ok(IcView(existing.task.id, existing.status.name.lowercase()))
         }
         val task =
@@ -361,6 +378,7 @@ class ProspectController(
                 Instant.now(),
             )
         tasks.open(task, TaskProvenance("api", UUID.randomUUID()))
+        counter("deal.prospects.ic_reviews", "result", "opened")?.increment()
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(IcView(task.id, TaskStatus.OPEN.name.lowercase()))
     }
 
@@ -398,6 +416,7 @@ class ProspectController(
             } catch (_: IllegalArgumentException) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
+        counter("deal.prospects.task_events", "event", body.event)?.increment()
         return ResponseEntity.ok(after.view())
     }
 
@@ -427,6 +446,7 @@ class ProspectController(
                 ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
                 TenantScope.User(userId),
             )
+        counter("deal.prospects.rules_defined")?.increment()
         return ResponseEntity.status(HttpStatus.CREATED).body(RuleView(body.ruleId, version))
     }
 
@@ -489,12 +509,14 @@ class ProspectController(
                             tasks.open(task, TaskProvenance("api", UUID.randomUUID()))
                             task.id
                         }
+                counter("deal.prospects.screens", "verdict", outcome.verdict.name.lowercase())?.increment()
                 return ResponseEntity.ok(
                     ScreenView(outcome.verdict.name.lowercase(), outcome.reasons, current.stage.wireValue, taskId),
                 )
             }
             else -> {}
         }
+        counter("deal.prospects.screens", "verdict", outcome.verdict.name.lowercase())?.increment()
         val stage = prospects.load(id, TenantScope.User(userId))?.stage?.wireValue ?: current.stage.wireValue
         return ResponseEntity.ok(ScreenView(outcome.verdict.name.lowercase(), outcome.reasons, stage, null))
     }
