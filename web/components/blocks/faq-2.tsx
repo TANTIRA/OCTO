@@ -11,7 +11,7 @@ export default function FAQ2() {
     {
       question: "Where does OCTO actually run?",
       answer:
-        "On your infrastructure. The platform deploys as a self-hosted stack — Supabase PostgreSQL for the ledger, TypeDB for the ontology — so client, position, and LP data never leave your perimeter. There is no external SaaS dependency for core data.",
+        "On your infrastructure. The platform deploys as a self-hosted stack — Supabase PostgreSQL for the ledger, Neo4j for the ontology — so client, position, and LP data never leave your perimeter. There is no external SaaS dependency for core data.",
     },
     {
       question: "If the ledger is append-only, how do corrections work?",

@@ -57,7 +57,7 @@ export function Features4({
       icon: Server,
       title: "Self-hosted by design",
       description:
-        "Supabase PostgreSQL and TypeDB on your infrastructure — your data never leaves your perimeter.",
+        "Supabase PostgreSQL and Neo4j on your infrastructure — your data never leaves your perimeter.",
       features: [
         "No external SaaS dependency for core data",
         "Ontology versioned in Git like code",
