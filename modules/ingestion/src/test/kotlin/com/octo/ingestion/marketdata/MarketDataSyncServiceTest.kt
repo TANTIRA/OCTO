@@ -7,6 +7,7 @@ import com.octo.ingestion.marketdata.alphavantage.AlphaVantageException
 import com.octo.ingestion.marketdata.alphavantage.AlphaVantageNormalizer
 import com.octo.ingestion.persistence.Observation
 import com.octo.ingestion.persistence.ObservationProvenance
+import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesWriter
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -15,7 +16,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import com.octo.ingestion.persistence.TenantScope
 
 private val DATASET: UUID = UUID.fromString("00000000-0000-0000-0000-0000000000d5")
 
@@ -54,6 +54,7 @@ private class RecordingWriter : TimeSeriesWriter {
     override fun write(
         observations: List<Observation>,
         provenance: ObservationProvenance,
+        scope: TenantScope,
     ): List<Observation> {
         batches += observations to provenance
         return observations

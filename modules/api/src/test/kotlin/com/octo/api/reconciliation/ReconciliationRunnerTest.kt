@@ -4,6 +4,7 @@ import com.octo.recon.matching.BreakKind
 import com.octo.recon.matching.IborRecord
 import com.octo.recon.matching.SourceRecord
 import com.octo.recon.matching.Tolerance
+import com.octo.recon.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import org.assertj.core.api.Assertions.assertThat
@@ -13,7 +14,6 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Currency
 import java.util.UUID
-import com.octo.recon.persistence.TenantScope
 
 class ReconciliationRunnerTest {
     private val usd = Currency.getInstance("USD")

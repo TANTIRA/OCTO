@@ -1,5 +1,6 @@
 package com.octo.api
 
+import com.octo.workflow.TenantScope
 import com.octo.workflow.report.JdbcReportJobStore
 import com.octo.workflow.report.JobStatus
 import com.octo.workflow.report.ReportRequest
@@ -14,7 +15,6 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.sql.SQLException
 import java.util.UUID
-import com.octo.workflow.TenantScope
 
 /** `JdbcReportJobStore` against the real V13 schema: submit, claim in order, complete, fail, and the trigger's refusals. Skipped without Docker. */
 @Testcontainers(disabledWithoutDocker = true)

@@ -3,6 +3,7 @@ package com.octo.api
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.BreakKind
 import com.octo.recon.matching.persistence.JdbcReconciliationStore
+import com.octo.recon.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
@@ -15,7 +16,6 @@ import java.sql.SQLException
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.UUID
-import com.octo.recon.persistence.TenantScope
 
 /** `JdbcReconciliationStore` against V1 and V15: the ledger side of a run and break recording with the one-task rule. Skipped without Docker. */
 @Testcontainers(disabledWithoutDocker = true)
@@ -114,8 +114,9 @@ class ReconciliationStoreIT {
         val missing = Break(BreakKind.MISSING_IN_IBOR, "admin-x", "t-3", null, emptyMap())
         store.record(tenantId, UUID.randomUUID(), missing, task(), UUID.randomUUID(), TenantScope.All)
         assertThat(store.existingTask(tenantId, missing, TenantScope.All)).isNotNull()
-        assertThatThrownBy { store.record(tenantId, UUID.randomUUID(), missing.copy(ledgerEventId = eventId), null, UUID.randomUUID(), TenantScope.All) }
-            .isInstanceOf(SQLException::class.java) // missing-in-ibor may not carry an event
+        assertThatThrownBy {
+            store.record(tenantId, UUID.randomUUID(), missing.copy(ledgerEventId = eventId), null, UUID.randomUUID(), TenantScope.All)
+        }.isInstanceOf(SQLException::class.java) // missing-in-ibor may not carry an event
     }
 
     private companion object {

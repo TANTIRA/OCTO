@@ -5,6 +5,7 @@ import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.ingestion.persistence.Observation
+import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesQuery
 import com.octo.ingestion.persistence.TimeSeriesReader
 import org.junit.jupiter.api.Test
@@ -33,9 +34,15 @@ class DataEndpointTest {
     private var lastQuery: TimeSeriesQuery? = null
     private val reader =
         object : TimeSeriesReader {
-            override fun datasetTenant(datasetId: UUID) = tenantId.takeIf { datasetId == this@DataEndpointTest.datasetId }
+            override fun datasetTenant(
+                datasetId: UUID,
+                scope: TenantScope,
+            ) = tenantId.takeIf { datasetId == this@DataEndpointTest.datasetId && scope == TenantScope.User(member) }
 
-            override fun query(query: TimeSeriesQuery): List<Observation> {
+            override fun query(
+                query: TimeSeriesQuery,
+                scope: TenantScope,
+            ): List<Observation> {
                 lastQuery = query
                 return listOf(
                     Observation(

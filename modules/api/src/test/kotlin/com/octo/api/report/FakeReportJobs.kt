@@ -1,12 +1,12 @@
 package com.octo.api.report
 
+import com.octo.workflow.TenantScope
 import com.octo.workflow.report.JobStatus
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
 import com.octo.workflow.report.ReportRequest
 import java.time.Instant
 import java.util.UUID
-import com.octo.workflow.TenantScope
 
 /** In-memory `ReportJobs` with V13's transition rule, for the endpoint and runner tests. */
 class FakeReportJobs : ReportJobs {

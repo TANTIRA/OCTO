@@ -2,13 +2,13 @@ package com.octo.api.report
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.octo.workflow.TenantScope
 import com.octo.workflow.report.JobStatus
 import com.octo.workflow.report.ReportRequest
 import com.octo.workflow.report.ReportType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.UUID
-import com.octo.workflow.TenantScope
 
 class ReportRunnerTest {
     private val jobs = FakeReportJobs()
@@ -50,9 +50,9 @@ class ReportRunnerTest {
 
     @Test
     fun `an unsupported type, source or measure ends in error with the reason, and the queue keeps draining`() {
-        jobs.submit(request(type = ReportType.EXPOSURE))
-        jobs.submit(request(source = "commitment"))
-        jobs.submit(request(measures = listOf("moic")))
+        jobs.submit(request(type = ReportType.EXPOSURE), TenantScope.All)
+        jobs.submit(request(source = "commitment"), TenantScope.All)
+        jobs.submit(request(measures = listOf("moic")), TenantScope.All)
         jobs.submit(request(), TenantScope.All)
         runner.poll()
 
