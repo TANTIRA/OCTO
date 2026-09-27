@@ -32,6 +32,17 @@ interface ProspectStore {
         scope: TenantScope,
     )
 
+    /**
+     * Bulk registration for source adapters (CRM sync): a `(tenant, source, source_ref)` that
+     * already exists is a no-op, not a duplicate. Returns the ids actually inserted.
+     */
+    fun importBatch(
+        prospects: List<Prospect>,
+        actor: String,
+        provenance: ProspectProvenance,
+        scope: TenantScope,
+    ): List<UUID>
+
     /** The prospect's replayed state, or null when no prospect has that id. */
     fun load(
         id: UUID,

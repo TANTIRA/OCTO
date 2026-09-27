@@ -34,6 +34,13 @@ class ProspectConfiguration {
                 scope: TenantScope,
             ) = store.create(prospect, actor, provenance, scope)
 
+            override fun importBatch(
+                prospects: List<Prospect>,
+                actor: String,
+                provenance: ProspectProvenance,
+                scope: TenantScope,
+            ) = store.importBatch(prospects, actor, provenance, scope)
+
             override fun load(
                 id: UUID,
                 scope: TenantScope,
