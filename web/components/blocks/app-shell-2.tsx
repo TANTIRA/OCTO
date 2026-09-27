@@ -823,7 +823,12 @@ function NavigationFrame({
 }
 
 export default function AppShell2() {
-  const [areaId, setAreaId] = useState(AREAS[0].id);
+  const [areaId, setAreaId] = useState<string>(() =>
+    typeof window !== "undefined" &&
+    AREAS.some((a) => a.id === window.location.hash.slice(1))
+      ? window.location.hash.slice(1)
+      : AREAS[0].id,
+  );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerShown, setDrawerShown] = useState(false);
   const content = useScrollFade<HTMLElement>();
@@ -834,6 +839,24 @@ export default function AppShell2() {
   const reduceMotion = useReducedMotion();
 
   const area = AREAS.find((item) => item.id === areaId) ?? AREAS[0];
+
+  // location.hash is the source of truth for area selection: sidebar links
+  // and ⌘K navigation both write the hash, and this listener keeps state in
+  // sync — which also makes areas deep-linkable and Back/Forward work.
+  useEffect(() => {
+    const onHash = () => {
+      const id = window.location.hash.slice(1);
+      if (AREAS.some((a) => a.id === id)) setAreaId(id);
+    };
+    onHash();
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  const selectArea = useCallback((id: string) => {
+    window.location.hash = id;
+    setAreaId(id);
+  }, []);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -901,7 +924,7 @@ export default function AppShell2() {
       className="relative flex h-full min-h-[720px] w-full overflow-hidden bg-white dark:bg-neutral-950"
     >
       <aside className="hidden shrink-0 lg:flex">
-        <NavigationFrame areaId={areaId} onSelectArea={setAreaId} />
+        <NavigationFrame areaId={areaId} onSelectArea={selectArea} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -1057,7 +1080,7 @@ export default function AppShell2() {
           >
             <NavigationFrame
               areaId={areaId}
-              onSelectArea={setAreaId}
+              onSelectArea={selectArea}
               onClose={closeDrawer}
             />
           </div>

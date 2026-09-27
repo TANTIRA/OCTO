@@ -167,6 +167,24 @@ const COMMANDS: Command[] = [
 
 const GROUP_ORDER = ["Recent", "Navigation", "Actions"];
 
+// Commands navigate by setting the area hash — the app shell owns area
+// selection and keeps location.hash in sync (deep links + back button).
+const AREA_BY_COMMAND: Record<string, string> = {
+  "go-overview": "overview",
+  "go-positions": "positions",
+  "go-assets": "assets",
+  "go-deals": "deals",
+  "go-recon": "recon",
+  "go-alerts": "alerts",
+  "recent-ic-memo": "deals",
+  "recent-break": "recon",
+  "do-position": "positions",
+  "do-prospect": "deals",
+  "do-recon": "recon",
+  "do-report": "overview",
+  "do-alert-rule": "alerts",
+};
+
 const EXIT_MS = 140;
 
 const FOCUSABLE =
@@ -268,11 +286,17 @@ export default function CommandMenu1() {
     return () => doc.removeEventListener("keydown", onKeyDown);
   }, [openMenu]);
 
-  const run = useCallback(() => {
-    setQuery("");
-    setActiveIndex(0);
-    close();
-  }, [close]);
+  const run = useCallback(
+    (command?: Command) => {
+      const target = command ?? activeCommand;
+      const area = target ? AREA_BY_COMMAND[target.id] : undefined;
+      if (area) window.location.hash = area;
+      setQuery("");
+      setActiveIndex(0);
+      close();
+    },
+    [activeCommand, close],
+  );
 
   const move = (delta: number) => {
     setActiveIndex((i) => {
@@ -303,7 +327,7 @@ export default function CommandMenu1() {
       case "Enter":
         if (!activeCommand) break;
         event.preventDefault();
-        run();
+        run(activeCommand);
         break;
     }
   };
@@ -449,7 +473,7 @@ export default function CommandMenu1() {
                                 onMouseDown={(event) => {
                                   event.preventDefault();
                                   setActiveIndex(index);
-                                  run();
+                                  run(command);
                                 }}
                                 className={cx(
                                   "flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-[var(--rb-r-lg,10px)] px-2.5 py-2 text-left transition-colors duration-150 active:bg-neutral-200 dark:active:bg-neutral-700",
