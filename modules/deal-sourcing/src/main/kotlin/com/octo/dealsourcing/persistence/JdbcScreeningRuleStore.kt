@@ -4,8 +4,6 @@ import com.octo.persistence.TenantScope
 import com.octo.persistence.admits
 import com.octo.persistence.scoped
 import java.sql.Connection
-import com.octo.dealsourcing.TenantScope
-import com.octo.dealsourcing.scoped
 import java.sql.ResultSet
 import java.util.UUID
 import javax.sql.DataSource
@@ -31,7 +29,6 @@ class JdbcScreeningRuleStore(
      * The `(tenant, rule)` advisory lock serializes two definers so a concurrent write can never
      * race the version read into a unique-violation 500.
      */
-    /** Appends version `max(version)+1` of [ruleId] for the tenant; older versions stay for audit. */
     fun define(
         tenantId: UUID,
         ruleId: String,
@@ -44,8 +41,6 @@ class JdbcScreeningRuleStore(
         require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
         return dataSource.scoped(scope) { connection ->
             lockRule(connection, tenantId, ruleId)
-    ): Int =
-        dataSource.scoped(scope) { connection ->
             val version =
                 connection
                     .prepareStatement(
@@ -155,20 +150,6 @@ class JdbcScreeningRuleStore(
                         order by rule_id, version desc
                     ) latest
                     where active
-
-    /** The newest active version of every `rule_id` the tenant holds — the screen's rule set. */
-    fun activeRules(
-        tenantId: UUID,
-        scope: TenantScope,
-    ): List<ScreeningRuleRow> =
-        dataSource.scoped(scope) { connection ->
-            connection
-                .prepareStatement(
-                    """
-                    select distinct on (rule_id) rule_id, version, name, criteria::text
-                    from mesta.screening_rule
-                    where tenant_id = ? and active
-                    order by rule_id, version desc
                     """.trimIndent(),
                 ).use { statement ->
                     statement.setObject(1, tenantId)

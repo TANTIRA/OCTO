@@ -20,10 +20,6 @@ data class ScreeningCriteria(
          * are ignored so the document can grow — the write path rejects them instead ([FIELD_NAMES])
          * because a typo'd constraint would otherwise degrade a rule to clearing everything;
          * malformed source names fail closed by throwing.
-        /**
-         * Reads the persisted document once JSON is flattened at the edge:
-         * `{"sectors": […], "regions": […], "sources": […]}` → field → allowed values. Unknown keys
-         * are ignored so the document can grow; malformed source names fail closed by throwing.
          */
         fun parse(fields: Map<String, List<String>>): ScreeningCriteria =
             ScreeningCriteria(
@@ -50,8 +46,6 @@ fun evaluateAll(
  * to parse counts as REVIEW, never a silent pass) use this directly.
  */
 fun combine(outcomes: List<Pair<String, ScreeningOutcome>>): ScreeningOutcome {
-): ScreeningOutcome {
-    val outcomes = rules.map { (name, criteria) -> name to criteria.evaluate(prospect) }
     val verdict =
         when {
             outcomes.any { it.second.verdict == ScreeningVerdict.REJECT } -> ScreeningVerdict.REJECT
