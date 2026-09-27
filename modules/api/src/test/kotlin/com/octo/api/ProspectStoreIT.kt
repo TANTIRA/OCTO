@@ -54,15 +54,12 @@ class ProspectStoreIT {
 
     /** A workflow_task row an event can name — V19's FK needs the task to exist. */
     private fun task(kind: String = "approval"): UUID =
-    /** A workflow_task row the `invested` event can name — V19's FK needs the task to exist. */
-    private fun task(): UUID =
         dataSource.connection.use { connection ->
             connection.createStatement().use { statement ->
                 statement
                     .executeQuery(
                         "insert into mesta.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
                             "values ('$kind', 'prospect', 'x', 'test', 'test', gen_random_uuid()) returning id",
-                            "values ('approval', 'prospect', 'x', 'test', 'test', gen_random_uuid()) returning id",
                     ).use { rows ->
                         rows.next()
                         rows.getObject(1, UUID::class.java)
@@ -111,9 +108,6 @@ class ProspectStoreIT {
                 ProspectStage.DUE_DILIGENCE,
                 taskId = checklist,
             ),
-        store.append(
-            p.id,
-            ProspectEvent.Advanced("analyst-1", t0.plusSeconds(2), ProspectStage.SCREENING, ProspectStage.DUE_DILIGENCE),
             provenance,
             TenantScope.All,
         )
