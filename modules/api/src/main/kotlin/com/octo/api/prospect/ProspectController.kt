@@ -10,8 +10,10 @@ import com.octo.dealsourcing.ProspectState
 import com.octo.dealsourcing.ScreeningCriteria
 import com.octo.dealsourcing.ScreeningOutcome
 import com.octo.dealsourcing.ScreeningVerdict
-import com.octo.dealsourcing.evaluateAll
+import com.octo.dealsourcing.combine
+import com.octo.dealsourcing.evaluate
 import com.octo.dealsourcing.next
+import com.octo.dealsourcing.persistence.IMPORT_BATCH_LIMIT
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
@@ -39,7 +41,12 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 import java.util.UUID
 
-/** The workflow tasks the IC gate opens, reads, and decides; `JdbcTaskStore` behind it in production. */
+/**
+ * The workflow tasks the IC gate opens, reads, and decides; `JdbcTaskStore` behind it in production.
+ * Tasks carry no tenant column (V5 predates tenant scoping) so this interface is deliberately
+ * unscoped — isolation comes from the edge, which only ever asks for tasks bound to a prospect whose
+ * tenant the caller already proved a role in. Do not reuse it for a lookup that skips that check.
+ */
 interface IcTasks {
     fun open(
         task: Task,
@@ -60,6 +67,16 @@ interface IcTasks {
         subjectType: String,
         subjectId: String,
     ): List<TaskState>
+
+    /**
+     * The atomic open [listForSubject]+[open] cannot guarantee: returns the task of [task]'s kind
+     * already open on the subject, or opens [task] — serialized per subject, so racing callers can
+     * never mint a duplicate. A returned id equal to `task.id` means this call did the opening.
+     */
+    fun openUnlessOpen(
+        task: Task,
+        provenance: TaskProvenance,
+    ): TaskState
 }
 
 /** The tenant's versioned screening rules; `JdbcScreeningRuleStore` behind it in production. */
@@ -75,17 +92,35 @@ interface ScreeningRules {
         scope: TenantScope,
     ): Int
 
+    /**
+     * Retires [ruleId] — a new, inactive version, so the rule leaves the active set without losing
+     * its history. Returns the version written (or the current version if already retired), or null
+     * when the tenant has no such rule.
+     */
+    fun retire(
+        tenantId: UUID,
+        ruleId: String,
+        actor: String,
+        provenance: ProspectProvenance,
+        scope: TenantScope,
+    ): Int?
+
     fun activeRules(
         tenantId: UUID,
         scope: TenantScope,
     ): List<ScreeningRuleRow>
 }
 
-/** One import call registers at most this many prospects — adapters page larger syncs themselves. */
-private const val IMPORT_BATCH_LIMIT = 500
-
 /** One pipeline read returns at most this many prospects — every read is bounded. */
 private const val PIPELINE_PAGE_LIMIT = 500
+
+/** Field-length bounds the edge enforces before any text reaches a `text` column. */
+private const val NAME_LIMIT = 300
+private const val FIELD_LIMIT = 200
+private const val DESCRIPTION_LIMIT = 10_000
+
+/** A screening rule constrains at most this many allowed values per field. */
+private const val CRITERIA_LIST_LIMIT = 100
 
 /** The shape V20 enforces on `screening_rule.rule_id`; the edge validates it before the store sees it. */
 private val RULE_ID_SHAPE = Regex("^[a-z0-9][a-z0-9._-]{0,63}$")
@@ -122,6 +157,9 @@ class ProspectController(
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        if (!fieldsBounded(body.name, body.sector, body.region, null, body.description)) {
+            return ResponseEntity.badRequest().build()
+        }
         val prospect =
             runCatching {
                 Prospect(
@@ -173,9 +211,12 @@ class ProspectController(
         if (body.items.isEmpty() || body.items.size > IMPORT_BATCH_LIMIT) {
             return ResponseEntity.badRequest().build()
         }
+        if (body.items.any { !fieldsBounded(it.name, it.sector, it.region, it.sourceRef, it.description) }) {
+            return ResponseEntity.badRequest().build()
+        }
         val registered = Instant.now()
         val items =
-            body.items.mapNotNull { item ->
+            body.items.map { item ->
                 runCatching {
                     Prospect(
                         id = UUID.randomUUID(),
@@ -281,10 +322,11 @@ class ProspectController(
             runCatching { current.next(event) }.getOrNull()
                 ?: return ResponseEntity.status(HttpStatus.CONFLICT).build()
         // The checklist opens before the event commits: if this open fails nothing is written
-        // anywhere, and a retried transition still finds the task it needs (deduped below).
-        if (landing.stage == ProspectStage.DUE_DILIGENCE) {
-            openDiligenceChecklist(id, jwt.subject)
-        }
+        // anywhere, and a retried transition still finds the task it needs (deduped below). If the
+        // append then loses its race, the checklist that was minted for the landing is cancelled —
+        // a checklist that survives without its transition is an orphan no one can ever close.
+        val checklist =
+            if (landing.stage == ProspectStage.DUE_DILIGENCE) openDiligenceChecklist(id, jwt.subject) else null
         val after =
             try {
                 prospects.append(
@@ -294,8 +336,10 @@ class ProspectController(
                     TenantScope.User(userId),
                 )
             } catch (_: NoSuchElementException) {
+                checklist?.let { cancelOrphanedChecklist(it, jwt.subject) }
                 return ResponseEntity.notFound().build()
             } catch (_: IllegalArgumentException) {
+                checklist?.let { cancelOrphanedChecklist(it, jwt.subject) }
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
         counter("deal.prospects.transitions", "to", to.wireValue)?.increment()
@@ -306,18 +350,15 @@ class ProspectController(
      * Landing in `due-diligence` needs an evidence checklist: an EVIDENCE_REQUEST task on the
      * prospect. Idempotent — a transition retried after the task opened but before the event
      * committed reuses the checklist it left; the task state machine tracks who gathers and
-     * closes it; diligence output (DDQ, docs) is a later slice.
+     * closes it; diligence output (DDQ, docs) is a later slice. Returns the id of the task it
+     * opened, or null when it reused one already in flight — only a task this call opened may be
+     * cancelled if the transition then fails.
      */
     private fun openDiligenceChecklist(
         prospectId: UUID,
         requester: String,
-    ) {
-        val existing =
-            tasks
-                .listForSubject("prospect", prospectId.toString())
-                .any { it.task.kind == TaskKind.EVIDENCE_REQUEST && !it.status.terminal }
-        if (existing) return
-        tasks.open(
+    ): UUID? {
+        val candidate =
             Task(
                 UUID.randomUUID(),
                 TaskKind.EVIDENCE_REQUEST,
@@ -325,9 +366,26 @@ class ProspectController(
                 prospectId.toString(),
                 requester,
                 Instant.now(),
-            ),
-            TaskProvenance("api", UUID.randomUUID()),
-        )
+            )
+        // One store call serializes the check and the insert — a racing transition can never mint
+        // a second checklist. The id is only safe to hand back for cancellation when this call
+        // inserted: a reused task belongs to an earlier attempt and outlives this failure.
+        val opened = tasks.openUnlessOpen(candidate, TaskProvenance("api", UUID.randomUUID()))
+        return opened.task.id.takeIf { it == candidate.id }
+    }
+
+    /** The transition did not land, so the checklist opened for it has no state to serve — cancelled, never left open. */
+    private fun cancelOrphanedChecklist(
+        taskId: UUID,
+        actor: String,
+    ) {
+        runCatching {
+            tasks.append(
+                taskId,
+                TaskEvent.Cancelled(actor, Instant.now(), "the due-diligence transition did not land"),
+                TaskProvenance("api", UUID.randomUUID()),
+            )
+        }
     }
 
     /**
@@ -357,18 +415,10 @@ class ProspectController(
         val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         if (current.stage != ProspectStage.IC_REVIEW) return ResponseEntity.status(HttpStatus.CONFLICT).build()
-        // Idempotent: an approval task already in flight is the review — repeated calls return it
-        // rather than minting a second approval on the same prospect. A decided task is history;
-        // asking again opens a fresh review.
-        val existing =
-            tasks
-                .listForSubject("prospect", id.toString())
-                .firstOrNull { it.task.kind == TaskKind.APPROVAL && !it.status.terminal }
-        if (existing != null) {
-            counter("deal.prospects.ic_reviews", "result", "in-flight")?.increment()
-            return ResponseEntity.ok(IcView(existing.task.id, existing.status.name.lowercase()))
-        }
-        val task =
+        // Idempotent and atomic: an approval task already in flight is the review — repeated or
+        // racing calls return it rather than minting a second approval on the same prospect. A
+        // decided task is history; asking again opens a fresh review.
+        val candidate =
             Task(
                 UUID.randomUUID(),
                 TaskKind.APPROVAL,
@@ -377,9 +427,13 @@ class ProspectController(
                 jwt.subject,
                 Instant.now(),
             )
-        tasks.open(task, TaskProvenance("api", UUID.randomUUID()))
+        val review = tasks.openUnlessOpen(candidate, TaskProvenance("api", UUID.randomUUID()))
+        if (review.task.id != candidate.id) {
+            counter("deal.prospects.ic_reviews", "result", "in-flight")?.increment()
+            return ResponseEntity.ok(IcView(review.task.id, review.status.name.lowercase()))
+        }
         counter("deal.prospects.ic_reviews", "result", "opened")?.increment()
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(IcView(task.id, TaskStatus.OPEN.name.lowercase()))
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(IcView(review.task.id, review.status.name.lowercase()))
     }
 
     /**
@@ -387,9 +441,10 @@ class ProspectController(
      * is this prospect: an IC member approves or returns the approval `ic-review` opened, a person
      * completes the evidence checklist due-diligence raised, the requester resubmits after rework.
      * The task state machine holds every rule — nobody decides an approval they requested, only the
-     * requester resubmits, terminal tasks accept nothing — so the edge binds the task to this
-     * prospect and the caller's role, and a rejected event answers 409 like a bad stage transition.
-     * A task on any other subject is 404: the route never reveals it exists.
+     * requester resubmits, terminal tasks accept nothing — and the edge adds the governance bar the
+     * role model states: gate decisions on an `approval` task (approve, reject, rework, cancel)
+     * need `approver` or `admin`, like compliance-rule writes (ComplianceController). A task on any
+     * other subject is 404: the route never reveals it exists.
      */
     @PostMapping("/api/v1/prospects/{id}/tasks/{taskId}")
     fun taskEvent(
@@ -403,11 +458,18 @@ class ProspectController(
             prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
-        tasks
-            .state(taskId)
-            ?.takeIf { it.task.subjectType == "prospect" && it.task.subjectId == id.toString() }
-            ?: return ResponseEntity.notFound().build()
+        val bound =
+            tasks
+                .state(taskId)
+                ?.takeIf { it.task.subjectType == "prospect" && it.task.subjectId == id.toString() }
+                ?: return ResponseEntity.notFound().build()
         val event = body.toEvent(jwt.subject) ?: return ResponseEntity.badRequest().build()
+        // A gate decision on an approval task is governance, not working access: the same
+        // approver-or-admin bar the compliance-rule endpoints apply (ComplianceController). Routing
+        // the task (assigned) or the requester resubmitting after rework stays a working action.
+        if (bound.task.kind == TaskKind.APPROVAL && event.isGateDecision() && role != TenantRole.APPROVER && role != TenantRole.ADMIN) {
+            return ResponseEntity.notFound().build()
+        }
         val after =
             try {
                 tasks.append(taskId, event, TaskProvenance("api", body.correlationId ?: UUID.randomUUID()))
@@ -422,8 +484,9 @@ class ProspectController(
 
     /**
      * `POST /api/v1/screening-rules` — appends the next version of a tenant's screening rule (V20).
-     * Criteria are validated against the domain model at the boundary: an unknown `sources` value
-     * fails closed with 400 rather than persisting a rule that can never match.
+     * Writing rules is governance, so like `POST /compliance/rules` it needs `approver` or `admin`.
+     * Criteria are validated against the domain model at the boundary: an unknown field name or a
+     * bad `sources` value fails closed with 400 rather than persisting a rule that can never match.
      */
     @PostMapping("/api/v1/screening-rules")
     fun defineRule(
@@ -432,8 +495,17 @@ class ProspectController(
     ): ResponseEntity<RuleView> {
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
-        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
-        if (!RULE_ID_SHAPE.matches(body.ruleId) || body.name.isBlank()) return ResponseEntity.badRequest().build()
+        // Rules are governance — the same approver-or-admin bar `POST /compliance/rules` applies.
+        if (role != TenantRole.APPROVER && role != TenantRole.ADMIN) return ResponseEntity.notFound().build()
+        if (!RULE_ID_SHAPE.matches(body.ruleId) || body.name.isBlank() || body.name.length > NAME_LIMIT) {
+            return ResponseEntity.badRequest().build()
+        }
+        // Unknown keys are refused, not ignored — a typo'd field would otherwise persist a rule
+        // that silently clears everything it screens.
+        if (body.criteria.keys.any { it !in ScreeningCriteria.FIELD_NAMES }) return ResponseEntity.badRequest().build()
+        if (body.criteria.values.any { values -> values.size > CRITERIA_LIST_LIMIT || values.any { it.length > FIELD_LIMIT } }) {
+            return ResponseEntity.badRequest().build()
+        }
         runCatching { ScreeningCriteria.parse(body.criteria) }
             .getOrElse { return ResponseEntity.badRequest().build() }
         val version =
@@ -448,6 +520,33 @@ class ProspectController(
             )
         counter("deal.prospects.rules_defined")?.increment()
         return ResponseEntity.status(HttpStatus.CREATED).body(RuleView(body.ruleId, version))
+    }
+
+    /**
+     * `POST /api/v1/screening-rules/{ruleId}/retire` — takes a rule out of the active set the
+     * append-only way: a new version marked inactive (V20). The criteria that governed past
+     * verdicts stay auditable, a later define re-activates the rule, and an unknown rule answers
+     * 404 like every other miss here.
+     */
+    @PostMapping("/api/v1/screening-rules/{ruleId}/retire")
+    fun retireRule(
+        @PathVariable ruleId: String,
+        @RequestBody body: RetireRequest,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<RuleView> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role != TenantRole.APPROVER && role != TenantRole.ADMIN) return ResponseEntity.notFound().build()
+        val version =
+            rules.retire(
+                body.tenantId,
+                ruleId,
+                jwt.subject,
+                ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
+                TenantScope.User(userId),
+            ) ?: return ResponseEntity.notFound().build()
+        counter("deal.prospects.rules_retired")?.increment()
+        return ResponseEntity.ok(RuleView(ruleId, version))
     }
 
     /**
@@ -488,27 +587,22 @@ class ProspectController(
                     return ResponseEntity.status(HttpStatus.CONFLICT).build()
                 }
             ScreeningVerdict.REVIEW -> {
-                // Idempotent like ic-review: screening an already-flagged prospect returns the
-                // review task a person is working, not another copy of the same ask.
+                // Idempotent like ic-review, and atomic: screening an already-flagged prospect
+                // returns the review task a person is working, never a second copy of the same ask.
                 val taskId =
                     tasks
-                        .listForSubject("prospect", id.toString())
-                        .firstOrNull { it.task.kind == TaskKind.REVIEW && !it.status.terminal }
-                        ?.task
-                        ?.id
-                        ?: run {
-                            val task =
-                                Task(
-                                    UUID.randomUUID(),
-                                    TaskKind.REVIEW,
-                                    "prospect",
-                                    id.toString(),
-                                    jwt.subject,
-                                    Instant.now(),
-                                )
-                            tasks.open(task, TaskProvenance("api", UUID.randomUUID()))
-                            task.id
-                        }
+                        .openUnlessOpen(
+                            Task(
+                                UUID.randomUUID(),
+                                TaskKind.REVIEW,
+                                "prospect",
+                                id.toString(),
+                                jwt.subject,
+                                Instant.now(),
+                            ),
+                            TaskProvenance("api", UUID.randomUUID()),
+                        ).task
+                        .id
                 counter("deal.prospects.screens", "verdict", outcome.verdict.name.lowercase())?.increment()
                 return ResponseEntity.ok(
                     ScreenView(outcome.verdict.name.lowercase(), outcome.reasons, current.stage.wireValue, taskId),
@@ -532,17 +626,48 @@ class ProspectController(
                 listOf("no active screening rule for the tenant"),
             )
         }
-        val parsed =
+        // A rule row that fails to parse is REVIEW, never a silent pass: writes are validated at
+        // the boundary, so an unreadable row means out-of-band damage a person has to look at.
+        val outcomes =
             rows.map { row ->
-                val fields: Map<String, List<String>> =
-                    json.readValue(
-                        row.criteria,
-                        object : com.fasterxml.jackson.core.type.TypeReference<Map<String, List<String>>>() {},
-                    )
-                row.name to ScreeningCriteria.parse(fields)
+                row.name to
+                    runCatching {
+                        val fields: Map<String, List<String>> =
+                            json.readValue(
+                                row.criteria,
+                                object : com.fasterxml.jackson.core.type.TypeReference<Map<String, List<String>>>() {},
+                            )
+                        ScreeningCriteria.parse(fields).evaluate(prospect)
+                    }.getOrElse {
+                        ScreeningOutcome(ScreeningVerdict.REVIEW, listOf("the stored criteria could not be read"))
+                    }
             }
-        return evaluateAll(prospect, parsed)
+        return combine(outcomes)
     }
+
+    /**
+     * Whether the request's prospect fields fit their bounds — unbounded text is how one request
+     * becomes an oversized write; blank names and the domain's own requires stay the machine's job.
+     */
+    private fun fieldsBounded(
+        name: String,
+        sector: String?,
+        region: String?,
+        sourceRef: String?,
+        description: String?,
+    ): Boolean =
+        name.isNotBlank() && name.length <= NAME_LIMIT &&
+            sector.fits() && region.fits() && sourceRef.fits() && (description == null || description.length <= DESCRIPTION_LIMIT)
+
+    private fun String?.fits() = this == null || length <= FIELD_LIMIT
+
+    /**
+     * The events that end or redirect an approval task — the gate decisions only `approver`/`admin`
+     * may post. `assigned` routes the task and `resubmitted` is already requester-locked by the
+     * machine, so neither is a decision.
+     */
+    private fun TaskEvent.isGateDecision() =
+        this is TaskEvent.Approved || this is TaskEvent.Rejected || this is TaskEvent.ReworkRequested || this is TaskEvent.Cancelled
 
     private fun roleIn(
         userId: UUID,
@@ -671,6 +796,11 @@ class ProspectController(
         val ruleId: String,
         val name: String,
         val criteria: Map<String, List<String>>,
+        val correlationId: UUID? = null,
+    )
+
+    data class RetireRequest(
+        val tenantId: UUID,
         val correlationId: UUID? = null,
     )
 

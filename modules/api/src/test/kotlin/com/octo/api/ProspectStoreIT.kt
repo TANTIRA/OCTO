@@ -308,6 +308,79 @@ class ProspectStoreIT {
         assertThat(active.single { it.ruleId == "mandate" }.name).isEqualTo("Mandate v2")
     }
 
+    @Test
+    fun `a hand-written event row without its stages is refused by the database`() {
+        val tenantId = tenant()
+        val p = prospect(tenantId)
+        store.create(p, "analyst-1", provenance, TenantScope.All)
+
+        // V22: the columns are NOT NULL — a CHECK that only lists allowed values would still pass NULL.
+        for (stages in listOf(null to "screening", "sourced" to null, null to null)) {
+            assertThatThrownBy {
+                insertEvent(p.id, stages.first, stages.second)
+            }.isInstanceOf(SQLException::class.java)
+        }
+        // and a stage_from naming a terminal stage is refused too — nothing can leave one
+        assertThatThrownBy {
+            insertEvent(p.id, "passed", "screening")
+        }.isInstanceOf(SQLException::class.java)
+    }
+
+    /** A raw event insert that bypasses the Kotlin machine — what the V22 constraints exist to refuse. */
+    private fun insertEvent(
+        prospectId: UUID,
+        stageFrom: String?,
+        stageTo: String?,
+    ) {
+        dataSource.connection.use { connection ->
+            connection
+                .prepareStatement(
+                    """
+                    insert into mesta.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, occurred_at, correlation_id)
+                    values (?, 'advanced', ?, ?, 'someone', now(), gen_random_uuid())
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setObject(1, prospectId)
+                    statement.setString(2, stageFrom)
+                    statement.setString(3, stageTo)
+                    statement.executeUpdate()
+                }
+        }
+    }
+
+    @Test
+    fun `the store itself bounds an import batch`() {
+        val tenantId = tenant()
+        val batch = (1..501).map { prospect(tenantId).copy(name = "p$it") }
+        assertThatThrownBy {
+            store.importBatch(batch, "crm-sync", provenance, TenantScope.All)
+        }.isInstanceOf(IllegalArgumentException::class.java)
+        assertThatThrownBy {
+            store.importBatch(emptyList(), "crm-sync", provenance, TenantScope.All)
+        }.isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `a retired rule leaves the active set and a later define re-activates it`() {
+        val rules = JdbcScreeningRuleStore(dataSource)
+        val tenantId = tenant()
+        assertThat(rules.retire(tenantId, "mandate", "admin", provenance, TenantScope.All)).isNull()
+
+        rules.define(tenantId, "mandate", "Mandate", """{"sectors":["saas"]}""", "admin", provenance, TenantScope.All)
+        rules.define(tenantId, "esg", "ESG", "{}", "admin", provenance, TenantScope.All)
+
+        // the tombstone is a version like any other; the screen no longer sees the rule at all
+        assertThat(rules.retire(tenantId, "mandate", "admin", provenance, TenantScope.All)).isEqualTo(2)
+        assertThat(rules.activeRules(tenantId, TenantScope.All).map { it.ruleId }).containsExactly("esg")
+        // retiring an already-retired rule is idempotent — no extra tombstone rows
+        assertThat(rules.retire(tenantId, "mandate", "admin", provenance, TenantScope.All)).isEqualTo(2)
+        // a later version re-activates
+        assertThat(
+            rules.define(tenantId, "mandate", "Mandate v3", """{"sectors":["saas","logistics"]}""", "admin", provenance, TenantScope.All),
+        ).isEqualTo(3)
+        assertThat(rules.activeRules(tenantId, TenantScope.All).map { it.ruleId }).containsExactlyInAnyOrder("mandate", "esg")
+    }
+
     private companion object {
         @Container
         @JvmStatic

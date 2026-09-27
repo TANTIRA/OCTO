@@ -28,9 +28,10 @@ data class ProspectProvenance(
 /**
  * JDBC access to `mesta.prospect` and `mesta.prospect_event` (V18). A prospect's stage is never
  * stored: [load] replays its events through the state machine, and [append] validates a new event
- * against that replay before inserting it — the `JdbcAccessStore`/`JdbcTaskStore` contract. Both
- * run under a per-prospect advisory lock, so two writers to one prospect serialize and neither can
- * interleave an event into a history the other already replayed.
+ * against that replay before inserting it — the `JdbcAccessStore`/`JdbcTaskStore` contract. Writers
+ * serialize on a per-prospect advisory lock so neither can interleave an event into a history the
+ * other already replayed; readers take no lock — events are append-only and each statement sees a
+ * committed snapshot, so a replay can never observe a half-written transition.
  *
  * Every method takes an explicit [TenantScope] (#197): request-path calls carry the caller's
  * `User` scope and platform scans carry `All`; nothing touches tenant rows unscoped.
@@ -82,6 +83,9 @@ class JdbcProspectStore(
         provenance: ProspectProvenance,
         scope: TenantScope,
     ): List<UUID> {
+        require(prospects.isNotEmpty() && prospects.size <= IMPORT_BATCH_LIMIT) {
+            "an import batch holds 1..$IMPORT_BATCH_LIMIT prospects, got ${prospects.size}"
+        }
         prospects.forEach { require(scope.admits(it.tenantId)) { "prospect tenant ${it.tenantId} is outside the scoped tenants" } }
         return dataSource.scoped(scope) { connection ->
             val sql =
@@ -116,11 +120,16 @@ class JdbcProspectStore(
         }
     }
 
-    /** The prospect's state after every stored event, or null when no prospect has that id. */
+    /**
+     * The prospect's state after every stored event, or null when no prospect has that id. No
+     * advisory lock: the event log is append-only and the transaction sees committed rows only, so
+     * the worst a read can observe is an append that landed between the two selects — a consistent
+     * newer state, never a torn one.
+     */
     override fun load(
         id: UUID,
         scope: TenantScope,
-    ): ProspectState? = dataSource.scoped(scope) { connection -> replayLocked(connection, id, scope) }
+    ): ProspectState? = dataSource.scoped(scope) { connection -> replayUnlocked(connection, id, scope) }
 
     /** The raw event rows in append order — the audit trail [load]'s replay summarizes. */
     override fun history(
@@ -231,6 +240,14 @@ class JdbcProspectStore(
                 statement.setObject(1, prospectId)
                 statement.executeQuery().close()
             }
+        return replayUnlocked(connection, prospectId, scope)
+    }
+
+    private fun replayUnlocked(
+        connection: Connection,
+        prospectId: UUID,
+        scope: TenantScope,
+    ): ProspectState? {
         val prospect = selectProspect(connection, prospectId, scope) ?: return null
         return replay(prospect, selectEvents(connection, prospectId))
     }
@@ -333,8 +350,20 @@ class JdbcProspectStore(
         val stageFrom = getString(2)?.let(ProspectStage::fromWireValue)
         val stageTo = getString(3)?.let(ProspectStage::fromWireValue)
         return when (val type = getString(1)) {
-            "advanced" -> ProspectEvent.Advanced(actor, at, stageFrom!!, stageTo!!)
-            "passed" -> ProspectEvent.Passed(actor, at, stageFrom!!, getString(5))
+            "advanced" ->
+                ProspectEvent.Advanced(
+                    actor,
+                    at,
+                    stageFrom ?: error("prospect_event 'advanced' row is missing stage_from"),
+                    stageTo ?: error("prospect_event 'advanced' row is missing stage_to"),
+                )
+            "passed" ->
+                ProspectEvent.Passed(
+                    actor,
+                    at,
+                    stageFrom ?: error("prospect_event 'passed' row is missing stage_from"),
+                    getString(5),
+                )
             "invested" -> ProspectEvent.Invested(actor, at, getString(5), getObject(7, UUID::class.java))
             else -> error("unknown prospect event type $type")
         }

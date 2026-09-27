@@ -11,10 +11,15 @@ data class ScreeningCriteria(
     val sources: Set<ProspectSource>? = null,
 ) {
     companion object {
+        /** The criteria document's fields — writes naming anything else are refused at the edge. */
+        val FIELD_NAMES = setOf("sectors", "regions", "sources")
+
         /**
          * Reads the persisted document once JSON is flattened at the edge:
          * `{"sectors": […], "regions": […], "sources": […]}` → field → allowed values. Unknown keys
-         * are ignored so the document can grow; malformed source names fail closed by throwing.
+         * are ignored so the document can grow — the write path rejects them instead ([FIELD_NAMES])
+         * because a typo'd constraint would otherwise degrade a rule to clearing everything;
+         * malformed source names fail closed by throwing.
          */
         fun parse(fields: Map<String, List<String>>): ScreeningCriteria =
             ScreeningCriteria(
@@ -33,8 +38,14 @@ data class ScreeningCriteria(
 fun evaluateAll(
     prospect: Prospect,
     rules: List<Pair<String, ScreeningCriteria>>,
-): ScreeningOutcome {
-    val outcomes = rules.map { (name, criteria) -> name to criteria.evaluate(prospect) }
+): ScreeningOutcome = combine(rules.map { (name, criteria) -> name to criteria.evaluate(prospect) })
+
+/**
+ * Folds each rule's outcome into one verdict — REJECT wins over REVIEW over CLEAR — with reasons
+ * prefixed by their rule. Callers that evaluate per rule themselves (e.g. a stored rule that fails
+ * to parse counts as REVIEW, never a silent pass) use this directly.
+ */
+fun combine(outcomes: List<Pair<String, ScreeningOutcome>>): ScreeningOutcome {
     val verdict =
         when {
             outcomes.any { it.second.verdict == ScreeningVerdict.REJECT } -> ScreeningVerdict.REJECT

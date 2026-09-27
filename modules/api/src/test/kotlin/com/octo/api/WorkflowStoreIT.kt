@@ -109,6 +109,49 @@ class WorkflowStoreIT {
     }
 
     @Test
+    fun `openUnlessOpen dedupes per subject and kind, and a terminal task is history`() {
+        val subject = "prospect-${UUID.randomUUID().toString().take(8)}"
+        val first = newTask(subject = subject)
+        val second = newTask(subject = subject)
+        val review = newTask(TaskKind.REVIEW, subject = subject)
+        val otherSubject = newTask(subject = "prospect-other")
+
+        // the open in flight is the open — a second ask returns it, a different kind or subject does not
+        assertThat(store.openUnlessOpen(first, provenance).task.id).isEqualTo(first.id)
+        assertThat(store.openUnlessOpen(second, provenance).task.id).isEqualTo(first.id)
+        assertThat(store.openUnlessOpen(review, provenance).task.id).isEqualTo(review.id)
+        assertThat(store.openUnlessOpen(otherSubject, provenance).task.id).isEqualTo(otherSubject.id)
+        assertThat(store.listForSubject("valuation-event", subject).map { it.task.id })
+            .containsExactlyInAnyOrder(first.id, review.id)
+
+        // once decided, asking again opens a fresh review rather than resurrecting the old one
+        store.append(first.id, TaskEvent.Approved("bob", at(1), "done"), provenance)
+        val third = newTask(subject = subject)
+        assertThat(store.openUnlessOpen(third, provenance).task.id).isEqualTo(third.id)
+    }
+
+    @Test
+    fun `two writers racing to open on one subject cannot both mint a task`() {
+        val subject = "prospect-${UUID.randomUUID().toString().take(8)}"
+        val start = CountDownLatch(1)
+        val pool = Executors.newFixedThreadPool(2)
+        val outcomes =
+            listOf(newTask(subject = subject), newTask(subject = subject)).map { candidate ->
+                pool.submit<TaskState> {
+                    start.await()
+                    store.openUnlessOpen(candidate, provenance)
+                }
+            }
+        start.countDown()
+        val states = outcomes.map { it.get(30, TimeUnit.SECONDS) }
+        pool.shutdown()
+
+        // both callers get a task back — the same one, because the lock serialized the opens
+        assertThat(states.map { it.task.id }.toSet()).hasSize(1)
+        assertThat(store.listForSubject("valuation-event", subject)).hasSize(1)
+    }
+
+    @Test
     fun `two writers racing to decide one task cannot both succeed`() {
         val task = newTask()
         store.create(task, provenance)

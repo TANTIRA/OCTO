@@ -90,6 +90,11 @@ class ProspectConfiguration {
                 subjectType: String,
                 subjectId: String,
             ) = store.listForSubject(subjectType, subjectId)
+
+            override fun openUnlessOpen(
+                task: Task,
+                provenance: TaskProvenance,
+            ) = store.openUnlessOpen(task, provenance)
         }
     }
 
@@ -106,6 +111,14 @@ class ProspectConfiguration {
                 provenance: ProspectProvenance,
                 scope: TenantScope,
             ) = store.define(tenantId, ruleId, name, criteria, actor, provenance, scope)
+
+            override fun retire(
+                tenantId: UUID,
+                ruleId: String,
+                actor: String,
+                provenance: ProspectProvenance,
+                scope: TenantScope,
+            ) = store.retire(tenantId, ruleId, actor, provenance, scope)
 
             override fun activeRules(
                 tenantId: UUID,

@@ -8,6 +8,9 @@ import com.octo.persistence.TenantScope
 import java.time.Instant
 import java.util.UUID
 
+/** One import call registers at most this many prospects — adapters page larger syncs themselves. */
+const val IMPORT_BATCH_LIMIT = 500
+
 /** One stored event row — the audit trail view: seq ordering, actor, rationale, provenance, IC task. */
 data class ProspectEventRow(
     val seq: Long,
@@ -34,7 +37,9 @@ interface ProspectStore {
 
     /**
      * Bulk registration for source adapters (CRM sync): a `(tenant, source, source_ref)` that
-     * already exists is a no-op, not a duplicate. Returns the ids actually inserted.
+     * already exists is a no-op, not a duplicate. Returns the ids actually inserted. The store
+     * enforces [IMPORT_BATCH_LIMIT] itself so a caller outside the api edge can still never hold
+     * an unbounded transaction open.
      */
     fun importBatch(
         prospects: List<Prospect>,

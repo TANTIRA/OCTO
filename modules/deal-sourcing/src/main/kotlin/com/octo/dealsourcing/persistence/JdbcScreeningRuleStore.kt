@@ -3,6 +3,7 @@ package com.octo.dealsourcing.persistence
 import com.octo.persistence.TenantScope
 import com.octo.persistence.admits
 import com.octo.persistence.scoped
+import java.sql.Connection
 import java.sql.ResultSet
 import java.util.UUID
 import javax.sql.DataSource
@@ -39,14 +40,7 @@ class JdbcScreeningRuleStore(
     ): Int {
         require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
         return dataSource.scoped(scope) { connection ->
-            connection
-                .prepareStatement(
-                    "select pg_advisory_xact_lock(hashtextextended('mesta.screening_rule:' || ?::text || ':' || ?::text, 0))",
-                ).use { statement ->
-                    statement.setObject(1, tenantId)
-                    statement.setString(2, ruleId)
-                    statement.executeQuery().close()
-                }
+            lockRule(connection, tenantId, ruleId)
             val version =
                 connection
                     .prepareStatement(
@@ -79,7 +73,66 @@ class JdbcScreeningRuleStore(
         }
     }
 
-    /** The newest active version of every `rule_id` the tenant holds — the screen's rule set. */
+    /**
+     * Appends an inactive version of [ruleId] — the append-only way a rule leaves the active set:
+     * the row is a new version like any other, so the criteria that retired stay auditable and a
+     * later [define] re-activates the rule. Returns the version written, the current version when
+     * the rule is already retired (idempotent), or null when the tenant holds no such rule.
+     */
+    fun retire(
+        tenantId: UUID,
+        ruleId: String,
+        actor: String,
+        provenance: ProspectProvenance,
+        scope: TenantScope,
+    ): Int? {
+        require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
+        return dataSource.scoped(scope) { connection ->
+            lockRule(connection, tenantId, ruleId)
+            val latest =
+                connection
+                    .prepareStatement(
+                        "select version, name, criteria::text, active from mesta.screening_rule where tenant_id = ? and rule_id = ? order by version desc limit 1",
+                    ).use { statement ->
+                        statement.setObject(1, tenantId)
+                        statement.setString(2, ruleId)
+                        statement.executeQuery().use { rows ->
+                            if (!rows.next()) return@scoped null
+                            Latest(
+                                version = rows.getInt(1),
+                                name = rows.getString(2),
+                                criteria = rows.getString(3),
+                                active = rows.getBoolean(4),
+                            )
+                        }
+                    }
+            if (!latest.active) return@scoped latest.version
+            val version = latest.version + 1
+            connection
+                .prepareStatement(
+                    """
+                    insert into mesta.screening_rule (tenant_id, rule_id, version, name, criteria, active, actor, correlation_id)
+                    values (?, ?, ?, ?, ?::jsonb, false, ?, ?)
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setObject(1, tenantId)
+                    statement.setString(2, ruleId)
+                    statement.setInt(3, version)
+                    statement.setString(4, latest.name)
+                    statement.setString(5, latest.criteria)
+                    statement.setString(6, actor)
+                    statement.setObject(7, provenance.correlationId)
+                    statement.executeUpdate()
+                }
+            version
+        }
+    }
+
+    /**
+     * The newest version of every `rule_id` the tenant holds, keeping only the ones still active —
+     * the screen's rule set. The `distinct on` picks the newest version first; a retire tombstone
+     * therefore removes the rule rather than resurrecting its last active version.
+     */
     fun activeRules(
         tenantId: UUID,
         scope: TenantScope,
@@ -89,10 +142,14 @@ class JdbcScreeningRuleStore(
             connection
                 .prepareStatement(
                     """
-                    select distinct on (rule_id) rule_id, version, name, criteria::text
-                    from mesta.screening_rule
-                    where tenant_id = ? and active
-                    order by rule_id, version desc
+                    select rule_id, version, name, criteria::text
+                    from (
+                        select distinct on (rule_id) rule_id, version, name, criteria, active
+                        from mesta.screening_rule
+                        where tenant_id = ?
+                        order by rule_id, version desc
+                    ) latest
+                    where active
                     """.trimIndent(),
                 ).use { statement ->
                     statement.setObject(1, tenantId)
@@ -105,6 +162,28 @@ class JdbcScreeningRuleStore(
                     }
                 }
         }
+    }
+
+    private class Latest(
+        val version: Int,
+        val name: String,
+        val criteria: String,
+        val active: Boolean,
+    )
+
+    private fun lockRule(
+        connection: Connection,
+        tenantId: UUID,
+        ruleId: String,
+    ) {
+        connection
+            .prepareStatement(
+                "select pg_advisory_xact_lock(hashtextextended('mesta.screening_rule:' || ?::text || ':' || ?::text, 0))",
+            ).use { statement ->
+                statement.setObject(1, tenantId)
+                statement.setString(2, ruleId)
+                statement.executeQuery().close()
+            }
     }
 
     private fun ResultSet.toRuleRow() =

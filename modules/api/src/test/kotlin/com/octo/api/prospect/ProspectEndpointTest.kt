@@ -50,6 +50,7 @@ import com.octo.workflow.next as nextTask
 class ProspectEndpointTest {
     private val member = UUID.randomUUID()
     private val approver = UUID.randomUUID()
+    private val approver2 = UUID.randomUUID()
     private val viewer = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val store = FakeProspectStore()
@@ -64,7 +65,8 @@ class ProspectEndpointTest {
                 Supplier {
                     TenantDirectory { id ->
                         when (id) {
-                            member, approver -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
+                            member -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
+                            approver, approver2 -> listOf(TenantAccess(tenantId, "acme", TenantRole.APPROVER))
                             viewer -> listOf(TenantAccess(tenantId, "acme", TenantRole.VIEWER))
                             else -> emptyList()
                         }
@@ -241,7 +243,70 @@ class ProspectEndpointTest {
     }
 
     @Test
-    fun `an IC task is decided through the task endpoint and the requester cannot decide it`() {
+    fun `an IC task is decided by an approver, never its requester, never an analyst`() {
+        run { mvc ->
+            val id = mvc.registered()
+            for (stage in listOf("screening", "due-diligence", "ic-review")) {
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/transition")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"to":"$stage"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+            }
+            mvc // the approver asks for the review — anyone non-viewer may ask
+                .perform(
+                    post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isAccepted)
+            val taskId = tasks.opened().single { it.kind == TaskKind.APPROVAL }.id
+
+            mvc // the requester can never decide their own approval — segregation of duties
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved"}""")
+                        .with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isConflict)
+            mvc // an analyst lacks the gate role — deciding needs approver or admin
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc // a viewer holds no write on the task
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved"}""")
+                        .with(jwt().jwt { it.subject(viewer.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved","rationale":"conviction"}""")
+                        .with(jwt().jwt { it.subject(approver2.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.taskId").value(taskId.toString()))
+                .andExpect(jsonPath("$.kind").value("approval"))
+                .andExpect(jsonPath("$.status").value("approved"))
+                .andExpect(jsonPath("$.decidedBy").value(approver2.toString()))
+
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"invested","rationale":"corridor thesis","taskId":"$taskId"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.stage").value("invested"))
+        }
+    }
+
+    @Test
+    fun `gate events on an approval task are approver-only while routing stays a working action`() {
         run { mvc ->
             val id = mvc.registered()
             for (stage in listOf("screening", "due-diligence", "ic-review")) {
@@ -259,40 +324,23 @@ class ProspectEndpointTest {
                 ).andExpect(status().isAccepted)
             val taskId = tasks.opened().single { it.kind == TaskKind.APPROVAL }.id
 
-            mvc // the requester can never decide their own approval — segregation of duties
+            for (event in listOf("approved", "rejected", "rework-requested", "cancelled")) {
+                mvc // every gate decision is refused for an analyst — the rationale is valid so it is the role that fails
+                    .perform(
+                        post("/api/v1/prospects/$id/tasks/$taskId")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"event":"$event","rationale":"r"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isNotFound)
+            }
+            mvc // assigning is routing, not deciding — a working action stays open to an analyst
                 .perform(
                     post("/api/v1/prospects/$id/tasks/$taskId")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"event":"approved"}""")
-                        .with(jwt().jwt { it.subject(member.toString()) }),
-                ).andExpect(status().isConflict)
-            mvc // a viewer holds no write on the task
-                .perform(
-                    post("/api/v1/prospects/$id/tasks/$taskId")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"event":"approved"}""")
-                        .with(jwt().jwt { it.subject(viewer.toString()) }),
-                ).andExpect(status().isNotFound)
-            mvc
-                .perform(
-                    post("/api/v1/prospects/$id/tasks/$taskId")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"event":"approved","rationale":"conviction"}""")
-                        .with(jwt().jwt { it.subject(approver.toString()) }),
-                ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.taskId").value(taskId.toString()))
-                .andExpect(jsonPath("$.kind").value("approval"))
-                .andExpect(jsonPath("$.status").value("approved"))
-                .andExpect(jsonPath("$.decidedBy").value(approver.toString()))
-
-            mvc
-                .perform(
-                    post("/api/v1/prospects/$id/transition")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"to":"invested","rationale":"corridor thesis","taskId":"$taskId"}""")
+                        .content("""{"event":"assigned","assignee":"ic-chair"}""")
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.stage").value("invested"))
+                .andExpect(jsonPath("$.assignee").value("ic-chair"))
         }
     }
 
@@ -310,12 +358,12 @@ class ProspectEndpointTest {
                     ).andExpect(status().isOk)
             }
             val taskId = tasks.opened().single().id
-            mvc
+            mvc // an analyst completes a working task — the gate applies to approvals, not checklists
                 .perform(
                     post("/api/v1/prospects/$id/tasks/$taskId")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"event":"completed","rationale":"DDQ received"}""")
-                        .with(jwt().jwt { it.subject(approver.toString()) }),
+                        .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.kind").value("evidence-request"))
                 .andExpect(jsonPath("$.status").value("completed"))
@@ -376,7 +424,7 @@ class ProspectEndpointTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
                             """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sectors":["saas"]}}""",
-                        ).with(jwt().jwt { it.subject(member.toString()) }),
+                        ).with(jwt().jwt { it.subject(approver.toString()) }),
                 ).andExpect(status().isCreated)
             val id = mvc.registered()
             mvc
@@ -492,7 +540,7 @@ class ProspectEndpointTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
                             """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sectors":["saas"]}}""",
-                        ).with(jwt().jwt { it.subject(member.toString()) }),
+                        ).with(jwt().jwt { it.subject(approver.toString()) }),
                 ).andExpect(status().isCreated)
                 .andExpect(jsonPath("$.version").value(1))
             val id = mvc.registered()
@@ -704,7 +752,7 @@ class ProspectEndpointTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(
                                 """{"tenantId":"$tenantId","ruleId":"$bad","name":"Mandate","criteria":{}}""",
-                            ).with(jwt().jwt { it.subject(member.toString()) }),
+                            ).with(jwt().jwt { it.subject(approver.toString()) }),
                     ).andExpect(status().isBadRequest)
             }
             mvc // inside the shape still lands
@@ -713,8 +761,88 @@ class ProspectEndpointTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
                             """{"tenantId":"$tenantId","ruleId":"esg.exclusions-2026","name":"ESG","criteria":{}}""",
-                        ).with(jwt().jwt { it.subject(member.toString()) }),
+                        ).with(jwt().jwt { it.subject(approver.toString()) }),
                 ).andExpect(status().isCreated)
+        }
+    }
+
+    @Test
+    fun `rule writes are governance — an analyst gets 404 where an approver lands the write`() {
+        run { mvc ->
+            val define =
+                """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sectors":["saas"]}}"""
+            mvc
+                .perform(
+                    post("/api/v1/screening-rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(define)
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/screening-rules/mandate/retire")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/screening-rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(define)
+                        .with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isCreated)
+            mvc
+                .perform(
+                    post("/api/v1/screening-rules/mandate/retire")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId"}""")
+                        .with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isOk)
+        }
+    }
+
+    @Test
+    fun `a criteria document naming an unknown field or an oversized input is a 400`() {
+        run { mvc ->
+            val oversized = (1..101).joinToString(",") { "\"s$it\"" }
+            val bodies =
+                listOf(
+                    // 'sector' is a typo of 'sectors' — ignored at read, so refused at write
+                    """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sector":["saas"]}}""",
+                    """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sectors":[$oversized]}}""",
+                    """{"tenantId":"$tenantId","ruleId":"mandate","name":"${"n".repeat(301)}","criteria":{}}""",
+                )
+            for (body in bodies) {
+                mvc
+                    .perform(
+                        post("/api/v1/screening-rules")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body)
+                            .with(jwt().jwt { it.subject(approver.toString()) }),
+                    ).andExpect(status().isBadRequest)
+            }
+        }
+    }
+
+    @Test
+    fun `a prospect registration or import item beyond its field bounds is a 400`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/prospects")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId","name":"${"n".repeat(301)}","source":"crm"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """{"tenantId":"$tenantId","items":[{"name":"A","source":"crm","sourceRef":"${"r".repeat(201)}"}]}""",
+                        ).with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
         }
     }
 
@@ -779,6 +907,21 @@ class ProspectEndpointTest {
                 .filter { it.task.subjectType == subjectType && it.task.subjectId == subjectId }
                 .sortedBy { it.task.createdAt }
 
+        /** Same dedupe contract as the store: a task of the kind already open wins, else this opens. */
+        override fun openUnlessOpen(
+            task: Task,
+            provenance: TaskProvenance,
+        ): TaskState =
+            states.values
+                .firstOrNull {
+                    it.task.subjectType == task.subjectType && it.task.subjectId == task.subjectId &&
+                        it.task.kind == task.kind && !it.status.terminal
+                }
+                ?: run {
+                    open(task, provenance)
+                    states.getValue(task.id)
+                }
+
         fun openAt(
             taskId: UUID,
             prospectId: UUID,
@@ -796,9 +939,106 @@ class ProspectEndpointTest {
         fun opened(): List<Task> = states.values.map { it.task }
     }
 
-    /** Versioned rule rows like the store: `define` bumps per rule_id, `activeRules` takes the newest. */
+    @Test
+    fun `a retired rule leaves the active set — the screen then has nothing to apply`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/screening-rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sectors":["saas"]}}""",
+                        ).with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isCreated)
+            mvc // the tombstone is a version like any other
+                .perform(
+                    post("/api/v1/screening-rules/mandate/retire")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId"}""")
+                        .with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.version").value(2))
+            mvc // a rule the tenant never had is 404
+                .perform(
+                    post("/api/v1/screening-rules/never-defined/retire")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId"}""")
+                        .with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc // a viewer holds no write
+                .perform(
+                    post("/api/v1/screening-rules/mandate/retire")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId"}""")
+                        .with(jwt().jwt { it.subject(viewer.toString()) }),
+                ).andExpect(status().isNotFound)
+
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            mvc // the only rule is retired — screening falls back to review, not to its last active version
+                .perform(
+                    post("/api/v1/prospects/$id/screen").with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.verdict").value("review"))
+                .andExpect(jsonPath("$.reasons[0]").value("no active screening rule for the tenant"))
+        }
+    }
+
+    @Test
+    fun `a stored rule that does not parse reviews rather than failing the whole screen`() {
+        run { mvc ->
+            rules.plant(ScreeningRuleRow("mandate", 1, "Damaged", """{"sectors":"not-a-list"}"""))
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            mvc // out-of-band damage is a human problem, never a silent pass and never a 500
+                .perform(
+                    post("/api/v1/prospects/$id/screen").with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.verdict").value("review"))
+                .andExpect(jsonPath("$.reasons[0]").value("[Damaged] the stored criteria could not be read"))
+        }
+    }
+
+    @Test
+    fun `a due-diligence transition that fails to append cancels the checklist it opened`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            store.failAppend = IllegalArgumentException("lost the race")
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"due-diligence"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict)
+            val task = tasks.opened().single() // the checklist opened, then was cancelled — never left orphaned
+            assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
+            assertThat(tasks.state(task.id)?.status).isEqualTo(TaskStatus.CANCELLED)
+        }
+    }
+
+    /** Versioned rule rows like the store: `define` bumps per rule_id, `activeRules` takes the newest active. */
     private class FakeRules : ScreeningRules {
-        private val defined = mutableListOf<ScreeningRuleRow>()
+        private val defined = mutableListOf<Pair<ScreeningRuleRow, Boolean>>()
 
         override fun define(
             tenantId: UUID,
@@ -809,8 +1049,22 @@ class ProspectEndpointTest {
             provenance: ProspectProvenance,
             scope: TenantScope,
         ): Int {
-            val version = (defined.filter { it.ruleId == ruleId }.maxOfOrNull { it.version } ?: 0) + 1
-            defined += ScreeningRuleRow(ruleId, version, name, criteria)
+            val version = (defined.filter { it.first.ruleId == ruleId }.maxOfOrNull { it.first.version } ?: 0) + 1
+            defined += ScreeningRuleRow(ruleId, version, name, criteria) to true
+            return version
+        }
+
+        override fun retire(
+            tenantId: UUID,
+            ruleId: String,
+            actor: String,
+            provenance: ProspectProvenance,
+            scope: TenantScope,
+        ): Int? {
+            val latest = defined.filter { it.first.ruleId == ruleId }.maxByOrNull { it.first.version } ?: return null
+            if (!latest.second) return latest.first.version
+            val version = latest.first.version + 1
+            defined += latest.first.copy(version = version) to false
             return version
         }
 
@@ -819,7 +1073,14 @@ class ProspectEndpointTest {
             scope: TenantScope,
         ): List<ScreeningRuleRow> =
             defined
-                .groupBy { it.ruleId }
-                .map { (_, versions) -> versions.maxBy { it.version } }
+                .groupBy { it.first.ruleId }
+                .map { (_, versions) -> versions.maxBy { it.first.version } }
+                .filter { it.second }
+                .map { it.first }
+
+        /** Drops a row in raw, as a hand-written insert would — criteria the edge never validated. */
+        fun plant(row: ScreeningRuleRow) {
+            defined += row to true
+        }
     }
 }

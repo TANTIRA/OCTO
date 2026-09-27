@@ -5,6 +5,7 @@ import com.octo.workflow.TaskEvent
 import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState
 import com.octo.workflow.next
+import com.octo.workflow.opened
 import com.octo.workflow.replay
 import java.sql.Connection
 import java.time.OffsetDateTime
@@ -31,24 +32,7 @@ class JdbcTaskStore(
         task: Task,
         provenance: TaskProvenance,
     ) {
-        val sql =
-            """
-            insert into mesta.workflow_task (id, kind, subject_type, subject_id, requested_by, created_at, source_system, correlation_id)
-            values (?, ?, ?, ?, ?, ?, ?, ?)
-            """.trimIndent()
-        dataSource.connection.use { connection ->
-            connection.prepareStatement(sql).use { statement ->
-                statement.setObject(1, task.id)
-                statement.setString(2, task.kind.wireValue)
-                statement.setString(3, task.subjectType)
-                statement.setString(4, task.subjectId)
-                statement.setString(5, task.requestedBy)
-                statement.setObject(6, task.createdAt.atOffset(ZoneOffset.UTC))
-                statement.setString(7, provenance.sourceSystem)
-                statement.setObject(8, provenance.correlationId)
-                statement.executeUpdate()
-            }
-        }
+        dataSource.connection.use { connection -> insertTask(connection, task, provenance) }
     }
 
     /** The task's state after every stored event, or null when no task has that id. */
@@ -63,21 +47,94 @@ class JdbcTaskStore(
         subjectId: String,
     ): List<TaskState> =
         dataSource.connection.use { connection ->
-            connection
-                .prepareStatement(
-                    "select id from mesta.workflow_task where subject_type = ? and subject_id = ? order by created_at",
-                ).use { statement ->
-                    statement.setString(1, subjectType)
-                    statement.setString(2, subjectId)
-                    statement.executeQuery().use { rows ->
-                        buildList {
-                            while (rows.next()) {
-                                replayLocked(connection, rows.getObject(1, UUID::class.java))?.let(::add)
-                            }
+            buildList {
+                for (id in subjectTaskIds(connection, subjectType, subjectId)) {
+                    replayLocked(connection, id)?.let(::add)
+                }
+            }
+        }
+
+    /**
+     * The deduplicated open [listForSubject]+[create] can never guarantee from the outside: under a
+     * per-subject advisory lock, returns the task of the same kind already open on the subject, or
+     * inserts [task] and returns its fresh state. Two racing opens serialize on the lock — the loser
+     * re-reads the subject's tasks on a new snapshot, finds the winner's row, and never mints a
+     * duplicate. Callers tell "opened now" from "already open" by whether the returned id is theirs.
+     */
+    fun openUnlessOpen(
+        task: Task,
+        provenance: TaskProvenance,
+    ): TaskState =
+        dataSource.connection.use { connection ->
+            connection.autoCommit = false
+            try {
+                connection
+                    .prepareStatement(
+                        "select pg_advisory_xact_lock(hashtextextended('mesta.workflow_task:subject:' || ?::text || ':' || ?::text, 0))",
+                    ).use { statement ->
+                        statement.setString(1, task.subjectType)
+                        statement.setString(2, task.subjectId)
+                        statement.executeQuery().close()
+                    }
+                val existing =
+                    subjectTaskIds(connection, task.subjectType, task.subjectId)
+                        .mapNotNull { replayLocked(connection, it) }
+                        .firstOrNull { it.task.kind == task.kind && !it.status.terminal }
+                val result =
+                    existing ?: run {
+                        insertTask(connection, task, provenance)
+                        opened(task)
+                    }
+                connection.commit()
+                result
+            } catch (failure: Exception) {
+                connection.rollback()
+                throw failure
+            }
+        }
+
+    private fun subjectTaskIds(
+        connection: Connection,
+        subjectType: String,
+        subjectId: String,
+    ): List<UUID> =
+        connection
+            .prepareStatement(
+                "select id from mesta.workflow_task where subject_type = ? and subject_id = ? order by created_at",
+            ).use { statement ->
+                statement.setString(1, subjectType)
+                statement.setString(2, subjectId)
+                statement.executeQuery().use { rows ->
+                    buildList {
+                        while (rows.next()) {
+                            add(rows.getObject(1, UUID::class.java))
                         }
                     }
                 }
+            }
+
+    private fun insertTask(
+        connection: Connection,
+        task: Task,
+        provenance: TaskProvenance,
+    ) {
+        val sql =
+            """
+            insert into mesta.workflow_task (id, kind, subject_type, subject_id, requested_by, created_at, source_system, correlation_id)
+            values (?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent()
+        connection.prepareStatement(sql).use { statement ->
+            statement.setObject(1, task.id)
+            statement.setString(2, task.kind.wireValue)
+            statement.setString(3, task.subjectType)
+            statement.setString(4, task.subjectId)
+            statement.setString(5, task.requestedBy)
+            statement.setObject(6, task.createdAt.atOffset(ZoneOffset.UTC))
+            statement.setString(7, provenance.sourceSystem)
+            statement.setObject(8, provenance.correlationId)
+            statement.executeUpdate()
         }
+    }
 
     /**
      * Validates [event] against the task's current state and stores it, in one transaction. Throws
