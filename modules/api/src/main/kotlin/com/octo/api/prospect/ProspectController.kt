@@ -334,7 +334,7 @@ class ProspectController(
         val checklist =
             if (landing.stage == ProspectStage.DUE_DILIGENCE) openDiligenceChecklist(id, jwt.subject) else null
         val appendEvent =
-            checklist?.let { (event as ProspectEvent.Advanced).copy(taskId = it.taskId) } ?: event
+            if (event is ProspectEvent.Advanced && checklist != null) event.copy(taskId = checklist.taskId) else event
         val after =
             try {
                 prospects.append(
