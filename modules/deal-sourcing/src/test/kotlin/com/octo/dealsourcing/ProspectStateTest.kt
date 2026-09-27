@@ -31,6 +31,7 @@ class ProspectStateTest {
                 ProspectEvent.Advanced("a", at(1), ProspectStage.SOURCED, ProspectStage.SCREENING),
                 ProspectEvent.Advanced("a", at(2), ProspectStage.SCREENING, ProspectStage.DUE_DILIGENCE),
                 ProspectEvent.Advanced("b", at(3), ProspectStage.DUE_DILIGENCE, ProspectStage.IC_REVIEW),
+                ProspectEvent.Invested("chair", at(4), "corridor thesis", UUID.randomUUID()),
                 ProspectEvent.Invested("chair", at(4), "corridor thesis"),
             )
         val state = replay(prospect, events)
@@ -62,6 +63,7 @@ class ProspectStateTest {
             replay(prospect, listOf(ProspectEvent.Advanced("a", at(1), ProspectStage.SCREENING, ProspectStage.DUE_DILIGENCE)))
         }
         assertFailsWith<IllegalArgumentException> {
+            replay(prospect, listOf(ProspectEvent.Invested("c", at(1), "too early", UUID.randomUUID())))
             replay(prospect, listOf(ProspectEvent.Invested("c", at(1), "too early")))
         }
         assertFailsWith<IllegalArgumentException> {

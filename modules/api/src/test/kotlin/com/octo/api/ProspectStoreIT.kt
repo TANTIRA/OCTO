@@ -6,6 +6,7 @@ import com.octo.dealsourcing.ProspectSource
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.persistence.JdbcProspectStore
+import com.octo.dealsourcing.persistence.JdbcScreeningRuleStore
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -44,6 +45,21 @@ class ProspectStoreIT {
                     .executeQuery(
                         "insert into mesta.tenant (slug, display_name, source_system, correlation_id) " +
                             "values ('t-${UUID.randomUUID().toString().take(8)}', 'T', 'test', gen_random_uuid()) returning id",
+                    ).use { rows ->
+                        rows.next()
+                        rows.getObject(1, UUID::class.java)
+                    }
+            }
+        }
+
+    /** A workflow_task row the `invested` event can name — V19's FK needs the task to exist. */
+    private fun task(): UUID =
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement
+                    .executeQuery(
+                        "insert into mesta.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
+                            "values ('approval', 'prospect', 'x', 'test', 'test', gen_random_uuid()) returning id",
                     ).use { rows ->
                         rows.next()
                         rows.getObject(1, UUID::class.java)
@@ -93,6 +109,7 @@ class ProspectStoreIT {
         val invested =
             store.append(
                 p.id,
+                ProspectEvent.Invested("ic-chair", t0.plusSeconds(4), "conviction in the corridor thesis", task()),
                 ProspectEvent.Invested("ic-chair", t0.plusSeconds(4), "conviction in the corridor thesis"),
                 provenance,
                 TenantScope.All,
@@ -110,6 +127,13 @@ class ProspectStoreIT {
                 TenantScope.All,
             )
         }.isInstanceOf(IllegalArgumentException::class.java) // terminal stage accepts nothing
+
+        val rows = store.history(p.id, TenantScope.All)!!
+        assertThat(rows.map { it.eventType }).containsExactly("advanced", "advanced", "advanced", "invested")
+        assertThat(rows.map { it.seq }).isSorted() // identity is table-global; append order is what matters
+        assertThat(rows.last().rationale).isEqualTo("conviction in the corridor thesis")
+        assertThat(rows.last().taskId).isNotNull()
+        assertThat(rows.last().correlationId).isEqualTo(provenance.correlationId)
     }
 
     @Test
@@ -137,6 +161,7 @@ class ProspectStoreIT {
         assertThatThrownBy {
             store.append(
                 p.id,
+                ProspectEvent.Invested("ic-chair", t0.plusSeconds(1), "early conviction", task()),
                 ProspectEvent.Invested("ic-chair", t0.plusSeconds(1), "early conviction"),
                 provenance,
                 TenantScope.All,
@@ -193,6 +218,23 @@ class ProspectStoreIT {
                 TenantScope.All,
             )
         }.isInstanceOf(NoSuchElementException::class.java)
+    }
+
+    @Test
+    fun `screening rules version per rule_id and activeRules returns the newest of each`() {
+        val rules = JdbcScreeningRuleStore(dataSource)
+        val tenantId = tenant()
+        assertThat(rules.define(tenantId, "mandate", "Mandate", """{"sectors":["saas"]}""", "admin", provenance, TenantScope.All))
+            .isEqualTo(1)
+        assertThat(
+            rules.define(tenantId, "mandate", "Mandate v2", """{"sectors":["saas","logistics"]}""", "admin", provenance, TenantScope.All),
+        ).isEqualTo(2)
+        rules.define(tenantId, "esg", "ESG exclusions", "{}", "admin", provenance, TenantScope.All)
+
+        val active = rules.activeRules(tenantId, TenantScope.All)
+        assertThat(active.map { it.ruleId }.toSet()).isEqualTo(setOf("mandate", "esg"))
+        assertThat(active.single { it.ruleId == "mandate" }.version).isEqualTo(2)
+        assertThat(active.single { it.ruleId == "mandate" }.name).isEqualTo("Mandate v2")
     }
 
     private companion object {
