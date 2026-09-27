@@ -81,9 +81,9 @@ services:
     environment:
       API_BASE_URL: ${API_PUBLIC_URL}
       AUTH_PUBLIC_URL: ${AUTH_PUBLIC_URL}
-      # Same-origin /api/* proxy target (next.config.ts rewrites) — service
-      # name on the compose network; never leaves dokploy-network either.
-      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8080}
+      # Same-origin /api/* proxy target (next.config.ts rewrites) — the api
+      # service name on the compose default network. Topology, not config.
+      API_INTERNAL_URL: http://api:8080
     networks:
       - default
       - dokploy-network
