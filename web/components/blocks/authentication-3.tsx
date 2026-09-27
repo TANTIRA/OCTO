@@ -15,7 +15,9 @@ import {
   Eye,
   EyeOff,
   Github,
+  Loader2,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join("");
@@ -102,6 +104,8 @@ export default function Authentication3() {
   const [password, setPassword] = useState("");
   const [reveal, setReveal] = useState(false);
   const [index, setIndex] = useState(0);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const quote = QUOTES[index];
@@ -115,8 +119,35 @@ export default function Authentication3() {
     return () => clearInterval(id);
   }, [step]);
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (!supabase || pending) return;
+    setPending(true);
+    setError(null);
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (signInError) {
+      setError(signInError.message);
+      setPending(false);
+      return;
+    }
+    window.location.assign("/app");
+  };
+
+  const signInWithGoogle = async () => {
+    if (!supabase || pending) return;
+    setPending(true);
+    setError(null);
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/app` },
+    });
+    if (oauthError) {
+      setError(oauthError.message);
+      setPending(false);
+    }
   };
 
   return (
@@ -206,10 +237,33 @@ export default function Authentication3() {
                 </div>
               </div>
 
+              {!supabase && (
+                <p
+                  role="alert"
+                  className="rounded-[var(--rb-r-md,8px)] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200"
+                >
+                  Sign-in is not configured on this deployment — the Supabase
+                  env keys are unset. Contact your administrator.
+                </p>
+              )}
+
+              {error && (
+                <p
+                  role="alert"
+                  className="rounded-[var(--rb-r-md,8px)] border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+                >
+                  {error}
+                </p>
+              )}
+
               <button
                 type="submit"
+                disabled={pending || !supabase}
                 className={cx(btnPrimary, transition, focus)}
               >
+                {pending && (
+                  <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                )}
                 Sign in
               </button>
             </form>
@@ -225,6 +279,8 @@ export default function Authentication3() {
             <div className="mt-4">
               <button
                 type="button"
+                onClick={signInWithGoogle}
+                disabled={pending || !supabase}
                 className={cx(btnProvider, transition, focus)}
               >
                 <GoogleMark className="h-4 w-4" />
