@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
-  c.filter(Boolean).join("");
+  c.filter(Boolean).join(" ");
 
 const focus =
   "focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))]";
@@ -18,14 +18,14 @@ const transition =
   "transition-[background-color,border-color,color,opacity,transform] duration-150 ease-out";
 
 const frame =
-  "rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-neutral-50 p-1 dark:border-neutral-800 dark:bg-neutral-950 dark:border-oklch(1 0 0 / 10%)";
+  "rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-neutral-50 p-1 dark:border-neutral-800 dark:bg-neutral-950";
 const panel =
-  "rounded-[var(--rb-r-lg,10px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)";
+  "rounded-[var(--rb-r-lg,10px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900";
 
 const STARTERS = [
   {
     icon: Plug,
-    title: "Connect a warehouse",
+    title: "Connect a data source",
     body: "Postgres, BigQuery or Snowflake. Read-only credentials are enough.",
     meta: "About 2 minutes",
   },
@@ -90,6 +90,7 @@ export default function EmptyState1() {
             Nothing in this workspace yet
           </h2>
           <p className="mx-auto mt-1.5 max-w-[420px] text-[13px] leading-relaxed text-neutral-500">
+            Point OCTO at a custodian feed and positions reconcile themselves.
             Point Northwind at a source and the first charts build themselves.
             You can change or remove a source at any time.
           </p>
@@ -109,7 +110,7 @@ export default function EmptyState1() {
             >
               <span
                 aria-hidden
-                className="flex h-8 w-8 items-center justify-center rounded-[var(--rb-r-md,8px)] border border-oklch(0.922 0 0) border-neutral-200 dark:border-neutral-800 dark:border-oklch(1 0 0 / 10%)"
+                className="flex h-8 w-8 items-center justify-center rounded-[var(--rb-r-md,8px)] border border-neutral-200 dark:border-neutral-800"
               >
                 <Icon className="h-4 w-4 text-neutral-700 dark:text-neutral-300" />
               </span>

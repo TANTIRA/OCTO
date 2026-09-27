@@ -19,9 +19,11 @@ import {
 import Dashboard4 from "@/components/blocks/dashboard-4";
 import DataTable3 from "@/components/blocks/data-table-3";
 import Kanban1 from "@/components/blocks/kanban-1";
+import SessionMenu from "@/components/session-menu";
+import { apiFetch } from "@/lib/api";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
-  c.filter(Boolean).join("");
+  c.filter(Boolean).join(" ");
 
 function useScrollFade<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -424,13 +426,25 @@ const AREAS: Area[] = [
   },
 ];
 
-function WorkspaceSwitcher() {
-  const [workspace, setWorkspace] = useState(WORKSPACES[0].name);
+function WorkspaceSwitcher({
+  workspaces,
+}: {
+  workspaces: { name: string; members: string }[];
+}) {
+  const [workspace, setWorkspace] = useState(workspaces[0]?.name ?? "");
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Tenants arrive async — if the current pick is no longer in the list
+  // (or the list just loaded), fall back to the first entry.
+  useEffect(() => {
+    if (workspaces.length && !workspaces.some((w) => w.name === workspace)) {
+      setWorkspace(workspaces[0].name);
+    }
+  }, [workspaces, workspace]);
 
   const close = (restoreFocus: boolean) => {
     setOpen(false);
@@ -497,7 +511,7 @@ function WorkspaceSwitcher() {
     };
   }, [open]);
 
-  const active = WORKSPACES.find((item) => item.name === workspace);
+  const active = workspaces.find((item) => item.name === workspace);
 
   return (
     <div ref={rootRef} className="relative">
@@ -534,13 +548,13 @@ function WorkspaceSwitcher() {
         <div
           ref={menuRef}
           role="menu"
-          aria-label="Switch workspace"
+          aria-label="Switch vehicle"
           className={cx(
-            "absolute left-0 right-0 top-[calc(100%+0.25rem)] z-30 origin-top rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200 bg-white p-1 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.10)] transition-[opacity,transform] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none dark:border-oklch(1 0 0 / 10%)",
+            "absolute left-0 right-0 top-[calc(100%+0.25rem)] z-30 origin-top rounded-[var(--rb-r-2xl,14px)] border border-neutral-200 bg-white p-1 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.10)] transition-[opacity,transform] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none",
             shown ? "scale-100 opacity-100" : "scale-95 opacity-0",
           )}
         >
-          {WORKSPACES.map((item) => (
+          {workspaces.map((item) => (
             <button
               key={item.name}
               type="button"
@@ -583,7 +597,7 @@ function WorkspaceSwitcher() {
               focusInset,
             )}
           >
-            Add workspace
+            Add vehicle
           </button>
         </div>
       )}
@@ -594,10 +608,12 @@ function WorkspaceSwitcher() {
 function NavigationFrame({
   areaId,
   onSelectArea,
+  workspaces,
   onClose,
 }: {
   areaId: string;
   onSelectArea: (id: string) => void;
+  workspaces: { name: string; members: string }[];
   onClose?: () => void;
 }) {
   const [tipFor, setTipFor] = useState<string | null>(null);
@@ -724,29 +740,11 @@ function NavigationFrame({
             );
           })}
         </nav>
-
-        <span className="relative mt-auto" onMouseLeave={hideTip}>
-          <button
-            type="button"
-            aria-label="Marta Kowalczyk, dispatch manager"
-            onMouseEnter={() => showTip("account")}
-            onFocus={() => showTip("account")}
-            onBlur={hideTip}
-            className={cx(
-              "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-300 active:bg-neutral-300 dark:bg-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-600 dark:active:bg-neutral-600",
-              transition,
-              focus,
-            )}
-          >
-            MK
-          </button>
-          {tip("account", "Marta Kowalczyk")}
-        </span>
       </div>
 
       <div className="flex w-64 min-w-0 flex-col bg-neutral-50 dark:bg-neutral-900">
         <div className="shrink-0 px-2 pb-1 pt-2">
-          <WorkspaceSwitcher />
+          <WorkspaceSwitcher workspaces={workspaces} />
         </div>
 
         <div className="relative min-h-0 flex-1">
@@ -823,9 +821,15 @@ function NavigationFrame({
 }
 
 export default function AppShell2() {
-  const [areaId, setAreaId] = useState(AREAS[0].id);
+  const [areaId, setAreaId] = useState<string>(() =>
+    typeof window !== "undefined" &&
+    AREAS.some((a) => a.id === window.location.hash.slice(1))
+      ? window.location.hash.slice(1)
+      : AREAS[0].id,
+  );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerShown, setDrawerShown] = useState(false);
+  const [workspaces, setWorkspaces] = useState(WORKSPACES);
   const content = useScrollFade<HTMLElement>();
   const shouldFocusRef = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -834,6 +838,47 @@ export default function AppShell2() {
   const reduceMotion = useReducedMotion();
 
   const area = AREAS.find((item) => item.id === areaId) ?? AREAS[0];
+
+  // location.hash is the source of truth for area selection: sidebar links
+  // and ⌘K navigation both write the hash, and this listener keeps state in
+  // sync — which also makes areas deep-linkable and Back/Forward work.
+  useEffect(() => {
+    const onHash = () => {
+      const id = window.location.hash.slice(1);
+      if (AREAS.some((a) => a.id === id)) setAreaId(id);
+    };
+    onHash();
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  const selectArea = useCallback((id: string) => {
+    window.location.hash = id;
+    setAreaId(id);
+  }, []);
+
+  // First real API read: the caller's tenants drive the vehicle switcher.
+  // The proxy (next.config.ts) forwards to the API with the session JWT;
+  // on any failure the seeded workspace list stays — a shell that can't
+  // reach the API still renders.
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch("/api/v1/me/access")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (cancelled || !body?.tenants?.length) return;
+        setWorkspaces(
+          body.tenants.map((t: { slug: string; role: string }) => ({
+            name: t.slug,
+            members: t.role,
+          })),
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -901,7 +946,11 @@ export default function AppShell2() {
       className="relative flex h-full min-h-[720px] w-full overflow-hidden bg-white dark:bg-neutral-950"
     >
       <aside className="hidden shrink-0 lg:flex">
-        <NavigationFrame areaId={areaId} onSelectArea={setAreaId} />
+        <NavigationFrame
+          areaId={areaId}
+          onSelectArea={selectArea}
+          workspaces={workspaces}
+        />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -930,6 +979,17 @@ export default function AppShell2() {
 
           <button
             type="button"
+            onClick={() => {
+              // The command menu's public API is its document-level ⌘K
+              // listener — a synthetic event opens it without prop drilling.
+              document.dispatchEvent(
+                new KeyboardEvent("keydown", {
+                  key: "k",
+                  metaKey: true,
+                  bubbles: true,
+                }),
+              );
+            }}
             className={cx(
               "inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-2.5 text-[13px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(20.5%_0_0))_90%,transparent)] active:scale-[0.97] motion-reduce:active:scale-100 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))] dark:hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(100%_0_0))_90%,transparent)]",
               focus,
@@ -937,6 +997,8 @@ export default function AppShell2() {
           >
             {area.action}
           </button>
+
+          <SessionMenu />
         </header>
 
         <div className="relative min-h-0 flex-1">
@@ -957,7 +1019,7 @@ export default function AppShell2() {
               initial={reduceMotion ? false : { opacity: 0, y: 4 }}
               animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.18, ease: EASE_OUT }}
-              className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)"
+              className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900"
             >
               <div className="flex h-12 items-center gap-3 bg-neutral-50 px-4 dark:bg-neutral-800/40">
                 <h2 className="min-w-0 flex-1 truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
@@ -1057,7 +1119,8 @@ export default function AppShell2() {
           >
             <NavigationFrame
               areaId={areaId}
-              onSelectArea={setAreaId}
+              onSelectArea={selectArea}
+              workspaces={workspaces}
               onClose={closeDrawer}
             />
           </div>

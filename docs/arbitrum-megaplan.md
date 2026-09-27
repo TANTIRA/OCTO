@@ -4,7 +4,7 @@ Phased execution plan for Arbitrum One ingestion into the onchain pipeline, in t
 
 - **Risk tier:** T0 for this document. Each phase carries its own tier; the T2 phases (migration, ontology, adapter) follow the T2 rules — plan agreed in the issue before code.
 - **Status:** proposed. Decisions below were agreed before this doc was written.
-- **Grounded in:** [arbitrum-ingestion-design.md](arbitrum-ingestion-design.md), [arbitrum-fit-assessment.md](arbitrum-fit-assessment.md), `V10__onchain_ingestion.sql`, `V16__onchain_claim_evidence.sql`, `ontology/octo-investment.tql`, `modules/ingestion/.../onchain/`
+- **Grounded in:** [arbitrum-ingestion-design.md](arbitrum-ingestion-design.md), [arbitrum-fit-assessment.md](arbitrum-fit-assessment.md), `V10__onchain_ingestion.sql`, `V16__onchain_claim_evidence.sql`, `ontology/octo-investment.cypher`, `modules/ingestion/.../onchain/`
 
 ## Locked decisions
 
@@ -46,7 +46,7 @@ V10 and V16 are live — additive only.
 
 ### ARB-2 — Ontology `evm-address` / `evm-wallet` / `evm-contract` (T2, CTO-owned)
 
-- `octo-investment.tql`: `attribute evm-address, value string @regex("^0x[0-9a-f]{40}$")`; `entity evm-wallet` owns `evm-address @key` and plays `instrument-flow-of:wallet-side`, `wallet-custody:wallet-side` (the roles `wallet` plays); `entity evm-contract, sub instrument` owns `evm-address @unique` mirroring `solana-mint`; `instrument-kind` @values gains `"erc20"`.
+- `octo-investment.cypher`: `// type: attribute | name: evm-address | value: string | @regex("^0x[0-9a-f]{40}$")`; `evm-wallet` owns `evm-address @key` and plays `instrument-flow-of:wallet-side`, `wallet-custody:wallet-side` (the roles `wallet` plays); `evm-contract` (`sub: instrument`) owns `evm-address @unique` mirroring `solana-mint`; `instrument-kind` @values gains `"erc20"`.
 - `octo-investment-shacl.ttl`: `EvmWalletShape` (mirrors `WalletShape`), `EvmContractShape`.
 - `ontology/samples/valid/` gains an EVM wallet + contract case; `invalid/` gains a malformed-address case.
 - `owl:versionIRI` MINOR bump; ontology CHANGELOG; consumer-impact note in the PR.

@@ -11,6 +11,9 @@ import java.util.UUID
 /** One import call registers at most this many prospects — adapters page larger syncs themselves. */
 const val IMPORT_BATCH_LIMIT = 500
 
+/** One pipeline page returns at most this many prospects — callers page larger stages themselves. */
+const val PIPELINE_PAGE_LIMIT = 500
+
 /** One stored event row — the audit trail view: seq ordering, actor, rationale, provenance, IC task. */
 data class ProspectEventRow(
     val seq: Long,
@@ -67,6 +70,9 @@ interface ProspectStore {
     /**
      * Up to [limit] prospects of the tenant currently standing at [stage], newest registrations
      * first, after skipping [offset] — a bounded page, never the whole stage.
+     * first, after skipping [offset] — a bounded page, never the whole stage. The store enforces
+     * [PIPELINE_PAGE_LIMIT] itself so a caller outside the api edge can still never hold an
+     * unbounded read open.
      */
     fun listAtStage(
         tenantId: UUID,

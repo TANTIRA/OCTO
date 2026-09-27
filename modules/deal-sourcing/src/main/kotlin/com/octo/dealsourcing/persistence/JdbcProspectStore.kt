@@ -172,6 +172,9 @@ class JdbcProspectStore(
         offset: Int,
         scope: TenantScope,
     ): List<ProspectState> {
+        require(limit in 1..PIPELINE_PAGE_LIMIT && offset >= 0) {
+            "a pipeline page holds 1..$PIPELINE_PAGE_LIMIT prospects at a non-negative offset, got limit=$limit offset=$offset"
+        }
         if (!scope.admits(tenantId)) return emptyList()
         val sql =
             """
@@ -398,6 +401,7 @@ class JdbcProspectStore(
             statement.setString(6, rationale)
             statement.setObject(7, event.at.atOffset(ZoneOffset.UTC))
             statement.setObject(8, (event as? ProspectEvent.Invested)?.taskId ?: (event as? ProspectEvent.Advanced)?.taskId)
+            statement.setObject(8, (event as? ProspectEvent.Invested)?.taskId)
             statement.setObject(9, provenance.correlationId)
             statement.executeUpdate()
         }

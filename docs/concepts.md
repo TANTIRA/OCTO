@@ -41,7 +41,7 @@ concept names. A concept that grows a second purpose is split, not extended.
 | Instrument | Anything a wallet can hold that is not an ISO currency, keyed by `instrument-id` | `mesta.instrument`, `ontology/` | built | token, mint, contract |
 | Asset | Private-market position entity with external identifier xrefs | `mesta.asset`, `asset_xref` | built | holding entity, security |
 | Wallet | Custody point for instruments on a chain | ontology, `wallet-custody` | built | address, account |
-| Fund / LP / GP / portfolio company / prospect | Core private-markets entities | `ontology/octo-investment.tql` | ratified | vehicle, investor, manager |
+| Fund / LP / GP / portfolio company / prospect | Core private-markets entities | `ontology/octo-investment.cypher` | ratified | vehicle, investor, manager |
 | Look-through | Path-sum exposure across entity/instrument hierarchies; rejects cycles | `lookthrough/Exposure.kt` | built | transparency, drill-down |
 
 ## Governance & workflow

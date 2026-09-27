@@ -19,7 +19,7 @@ Corporate actions are handled by a **multiplier** rather than cash distribution.
 
 ## The asset-class gap
 
-The ontology has no `instrument`, `security`, `token`, `wallet`, or asset-class type. `ontology/octo-investment.tql` is entity-centric — fund, deal, investment, operating company, party, commitment, ledger event. Tokenized listed equity has nowhere to attach.
+The ontology has no `instrument`, `security`, `token`, `wallet`, or asset-class type. `ontology/octo-investment.cypher` is entity-centric — fund, deal, investment, operating company, party, commitment, ledger event. Tokenized listed equity has nowhere to attach.
 
 The platform has flagged this conditionally rather than ruled it out. `docs/quantitative-methodology.md` notes its listed-securities equations "apply when the platform supports listed securities, secondary transactions, FX hedges, or trade execution related to private-market operations." `ibor-core` is scoped to "corporate-action-equivalent events for **private** assets."
 

@@ -116,15 +116,16 @@ export default function CTA2() {
           to run OCTO
         </motion.h1>
 
-        <motion.button
-          className="px-8 sm:px-10 py-4 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium text-base sm:text-lg hover:bg-neutral-800 dark:hover:bg-neutral-200"
+        <motion.a
+          href="#contact"
+          className="px-8 sm:px-10 py-4 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium text-base sm:text-lg hover:bg-neutral-800 dark:hover:bg-neutral-200 no-underline"
           style={{ transition: "background-color 200ms, transform 200ms" }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
           Request access
-        </motion.button>
+        </motion.a>
       </div>
 
       <motion.div
@@ -144,9 +145,9 @@ export default function CTA2() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.7, ease: "easeOut" }}
       >
-        <button className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors duration-200 font-medium sm:hidden">
+        <a href="/login" className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors duration-200 font-medium sm:hidden no-underline">
           Sign in
-        </button>
+        </a>
 
         <div className="hidden sm:flex items-center gap-2">
           <span className="text-base sm:text-lg font-medium text-neutral-900 dark:text-white">
@@ -155,23 +156,25 @@ export default function CTA2() {
         </div>
 
         <div className="hidden sm:flex items-center gap-3 sm:gap-4 whitespace-nowrap">
-          <button className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors duration-200 font-medium">
+          <a href="/login" className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors duration-200 font-medium no-underline">
             Sign in
-          </button>
-          <button
-            className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-violet-600 text-white font-medium text-sm sm:text-base hover:bg-violet-500 hover:scale-105"
+          </a>
+          <a
+            href="#contact"
+            className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-violet-600 text-white font-medium text-sm sm:text-base hover:bg-violet-500 hover:scale-105 no-underline"
             style={{ transition: "background-color 200ms, transform 200ms" }}
           >
             Request access
-          </button>
+          </a>
         </div>
 
-        <button
-          className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-violet-600 text-white font-medium text-sm sm:text-base hover:bg-violet-500 hover:scale-105 sm:hidden"
+        <a
+          href="#contact"
+          className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-violet-600 text-white font-medium text-sm sm:text-base hover:bg-violet-500 hover:scale-105 sm:hidden no-underline"
           style={{ transition: "background-color 200ms, transform 200ms" }}
         >
           Request access
-        </button>
+        </a>
       </motion.div>
     </section>
   );

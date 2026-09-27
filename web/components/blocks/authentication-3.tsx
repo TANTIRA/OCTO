@@ -9,16 +9,16 @@ import {
   type FormEvent,
 } from "react";
 import {
-  Apple,
   ArrowLeft,
   ArrowRight,
   Eye,
   EyeOff,
-  Github,
+  Loader2,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
-  c.filter(Boolean).join("");
+  c.filter(Boolean).join(" ");
 
 const focus =
   "focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))]";
@@ -27,13 +27,13 @@ const transition =
   "transition-[background-color,border-color,color,transform] duration-150 ease-out";
 
 const field =
-  "h-9 w-full rounded-[var(--rb-r-md,8px)] border border-oklch(0.922 0 0) border-neutral-200 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 transition-colors duration-150 hover:border-neutral-300 focus:border-neutral-900 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-700 dark:focus:border-white dark:border-oklch(1 0 0 / 10%)";
+  "h-9 w-full rounded-[var(--rb-r-md,8px)] border border-neutral-200 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 transition-colors duration-150 hover:border-neutral-300 focus:border-neutral-900 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-700 dark:focus:border-white";
 
 const btnPrimary =
   "inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--rb-r-lg,10px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-4 text-sm font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(20.5%_0_0))_90%,transparent)] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))] dark:hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(100%_0_0))_90%,transparent)]";
 
 const btnProvider =
-  "inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-[var(--rb-r-md,8px)] border border-oklch(0.922 0 0) border-neutral-200 bg-white px-3 text-[13px] font-medium text-neutral-900 hover:bg-neutral-50 active:scale-[0.97] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800 dark:border-oklch(1 0 0 / 10%)";
+  "inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-[var(--rb-r-md,8px)] border border-neutral-200 bg-white px-3 text-[13px] font-medium text-neutral-900 hover:bg-neutral-50 active:scale-[0.97] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800";
 
 const iconBtn =
   "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] bg-white text-neutral-600 hover:bg-neutral-100 active:scale-[0.97] dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-800";
@@ -44,12 +44,12 @@ const linkClass =
 function GoogleMark({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 24"
+      viewBox="0 0 24 24"
       aria-hidden="true"
       className={className}
       fill="currentColor"
     >
-      <path d="M21.35 11.1H12v2.98h5.35c-.24 1.4-1.75 4.1-5.35 4.1a5.95 5.95 0 1 0-11.9c1.83 3.06.78 3.76 1.45l2.56-2.47C16.68 3.62 14.53 2.7 12 2.7a9.3 9.3 18.6c5.25 8.73-3.69 8.73-8.88 0-.6-.06-1.05-.14-1.52Z" />
+      <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.19-1.79 4.13-1.15 1.15-2.93 2.4-6.05 2.4-4.83 0-8.6-3.89-8.6-8.72s3.77-8.72 8.6-8.72c2.6 0 4.51 1.03 5.91 2.35l2.31-2.31C18.75 1.44 16.13 0 12.48 0 5.87 0 .31 5.39.31 12s5.56 12 12.17 12c3.57 0 6.27-1.17 8.37-3.36 2.16-2.16 2.84-5.21 2.84-7.67 0-.76-.05-1.47-.17-2.05H12.48z" />
     </svg>
   );
 }
@@ -98,10 +98,14 @@ export default function Authentication3() {
   const emailId = useId();
   const passwordId = useId();
 
-  const [email, setEmail] = useState("dana.whitfield@northwind.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [reveal, setReveal] = useState(false);
   const [index, setIndex] = useState(0);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [recovering, setRecovering] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const quote = QUOTES[index];
@@ -115,8 +119,63 @@ export default function Authentication3() {
     return () => clearInterval(id);
   }, [step]);
 
-  const submit = (event: FormEvent) => {
+  // Already signed in — nothing to do here, go straight to the app.
+  useEffect(() => {
+    supabase?.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.replace("/app");
+    });
+  }, []);
+
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (!supabase || pending) return;
+    setPending(true);
+    setError(null);
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (signInError) {
+      setError(signInError.message);
+      setPending(false);
+      return;
+    }
+    window.location.assign("/app");
+  };
+
+  const signInWithGoogle = async () => {
+    if (!supabase || pending) return;
+    setPending(true);
+    setError(null);
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/app` },
+    });
+    if (oauthError) {
+      setError(oauthError.message);
+      setPending(false);
+    }
+  };
+
+  // Non-enumerating: the response is identical whether or not the account
+  // exists. Delivery depends on deployment SMTP (self-hosted mailer may be
+  // a catch-all until configured) — the flow is honest either way.
+  const recover = async () => {
+    if (!supabase || recovering || pending) return;
+    if (!email) {
+      setError("Enter your work email first.");
+      return;
+    }
+    setRecovering(true);
+    setError(null);
+    setNotice(null);
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    setRecovering(false);
+    setNotice(
+      "If an account exists for that address, a reset link is on its way.",
+    );
   };
 
   return (
@@ -172,9 +231,11 @@ export default function Authentication3() {
                   </label>
                   <button
                     type="button"
+                    onClick={recover}
+                    disabled={recovering || pending || !supabase}
                     className={cx("text-xs", linkClass, focus)}
                   >
-                    Forgot password?
+                    {recovering ? "Sending…" : "Forgot password?"}
                   </button>
                 </div>
                 <div className="relative">
@@ -206,10 +267,42 @@ export default function Authentication3() {
                 </div>
               </div>
 
+              {!supabase && (
+                <p
+                  role="alert"
+                  className="rounded-[var(--rb-r-md,8px)] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200"
+                >
+                  Sign-in is not configured on this deployment — the Supabase
+                  env keys are unset. Contact your administrator.
+                </p>
+              )}
+
+              {error && (
+                <p
+                  role="alert"
+                  className="rounded-[var(--rb-r-md,8px)] border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+                >
+                  {error}
+                </p>
+              )}
+
+              {notice && (
+                <p
+                  role="status"
+                  className="rounded-[var(--rb-r-md,8px)] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200"
+                >
+                  {notice}
+                </p>
+              )}
+
               <button
                 type="submit"
+                disabled={pending || !supabase}
                 className={cx(btnPrimary, transition, focus)}
               >
+                {pending && (
+                  <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                )}
                 Sign in
               </button>
             </form>
@@ -225,6 +318,8 @@ export default function Authentication3() {
             <div className="mt-4">
               <button
                 type="button"
+                onClick={signInWithGoogle}
+                disabled={pending || !supabase}
                 className={cx(btnProvider, transition, focus)}
               >
                 <GoogleMark className="h-4 w-4" />
@@ -235,7 +330,7 @@ export default function Authentication3() {
         </div>
 
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          No OCTO account?{""}
+          No OCTO account?{" "}
           <button type="button" className={cx("font-medium", linkClass, focus)}>
             Ask your administrator
           </button>
@@ -258,7 +353,7 @@ export default function Authentication3() {
           <div className="mt-6 flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-200 text-[13px] font-medium text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
               {quote.name
-                .split("")
+                .split(" ")
                 .map((w) => w[0])
                 .join("")}
             </span>
@@ -272,11 +367,11 @@ export default function Authentication3() {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-3 gap-1 rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-neutral-50 p-1 dark:border-neutral-800 dark:bg-neutral-950 dark:border-oklch(1 0 0 / 10%)">
+          <div className="mt-6 grid grid-cols-3 gap-1 rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-neutral-50 p-1 dark:border-neutral-800 dark:bg-neutral-950">
             {quote.stats.map((stat) => (
               <div
                 key={stat.label}
-                className="rounded-[var(--rb-r-lg,10px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-white px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)"
+                className="rounded-[var(--rb-r-lg,10px)] border border-neutral-200/70 bg-white px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900"
               >
                 <p className="text-base font-medium tracking-[-0.01em] text-neutral-900 tabular-nums dark:text-neutral-50">
                   {stat.value}

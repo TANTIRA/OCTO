@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { GripVertical, MessageSquare, Paperclip, Plus, X } from "lucide-react";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
-  c.filter(Boolean).join("");
+  c.filter(Boolean).join(" ");
 
 const focus =
   "focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))]";
@@ -345,17 +345,17 @@ export default function Kanban1() {
       setComposing(null);
       return;
     }
-    const n = 242 + seq.current;
+    const n = 246 + seq.current;
     const id = `n${n}`;
     seq.current += 1;
     setCards((p) => ({
       ...p,
       [id]: {
         id,
-        ref: `HAL-${n}`,
+        ref: `D-${n}`,
         title,
-        tag: "Triage",
-        assignee: "Ana Reyes",
+        tag: "New",
+        assignee: "Unassigned",
         comments: 0,
         files: 0,
         priority: "Medium",
@@ -400,7 +400,7 @@ export default function Kanban1() {
               <span
                 key={p}
                 title={p}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-oklch(0.922 0 0) border-white bg-neutral-100 text-[10px] font-medium text-neutral-600 dark:border-neutral-950 dark:bg-neutral-800 dark:text-neutral-300 dark:border-oklch(1 0 0 / 10%)"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white bg-neutral-100 text-[10px] font-medium text-neutral-600 dark:border-neutral-950 dark:bg-neutral-800 dark:text-neutral-300"
               >
                 {initials(p)}
               </span>
@@ -418,7 +418,7 @@ export default function Kanban1() {
               <section
                 key={col.id}
                 aria-label={col.name}
-                className="flex h-full w-[264px] shrink-0 flex-col rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-neutral-50 p-1 dark:border-neutral-800 dark:bg-neutral-950 dark:border-oklch(1 0 0 / 10%)"
+                className="flex h-full w-[264px] shrink-0 flex-col rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-neutral-50 p-1 dark:border-neutral-800 dark:bg-neutral-950"
               >
                 <div className="flex h-8 shrink-0 items-center gap-2 px-2">
                   <span className="truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
@@ -483,7 +483,7 @@ export default function Kanban1() {
                         transition={{ duration: 0.2, ease: EASE_OUT }}
                         className="overflow-hidden"
                       >
-                        <div className="mb-1 rounded-[var(--rb-r-lg,10px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)">
+                        <div className="mb-1 rounded-[var(--rb-r-lg,10px)] border border-neutral-200/70 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900">
                           <label
                             htmlFor={`${uid}-${col.id}-draft`}
                             className="sr-only"
@@ -564,7 +564,7 @@ export default function Kanban1() {
                             }}
                             onKeyDown={(e) => onCardKeyDown(e, id)}
                             className={cx(
-                              "group relative flex w-full cursor-grab flex-col gap-2 rounded-[var(--rb-r-lg,10px)] border border-oklch(0.922 0 0) bg-white p-2.5 text-left dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)",
+                              "group relative flex w-full cursor-grab flex-col gap-2 rounded-[var(--rb-r-lg,10px)] border bg-white p-2.5 text-left dark:bg-neutral-900",
                               isGrabbed
                                 ? "border-neutral-900 dark:border-white"
                                 : "border-neutral-200/70 hover:border-neutral-300 dark:border-neutral-800 dark:hover:border-neutral-700",
@@ -665,7 +665,7 @@ export default function Kanban1() {
               top: ghost.y,
               width: ghost.w,
             }}
-            className="pointer-events-none absolute z-50 rounded-[var(--rb-r-lg,10px)] border border-oklch(0.922 0 0) border-neutral-200/70 bg-white p-2.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)] dark:border-neutral-700 dark:bg-neutral-900 dark:border-oklch(1 0 0 / 10%)"
+            className="pointer-events-none absolute z-50 rounded-[var(--rb-r-lg,10px)] border border-neutral-200/70 bg-white p-2.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)] dark:border-neutral-700 dark:bg-neutral-900"
           >
             <div className="flex items-center gap-1.5">
               <span

@@ -122,3 +122,24 @@ Generated narrative must be grounded in cited Ontology objects or documents. Uns
 - Prompt injection in uploaded documents is treated as untrusted content and cannot alter system instructions or call tools.
 - Reports and external questionnaires require human approval.
 - Evaluation sets cover extraction accuracy, citation correctness, screening consistency, unsupported claims, prompt injection, and cross-document conflicts.
+
+## Implementation status (#201)
+
+The deterministic spine is built and governs every AI surface this document describes — agents may
+recommend, never transition.
+
+| Workflow element | Status | Where |
+| --- | --- | --- |
+| Intake: register, dedupe, source lineage | Built | `POST /api/v1/prospects`, `POST /api/v1/prospects/import` (`source_ref` dedup, V21) |
+| Pipeline stages + audit | Built | `mesta.prospect` + `prospect_event` (V18): `sourced → screening → due-diligence → ic-review → invested|passed`; `GET /prospects/{id}/events` reads the append-only trail |
+| Screening: versioned criteria | Built | `mesta.screening_rule` (V20) + `Screening.kt` — CLEAR/REVIEW/REJECT; `REVIEW` is the doc's "unknown never becomes fail" |
+| DDQ: checklist trigger | Built | entering `due-diligence` opens an `EVIDENCE_REQUEST` workflow task |
+| IC decision: approval gate | Built | `POST /prospects/{id}/ic-review` opens an approval task; `invested` requires it approved and records `task_id` (V19) — the doc's signed decision record |
+| Extraction + citations | Designed here, unbuilt | needs `control-panel` eval sets and prompt versioning |
+| DDQ answer states + evidence loop | Designed here, unbuilt | `workflow_task` carries the request side; answer/citation model pending |
+| IC report from Ontology template | Designed here, unbuilt | `report_job` exists for portfolio reports; IC-template type pending |
+
+Deliberate deviations while AI surfaces are pending: transitions are human-driven through the REST
+API; screening evaluates structured criteria (`allowed_sectors`, `allowed_regions`, `allowed_sources`)
+against prospect fields, not extracted-document claims — the extraction layer lands last because it is
+the least deterministic and the most prompt-injection-exposed.

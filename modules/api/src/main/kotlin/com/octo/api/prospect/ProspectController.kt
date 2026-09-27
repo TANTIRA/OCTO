@@ -14,6 +14,7 @@ import com.octo.dealsourcing.combine
 import com.octo.dealsourcing.evaluate
 import com.octo.dealsourcing.next
 import com.octo.dealsourcing.persistence.IMPORT_BATCH_LIMIT
+import com.octo.dealsourcing.persistence.PIPELINE_PAGE_LIMIT
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
@@ -123,6 +124,7 @@ private const val DESCRIPTION_LIMIT = 10_000
 private const val CRITERIA_LIST_LIMIT = 100
 
 /** Stages at or past `due-diligence` — the only stages that can have a committed landing claiming a checklist. */
+/** Stages reachable only through `due-diligence` — each a live claim on the checklist that stage opened. */
 private val CHECKLIST_CLAIM_STAGES = setOf(ProspectStage.DUE_DILIGENCE, ProspectStage.IC_REVIEW, ProspectStage.INVESTED)
 
 /** The shape V20 enforces on `screening_rule.rule_id`; the edge validates it before the store sees it. */
@@ -251,6 +253,8 @@ class ProspectController(
      * actor, rationale, business/recorded time, provenance correlation, and the task lineage it
      * claims — the checklist a `due-diligence` landing runs on, the approval that authorized an
      * `invested`. Read-side mirror of why the store keeps events, not just state.
+     * actor, rationale, business/recorded time, provenance correlation, and the IC task that
+     * authorized an `invested`. Read-side mirror of why the store keeps events, not just state.
      */
     @GetMapping("/api/v1/prospects/{id}/events")
     fun events(
@@ -335,11 +339,19 @@ class ProspectController(
             if (landing.stage == ProspectStage.DUE_DILIGENCE) openDiligenceChecklist(id, jwt.subject) else null
         val appendEvent =
             checklist?.let { (event as ProspectEvent.Advanced).copy(taskId = it.taskId) } ?: event
+        // anywhere, and a retried transition still finds the task it needs (deduped below). If the
+        // append then loses its race, the checklist that was minted for the landing is cancelled —
+        // unless the race it lost was a racing caller landing `due-diligence` on the task it found
+        // open: that task now serves their transition, and cancelling it orphans the live pipeline.
+        // A checklist that survives without its transition is an orphan no one can ever close.
+        val checklist =
+            if (landing.stage == ProspectStage.DUE_DILIGENCE) openDiligenceChecklist(id, jwt.subject) else null
         val after =
             try {
                 prospects.append(
                     id,
                     appendEvent,
+                    event,
                     ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
                     TenantScope.User(userId),
                 )
@@ -353,6 +365,11 @@ class ProspectController(
                 // Any other store failure commits nothing either — the minted checklist gets the same cleanup.
                 cancelUnlessClaimed(checklist, id, userId, jwt.subject)
                 throw failure
+                checklist?.let { cancelOrphanedChecklist(it, jwt.subject) }
+                return ResponseEntity.notFound().build()
+            } catch (_: IllegalArgumentException) {
+                checklist?.takeUnless { checklistInService(id, userId) }?.let { cancelOrphanedChecklist(it, jwt.subject) }
+                return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
         counter("deal.prospects.transitions", "to", to.wireValue)?.increment()
         return ResponseEntity.ok(after.view())
@@ -372,11 +389,15 @@ class ProspectController(
      * on its event — the same lineage `invested` keeps for its approval — so a lost race reads the
      * claim back. Only a task this call minted may ever be cancelled on its behalf; a reused one
      * belongs to an earlier attempt and outlives this failure.
+     * closes it; diligence output (DDQ, docs) is a later slice. Returns the id of the task it
+     * opened, or null when it reused one already in flight — only a task this call opened may be
+     * cancelled if the transition then fails.
      */
     private fun openDiligenceChecklist(
         prospectId: UUID,
         requester: String,
     ): Checklist {
+    ): UUID? {
         val candidate =
             Task(
                 UUID.randomUUID(),
@@ -423,6 +444,19 @@ class ProspectController(
         val claimed = runCatching { checklistClaimed(prospectId, mintedId, userId) }.getOrDefault(true)
         if (!claimed) cancelOrphanedChecklist(mintedId, actor)
     }
+        return opened.task.id.takeIf { it == candidate.id }
+    }
+
+    /**
+     * Whether the checklist this request opened is already claimed: a racing caller that found it
+     * open and landed `due-diligence` — or carried the prospect past it — made the task its ask.
+     * A prospect still before `due-diligence`, a terminal one, or one that no longer loads leaves
+     * the task orphaned instead.
+     */
+    private fun checklistInService(
+        prospectId: UUID,
+        userId: UUID,
+    ): Boolean = prospects.load(prospectId, TenantScope.User(userId))?.stage in CHECKLIST_CLAIM_STAGES
 
     /** The transition did not land, so the checklist opened for it has no state to serve — cancelled, never left open. */
     private fun cancelOrphanedChecklist(

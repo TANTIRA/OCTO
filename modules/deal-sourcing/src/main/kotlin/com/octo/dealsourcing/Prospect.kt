@@ -75,6 +75,7 @@ sealed interface ProspectEvent {
             require(taskId == null || to == ProspectStage.DUE_DILIGENCE) { "only a due-diligence landing claims a checklist" }
         }
     }
+    ) : ProspectEvent
 
     data class Passed(
         override val actor: String,

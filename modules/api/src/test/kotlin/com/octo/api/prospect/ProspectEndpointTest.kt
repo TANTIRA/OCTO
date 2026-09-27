@@ -450,6 +450,8 @@ class ProspectEndpointTest {
 
         /** The racing caller's committed landings — replayed through the real machine, with their claim rows, before [failAppend] throws. */
         var appendFailureLands: (() -> List<ProspectEvent>)? = null
+        /** Stage left behind when [failAppend] fires — a racing transition's committed landing. */
+        var appendFailureLeavesStage: ProspectStage? = null
 
         override fun create(
             prospect: Prospect,
@@ -518,6 +520,11 @@ class ProspectEndpointTest {
             event: ProspectEvent,
             provenance: ProspectProvenance,
         ): ProspectState {
+                appendFailureLeavesStage?.let { stage ->
+                    states[prospectId] = (states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")).copy(stage = stage)
+                }
+                throw it
+            }
             val current = states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")
             val next = current.next(event)
             states[prospectId] = next
@@ -540,6 +547,7 @@ class ProspectEndpointTest {
                         recordedAt = java.time.Instant.now(),
                         correlationId = provenance.correlationId,
                         taskId = (event as? ProspectEvent.Invested)?.taskId ?: (event as? ProspectEvent.Advanced)?.taskId,
+                        taskId = (event as? ProspectEvent.Invested)?.taskId,
                     ),
                 )
             return next
@@ -1082,6 +1090,10 @@ class ProspectEndpointTest {
                     ),
                 )
             }
+            // The racing caller's landing committed while this request was in flight — the lost
+            // append replays onto the winner's stage, and the task this request opened is theirs now.
+            store.failAppend = IllegalArgumentException("lost the race")
+            store.appendFailureLeavesStage = ProspectStage.DUE_DILIGENCE
             mvc
                 .perform(
                     post("/api/v1/prospects/$id/transition")
@@ -1202,6 +1214,7 @@ class ProspectEndpointTest {
             store.appendFailureLands = {
                 listOf(ProspectEvent.Passed("the winning caller", java.time.Instant.now(), ProspectStage.SCREENING, "off-mandate"))
             }
+            store.appendFailureLeavesStage = ProspectStage.PASSED
             mvc
                 .perform(
                     post("/api/v1/prospects/$id/transition")
