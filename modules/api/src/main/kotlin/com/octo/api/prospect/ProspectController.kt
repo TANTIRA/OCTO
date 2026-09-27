@@ -120,6 +120,47 @@ class ProspectController(
     }
 
     /**
+     * `POST /api/v1/prospects/import` — the CRM/referral adapter's bulk intake. Each item registers
+     * deduplicated on `(tenant, source, source_ref)`: a re-sync is a no-op, so adapters can poll
+     * freely without duplicate prospects. Items without `sourceRef` always register.
+     */
+    @PostMapping("/api/v1/prospects/import")
+    fun import(
+        @RequestBody body: ImportRequest,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<ImportView> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        if (body.items.isEmpty()) return ResponseEntity.badRequest().build()
+        val registered = Instant.now()
+        val items =
+            body.items.mapNotNull { item ->
+                runCatching {
+                    Prospect(
+                        id = UUID.randomUUID(),
+                        tenantId = body.tenantId,
+                        name = item.name,
+                        source = ProspectSource.fromWireValue(item.source),
+                        sector = item.sector,
+                        region = item.region,
+                        description = item.description,
+                        registeredAt = registered,
+                        sourceRef = item.sourceRef,
+                    )
+                }.getOrNull() ?: return ResponseEntity.badRequest().build()
+            }
+        val inserted =
+            prospects.importBatch(
+                items,
+                jwt.subject,
+                ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
+                TenantScope.User(userId),
+            )
+        return ResponseEntity.ok(ImportView(inserted.size, items.size - inserted.size, inserted))
+    }
+
+    /**
      * `GET /api/v1/prospects/{id}/events` — the append-only audit trail itself: every transition with
      * actor, rationale, business/recorded time, provenance correlation, and the IC task that
      * authorized an `invested`. Read-side mirror of why the store keeps events, not just state.
@@ -404,6 +445,27 @@ class ProspectController(
             decidedBy = decidedBy,
             lastEventAt = lastEventAt,
         )
+
+    data class ImportItem(
+        val name: String,
+        val source: String,
+        val sourceRef: String? = null,
+        val sector: String? = null,
+        val region: String? = null,
+        val description: String? = null,
+    )
+
+    data class ImportRequest(
+        val tenantId: UUID,
+        val items: List<ImportItem>,
+        val correlationId: UUID? = null,
+    )
+
+    data class ImportView(
+        val inserted: Int,
+        val duplicates: Int,
+        val ids: List<UUID>,
+    )
 
     data class RegisterRequest(
         val tenantId: UUID,

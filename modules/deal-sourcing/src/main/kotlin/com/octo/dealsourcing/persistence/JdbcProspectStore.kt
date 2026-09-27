@@ -47,8 +47,8 @@ class JdbcProspectStore(
         val prospectSql =
             """
             insert into mesta.prospect (id, tenant_id, name, source, sector, region, description,
-                                        registered_at, source_system, actor, correlation_id)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        registered_at, source_ref, source_system, actor, correlation_id)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         dataSource.scoped(scope) { connection ->
             connection.prepareStatement(prospectSql).use { statement ->
@@ -60,13 +60,57 @@ class JdbcProspectStore(
                 statement.setString(6, prospect.region)
                 statement.setString(7, prospect.description)
                 statement.setObject(8, prospect.registeredAt.atOffset(ZoneOffset.UTC))
-                statement.setString(9, provenance.sourceSystem)
-                statement.setString(10, actor)
-                statement.setObject(11, provenance.correlationId)
+                statement.setString(9, prospect.sourceRef)
+                statement.setString(10, provenance.sourceSystem)
+                statement.setString(11, actor)
+                statement.setObject(12, provenance.correlationId)
                 statement.executeUpdate()
             }
         }
     }
+
+    /**
+     * Registers every prospect that isn't a duplicate of an existing `(tenant, source, source_ref)`
+     * row — the CRM-adapter contract: a re-sync is a no-op, not a second prospect. Returns the ids
+     * actually inserted; a `null` `source_ref` never dedupes (the V21 index is partial).
+     */
+    override fun importBatch(
+        prospects: List<Prospect>,
+        actor: String,
+        provenance: ProspectProvenance,
+        scope: TenantScope,
+    ): List<UUID> =
+        dataSource.scoped(scope) { connection ->
+            val sql =
+                """
+                insert into mesta.prospect (id, tenant_id, name, source, sector, region, description,
+                                            registered_at, source_ref, source_system, actor, correlation_id)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict (tenant_id, source, source_ref) where source_ref is not null do nothing
+                returning id
+                """.trimIndent()
+            connection.prepareStatement(sql).use { statement ->
+                buildList {
+                    for (prospect in prospects) {
+                        statement.setObject(1, prospect.id)
+                        statement.setObject(2, prospect.tenantId)
+                        statement.setString(3, prospect.name)
+                        statement.setString(4, prospect.source.wireValue)
+                        statement.setString(5, prospect.sector)
+                        statement.setString(6, prospect.region)
+                        statement.setString(7, prospect.description)
+                        statement.setObject(8, prospect.registeredAt.atOffset(ZoneOffset.UTC))
+                        statement.setString(9, prospect.sourceRef)
+                        statement.setString(10, provenance.sourceSystem)
+                        statement.setString(11, actor)
+                        statement.setObject(12, provenance.correlationId)
+                        statement.executeQuery().use { rows ->
+                            if (rows.next()) add(rows.getObject(1, UUID::class.java))
+                        }
+                    }
+                }
+            }
+        }
 
     /** The prospect's state after every stored event, or null when no prospect has that id. */
     override fun load(
@@ -179,7 +223,7 @@ class JdbcProspectStore(
     ): Prospect? =
         connection
             .prepareStatement(
-                "select tenant_id, name, source, sector, region, description, registered_at from mesta.prospect where id = ?",
+                "select tenant_id, name, source, sector, region, description, registered_at, source_ref from mesta.prospect where id = ?",
             ).use { statement ->
                 statement.setObject(1, prospectId)
                 statement.executeQuery().use { rows ->
@@ -193,6 +237,7 @@ class JdbcProspectStore(
                         region = rows.getString(5),
                         description = rows.getString(6),
                         registeredAt = rows.getObject(7, OffsetDateTime::class.java).toInstant(),
+                        sourceRef = rows.getString(8),
                     )
                 }
             }

@@ -256,6 +256,22 @@ class ProspectEndpointTest {
 
         val eventRows = mutableMapOf<UUID, MutableList<ProspectEventRow>>()
 
+        override fun importBatch(
+            prospects: List<Prospect>,
+            actor: String,
+            provenance: ProspectProvenance,
+            scope: TenantScope,
+        ): List<UUID> {
+            val seen =
+                states.values
+                    .map { Triple(it.prospect.tenantId, it.prospect.source, it.prospect.sourceRef) }
+                    .toMutableSet()
+            return prospects
+                .filter { it.sourceRef == null || seen.add(Triple(it.tenantId, it.source, it.sourceRef)) }
+                .onEach { states[it.id] = registered(it) }
+                .map { it.id }
+        }
+
         override fun history(
             id: UUID,
             scope: TenantScope,
@@ -412,6 +428,33 @@ class ProspectEndpointTest {
                     get("/api/v1/prospects/$id/events")
                         .with(jwt().jwt { it.subject(UUID.randomUUID().toString()) }),
                 ).andExpect(status().isNotFound)
+        }
+    }
+
+    @Test
+    fun `a bulk import dedupes on the external ref and refuses bad input`() {
+        run { mvc ->
+            val body =
+                """{"tenantId":"$tenantId","items":[""" +
+                    """{"name":"A","source":"crm","sourceRef":"crm-1"},""" +
+                    """{"name":"B","source":"crm","sourceRef":"crm-1"},""" +
+                    """{"name":"C","source":"referral"}]}"""
+            mvc
+                .perform(
+                    post("/api/v1/prospects/import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body)
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.inserted").value(2))
+                .andExpect(jsonPath("$.duplicates").value(1))
+            mvc
+                .perform(
+                    post("/api/v1/prospects/import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId","items":[{"name":"X","source":"nosuch"}]}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
         }
     }
 
