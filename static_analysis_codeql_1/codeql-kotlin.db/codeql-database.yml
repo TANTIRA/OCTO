@@ -1,0 +1,46 @@
+---
+sourceLocationPrefix: /Users/macbook/Octo
+baselineLinesOfCode: 44027
+unicodeNewlines: false
+columnKind: utf16
+primaryLanguage: java
+inProgress:
+  primaryLanguage: java
+  installedExtractors:
+    go:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/go
+    python:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/python
+    rust:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/rust
+    java:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/java
+    html:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/html
+    xml:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/xml
+    properties:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/properties
+    cpp:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/cpp
+    swift:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/swift
+    csv:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/csv
+    actions:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/actions
+    yaml:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/yaml
+    csharp:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/csharp
+    javascript:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/javascript
+    ruby:
+     - /opt/homebrew/Caskroom/codeql/2.26.3/codeql/ruby
+creationMetadata:
+  sha: e81c828adc81ea928721c4dcae26663f19434fed
+  cliVersion: 2.26.3
+  creationTime: 2026-09-27T07:20:49.255278Z
+overlayBaseDatabase: false
+overlayDatabase: false
+finalised: false

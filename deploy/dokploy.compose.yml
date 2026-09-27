@@ -99,7 +99,6 @@ services:
       # 127.0.0.1, not localhost: the standalone server binds IPv4 0.0.0.0 and
       # busybox wget tries ::1 first on alpine, which reports unhealthy falsely.
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/"]
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
       interval: 30s
       timeout: 5s
       retries: 3

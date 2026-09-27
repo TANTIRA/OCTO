@@ -1,0 +1,12 @@
+---
+sourceLocationPrefix: /Users/macbook/Octo/web
+baselineLinesOfCode: 5990
+unicodeNewlines: true
+columnKind: utf16
+primaryLanguage: javascript
+creationMetadata:
+  cliVersion: 2.26.3
+  creationTime: 2026-09-27T07:10:52.851991Z
+overlayBaseDatabase: false
+overlayDatabase: false
+finalised: true

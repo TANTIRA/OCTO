@@ -1,0 +1,7 @@
+paths-ignore:
+  - web/node_modules
+  - web/.next
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.min.js"
+  - web/tsconfig.tsbuildinfo
