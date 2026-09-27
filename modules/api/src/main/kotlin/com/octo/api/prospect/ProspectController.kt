@@ -180,7 +180,32 @@ class ProspectController(
             } catch (_: IllegalArgumentException) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
+        if (event is ProspectEvent.Advanced && after.stage == ProspectStage.DUE_DILIGENCE) {
+            openDiligenceChecklist(id, jwt.subject)
+        }
         return ResponseEntity.ok(after.view())
+    }
+
+    /**
+     * Landing in `due-diligence` opens the evidence checklist: a REVIEW-kind task on the prospect.
+     * The task state machine tracks who gathers and closes it; the pipeline itself only demands
+     * that the request exists — diligence output (DDQ, docs) is a later slice.
+     */
+    private fun openDiligenceChecklist(
+        prospectId: UUID,
+        requester: String,
+    ) {
+        tasks.open(
+            Task(
+                UUID.randomUUID(),
+                TaskKind.EVIDENCE_REQUEST,
+                "prospect",
+                prospectId.toString(),
+                requester,
+                Instant.now(),
+            ),
+            TaskProvenance("api", UUID.randomUUID()),
+        )
     }
 
     /**

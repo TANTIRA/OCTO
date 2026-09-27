@@ -16,10 +16,12 @@ import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
 import com.octo.dealsourcing.registered
 import com.octo.workflow.Task
+import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState
 import com.octo.workflow.TaskStatus
 import com.octo.workflow.opened
 import com.octo.workflow.persistence.TaskProvenance
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -320,6 +322,32 @@ class ProspectEndpointTest {
         }
     }
 
+    @Test
+    fun `landing in due-diligence opens the evidence checklist task`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            assertThat(tasks.opened()).isEmpty()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"due-diligence"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.stage").value("due-diligence"))
+            val task = tasks.opened().single()
+            assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
+            assertThat(task.subjectId).isEqualTo(id.toString())
+        }
+    }
+
     /** Task states keyed by id; `openAt` plants an approval task on the prospect, `approve` resolves it. */
     private class FakeIcTasks : IcTasks {
         private val states = mutableMapOf<UUID, TaskState>()
@@ -346,6 +374,8 @@ class ProspectEndpointTest {
         fun approve(taskId: UUID) {
             states.computeIfPresent(taskId) { _, s -> s.copy(status = TaskStatus.APPROVED, decidedBy = "ic-member") }
         }
+
+        fun opened(): List<Task> = states.values.map { it.task }
     }
 
     /** Versioned rule rows like the store: `define` bumps per rule_id, `activeRules` takes the newest. */
