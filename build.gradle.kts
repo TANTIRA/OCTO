@@ -13,12 +13,6 @@ allprojects {
 
     repositories {
         mavenCentral()
-        // TypeDB's Java driver is not published to Maven Central.
-        maven("https://repo.typedb.com/public/public-release/maven/") {
-            content {
-                includeGroup("com.typedb")
-            }
-        }
     }
 }
 

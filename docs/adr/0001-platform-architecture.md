@@ -34,7 +34,7 @@ The product's own value proposition — reducing complexity and replacing overla
 | `control-panel` | AI applications: alert rules, NL query, drafting, news matching |
 | `api` | REST boundary (OpenAPI), auth, serving UI and external consumers |
 
-**2. Self-hosted Supabase PostgreSQL is the single database.** Flyway migrations live in `db/migrations/`; Spring Boot remains the domain/API boundary. Supabase Auth and Storage are adopted behind controlled interfaces, while direct client writes to sensitive domain data are prohibited. See [ADR-0002](0002-self-hosted-supabase.md). Look-through and ontology workloads use TypeDB per [ADR-0003](0003-typedb-ontology-store.md); PostgreSQL remains the ledger of record.
+**2. Self-hosted Supabase PostgreSQL is the single database.** Flyway migrations live in `db/migrations/`; Spring Boot remains the domain/API boundary. Supabase Auth and Storage are adopted behind controlled interfaces, while direct client writes to sensitive domain data are prohibited. See [ADR-0002](0002-self-hosted-supabase.md). Look-through and ontology workloads use Neo4j per [ADR-0004](0004-neo4j-graph-store.md); PostgreSQL remains the ledger of record.
 
 **3. IBOR is derived, never written.** Positions, committed/invested capital, and remaining cost are computed from the append-only ledger. No mutable position tables — this is what makes the IBOR auditable and reconcilable.
 
@@ -128,7 +128,7 @@ flowchart LR
 
 - **Commercial data and AI platform directly** — accelerates initial delivery, but introduces platform dependency and limits ownership of the Ontology, deployment model, and AI governance.
 - **Microservices** — recreates the fragmentation the product eliminates; premature at this scale. Module boundaries preserve the option to extract later.
-- **Graph database for look-through** (TypeDB/Neo4j) — adds a second system, violating "one database". Revisit if recursive query performance or ontology-driven inference demands it.
+- **Graph database for look-through** — initially rejected ("one database"); later adopted as TypeDB (ADR-0003) and re-decided as Neo4j (ADR-0004).
 - **Event-sourced store (e.g. EventStoreDB)** — the ledger semantics are required, but Postgres append-only tables deliver them without new infrastructure.
 
 ## Consequences

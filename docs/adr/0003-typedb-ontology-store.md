@@ -1,6 +1,6 @@
 # ADR-0003: TypeDB as the Ontology and Graph Store
 
-- Status: Proposed
+- Status: Superseded by [ADR-0004](0004-neo4j-graph-store.md)
 - Date: 2026-09-21
 - Risk tier: T2 (ontology schema ownership, second data store, cross-store consistency)
 - Decision owner: CTO (ontology owner per `AGENTS.md`)

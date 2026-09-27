@@ -1,6 +1,8 @@
 # Ontology Design Guidelines
 
-Design principles and review checklist for `ontology/octo-investment.tql` and all future Ontology changes. Adapted from established ontology-platform best practices, translated to TypeDB/TypeQL 3.0 and the private-equity domain. Ontology changes are T2 and CTO-owned per `AGENTS.md`.
+Design principles and review checklist for `ontology/octo-investment.cypher` and all future Ontology changes.
+
+> ⚠️ Syntax examples below predate ADR-0004 (Neo4j/Cypher) and are written in TypeQL. The principles stand; a Cypher-native revision of the examples is TODO(#189). Adapted from established ontology-platform best practices, translated to TypeDB/TypeQL 3.0 and the private-equity domain. Ontology changes are T2 and CTO-owned per `AGENTS.md`.
 
 ## Principles in priority order
 

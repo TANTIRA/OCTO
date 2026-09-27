@@ -128,7 +128,7 @@ class InstrumentFlowTest {
     fun `flow types match the ontology`() {
         val ontology = File(System.getProperty("ontology.file") ?: error("ontology.file system property is not set")).readText()
         val values =
-            Regex("""attribute\s+instrument-flow-type,\s+value\s+string\s+@values\(([^)]*)\)""")
+            Regex("""name:\s*instrument-flow-type\s*\|\s*value:\s*string\s*\|\s*@values\(([^)]*)\)""")
                 .find(ontology)
                 ?.groupValues
                 ?.get(1)

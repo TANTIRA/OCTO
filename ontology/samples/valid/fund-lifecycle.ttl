@@ -65,7 +65,7 @@ inv:employment-rina-aurora a inv:Employment ;
     inv:roleTitle "Investment Director" ;
     inv:effectiveDate "2023-01-09"^^xsd:date .
 
-# Look-through edge. Both roles are organization-scoped per the TypeQL declaration.
+# Look-through edge. Both roles are organization-scoped per the schema declaration.
 inv:ownership-aurora-fn-nyc a inv:Ownership ;
     inv:owner inv:fund-manager-aurora ;
     inv:asset inv:operating-company-fn-nyc ;

@@ -36,11 +36,11 @@ Run `./gradlew check` and `./gradlew test` before every pull request. If a comma
 | `modules/workflow/` | Approvals, task routing, operational processes | Normal PR |
 | `modules/control-panel/` | AI alerting rules, NL query, email drafting, news matching | T2 — agents that act; see AI features below |
 | `modules/api/` | REST API, auth boundary | Auth endpoints T2 |
-| `modules/ontology/` | OWL/SHACL validator and TypeQL schema parser — the CI gate for `ontology/` | T2 — loosening the gate weakens ontology review |
+| `modules/ontology/` | OWL/SHACL validator and Cypher schema parser — the CI gate for `ontology/` | T2 — loosening the gate weakens ontology review |
 | `modules/*/src/test/` | Tests | Normal PR |
 | `infra/supabase/`, `infra/`, `.github/workflows/`, `Dockerfile` | Pinned self-hosted Supabase deployment, pipelines, and infrastructure | Needs Platform, DevOps, and Security review; tier T2 |
 | `db/migrations/` | Flyway migrations | Never edit a migration that already ran; add a new one |
-| `ontology/` | OWL/SHACL shapes and TypeQL 3.0 investment schema (`octo-investment.tql`) | T2 — CTO owns; SemVer; deprecate before deleting |
+| `ontology/` | OWL/SHACL shapes and Cypher investment schema (`octo-investment.cypher`) | T2 — CTO owns; SemVer; deprecate before deleting |
 | `.env*`, keys, certificates | Secrets | Never commit. `.env.example` holds names only, no values |
 
 Do not create new top-level directories without an ADR.
@@ -107,7 +107,7 @@ You may use Claude Code, Codex, Devin, Windsurf, OpenCode, or Oh My Pi on this r
 
 **Ontology (`ontology/`)** — owner: CTO
 
-- Ontology is code: Turtle files (OWL plus SHACL shapes) and TypeQL schema live in Git.
+- Ontology is code: Turtle files (OWL plus SHACL shapes) and the Cypher schema live in Git.
 - CI must pass RDF syntax checks and SHACL validation against the sample data.
 - Version with `owl:versionIRI` using SemVer. Removing or redefining a class or property is a MAJOR change and tier T2.
 - Mark with `owl:deprecated` for at least one release before deleting.

@@ -13,7 +13,7 @@ ontology types in `ontology/octo-investment.tql`. Client implementation lives in
 Three properties of the model determine every mapping below:
 
 1. **It returns typed answers, not prose.** `noul` gives a probability, `choice` gives an option plus a full distribution, `score` gives a value plus a distribution. There is no generated text, so it can never fill a free-text field such as `rationale`.
-2. **Two stores, two kinds of decision record.** TypeDB owns entities, relationships, and provenance. PostgreSQL owns the ledger, workflow, and audit. A decision about an *entity* belongs in TypeDB; a decision about a *task* belongs in PostgreSQL.
+2. **Two stores, two kinds of decision record.** Neo4j owns entities, relationships, and provenance. PostgreSQL owns the ledger, workflow, and audit. A decision about an *entity* belongs in Neo4j; a decision about a *task* belongs in PostgreSQL.
 3. **The probability distribution is the point.** The selected option alone discards the information that makes the answer useful, so every integration point below has to decide where the distribution is stored.
 
 ## Integration points
@@ -58,7 +58,7 @@ These are real blockers for the affected points, and ontology changes are T2 and
 | No identity-merge provenance type | 7 | `supersedes` exists for ledger corrections, not entity merges. A merge needs its own auditable record |
 | `rationale` cannot be model-written | 1 | The model produces no prose. Cited reasons for a recommendation must be assembled from the criteria and the underlying `extracted-claim` citations, not generated |
 
-The first two were the screening blockers and are closed. `external-id` doubles as the provider request id, linking a TypeDB decision back to the staged row in `mesta.claim_assessment`.
+The first two were the screening blockers and are closed. `external-id` doubles as the provider request id, linking a graph decision back to the staged row in `mesta.claim_assessment`.
 
 ## Explicit exclusions
 
@@ -118,7 +118,7 @@ Where the first two live:
 | 5 | `modules/ingestion/.../classification/` — `DocumentType`, `DocumentClassificationCriteria`, `DocumentClassifier` |
 | 6 | `modules/ingestion/.../extraction/` — `ClaimSupportPolicy`, `ClaimSupportAssessor` |
 
-Both return a decision record with the model lineage and a `requiresReview` flag. Persistence lives in `modules/ingestion/.../persistence/` — `DocumentClassificationStore` and `ClaimAssessmentStore` interfaces with `JdbcDecisionStore` writing to the append-only tables `mesta.document_classification` and `mesta.claim_assessment` (V2 migration). Corrections are new rows linked by `supersedes_id` with a mandatory rationale, replay is rejected by a `(source_system, external_id)` unique index, and the full probability distribution is stored as `jsonb` — the argmax alone cannot show how marginal a decision was. The TypeDB attributes (`document.document-type`, `extracted-claim.confidence-level`) are written downstream after review; staging is the record of what the model said.
+Both return a decision record with the model lineage and a `requiresReview` flag. Persistence lives in `modules/ingestion/.../persistence/` — `DocumentClassificationStore` and `ClaimAssessmentStore` interfaces with `JdbcDecisionStore` writing to the append-only tables `mesta.document_classification` and `mesta.claim_assessment` (V2 migration). Corrections are new rows linked by `supersedes_id` with a mandatory rationale, replay is rejected by a `(source_system, external_id)` unique index, and the full probability distribution is stored as `jsonb` — the argmax alone cannot show how marginal a decision was. The graph attributes (`document.document-type`, `extracted-claim.confidence-level`) are written downstream after review; staging is the record of what the model said.
 
 
 ## Preconditions

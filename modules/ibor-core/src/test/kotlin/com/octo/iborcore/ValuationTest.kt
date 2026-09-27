@@ -71,7 +71,7 @@ class ValuationTest {
     fun `valuation methods match the ontology`() {
         val ontology = File(System.getProperty("ontology.file") ?: error("ontology.file system property is not set")).readText()
         val values =
-            Regex("""attribute\s+valuation-method,\s+value\s+string\s+@values\(([^)]*)\)""")
+            Regex("""name:\s*valuation-method\s*\|\s*value:\s*string\s*\|\s*@values\(([^)]*)\)""")
                 .find(ontology)
                 ?.groupValues
                 ?.get(1)
