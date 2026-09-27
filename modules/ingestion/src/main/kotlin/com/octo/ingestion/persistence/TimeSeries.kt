@@ -49,12 +49,18 @@ data class TimeSeriesQuery(
     }
 }
 
-/** What the data endpoint reads. Tenant scoping is the caller's job, from [datasetTenant]. */
+/** What the data endpoint reads. Tenant scoping is the caller's job, passed as [TenantScope]. */
 interface TimeSeriesReader {
-    /** The tenant a dataset belongs to, or null for an unknown dataset. */
-    fun datasetTenant(datasetId: UUID): UUID?
+    /** The tenant a dataset belongs to, or null for an unknown dataset (and under RLS, one outside [scope]). */
+    fun datasetTenant(
+        datasetId: UUID,
+        scope: TenantScope,
+    ): UUID?
 
-    fun query(query: TimeSeriesQuery): List<Observation>
+    fun query(
+        query: TimeSeriesQuery,
+        scope: TenantScope,
+    ): List<Observation>
 }
 
 /** The write side ingestion adapters depend on; `JdbcTimeSeriesStore` implements it. */
@@ -62,5 +68,6 @@ interface TimeSeriesWriter {
     fun write(
         observations: List<Observation>,
         provenance: ObservationProvenance,
+        scope: TenantScope,
     ): List<Observation>
 }

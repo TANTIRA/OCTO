@@ -14,6 +14,7 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.sql.SQLException
 import java.util.UUID
+import com.octo.workflow.TenantScope
 
 /** `JdbcReportJobStore` against the real V13 schema: submit, claim in order, complete, fail, and the trigger's refusals. Skipped without Docker. */
 @Testcontainers(disabledWithoutDocker = true)
@@ -61,8 +62,8 @@ class ReportJobStoreIT {
     fun `jobs are claimed oldest first, once, and end done or error`() {
         // Each test gets its own tenant, but the queue is global: drain whatever other tests left before asserting order.
         val tenantId = tenant()
-        val first = store.submit(request(tenantId))
-        val second = store.submit(request(tenantId).copy(measures = listOf("dpi")))
+        val first = store.submit(request(tenantId), TenantScope.All)
+        val second = store.submit(request(tenantId).copy(measures = listOf("dpi")), TenantScope.All)
         assertThat(first.status).isEqualTo(JobStatus.NEW)
         assertThat(first.request.measures).containsExactly("tvpi", "irr")
 
@@ -78,13 +79,13 @@ class ReportJobStoreIT {
         assertThat(done.updatedAt).isAfterOrEqualTo(done.createdAt)
         val failed = store.fail(second.id, "engine refused the series")
         assertThat(failed.status).isEqualTo(JobStatus.ERROR)
-        assertThat(store.load(second.id)!!.error).isEqualTo("engine refused the series")
-        assertThat(store.load(UUID.randomUUID())).isNull()
+        assertThat(store.load(second.id, TenantScope.All)!!.error).isEqualTo("engine refused the series")
+        assertThat(store.load(UUID.randomUUID(), TenantScope.All)).isNull()
     }
 
     @Test
     fun `the trigger refuses a transition out of order and the store surfaces it`() {
-        val job = store.submit(request(tenant()))
+        val job = store.submit(request(tenant()), TenantScope.All)
         assertThatThrownBy { store.complete(job.id, "{}") }.isInstanceOf(SQLException::class.java) // still new
         assertThatThrownBy { store.fail(UUID.randomUUID(), "x") }.isInstanceOf(NoSuchElementException::class.java)
         assertThatThrownBy { request(job.request.tenantId).copy(measures = listOf(" ")) }.isInstanceOf(IllegalArgumentException::class.java)

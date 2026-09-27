@@ -15,6 +15,7 @@ class JdbcTimeSeriesStore(
     override fun write(
         observations: List<Observation>,
         provenance: ObservationProvenance,
+        scope: TenantScope,
     ): List<Observation> {
         val sql =
             """
@@ -23,40 +24,34 @@ class JdbcTimeSeriesStore(
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             returning recorded_at
             """.trimIndent()
-        dataSource.connection.use { connection ->
-            connection.autoCommit = false
-            try {
-                val written =
-                    connection.prepareStatement(sql).use { statement ->
-                        observations.map { observation ->
-                            statement.setObject(1, observation.datasetId)
-                            statement.setString(2, observation.seriesKey)
-                            statement.setString(3, observation.field)
-                            statement.setObject(4, observation.effectiveDate)
-                            statement.setBigDecimal(5, observation.value)
-                            statement.setObject(6, observation.supersedesId)
-                            statement.setString(7, observation.rationale)
-                            statement.setString(8, provenance.sourceSystem)
-                            statement.setString(9, provenance.actor)
-                            statement.setObject(10, provenance.ingestionRunId)
-                            statement.setObject(11, provenance.correlationId)
-                            statement.executeQuery().use { rows ->
-                                rows.next()
-                                observation.copy(recordedAt = rows.getObject("recorded_at", OffsetDateTime::class.java).toInstant())
-                            }
-                        }
+        return dataSource.scoped(scope) { connection ->
+            connection.prepareStatement(sql).use { statement ->
+                observations.map { observation ->
+                    statement.setObject(1, observation.datasetId)
+                    statement.setString(2, observation.seriesKey)
+                    statement.setString(3, observation.field)
+                    statement.setObject(4, observation.effectiveDate)
+                    statement.setBigDecimal(5, observation.value)
+                    statement.setObject(6, observation.supersedesId)
+                    statement.setString(7, observation.rationale)
+                    statement.setString(8, provenance.sourceSystem)
+                    statement.setString(9, provenance.actor)
+                    statement.setObject(10, provenance.ingestionRunId)
+                    statement.setObject(11, provenance.correlationId)
+                    statement.executeQuery().use { rows ->
+                        rows.next()
+                        observation.copy(recordedAt = rows.getObject("recorded_at", OffsetDateTime::class.java).toInstant())
                     }
-                connection.commit()
-                return written
-            } catch (e: Exception) {
-                connection.rollback()
-                throw e
+                }
             }
         }
     }
 
-    override fun datasetTenant(datasetId: UUID): UUID? =
-        dataSource.connection.use { connection ->
+    override fun datasetTenant(
+        datasetId: UUID,
+        scope: TenantScope,
+    ): UUID? =
+        dataSource.scoped(scope) { connection ->
             connection.prepareStatement("select tenant_id from mesta.dataset where id = ?").use { statement ->
                 statement.setObject(1, datasetId)
                 statement.executeQuery().use { rows -> if (rows.next()) rows.getObject("tenant_id", UUID::class.java) else null }
@@ -64,7 +59,10 @@ class JdbcTimeSeriesStore(
         }
 
     /** `distinct on` keeps the latest recorded row per series, field and effective date among the rows the filters admit. */
-    override fun query(query: TimeSeriesQuery): List<Observation> {
+    override fun query(
+        query: TimeSeriesQuery,
+        scope: TenantScope,
+    ): List<Observation> {
         val conditions = mutableListOf("dataset_id = ?", "effective_date between ? and ?")
         val parameters = mutableListOf<Any>(query.datasetId, query.startDate, query.endDate)
         query.asOfTime?.let {
@@ -87,7 +85,7 @@ class JdbcTimeSeriesStore(
             where ${conditions.joinToString(" and ")}
             order by series_key, field, effective_date, recorded_at desc
             """.trimIndent()
-        return dataSource.connection.use { connection ->
+        return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 parameters.forEachIndexed { i, value ->
                     if (value is Array<*>) {

@@ -52,7 +52,10 @@ data class AssetProvenance(
     val correlationId: UUID,
 )
 
-/** What the asset endpoint reads. Null for an unknown id; tenant scoping is the caller's job. */
+/** What the asset endpoint reads. Null for an unknown id; tenant scoping is enforced at both layers (#197). */
 fun interface AssetStore {
-    fun load(id: UUID): AssetRecord?
+    fun load(
+        id: UUID,
+        scope: com.octo.api.access.TenantScope,
+    ): AssetRecord?
 }

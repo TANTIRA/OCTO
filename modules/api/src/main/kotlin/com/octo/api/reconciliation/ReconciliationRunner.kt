@@ -4,6 +4,7 @@ import com.octo.recon.matching.Break
 import com.octo.recon.matching.SourceRecord
 import com.octo.recon.matching.Tolerance
 import com.octo.recon.matching.persistence.ReconciliationStore
+import com.octo.recon.persistence.TenantScope
 import com.octo.recon.matching.reconcile
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
@@ -52,24 +53,25 @@ class ReconciliationRunner(
         requestedBy: String,
         correlationId: UUID,
     ): RunResult {
+        val scope = TenantScope.Tenants(listOf(tenantId))
         val ibor = source.map { it.sourceSystem }.toSet().flatMap { store.iborRecords(it, zone) }
         val result = reconcile(source, ibor, tolerance)
         val runId = UUID.randomUUID()
         val outcomes =
             result.breaks.map { brk ->
-                store.existingTask(tenantId, brk)?.let { existing ->
-                    store.record(tenantId, runId, brk, null, correlationId)
+                store.existingTask(tenantId, brk, scope)?.let { existing ->
+                    store.record(tenantId, runId, brk, null, correlationId, scope)
                     return@map BreakOutcome(brk, existing, opened = false)
                 }
                 val task = Task(UUID.randomUUID(), TaskKind.EVIDENCE_REQUEST, "reconciliation-break", brk.key(), requestedBy, Instant.now())
                 tasks.open(task, TaskProvenance("api", correlationId))
                 try {
-                    store.record(tenantId, runId, brk, task.id, correlationId)
+                    store.record(tenantId, runId, brk, task.id, correlationId, scope)
                     BreakOutcome(brk, task.id, opened = true)
                 } catch (e: SQLException) {
                     // ponytail: the task opened for the losing runner stays open with no break; close it in a sweep if races turn out to be common.
-                    val winner = store.existingTask(tenantId, brk) ?: throw e
-                    store.record(tenantId, runId, brk, null, correlationId)
+                    val winner = store.existingTask(tenantId, brk, scope) ?: throw e
+                    store.record(tenantId, runId, brk, null, correlationId, scope)
                     BreakOutcome(brk, winner, opened = false)
                 }
             }

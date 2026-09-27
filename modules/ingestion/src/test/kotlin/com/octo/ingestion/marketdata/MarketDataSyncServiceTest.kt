@@ -15,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.octo.ingestion.persistence.TenantScope
 
 private val DATASET: UUID = UUID.fromString("00000000-0000-0000-0000-0000000000d5")
 

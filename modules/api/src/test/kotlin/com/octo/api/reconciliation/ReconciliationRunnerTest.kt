@@ -13,6 +13,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Currency
 import java.util.UUID
+import com.octo.recon.persistence.TenantScope
 
 class ReconciliationRunnerTest {
     private val usd = Currency.getInstance("USD")
@@ -95,11 +96,12 @@ class ReconciliationRunnerTest {
                     override fun existingTask(
                         tenantId: UUID,
                         brk: com.octo.recon.matching.Break,
-                    ) = store.existingTask(tenantId, brk).also {
+                        scope: TenantScope,
+                    ) = store.existingTask(tenantId, brk, scope).also {
                         if (it ==
                             null
                         ) {
-                            store.record(tenantId, UUID.randomUUID(), brk, winner, UUID.randomUUID())
+                            store.record(tenantId, UUID.randomUUID(), brk, winner, UUID.randomUUID(), TenantScope.All)
                         }
                     }
                 },

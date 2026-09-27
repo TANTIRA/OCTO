@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import java.time.Instant
 import java.util.UUID
 import java.util.function.Supplier
+import com.octo.workflow.TenantScope
 
 /** The release gate end to end with in-memory stores: a task is opened once for a done job, and the result shows only after approval. */
 class ReleaseEndpointTest {
@@ -91,6 +92,7 @@ class ReleaseEndpointTest {
                     analyst.toString(),
                     UUID.randomUUID(),
                 ),
+                TenantScope.All,
             )
         jobs.claimNext()
         jobs.complete(job.id, """{"tvpi": 1.3}""", "a".repeat(64))
