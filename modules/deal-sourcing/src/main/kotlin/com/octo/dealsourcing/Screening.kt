@@ -25,6 +25,29 @@ data class ScreeningCriteria(
     }
 }
 
+/**
+ * Screens [prospect] against every active rule (`name` → criteria). Rules combine conjunctively —
+ * a PE firm's mandate and its ESG exclusions are independent constraints, and one REJECT decides
+ * the outcome. Reasons are prefixed with the rule that produced them so a verdict stays attributable.
+ */
+fun evaluateAll(
+    prospect: Prospect,
+    rules: List<Pair<String, ScreeningCriteria>>,
+): ScreeningOutcome {
+    val outcomes = rules.map { (name, criteria) -> name to criteria.evaluate(prospect) }
+    val verdict =
+        when {
+            outcomes.any { it.second.verdict == ScreeningVerdict.REJECT } -> ScreeningVerdict.REJECT
+            outcomes.any { it.second.verdict == ScreeningVerdict.REVIEW } -> ScreeningVerdict.REVIEW
+            else -> ScreeningVerdict.CLEAR
+        }
+    val reasons =
+        outcomes.flatMap { (name, outcome) ->
+            outcome.reasons.map { "[$name] $it" }
+        }
+    return ScreeningOutcome(verdict, reasons)
+}
+
 /** What a screen can conclude. REVIEW means data was missing; REJECT means data was present and failed. */
 enum class ScreeningVerdict {
     CLEAR,

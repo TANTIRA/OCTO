@@ -13,6 +13,7 @@ import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.next
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
+import com.octo.dealsourcing.persistence.ScreeningRuleRow
 import com.octo.dealsourcing.registered
 import com.octo.workflow.Task
 import com.octo.workflow.TaskState
@@ -47,6 +48,7 @@ class ProspectEndpointTest {
     private val tenantId = UUID.randomUUID()
     private val store = FakeProspectStore()
     private val tasks = FakeIcTasks()
+    private val rules = FakeRules()
 
     private val contextRunner =
         WebApplicationContextRunner()
@@ -70,6 +72,10 @@ class ProspectEndpointTest {
             ).withBean(
                 IcTasks::class.java,
                 Supplier { tasks },
+                { it.isPrimary = true },
+            ).withBean(
+                ScreeningRules::class.java,
+                Supplier { rules },
                 { it.isPrimary = true },
             ).withPropertyValues(
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
@@ -262,6 +268,58 @@ class ProspectEndpointTest {
         }
     }
 
+    @Test
+    fun `a screening reject passes the prospect with the violated constraint as rationale`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/screening-rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sectors":["saas"]}}""",
+                        ).with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isCreated)
+                .andExpect(jsonPath("$.version").value(1))
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/screen").with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.verdict").value("reject"))
+                .andExpect(jsonPath("$.reasons[0]").value("[Mandate] sector 'logistics' is outside the mandate [saas]"))
+                .andExpect(jsonPath("$.stage").value("passed"))
+        }
+    }
+
+    @Test
+    fun `a screen without rules reviews and opens a review task`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/screen").with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.verdict").value("review"))
+                .andExpect(jsonPath("$.reasons[0]").value("no active screening rule for the tenant"))
+                .andExpect(jsonPath("$.reviewTaskId").exists())
+                .andExpect(jsonPath("$.stage").value("screening"))
+        }
+    }
+
     /** Task states keyed by id; `openAt` plants an approval task on the prospect, `approve` resolves it. */
     private class FakeIcTasks : IcTasks {
         private val states = mutableMapOf<UUID, TaskState>()
@@ -288,5 +346,32 @@ class ProspectEndpointTest {
         fun approve(taskId: UUID) {
             states.computeIfPresent(taskId) { _, s -> s.copy(status = TaskStatus.APPROVED, decidedBy = "ic-member") }
         }
+    }
+
+    /** Versioned rule rows like the store: `define` bumps per rule_id, `activeRules` takes the newest. */
+    private class FakeRules : ScreeningRules {
+        private val defined = mutableListOf<ScreeningRuleRow>()
+
+        override fun define(
+            tenantId: UUID,
+            ruleId: String,
+            name: String,
+            criteria: String,
+            actor: String,
+            provenance: ProspectProvenance,
+            scope: TenantScope,
+        ): Int {
+            val version = (defined.filter { it.ruleId == ruleId }.maxOfOrNull { it.version } ?: 0) + 1
+            defined += ScreeningRuleRow(ruleId, version, name, criteria)
+            return version
+        }
+
+        override fun activeRules(
+            tenantId: UUID,
+            scope: TenantScope,
+        ): List<ScreeningRuleRow> =
+            defined
+                .groupBy { it.ruleId }
+                .map { (_, versions) -> versions.maxBy { it.version } }
     }
 }

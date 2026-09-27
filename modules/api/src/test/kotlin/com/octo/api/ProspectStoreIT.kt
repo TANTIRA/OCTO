@@ -6,6 +6,7 @@ import com.octo.dealsourcing.ProspectSource
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.persistence.JdbcProspectStore
+import com.octo.dealsourcing.persistence.JdbcScreeningRuleStore
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -208,6 +209,23 @@ class ProspectStoreIT {
                 TenantScope.All,
             )
         }.isInstanceOf(NoSuchElementException::class.java)
+    }
+
+    @Test
+    fun `screening rules version per rule_id and activeRules returns the newest of each`() {
+        val rules = JdbcScreeningRuleStore(dataSource)
+        val tenantId = tenant()
+        assertThat(rules.define(tenantId, "mandate", "Mandate", """{"sectors":["saas"]}""", "admin", provenance, TenantScope.All))
+            .isEqualTo(1)
+        assertThat(
+            rules.define(tenantId, "mandate", "Mandate v2", """{"sectors":["saas","logistics"]}""", "admin", provenance, TenantScope.All),
+        ).isEqualTo(2)
+        rules.define(tenantId, "esg", "ESG exclusions", "{}", "admin", provenance, TenantScope.All)
+
+        val active = rules.activeRules(tenantId, TenantScope.All)
+        assertThat(active.map { it.ruleId }.toSet()).isEqualTo(setOf("mandate", "esg"))
+        assertThat(active.single { it.ruleId == "mandate" }.version).isEqualTo(2)
+        assertThat(active.single { it.ruleId == "mandate" }.name).isEqualTo("Mandate v2")
     }
 
     private companion object {
