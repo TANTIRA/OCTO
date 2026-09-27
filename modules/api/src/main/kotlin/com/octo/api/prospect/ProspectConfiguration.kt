@@ -39,6 +39,11 @@ class ProspectConfiguration {
                 scope: TenantScope,
             ) = store.load(id, scope)
 
+            override fun history(
+                id: UUID,
+                scope: TenantScope,
+            ) = store.history(id, scope)
+
             override fun listAtStage(
                 tenantId: UUID,
                 stage: ProspectStage,

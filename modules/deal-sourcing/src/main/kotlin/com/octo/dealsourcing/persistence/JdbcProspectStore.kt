@@ -74,6 +74,34 @@ class JdbcProspectStore(
         scope: TenantScope,
     ): ProspectState? = dataSource.scoped(scope) { connection -> replayLocked(connection, id) }
 
+    /** The raw event rows in append order — the audit trail [load]'s replay summarizes. */
+    override fun history(
+        id: UUID,
+        scope: TenantScope,
+    ): List<ProspectEventRow>? =
+        dataSource.scoped(scope) { connection ->
+            selectProspect(connection, id) ?: return@scoped null
+            connection
+                .prepareStatement(
+                    """
+                    select seq, event_type, stage_from, stage_to, actor, rationale,
+                           occurred_at, recorded_at, correlation_id, task_id
+                    from mesta.prospect_event
+                    where prospect_id = ?
+                    order by seq
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setObject(1, id)
+                    statement.executeQuery().use { rows ->
+                        buildList {
+                            while (rows.next()) {
+                                add(rows.toEventRow())
+                            }
+                        }
+                    }
+                }
+        }
+
     /** Every prospect of the tenant currently standing at [stage]. */
     override fun listAtStage(
         tenantId: UUID,
@@ -192,6 +220,20 @@ class JdbcProspectStore(
                     }
                 }
             }
+
+    private fun ResultSet.toEventRow() =
+        ProspectEventRow(
+            seq = getLong(1),
+            eventType = getString(2),
+            stageFrom = getString(3)?.let(ProspectStage::fromWireValue),
+            stageTo = getString(4)?.let(ProspectStage::fromWireValue),
+            actor = getString(5),
+            rationale = getString(6),
+            occurredAt = getObject(7, OffsetDateTime::class.java).toInstant(),
+            recordedAt = getObject(8, OffsetDateTime::class.java).toInstant(),
+            correlationId = getObject(9, UUID::class.java),
+            taskId = getObject(10, UUID::class.java),
+        )
 
     private fun ResultSet.toEvent(): ProspectEvent {
         val actor = getString(4)

@@ -126,6 +126,13 @@ class ProspectStoreIT {
                 TenantScope.All,
             )
         }.isInstanceOf(IllegalArgumentException::class.java) // terminal stage accepts nothing
+
+        val rows = store.history(p.id, TenantScope.All)!!
+        assertThat(rows.map { it.eventType }).containsExactly("advanced", "advanced", "advanced", "invested")
+        assertThat(rows.map { it.seq }).isSorted() // identity is table-global; append order is what matters
+        assertThat(rows.last().rationale).isEqualTo("conviction in the corridor thesis")
+        assertThat(rows.last().taskId).isNotNull()
+        assertThat(rows.last().correlationId).isEqualTo(provenance.correlationId)
     }
 
     @Test
