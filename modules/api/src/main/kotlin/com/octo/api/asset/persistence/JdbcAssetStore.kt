@@ -26,7 +26,7 @@ class JdbcAssetStore(
     ) {
         val assetSql =
             """
-            insert into mesta.asset (id, tenant_id, asset_type, asset_class, display_name, region, tags, typedb_iid, supersedes_id,
+            insert into mesta.asset (id, tenant_id, asset_type, asset_class, display_name, region, tags, graph_node_id, supersedes_id,
                                      rationale, source_system, actor, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
@@ -39,7 +39,7 @@ class JdbcAssetStore(
                 statement.setString(5, asset.displayName)
                 statement.setString(6, asset.region)
                 statement.setArray(7, connection.createArrayOf("text", asset.tags.toTypedArray()))
-                statement.setString(8, asset.typedbIid)
+                statement.setString(8, asset.graphNodeId)
                 statement.setObject(9, asset.supersedesId)
                 statement.setString(10, asset.rationale)
                 statement.setString(11, provenance.sourceSystem)
@@ -79,7 +79,7 @@ class JdbcAssetStore(
                                     displayName = rows.getString("display_name"),
                                     region = rows.getString("region"),
                                     tags = (rows.getArray("tags").array as Array<*>).map { it as String },
-                                    typedbIid = rows.getString("typedb_iid"),
+                                    graphNodeId = rows.getString("graph_node_id"),
                                     supersedesId = rows.getObject("supersedes_id", UUID::class.java),
                                     rationale = rows.getString("rationale"),
                                 ),
