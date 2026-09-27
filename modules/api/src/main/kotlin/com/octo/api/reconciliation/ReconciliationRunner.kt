@@ -1,5 +1,6 @@
 package com.octo.api.reconciliation
 
+import com.octo.persistence.TenantScope
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.SourceRecord
 import com.octo.recon.matching.Tolerance

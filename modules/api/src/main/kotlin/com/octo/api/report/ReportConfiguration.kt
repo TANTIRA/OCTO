@@ -1,8 +1,8 @@
 package com.octo.api.report
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
-import com.octo.workflow.TenantScope
 import com.octo.workflow.persistence.JdbcTaskStore
 import com.octo.workflow.persistence.TaskProvenance
 import com.octo.workflow.report.JdbcReportJobStore

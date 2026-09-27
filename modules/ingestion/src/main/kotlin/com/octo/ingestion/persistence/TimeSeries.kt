@@ -1,5 +1,6 @@
 package com.octo.ingestion.persistence
 
+import com.octo.persistence.TenantScope
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate

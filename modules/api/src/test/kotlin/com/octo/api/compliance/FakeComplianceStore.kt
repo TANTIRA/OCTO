@@ -1,5 +1,6 @@
 package com.octo.api.compliance
 
+import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.Evaluation
 import com.octo.recon.compliance.Result

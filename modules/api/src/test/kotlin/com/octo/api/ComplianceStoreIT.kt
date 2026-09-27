@@ -1,6 +1,7 @@
 package com.octo.api
 
 import com.octo.analytics.CoverageReport
+import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceInputs
 import com.octo.recon.compliance.ComplianceRule

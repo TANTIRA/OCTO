@@ -1,11 +1,11 @@
 package com.octo.api.compliance
 
+import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceInputs
 import com.octo.recon.compliance.Evaluation
 import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.evaluate
 import com.octo.recon.compliance.persistence.ComplianceStore
-import com.octo.recon.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import com.octo.workflow.persistence.TaskProvenance

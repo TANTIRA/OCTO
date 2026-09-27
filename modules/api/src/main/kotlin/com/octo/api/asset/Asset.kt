@@ -1,5 +1,6 @@
 package com.octo.api.asset
 
+import com.octo.persistence.TenantScope
 import java.time.Instant
 import java.util.UUID
 
@@ -56,6 +57,6 @@ data class AssetProvenance(
 fun interface AssetStore {
     fun load(
         id: UUID,
-        scope: com.octo.api.access.TenantScope,
+        scope: TenantScope,
     ): AssetRecord?
 }

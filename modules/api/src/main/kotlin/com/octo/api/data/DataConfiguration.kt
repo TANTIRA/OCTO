@@ -1,9 +1,9 @@
 package com.octo.api.data
 
 import com.octo.ingestion.persistence.JdbcTimeSeriesStore
-import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesQuery
 import com.octo.ingestion.persistence.TimeSeriesReader
+import com.octo.persistence.TenantScope
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

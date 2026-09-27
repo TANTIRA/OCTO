@@ -1,5 +1,7 @@
 package com.octo.ingestion.persistence
 
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneOffset

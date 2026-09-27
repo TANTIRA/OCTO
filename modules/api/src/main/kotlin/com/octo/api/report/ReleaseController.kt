@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState

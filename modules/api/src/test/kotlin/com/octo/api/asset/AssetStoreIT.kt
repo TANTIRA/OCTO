@@ -1,10 +1,10 @@
 package com.octo.api.asset
 
 import com.octo.api.access.Tenant
-import com.octo.api.access.TenantScope
 import com.octo.api.access.persistence.AccessProvenance
 import com.octo.api.access.persistence.JdbcAccessStore
 import com.octo.api.asset.persistence.JdbcAssetStore
+import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway

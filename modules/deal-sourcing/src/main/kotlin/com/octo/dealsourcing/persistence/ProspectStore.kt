@@ -4,6 +4,12 @@ import com.octo.dealsourcing.Prospect
 import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
+import com.octo.persistence.TenantScope
+import java.time.Instant
+import java.util.UUID
+
+/** One import call registers at most this many prospects — adapters page larger syncs themselves. */
+const val IMPORT_BATCH_LIMIT = 500
 import com.octo.dealsourcing.TenantScope
 import java.util.UUID
 
@@ -36,6 +42,9 @@ interface ProspectStore {
 
     /**
      * Bulk registration for source adapters (CRM sync): a `(tenant, source, source_ref)` that
+     * already exists is a no-op, not a duplicate. Returns the ids actually inserted. The store
+     * enforces [IMPORT_BATCH_LIMIT] itself so a caller outside the api edge can still never hold
+     * an unbounded transaction open.
      * already exists is a no-op, not a duplicate. Returns the ids actually inserted.
      */
     fun importBatch(
@@ -61,6 +70,15 @@ interface ProspectStore {
         scope: TenantScope,
     ): List<ProspectEventRow>?
 
+    /**
+     * Up to [limit] prospects of the tenant currently standing at [stage], newest registrations
+     * first, after skipping [offset] — a bounded page, never the whole stage.
+     */
+    fun listAtStage(
+        tenantId: UUID,
+        stage: ProspectStage,
+        limit: Int,
+        offset: Int,
     /** Every prospect of the tenant currently standing at [stage]. */
     fun listAtStage(
         tenantId: UUID,

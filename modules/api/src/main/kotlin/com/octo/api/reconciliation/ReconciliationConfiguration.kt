@@ -1,9 +1,9 @@
 package com.octo.api.reconciliation
 
+import com.octo.persistence.TenantScope
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.persistence.JdbcReconciliationStore
 import com.octo.recon.matching.persistence.ReconciliationStore
-import com.octo.recon.persistence.TenantScope
 import com.octo.workflow.persistence.JdbcTaskStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean

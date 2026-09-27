@@ -9,6 +9,7 @@ import com.octo.ingestion.persistence.Observation
 import com.octo.ingestion.persistence.ObservationProvenance
 import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesWriter
+import com.octo.persistence.TenantScope
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID

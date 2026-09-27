@@ -4,12 +4,12 @@ import com.octo.analytics.CoverageReport
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.lookthrough.ExposureReport
+import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceInputs
 import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
-import com.octo.recon.persistence.TenantScope
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.springframework.http.HttpStatus

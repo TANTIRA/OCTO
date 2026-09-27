@@ -1,11 +1,11 @@
 package com.octo.api.compliance
 
+import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.Evaluation
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
 import com.octo.recon.compliance.persistence.JdbcComplianceStore
-import com.octo.recon.persistence.TenantScope
 import com.octo.workflow.persistence.JdbcTaskStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean

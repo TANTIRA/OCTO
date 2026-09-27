@@ -7,8 +7,8 @@ import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.WatchSource
-import com.octo.ingestion.persistence.TenantScope
-import com.octo.ingestion.persistence.scoped
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.math.BigDecimal
 import java.sql.Timestamp
 import java.util.UUID

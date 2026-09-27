@@ -10,6 +10,9 @@ import com.octo.dealsourcing.persistence.JdbcScreeningRuleStore
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
+import com.octo.persistence.TenantScope
+import com.octo.workflow.Task
+import com.octo.workflow.TaskEvent
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.workflow.Task
@@ -56,6 +59,10 @@ class ProspectConfiguration {
             override fun listAtStage(
                 tenantId: UUID,
                 stage: ProspectStage,
+                limit: Int,
+                offset: Int,
+                scope: TenantScope,
+            ) = store.listAtStage(tenantId, stage, limit, offset, scope)
                 scope: TenantScope,
             ) = store.listAtStage(tenantId, stage, scope)
 
@@ -78,6 +85,22 @@ class ProspectConfiguration {
             ) = store.create(task, provenance)
 
             override fun state(taskId: UUID) = store.load(taskId)
+
+            override fun append(
+                taskId: UUID,
+                event: TaskEvent,
+                provenance: TaskProvenance,
+            ) = store.append(taskId, event, provenance)
+
+            override fun listForSubject(
+                subjectType: String,
+                subjectId: String,
+            ) = store.listForSubject(subjectType, subjectId)
+
+            override fun openUnlessOpen(
+                task: Task,
+                provenance: TaskProvenance,
+            ) = store.openUnlessOpen(task, provenance)
         }
     }
 
@@ -94,6 +117,14 @@ class ProspectConfiguration {
                 provenance: ProspectProvenance,
                 scope: TenantScope,
             ) = store.define(tenantId, ruleId, name, criteria, actor, provenance, scope)
+
+            override fun retire(
+                tenantId: UUID,
+                ruleId: String,
+                actor: String,
+                provenance: ProspectProvenance,
+                scope: TenantScope,
+            ) = store.retire(tenantId, ruleId, actor, provenance, scope)
 
             override fun activeRules(
                 tenantId: UUID,

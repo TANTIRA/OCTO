@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":modules:ibor-core"))
     implementation(project(":modules:ingestion"))
     implementation(project(":modules:lookthrough"))
+    implementation(project(":modules:persistence"))
     implementation(project(":modules:recon"))
     implementation(project(":modules:workflow"))
 

@@ -3,6 +3,8 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":modules:persistence"))
+
     testImplementation(libs.kotlin.test)
 }
 

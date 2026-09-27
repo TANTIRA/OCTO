@@ -1,5 +1,6 @@
 package com.octo.api
 
+import com.octo.persistence.TenantScope
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.BreakKind
 import com.octo.recon.matching.persistence.JdbcReconciliationStore
