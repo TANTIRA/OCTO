@@ -9,6 +9,7 @@ import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectSource
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
+import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.next
 import com.octo.dealsourcing.persistence.ProspectEventRow
 import com.octo.dealsourcing.persistence.ProspectProvenance
@@ -18,6 +19,7 @@ import com.octo.dealsourcing.registered
 import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskEvent
+import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState
 import com.octo.workflow.TaskStatus
@@ -219,6 +221,7 @@ class ProspectEndpointTest {
                     post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isOk) // the review already in flight comes back, not a second task
                 .andExpect(jsonPath("$.taskId").value(taskId.toString()))
+                ).andExpect(status().isAccepted)
                 .andExpect(jsonPath("$.taskStatus").value("open"))
 
             mvc
@@ -446,6 +449,9 @@ class ProspectEndpointTest {
     private class FakeProspectStore : ProspectStore {
         val states = linkedMapOf<UUID, ProspectState>()
         var failAppend: Throwable? = null
+    /** Replays through the real state machine so tests exercise production transition semantics. */
+    private class FakeProspectStore : ProspectStore {
+        val states = linkedMapOf<UUID, ProspectState>()
 
         override fun create(
             prospect: Prospect,
@@ -495,6 +501,8 @@ class ProspectEndpointTest {
                 .filter { it.prospect.tenantId == tenantId && it.stage == stage }
                 .drop(offset)
                 .take(limit)
+            scope: TenantScope,
+        ): List<ProspectState> = states.values.filter { it.prospect.tenantId == tenantId && it.stage == stage }
 
         override fun append(
             prospectId: UUID,
@@ -504,6 +512,8 @@ class ProspectEndpointTest {
         ): ProspectState {
             failAppend?.let { throw it }
             val current = states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")
+            val current = states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")
+            return current.next(event).also { states[prospectId] = it }
             val next = current.next(event)
             states[prospectId] = next
             eventRows
@@ -541,6 +551,7 @@ class ProspectEndpointTest {
                         .content(
                             """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sectors":["saas"]}}""",
                         ).with(jwt().jwt { it.subject(approver.toString()) }),
+                        ).with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isCreated)
                 .andExpect(jsonPath("$.version").value(1))
             val id = mvc.registered()
@@ -1039,6 +1050,9 @@ class ProspectEndpointTest {
     /** Versioned rule rows like the store: `define` bumps per rule_id, `activeRules` takes the newest active. */
     private class FakeRules : ScreeningRules {
         private val defined = mutableListOf<Pair<ScreeningRuleRow, Boolean>>()
+    /** Versioned rule rows like the store: `define` bumps per rule_id, `activeRules` takes the newest. */
+    private class FakeRules : ScreeningRules {
+        private val defined = mutableListOf<ScreeningRuleRow>()
 
         override fun define(
             tenantId: UUID,
@@ -1065,6 +1079,8 @@ class ProspectEndpointTest {
             if (!latest.second) return latest.first.version
             val version = latest.first.version + 1
             defined += latest.first.copy(version = version) to false
+            val version = (defined.filter { it.ruleId == ruleId }.maxOfOrNull { it.version } ?: 0) + 1
+            defined += ScreeningRuleRow(ruleId, version, name, criteria)
             return version
         }
 
@@ -1082,5 +1098,7 @@ class ProspectEndpointTest {
         fun plant(row: ScreeningRuleRow) {
             defined += row to true
         }
+                .groupBy { it.ruleId }
+                .map { (_, versions) -> versions.maxBy { it.version } }
     }
 }

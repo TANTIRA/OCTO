@@ -10,6 +10,11 @@ import java.util.UUID
 
 /** One import call registers at most this many prospects — adapters page larger syncs themselves. */
 const val IMPORT_BATCH_LIMIT = 500
+import com.octo.dealsourcing.TenantScope
+import java.util.UUID
+
+import java.time.Instant
+import java.util.UUID
 
 /** One stored event row — the audit trail view: seq ordering, actor, rationale, provenance, IC task. */
 data class ProspectEventRow(
@@ -40,6 +45,7 @@ interface ProspectStore {
      * already exists is a no-op, not a duplicate. Returns the ids actually inserted. The store
      * enforces [IMPORT_BATCH_LIMIT] itself so a caller outside the api edge can still never hold
      * an unbounded transaction open.
+     * already exists is a no-op, not a duplicate. Returns the ids actually inserted.
      */
     fun importBatch(
         prospects: List<Prospect>,
@@ -73,6 +79,10 @@ interface ProspectStore {
         stage: ProspectStage,
         limit: Int,
         offset: Int,
+    /** Every prospect of the tenant currently standing at [stage]. */
+    fun listAtStage(
+        tenantId: UUID,
+        stage: ProspectStage,
         scope: TenantScope,
     ): List<ProspectState>
 

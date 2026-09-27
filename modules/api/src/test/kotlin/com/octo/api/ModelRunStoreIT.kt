@@ -6,6 +6,7 @@ import com.octo.analytics.persistence.ModelRunOutput
 import com.octo.analytics.persistence.ModelStatus
 import com.octo.analytics.persistence.OutputKind
 import com.octo.persistence.TenantScope
+import com.octo.analytics.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway

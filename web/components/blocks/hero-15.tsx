@@ -18,7 +18,7 @@ export function Hero15() {
             transition={{ duration: 0.5, delay: 0.1 }}
           >
             <a
-              href="#"
+              href="#contact"
               className="inline-block whitespace-nowrap px-5 py-2.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-[11px] sm:text-xs font-medium tracking-[0.14em] uppercase text-violet-700 dark:text-violet-300 cursor-pointer hover:bg-violet-500/20 transition-colors duration-200"
             >
               Private beta: onboarding now open
@@ -58,7 +58,7 @@ export function Hero15() {
             className="mt-6 sm:mt-10 w-full sm:w-auto"
           >
             <motion.a
-              href="#"
+              href="#contact"
               onMouseEnter={() => setIsButtonHovered(true)}
               onMouseLeave={() => setIsButtonHovered(false)}
               whileHover={{ scale: 1.03 }}

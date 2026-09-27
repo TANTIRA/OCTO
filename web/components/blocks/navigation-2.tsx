@@ -25,25 +25,25 @@ export function Navigation2() {
         icon: Database,
         title: "Book of Record",
         description: "One append-only ledger for every position",
-        href: "#",
+        href: "#how-it-works",
       },
       {
         icon: GitBranch,
         title: "Deal Flow",
         description: "From sourcing to IC decision",
-        href: "#",
+        href: "#platform",
       },
       {
         icon: BarChart3,
         title: "Analytics",
         description: "IRR, TVPI, and look-through exposure",
-        href: "#",
+        href: "#platform",
       },
       {
         icon: ShieldCheck,
         title: "Governance",
         description: "Ontology, approvals, audit lineage",
-        href: "#",
+        href: "#platform",
       },
     ],
     Resources: [
@@ -51,25 +51,25 @@ export function Navigation2() {
         icon: Sparkles,
         title: "What's New",
         description: "Latest releases and methodology notes",
-        href: "#",
+        href: "#faq",
       },
       {
         icon: LifeBuoy,
         title: "Help and Support",
         description: "Get help when you need it",
-        href: "#",
+        href: "#contact",
       },
       {
         icon: FileText,
         title: "Documentation",
         description: "Guides, API reference, and the ontology",
-        href: "#",
+        href: "#faq",
       },
       {
         icon: MessageCircle,
         title: "Contact",
         description: "Talk to the team",
-        href: "#",
+        href: "#contact",
       },
     ],
   };
@@ -103,7 +103,7 @@ export function Navigation2() {
             <div className="mx-auto w-fit rounded-3xl bg-white/40 backdrop-blur-2xl border border-neutral-200/50 shadow-xl dark:bg-neutral-950/20 dark:border-neutral-800/50 overflow-hidden">
               <div className="flex items-center justify-between gap-2 pl-6 pr-3 py-3">
                 <a
-                  href="#"
+                  href="/"
                   className="flex items-center text-xl font-medium text-tighter text-neutral-900 dark:text-white mr-6"
                 >
                   OCTO
@@ -123,7 +123,7 @@ export function Navigation2() {
                     Resources
                   </button>
                   <a
-                    href="#"
+                    href="#contact"
                     className="px-4 py-2 text-sm tracking-tight font-light text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded-full no-underline"
                     onMouseEnter={() => setActiveMenu(null)}
                   >
@@ -133,14 +133,14 @@ export function Navigation2() {
 
                 <div className="flex items-center gap-2 ml-6">
                   <a
-                    href="#"
+                    href="/login"
                     className="px-4 py-2 tracking-tight text-sm font-light text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white no-underline"
                     onMouseEnter={() => setActiveMenu(null)}
                   >
                     Log in
                   </a>
                   <a
-                    href="#"
+                    href="#contact"
                     className="px-5 py-2 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-light tracking-tight hover:bg-neutral-800 dark:hover:bg-neutral-200 no-underline"
                     onMouseEnter={() => setActiveMenu(null)}
                   >
@@ -208,7 +208,7 @@ export function Navigation2() {
             <div className="rounded-3xl bg-white/40 backdrop-blur-2xl border border-neutral-200/50 shadow-xl dark:bg-neutral-950/20 dark:border-neutral-800/50 overflow-hidden">
               <div className="flex items-center justify-between pl-4 pr-3 py-3">
                 <a
-                  href="#"
+                  href="/"
                   className="text-xl font-medium text-tighter text-neutral-900 dark:text-white"
                 >
                   OCTO
@@ -241,13 +241,13 @@ export function Navigation2() {
                       <div className="space-y-4">
                         <div className="space-y-1">
                           <a
-                            href="#"
+                            href="#contact"
                             className="block py-2 px-2 text-sm font-medium text-neutral-900 dark:text-white no-underline"
                           >
                             Contact
                           </a>
                           <a
-                            href="#"
+                            href="/login"
                             className="block py-2 px-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 no-underline"
                           >
                             Log in
@@ -256,7 +256,7 @@ export function Navigation2() {
 
                         <div>
                           <a
-                            href="#"
+                            href="#contact"
                             className="block w-full text-center px-6 py-2.5 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium no-underline"
                           >
                             Request access

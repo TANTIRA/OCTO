@@ -8,6 +8,10 @@ import com.octo.dealsourcing.persistence.JdbcProspectStore
 import com.octo.dealsourcing.persistence.JdbcScreeningRuleStore
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.persistence.TenantScope
+import com.octo.dealsourcing.TenantScope
+import com.octo.dealsourcing.persistence.JdbcProspectStore
+import com.octo.dealsourcing.persistence.JdbcScreeningRuleStore
+import com.octo.dealsourcing.persistence.ProspectProvenance
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
@@ -91,6 +95,7 @@ class ProspectStoreIT {
                 it.prospect.id
             },
         ).containsExactly(p.id)
+        assertThat(store.listAtStage(tenantId, ProspectStage.SOURCED, TenantScope.All).map { it.prospect.id }).containsExactly(p.id)
 
         store.append(
             p.id,
@@ -114,6 +119,7 @@ class ProspectStoreIT {
             store.append(
                 p.id,
                 ProspectEvent.Invested("ic-chair", t0.plusSeconds(4), "conviction in the corridor thesis", task()),
+                ProspectEvent.Invested("ic-chair", t0.plusSeconds(4), "conviction in the corridor thesis"),
                 provenance,
                 TenantScope.All,
             )
@@ -126,6 +132,8 @@ class ProspectStoreIT {
                 it.prospect.id
             },
         ).containsExactly(p.id)
+        assertThat(store.listAtStage(tenantId, ProspectStage.SOURCED, TenantScope.All)).isEmpty()
+        assertThat(store.listAtStage(tenantId, ProspectStage.INVESTED, TenantScope.All).map { it.prospect.id }).containsExactly(p.id)
         assertThatThrownBy {
             store.append(
                 p.id,
@@ -169,6 +177,7 @@ class ProspectStoreIT {
             store.append(
                 p.id,
                 ProspectEvent.Invested("ic-chair", t0.plusSeconds(1), "early conviction", task()),
+                ProspectEvent.Invested("ic-chair", t0.plusSeconds(1), "early conviction"),
                 provenance,
                 TenantScope.All,
             )

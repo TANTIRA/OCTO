@@ -25,11 +25,19 @@ export default function Page() {
     >
       <Navigation2 />
       <Hero15 />
-      <HowItWorks5 />
-      <Features4 />
-      <Faq2 />
+      <div id="how-it-works">
+        <HowItWorks5 />
+      </div>
+      <div id="platform">
+        <Features4 />
+      </div>
+      <div id="faq">
+        <Faq2 />
+      </div>
       <Cta2 />
-      <Contact10 />
+      <div id="contact">
+        <Contact10 />
+      </div>
       <Footer12 />
     </main>
   );

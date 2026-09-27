@@ -11,6 +11,11 @@ import com.octo.dealsourcing.replay
 import com.octo.persistence.TenantScope
 import com.octo.persistence.admits
 import com.octo.persistence.scoped
+import com.octo.dealsourcing.TenantScope
+import com.octo.dealsourcing.next
+import com.octo.dealsourcing.registered
+import com.octo.dealsourcing.replay
+import com.octo.dealsourcing.scoped
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Instant
@@ -32,6 +37,9 @@ data class ProspectProvenance(
  * serialize on a per-prospect advisory lock so neither can interleave an event into a history the
  * other already replayed; readers take no lock — events are append-only and each statement sees a
  * committed snapshot, so a replay can never observe a half-written transition.
+ * against that replay before inserting it — the `JdbcAccessStore`/`JdbcTaskStore` contract. Both
+ * run under a per-prospect advisory lock, so two writers to one prospect serialize and neither can
+ * interleave an event into a history the other already replayed.
  *
  * Every method takes an explicit [TenantScope] (#197): request-path calls carry the caller's
  * `User` scope and platform scans carry `All`; nothing touches tenant rows unscoped.
@@ -41,6 +49,9 @@ class JdbcProspectStore(
 ) : ProspectStore {
     /** Registers [prospect]; the row itself is the registration fact (its `registered_at`). */
     override fun create(
+) {
+    /** Registers [prospect]; the row itself is the registration fact (its `registered_at`). */
+    fun create(
         prospect: Prospect,
         actor: String,
         provenance: ProspectProvenance,
@@ -52,6 +63,8 @@ class JdbcProspectStore(
             insert into mesta.prospect (id, tenant_id, name, source, sector, region, description,
                                         registered_at, source_ref, source_system, actor, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        registered_at, source_system, actor, correlation_id)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         dataSource.scoped(scope) { connection ->
             connection.prepareStatement(prospectSql).use { statement ->
@@ -67,11 +80,16 @@ class JdbcProspectStore(
                 statement.setString(10, provenance.sourceSystem)
                 statement.setString(11, actor)
                 statement.setObject(12, provenance.correlationId)
+                statement.setString(9, provenance.sourceSystem)
+                statement.setString(10, actor)
+                statement.setObject(11, provenance.correlationId)
                 statement.executeUpdate()
             }
         }
     }
 
+    /** The prospect's state after every stored event, or null when no prospect has that id. */
+    override fun load(
     /**
      * Registers every prospect that isn't a duplicate of an existing `(tenant, source, source_ref)`
      * row — the CRM-adapter contract: a re-sync is a no-op, not a second prospect. Returns the ids
@@ -88,6 +106,8 @@ class JdbcProspectStore(
         }
         prospects.forEach { require(scope.admits(it.tenantId)) { "prospect tenant ${it.tenantId} is outside the scoped tenants" } }
         return dataSource.scoped(scope) { connection ->
+    ): List<UUID> =
+        dataSource.scoped(scope) { connection ->
             val sql =
                 """
                 insert into mesta.prospect (id, tenant_id, name, source, sector, region, description,
@@ -131,6 +151,17 @@ class JdbcProspectStore(
         scope: TenantScope,
     ): ProspectState? = dataSource.scoped(scope) { connection -> replayUnlocked(connection, id, scope) }
 
+
+    /** The prospect's state after every stored event, or null when no prospect has that id. */
+    override fun load(
+    /** The prospect's state after every stored event, or null when no prospect has that id. */
+    fun load(
+        id: UUID,
+        scope: TenantScope,
+    ): ProspectState? = dataSource.scoped(scope) { connection -> replayLocked(connection, id) }
+
+    /** Every prospect of the tenant currently standing at [stage]. */
+    override fun listAtStage(
     /** The raw event rows in append order — the audit trail [load]'s replay summarizes. */
     override fun history(
         id: UUID,
@@ -138,6 +169,7 @@ class JdbcProspectStore(
     ): List<ProspectEventRow>? =
         dataSource.scoped(scope) { connection ->
             selectProspect(connection, id, scope) ?: return@scoped null
+            selectProspect(connection, id) ?: return@scoped null
             connection
                 .prepareStatement(
                     """
@@ -181,6 +213,20 @@ class JdbcProspectStore(
             from mesta.prospect p
             left join lateral (
                 select e.event_type, e.actor, e.occurred_at, e.stage_to
+    /** Every prospect of the tenant currently standing at [stage]. */
+    override fun listAtStage(
+    /** Every prospect of the tenant currently standing at [stage]. */
+    fun listAtStage(
+        tenantId: UUID,
+        stage: ProspectStage,
+        scope: TenantScope,
+    ): List<ProspectState> {
+        val sql =
+            """
+            select p.id
+            from mesta.prospect p
+            left join lateral (
+                select e.event_type, e.stage_to
                 from mesta.prospect_event e
                 where e.prospect_id = p.id
                 order by e.seq desc
@@ -190,6 +236,7 @@ class JdbcProspectStore(
               and coalesce(latest.stage_to, 'sourced') = ?
             order by p.registered_at desc, p.id
             limit ? offset ?
+            order by p.registered_at desc
             """.trimIndent()
         return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
@@ -201,6 +248,10 @@ class JdbcProspectStore(
                     buildList {
                         while (rows.next()) {
                             add(rows.toPipelineState(stage))
+                statement.executeQuery().use { rows ->
+                    buildList {
+                        while (rows.next()) {
+                            add(replayLocked(connection, rows.getObject(1, UUID::class.java))!!)
                         }
                     }
                 }
@@ -214,6 +265,7 @@ class JdbcProspectStore(
      * [NoSuchElementException] for an unknown prospect; nothing is written in either case.
      */
     override fun append(
+    fun append(
         prospectId: UUID,
         event: ProspectEvent,
         provenance: ProspectProvenance,
@@ -222,6 +274,7 @@ class JdbcProspectStore(
         dataSource.scoped(scope) { connection ->
             val before =
                 replayLocked(connection, prospectId, scope)
+                replayLocked(connection, prospectId)
                     ?: throw NoSuchElementException("no prospect $prospectId")
             val after = before.next(event)
             insertEvent(connection, prospectId, before.stage, event, provenance)
@@ -249,6 +302,7 @@ class JdbcProspectStore(
         scope: TenantScope,
     ): ProspectState? {
         val prospect = selectProspect(connection, prospectId, scope) ?: return null
+        val prospect = selectProspect(connection, prospectId) ?: return null
         return replay(prospect, selectEvents(connection, prospectId))
     }
 
@@ -260,6 +314,7 @@ class JdbcProspectStore(
         connection
             .prepareStatement(
                 "select tenant_id, name, source, sector, region, description, registered_at, source_ref from mesta.prospect where id = ?",
+                "select tenant_id, name, source, sector, region, description, registered_at from mesta.prospect where id = ?",
             ).use { statement ->
                 statement.setObject(1, prospectId)
                 statement.executeQuery().use { rows ->
@@ -275,6 +330,7 @@ class JdbcProspectStore(
                         registeredAt = rows.getObject(7, OffsetDateTime::class.java).toInstant(),
                         sourceRef = rows.getString(8),
                     ).takeIf { scope.admits(it.tenantId) }
+                    )
                 }
             }
 
@@ -287,6 +343,7 @@ class JdbcProspectStore(
             .prepareStatement(
                 """
                 select event_type, stage_from, stage_to, actor, rationale, occurred_at, task_id
+                select event_type, stage_from, stage_to, actor, rationale, occurred_at
                 from mesta.prospect_event
                 where prospect_id = ?
                 order by seq
@@ -365,6 +422,10 @@ class JdbcProspectStore(
                     getString(5),
                 )
             "invested" -> ProspectEvent.Invested(actor, at, getString(5), getObject(7, UUID::class.java))
+            "advanced" -> ProspectEvent.Advanced(actor, at, stageFrom!!, stageTo!!)
+            "passed" -> ProspectEvent.Passed(actor, at, stageFrom!!, getString(5))
+            "invested" -> ProspectEvent.Invested(actor, at, getString(5), getObject(7, UUID::class.java))
+            "invested" -> ProspectEvent.Invested(actor, at, getString(5))
             else -> error("unknown prospect event type $type")
         }
     }
@@ -387,6 +448,8 @@ class JdbcProspectStore(
             """
             insert into mesta.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, rationale, occurred_at, task_id, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            insert into mesta.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, rationale, occurred_at, correlation_id)
+            values (?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         connection.prepareStatement(sql).use { statement ->
             statement.setObject(1, prospectId)
@@ -398,6 +461,7 @@ class JdbcProspectStore(
             statement.setObject(7, event.at.atOffset(ZoneOffset.UTC))
             statement.setObject(8, (event as? ProspectEvent.Invested)?.taskId)
             statement.setObject(9, provenance.correlationId)
+            statement.setObject(8, provenance.correlationId)
             statement.executeUpdate()
         }
     }

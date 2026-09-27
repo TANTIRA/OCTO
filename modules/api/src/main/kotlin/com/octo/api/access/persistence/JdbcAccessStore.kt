@@ -11,6 +11,11 @@ import com.octo.api.access.registered
 import com.octo.api.access.replay
 import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
+import com.octo.api.access.TenantScope
+import com.octo.api.access.next
+import com.octo.api.access.registered
+import com.octo.api.access.replay
+import com.octo.api.access.scoped
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Instant
