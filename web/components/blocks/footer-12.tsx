@@ -6,6 +6,25 @@ import { ArrowRight, Github, Linkedin } from "lucide-react";
 const focusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-white dark:focus-visible:ring-offset-neutral-950";
 
+const LINKS: Record<string, string> = {
+  "Book of Record": "#how-it-works",
+  "Deal Flow": "#platform",
+  Analytics: "#platform",
+  Changelog: "#faq",
+  Docs: "#faq",
+  "API reference": "https://api-octo.mesta.click",
+  Ontology: "#faq",
+  Status: "https://admin-octo.mesta.click",
+  About: "#",
+  Careers: "#",
+  Customers: "#",
+  Contact: "#contact",
+  Privacy: "#",
+  Terms: "#",
+  Security: "#",
+  Cookies: "#",
+};
+
 const navGroups = [
   { title: "Platform", links: ["Book of Record", "Deal Flow", "Analytics", "Changelog"] },
   { title: "Build", links: ["Docs", "API reference", "Ontology", "Status"] },
@@ -165,7 +184,7 @@ export default function Footer12() {
                 {group.links.map((link) => (
                   <li key={link}>
                     <a
-                      href="#"
+                      href={LINKS[link] ?? "#"}
                       className={`rounded-sm text-sm text-neutral-600 transition-colors duration-200 hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white ${focusRing}`}
                     >
                       {link}

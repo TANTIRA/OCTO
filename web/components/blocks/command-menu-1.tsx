@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  Activity,
   Bell,
   ChartPie,
   Clock,
@@ -124,6 +125,14 @@ const COMMANDS: Command[] = [
     icon: Bell,
   },
   {
+    id: "go-ops",
+    group: "Navigation",
+    title: "Ops console",
+    detail: "Live API health and surface links",
+    shortcut: "G X",
+    icon: Activity,
+  },
+  {
     id: "do-position",
     group: "Actions",
     title: "Record a transaction",
@@ -183,6 +192,11 @@ const AREA_BY_COMMAND: Record<string, string> = {
   "do-recon": "recon",
   "do-report": "overview",
   "do-alert-rule": "alerts",
+};
+
+// Commands that leave the shell entirely (route-level navigation).
+const PATH_BY_COMMAND: Record<string, string> = {
+  "go-ops": "/admin",
 };
 
 const EXIT_MS = 140;
@@ -290,7 +304,9 @@ export default function CommandMenu1() {
     (command?: Command) => {
       const target = command ?? activeCommand;
       const area = target ? AREA_BY_COMMAND[target.id] : undefined;
-      if (area) window.location.hash = area;
+      const path = target ? PATH_BY_COMMAND[target.id] : undefined;
+      if (path) window.location.assign(path);
+      else if (area) window.location.hash = area;
       setQuery("");
       setActiveIndex(0);
       close();
