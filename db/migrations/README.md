@@ -1,6 +1,6 @@
 # db/migrations
 
-Flyway migrations for the Mesta-Asset PostgreSQL schema (self-hosted Supabase `db` service).
+Flyway migrations for the OCTO PostgreSQL schema (self-hosted Supabase `db` service).
 
 Rules per `AGENTS.md`:
 
