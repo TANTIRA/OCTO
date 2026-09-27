@@ -12,7 +12,7 @@ import java.sql.SQLException
 import java.util.UUID
 
 /**
- * Runs the real Flyway migrations and exercises the V11 `octo.asset` and `octo.asset_xref` invariants (#103):
+ * Runs the real Flyway migrations and exercises the V11 `mesta.asset` and `mesta.asset_xref` invariants (#103):
  * ontology types only, ISO region, append-only, supersession with a rationale, one identifier per lineage,
  * LEI shape. Same shape as `ValuationMigrationIT`. Skipped when Docker is unavailable.
  */
@@ -58,7 +58,7 @@ class AssetMigrationIT {
         assertThatThrownBy { asset(region = "usa") }.isInstanceOf(SQLException::class.java)
         assertThatThrownBy { asset(tags = "{growth,\"\"}") }.isInstanceOf(SQLException::class.java)
         val id = asset(region = "ID", tags = "{growth,sea}")
-        assertThatThrownBy { execute("update octo.asset set region = 'SG' where id = '$id'") }
+        assertThatThrownBy { execute("update mesta.asset set region = 'SG' where id = '$id'") }
             .isInstanceOf(SQLException::class.java)
             .hasMessageContaining("append-only")
         assertThatThrownBy { asset(supersedes = id, rationale = " ") }.isInstanceOf(SQLException::class.java)
@@ -74,7 +74,7 @@ class AssetMigrationIT {
         assertThatThrownBy { xref(b, "lei", "not-a-lei") }.isInstanceOf(SQLException::class.java)
         assertThatThrownBy { xref(b, "Vendor:Preqin", "x") }.isInstanceOf(SQLException::class.java)
         xref(b, "vendor:preqin", "PQ-1")
-        assertThatThrownBy { execute("delete from octo.asset_xref where asset_id = '$b'") }.isInstanceOf(SQLException::class.java)
+        assertThatThrownBy { execute("delete from mesta.asset_xref where asset_id = '$b'") }.isInstanceOf(SQLException::class.java)
     }
 
     private fun asset(
@@ -88,7 +88,7 @@ class AssetMigrationIT {
             connection
                 .prepareStatement(
                     """
-                    insert into octo.asset (tenant_id, asset_type, asset_class, display_name, region, tags, supersedes_id, rationale,
+                    insert into mesta.asset (tenant_id, asset_type, asset_class, display_name, region, tags, supersedes_id, rationale,
                                              source_system, actor, correlation_id)
                     values (?, ?, 'private-equity', 'Fund I', ?, ?::text[], ?, ?, 'test', 'integration-test', gen_random_uuid())
                     returning id
@@ -106,7 +106,7 @@ class AssetMigrationIT {
         assetId: UUID,
         scheme: String,
         value: String,
-    ) = execute("insert into octo.asset_xref (asset_id, scheme, value) values ('$assetId', '$scheme', '$value')")
+    ) = execute("insert into mesta.asset_xref (asset_id, scheme, value) values ('$assetId', '$scheme', '$value')")
 
     private fun execute(sql: String) {
         dataSource.connection.use { connection -> connection.createStatement().use { it.executeUpdate(sql) } }
