@@ -141,6 +141,8 @@ class ProspectController(
                 }
                 else -> ProspectEvent.Advanced(jwt.subject, at, current.stage, to)
             }
+        val event =
+            eventOf(body, current, jwt.subject) ?: return ResponseEntity.badRequest().build()
         val after =
             try {
                 prospects.append(
@@ -195,6 +197,25 @@ class ProspectController(
             )
         tasks.open(task, TaskProvenance("api", UUID.randomUUID()))
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(IcView(task.id, TaskStatus.OPEN.name.lowercase()))
+    /** The request names only where to land; `from` is the replayed stage, never client-asserted. */
+    private fun eventOf(
+        body: TransitionRequest,
+        current: ProspectState,
+        actor: String,
+    ): ProspectEvent? {
+        val to = runCatching { ProspectStage.fromWireValue(body.to) }.getOrNull() ?: return null
+        val at = Instant.now()
+        return when (to) {
+            ProspectStage.PASSED ->
+                body.rationale
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { ProspectEvent.Passed(actor, at, current.stage, it) }
+            ProspectStage.INVESTED ->
+                body.rationale
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { ProspectEvent.Invested(actor, at, it) }
+            else -> ProspectEvent.Advanced(actor, at, current.stage, to)
+        }
     }
 
     private fun roleIn(
@@ -239,6 +260,9 @@ class ProspectController(
     data class IcView(
         val taskId: UUID,
         val taskStatus: String,
+    )
+
+        val correlationId: UUID? = null,
     )
 
     data class ProspectView(
