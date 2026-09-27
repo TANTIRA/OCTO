@@ -36,9 +36,9 @@ data class ProspectProvenance(
  */
 class JdbcProspectStore(
     private val dataSource: DataSource,
-) {
+) : ProspectStore {
     /** Registers [prospect]; the row itself is the registration fact (its `registered_at`). */
-    fun create(
+    override fun create(
         prospect: Prospect,
         actor: String,
         provenance: ProspectProvenance,
@@ -69,13 +69,13 @@ class JdbcProspectStore(
     }
 
     /** The prospect's state after every stored event, or null when no prospect has that id. */
-    fun load(
+    override fun load(
         id: UUID,
         scope: TenantScope,
     ): ProspectState? = dataSource.scoped(scope) { connection -> replayLocked(connection, id) }
 
     /** Every prospect of the tenant currently standing at [stage]. */
-    fun listAtStage(
+    override fun listAtStage(
         tenantId: UUID,
         stage: ProspectStage,
         scope: TenantScope,
@@ -115,7 +115,7 @@ class JdbcProspectStore(
      * Throws [IllegalArgumentException] for a transition the state machine rejects, or
      * [NoSuchElementException] for an unknown prospect; nothing is written in either case.
      */
-    fun append(
+    override fun append(
         prospectId: UUID,
         event: ProspectEvent,
         provenance: ProspectProvenance,
