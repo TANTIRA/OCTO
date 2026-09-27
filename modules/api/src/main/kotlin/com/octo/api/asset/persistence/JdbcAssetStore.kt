@@ -11,7 +11,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 import javax.sql.DataSource
 
-/** JDBC access to `octo.asset` and `octo.asset_xref` (V11). Insert and read only; both tables are append-only. */
+/** JDBC access to `mesta.asset` and `mesta.asset_xref` (V11). Insert and read only; both tables are append-only. */
 class JdbcAssetStore(
     private val dataSource: DataSource,
 ) : AssetStore {
@@ -23,7 +23,7 @@ class JdbcAssetStore(
     ) {
         val assetSql =
             """
-            insert into octo.asset (id, tenant_id, asset_type, asset_class, display_name, region, tags, typedb_iid, supersedes_id,
+            insert into mesta.asset (id, tenant_id, asset_type, asset_class, display_name, region, tags, typedb_iid, supersedes_id,
                                      rationale, source_system, actor, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
@@ -46,7 +46,7 @@ class JdbcAssetStore(
                     statement.setObject(13, provenance.correlationId)
                     statement.executeUpdate()
                 }
-                connection.prepareStatement("insert into octo.asset_xref (asset_id, scheme, value) values (?, ?, ?)").use { statement ->
+                connection.prepareStatement("insert into mesta.asset_xref (asset_id, scheme, value) values (?, ?, ?)").use { statement ->
                     for (identifier in identifiers) {
                         statement.setObject(1, asset.id)
                         statement.setString(2, identifier.scheme)
@@ -66,7 +66,7 @@ class JdbcAssetStore(
     override fun load(id: UUID): AssetRecord? =
         dataSource.connection.use { connection ->
             val asset =
-                connection.prepareStatement("select * from octo.asset where id = ?").use { statement ->
+                connection.prepareStatement("select * from mesta.asset where id = ?").use { statement ->
                     statement.setObject(1, id)
                     statement.executeQuery().use { rows ->
                         if (!rows.next()) return null
@@ -101,10 +101,10 @@ class JdbcAssetStore(
         val sql =
             """
             with recursive lineage as (
-                select id, supersedes_id from octo.asset where id = ?
+                select id, supersedes_id from mesta.asset where id = ?
                 union
-                select a.id, a.supersedes_id from octo.asset a join lineage l on a.id = l.supersedes_id)
-            select x.scheme, x.value from octo.asset_xref x join lineage l on x.asset_id = l.id order by x.recorded_at, x.scheme
+                select a.id, a.supersedes_id from mesta.asset a join lineage l on a.id = l.supersedes_id)
+            select x.scheme, x.value from mesta.asset_xref x join lineage l on x.asset_id = l.id order by x.recorded_at, x.scheme
             """.trimIndent()
         return connection.prepareStatement(sql).use { statement ->
             statement.setObject(1, id)
@@ -118,7 +118,7 @@ class JdbcAssetStore(
         connection: Connection,
         id: UUID,
     ): UUID? =
-        connection.prepareStatement("select id from octo.asset where supersedes_id = ?").use { statement ->
+        connection.prepareStatement("select id from mesta.asset where supersedes_id = ?").use { statement ->
             statement.setObject(1, id)
             statement.executeQuery().use { rows -> if (rows.next()) rows.getObject("id", UUID::class.java) else null }
         }
