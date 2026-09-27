@@ -4,7 +4,6 @@ import com.octo.persistence.TenantScope
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.IborRecord
 import com.octo.recon.matching.persistence.ReconciliationStore
-import com.octo.recon.persistence.TenantScope
 import java.sql.SQLException
 import java.time.ZoneId
 import java.util.UUID

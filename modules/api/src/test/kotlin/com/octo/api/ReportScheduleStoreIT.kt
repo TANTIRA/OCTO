@@ -1,6 +1,6 @@
 package com.octo.api
 
-import com.octo.workflow.TenantScope
+import com.octo.persistence.TenantScope
 import com.octo.workflow.report.JdbcReportScheduleStore
 import com.octo.workflow.report.ReportSchedule
 import com.octo.workflow.report.ReportType

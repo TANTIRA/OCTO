@@ -8,7 +8,6 @@ import com.octo.recon.compliance.ComplianceInputs
 import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.persistence.ComplianceProvenance
-import com.octo.recon.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import org.assertj.core.api.Assertions.assertThat

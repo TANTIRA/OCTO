@@ -3,7 +3,7 @@ package com.octo.api.report
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
-import com.octo.workflow.TenantScope
+import com.octo.persistence.TenantScope
 import com.octo.workflow.report.ReportSchedule
 import com.octo.workflow.report.ReportSchedules
 import com.octo.workflow.report.ReportType
