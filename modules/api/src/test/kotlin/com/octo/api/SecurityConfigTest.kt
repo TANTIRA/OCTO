@@ -8,6 +8,9 @@ import org.springframework.boot.availability.AvailabilityChangeEvent
 import org.springframework.boot.availability.LivenessState
 import org.springframework.boot.availability.ReadinessState
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner
+import org.springframework.mock.env.MockEnvironment
+import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.jwt.JwtClaimNames
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.test.web.servlet.MockMvc
@@ -15,6 +18,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import java.time.Instant
 
 class SecurityConfigTest {
     private val contextRunner =
@@ -69,5 +73,38 @@ class SecurityConfigTest {
             ).run { context ->
                 assertThat(context).getBeans(SecurityFilterChain::class.java).hasSize(2)
             }
+    }
+
+    private fun token(aud: Any) =
+        Jwt
+            .withTokenValue("t")
+            .header("alg", "ES256")
+            .claim(JwtClaimNames.AUD, aud)
+            .expiresAt(Instant.now().plusSeconds(300))
+            .build()
+
+    @Test
+    fun `audience validator accepts the configured string aud`() {
+        val env = MockEnvironment().withProperty("AUTH_AUDIENCE", "authenticated")
+        assertThat(bearerTokenValidator(env).validate(token("authenticated")).hasErrors()).isFalse()
+    }
+
+    @Test
+    fun `audience validator accepts a list aud containing the configured value`() {
+        val env = MockEnvironment().withProperty("AUTH_AUDIENCE", "authenticated")
+        assertThat(bearerTokenValidator(env).validate(token(listOf("other", "authenticated"))).hasErrors()).isFalse()
+    }
+
+    @Test
+    fun `audience validator rejects a wrong or missing aud`() {
+        val env = MockEnvironment().withProperty("AUTH_AUDIENCE", "authenticated")
+        assertThat(bearerTokenValidator(env).validate(token("service_role")).hasErrors()).isTrue()
+        assertThat(bearerTokenValidator(env).validate(token(listOf("other"))).hasErrors()).isTrue()
+    }
+
+    @Test
+    fun `audience is unchecked when AUTH_AUDIENCE is unset`() {
+        val env = MockEnvironment()
+        assertThat(bearerTokenValidator(env).validate(token("anything")).hasErrors()).isFalse()
     }
 }
