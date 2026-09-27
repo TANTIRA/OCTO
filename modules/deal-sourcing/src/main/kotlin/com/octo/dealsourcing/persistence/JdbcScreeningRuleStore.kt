@@ -1,6 +1,7 @@
 package com.octo.dealsourcing.persistence
 
 import com.octo.persistence.TenantScope
+import com.octo.persistence.admits
 import com.octo.persistence.scoped
 import java.sql.ResultSet
 import java.util.UUID
@@ -22,7 +23,11 @@ data class ScreeningRuleRow(
 class JdbcScreeningRuleStore(
     private val dataSource: DataSource,
 ) {
-    /** Appends version `max(version)+1` of [ruleId] for the tenant; older versions stay for audit. */
+    /**
+     * Appends version `max(version)+1` of [ruleId] for the tenant; older versions stay for audit.
+     * The `(tenant, rule)` advisory lock serializes two definers so a concurrent write can never
+     * race the version read into a unique-violation 500.
+     */
     fun define(
         tenantId: UUID,
         ruleId: String,
@@ -31,8 +36,17 @@ class JdbcScreeningRuleStore(
         actor: String,
         provenance: ProspectProvenance,
         scope: TenantScope,
-    ): Int =
-        dataSource.scoped(scope) { connection ->
+    ): Int {
+        require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
+        return dataSource.scoped(scope) { connection ->
+            connection
+                .prepareStatement(
+                    "select pg_advisory_xact_lock(hashtextextended('mesta.screening_rule:' || ?::text || ':' || ?::text, 0))",
+                ).use { statement ->
+                    statement.setObject(1, tenantId)
+                    statement.setString(2, ruleId)
+                    statement.executeQuery().close()
+                }
             val version =
                 connection
                     .prepareStatement(
@@ -63,13 +77,15 @@ class JdbcScreeningRuleStore(
                 }
             version
         }
+    }
 
     /** The newest active version of every `rule_id` the tenant holds — the screen's rule set. */
     fun activeRules(
         tenantId: UUID,
         scope: TenantScope,
-    ): List<ScreeningRuleRow> =
-        dataSource.scoped(scope) { connection ->
+    ): List<ScreeningRuleRow> {
+        if (!scope.admits(tenantId)) return emptyList()
+        return dataSource.scoped(scope) { connection ->
             connection
                 .prepareStatement(
                     """
@@ -89,6 +105,7 @@ class JdbcScreeningRuleStore(
                     }
                 }
         }
+    }
 
     private fun ResultSet.toRuleRow() =
         ScreeningRuleRow(

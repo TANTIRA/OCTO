@@ -11,12 +11,14 @@ import com.octo.dealsourcing.ScreeningCriteria
 import com.octo.dealsourcing.ScreeningOutcome
 import com.octo.dealsourcing.ScreeningVerdict
 import com.octo.dealsourcing.evaluateAll
+import com.octo.dealsourcing.next
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
 import com.octo.dealsourcing.registered
 import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
+import com.octo.workflow.TaskEvent
 import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState
 import com.octo.workflow.TaskStatus
@@ -34,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 import java.util.UUID
 
-/** The workflow tasks the IC gate opens and reads; `JdbcTaskStore` behind it in production. */
+/** The workflow tasks the IC gate opens, reads, and decides; `JdbcTaskStore` behind it in production. */
 interface IcTasks {
     fun open(
         task: Task,
@@ -42,6 +44,19 @@ interface IcTasks {
     )
 
     fun state(taskId: UUID): TaskState?
+
+    /** Applies [event] to the task through its state machine — the same validation `append` gets. */
+    fun append(
+        taskId: UUID,
+        event: TaskEvent,
+        provenance: TaskProvenance,
+    ): TaskState
+
+    /** Every task opened on one subject, in creation order — the dedupe lookup for task opens. */
+    fun listForSubject(
+        subjectType: String,
+        subjectId: String,
+    ): List<TaskState>
 }
 
 /** The tenant's versioned screening rules; `JdbcScreeningRuleStore` behind it in production. */
@@ -65,6 +80,12 @@ interface ScreeningRules {
 
 /** One import call registers at most this many prospects — adapters page larger syncs themselves. */
 private const val IMPORT_BATCH_LIMIT = 500
+
+/** One pipeline read returns at most this many prospects — every read is bounded. */
+private const val PIPELINE_PAGE_LIMIT = 500
+
+/** The shape V20 enforces on `screening_rule.rule_id`; the edge validates it before the store sees it. */
+private val RULE_ID_SHAPE = Regex("^[a-z0-9][a-z0-9._-]{0,63}$")
 
 /**
  * `/api/v1/prospects` (deal-sourcing, #201): the deterministic pipeline the Investment Analyst and CRM
@@ -183,10 +204,17 @@ class ProspectController(
         return ResponseEntity.ok(rows.map { it.view() })
     }
 
+    /**
+     * `GET /api/v1/prospects?tenantId&stage&limit&offset` — the pipeline read, newest registrations
+     * first. Reads are paged (`limit` ≤ [PIPELINE_PAGE_LIMIT], default 200) so a large stage can't
+     * answer with an unbounded list.
+     */
     @GetMapping("/api/v1/prospects")
     fun pipeline(
         @RequestParam tenantId: UUID,
         @RequestParam stage: String,
+        @RequestParam(defaultValue = "200") limit: Int,
+        @RequestParam(defaultValue = "0") offset: Int,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<List<ProspectView>> {
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
@@ -194,8 +222,9 @@ class ProspectController(
         val stageAt =
             runCatching { ProspectStage.fromWireValue(stage) }.getOrNull()
                 ?: return ResponseEntity.badRequest().build()
+        if (limit !in 1..PIPELINE_PAGE_LIMIT || offset < 0) return ResponseEntity.badRequest().build()
         return ResponseEntity.ok(
-            prospects.listAtStage(tenantId, stageAt, TenantScope.User(userId)).map { it.view() },
+            prospects.listAtStage(tenantId, stageAt, limit, offset, TenantScope.User(userId)).map { it.view() },
         )
     }
 
@@ -231,6 +260,16 @@ class ProspectController(
                 }
                 else -> ProspectEvent.Advanced(jwt.subject, at, current.stage, to)
             }
+        // Validate through the same state machine the store replays under its lock, before any
+        // write — a transition that cannot land answers 409 without opening its checklist.
+        val landing =
+            runCatching { current.next(event) }.getOrNull()
+                ?: return ResponseEntity.status(HttpStatus.CONFLICT).build()
+        // The checklist opens before the event commits: if this open fails nothing is written
+        // anywhere, and a retried transition still finds the task it needs (deduped below).
+        if (landing.stage == ProspectStage.DUE_DILIGENCE) {
+            openDiligenceChecklist(id, jwt.subject)
+        }
         val after =
             try {
                 prospects.append(
@@ -244,21 +283,24 @@ class ProspectController(
             } catch (_: IllegalArgumentException) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
-        if (event is ProspectEvent.Advanced && after.stage == ProspectStage.DUE_DILIGENCE) {
-            openDiligenceChecklist(id, jwt.subject)
-        }
         return ResponseEntity.ok(after.view())
     }
 
     /**
-     * Landing in `due-diligence` opens the evidence checklist: a REVIEW-kind task on the prospect.
-     * The task state machine tracks who gathers and closes it; the pipeline itself only demands
-     * that the request exists — diligence output (DDQ, docs) is a later slice.
+     * Landing in `due-diligence` needs an evidence checklist: an EVIDENCE_REQUEST task on the
+     * prospect. Idempotent — a transition retried after the task opened but before the event
+     * committed reuses the checklist it left; the task state machine tracks who gathers and
+     * closes it; diligence output (DDQ, docs) is a later slice.
      */
     private fun openDiligenceChecklist(
         prospectId: UUID,
         requester: String,
     ) {
+        val existing =
+            tasks
+                .listForSubject("prospect", prospectId.toString())
+                .any { it.task.kind == TaskKind.EVIDENCE_REQUEST && !it.status.terminal }
+        if (existing) return
         tasks.open(
             Task(
                 UUID.randomUUID(),
@@ -299,6 +341,16 @@ class ProspectController(
         val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         if (current.stage != ProspectStage.IC_REVIEW) return ResponseEntity.status(HttpStatus.CONFLICT).build()
+        // Idempotent: an approval task already in flight is the review — repeated calls return it
+        // rather than minting a second approval on the same prospect. A decided task is history;
+        // asking again opens a fresh review.
+        val existing =
+            tasks
+                .listForSubject("prospect", id.toString())
+                .firstOrNull { it.task.kind == TaskKind.APPROVAL && !it.status.terminal }
+        if (existing != null) {
+            return ResponseEntity.ok(IcView(existing.task.id, existing.status.name.lowercase()))
+        }
         val task =
             Task(
                 UUID.randomUUID(),
@@ -310,6 +362,43 @@ class ProspectController(
             )
         tasks.open(task, TaskProvenance("api", UUID.randomUUID()))
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(IcView(task.id, TaskStatus.OPEN.name.lowercase()))
+    }
+
+    /**
+     * `POST /api/v1/prospects/{id}/tasks/{taskId}` — applies one task event to a task whose subject
+     * is this prospect: an IC member approves or returns the approval `ic-review` opened, a person
+     * completes the evidence checklist due-diligence raised, the requester resubmits after rework.
+     * The task state machine holds every rule — nobody decides an approval they requested, only the
+     * requester resubmits, terminal tasks accept nothing — so the edge binds the task to this
+     * prospect and the caller's role, and a rejected event answers 409 like a bad stage transition.
+     * A task on any other subject is 404: the route never reveals it exists.
+     */
+    @PostMapping("/api/v1/prospects/{id}/tasks/{taskId}")
+    fun taskEvent(
+        @PathVariable id: UUID,
+        @PathVariable taskId: UUID,
+        @RequestBody body: TaskEventRequest,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<TaskView> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val current =
+            prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        tasks
+            .state(taskId)
+            ?.takeIf { it.task.subjectType == "prospect" && it.task.subjectId == id.toString() }
+            ?: return ResponseEntity.notFound().build()
+        val event = body.toEvent(jwt.subject) ?: return ResponseEntity.badRequest().build()
+        val after =
+            try {
+                tasks.append(taskId, event, TaskProvenance("api", body.correlationId ?: UUID.randomUUID()))
+            } catch (_: NoSuchElementException) {
+                return ResponseEntity.notFound().build()
+            } catch (_: IllegalArgumentException) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build()
+            }
+        return ResponseEntity.ok(after.view())
     }
 
     /**
@@ -325,7 +414,7 @@ class ProspectController(
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
-        if (body.ruleId.isBlank() || body.name.isBlank()) return ResponseEntity.badRequest().build()
+        if (!RULE_ID_SHAPE.matches(body.ruleId) || body.name.isBlank()) return ResponseEntity.badRequest().build()
         runCatching { ScreeningCriteria.parse(body.criteria) }
             .getOrElse { return ResponseEntity.badRequest().build() }
         val version =
@@ -361,30 +450,47 @@ class ProspectController(
         val outcome = screen(current.prospect, scope)
         when (outcome.verdict) {
             ScreeningVerdict.REJECT ->
-                prospects.append(
-                    id,
-                    ProspectEvent.Passed(
-                        jwt.subject,
-                        Instant.now(),
-                        current.stage,
-                        "screened out: ${outcome.reasons.joinToString("; ")}",
-                    ),
-                    ProspectProvenance("api", UUID.randomUUID()),
-                    TenantScope.User(userId),
-                )
-            ScreeningVerdict.REVIEW -> {
-                val task =
-                    Task(
-                        UUID.randomUUID(),
-                        TaskKind.REVIEW,
-                        "prospect",
-                        id.toString(),
-                        jwt.subject,
-                        Instant.now(),
+                try {
+                    prospects.append(
+                        id,
+                        ProspectEvent.Passed(
+                            jwt.subject,
+                            Instant.now(),
+                            current.stage,
+                            "screened out: ${outcome.reasons.joinToString("; ")}",
+                        ),
+                        ProspectProvenance("api", UUID.randomUUID()),
+                        TenantScope.User(userId),
                     )
-                tasks.open(task, TaskProvenance("api", UUID.randomUUID()))
+                } catch (_: NoSuchElementException) {
+                    return ResponseEntity.notFound().build()
+                } catch (_: IllegalArgumentException) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).build()
+                }
+            ScreeningVerdict.REVIEW -> {
+                // Idempotent like ic-review: screening an already-flagged prospect returns the
+                // review task a person is working, not another copy of the same ask.
+                val taskId =
+                    tasks
+                        .listForSubject("prospect", id.toString())
+                        .firstOrNull { it.task.kind == TaskKind.REVIEW && !it.status.terminal }
+                        ?.task
+                        ?.id
+                        ?: run {
+                            val task =
+                                Task(
+                                    UUID.randomUUID(),
+                                    TaskKind.REVIEW,
+                                    "prospect",
+                                    id.toString(),
+                                    jwt.subject,
+                                    Instant.now(),
+                                )
+                            tasks.open(task, TaskProvenance("api", UUID.randomUUID()))
+                            task.id
+                        }
                 return ResponseEntity.ok(
-                    ScreenView(outcome.verdict.name.lowercase(), outcome.reasons, current.stage.wireValue, task.id),
+                    ScreenView(outcome.verdict.name.lowercase(), outcome.reasons, current.stage.wireValue, taskId),
                 )
             }
             else -> {}
@@ -435,6 +541,15 @@ class ProspectController(
             recordedAt = recordedAt,
             correlationId = correlationId,
             taskId = taskId,
+        )
+
+    private fun TaskState.view() =
+        TaskView(
+            taskId = task.id,
+            kind = task.kind.wireValue,
+            status = status.name.lowercase(),
+            assignee = assignee,
+            decidedBy = decidedBy,
         )
 
     private fun ProspectState.view() =
@@ -493,6 +608,40 @@ class ProspectController(
     data class IcView(
         val taskId: UUID,
         val taskStatus: String,
+    )
+
+    /**
+     * One event for the task endpoint, named by its `workflow_task_event.event_type` wire value.
+     * `assignee` is required by `assigned`; `rationale` by `rejected`, `rework-requested` and
+     * `cancelled`; anything else missing answers 400 before the state machine sees it.
+     */
+    data class TaskEventRequest(
+        val event: String,
+        val rationale: String? = null,
+        val assignee: String? = null,
+        val correlationId: UUID? = null,
+    ) {
+        fun toEvent(actor: String): TaskEvent? {
+            val at = Instant.now()
+            return when (event) {
+                "assigned" -> assignee?.takeIf { it.isNotBlank() }?.let { TaskEvent.Assigned(actor, at, it) }
+                "approved" -> TaskEvent.Approved(actor, at, rationale)
+                "rejected" -> rationale?.takeIf { it.isNotBlank() }?.let { TaskEvent.Rejected(actor, at, it) }
+                "rework-requested" -> rationale?.takeIf { it.isNotBlank() }?.let { TaskEvent.ReworkRequested(actor, at, it) }
+                "resubmitted" -> TaskEvent.Resubmitted(actor, at)
+                "completed" -> TaskEvent.Completed(actor, at, rationale)
+                "cancelled" -> rationale?.takeIf { it.isNotBlank() }?.let { TaskEvent.Cancelled(actor, at, it) }
+                else -> null
+            }
+        }
+    }
+
+    data class TaskView(
+        val taskId: UUID,
+        val kind: String,
+        val status: String,
+        val assignee: String?,
+        val decidedBy: String?,
     )
 
     data class RuleRequest(

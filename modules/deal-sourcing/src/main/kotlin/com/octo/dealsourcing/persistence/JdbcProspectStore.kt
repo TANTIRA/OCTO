@@ -9,6 +9,7 @@ import com.octo.dealsourcing.next
 import com.octo.dealsourcing.registered
 import com.octo.dealsourcing.replay
 import com.octo.persistence.TenantScope
+import com.octo.persistence.admits
 import com.octo.persistence.scoped
 import java.sql.Connection
 import java.sql.ResultSet
@@ -44,6 +45,7 @@ class JdbcProspectStore(
         provenance: ProspectProvenance,
         scope: TenantScope,
     ) {
+        require(scope.admits(prospect.tenantId)) { "prospect tenant ${prospect.tenantId} is outside the scoped tenants" }
         val prospectSql =
             """
             insert into mesta.prospect (id, tenant_id, name, source, sector, region, description,
@@ -79,8 +81,9 @@ class JdbcProspectStore(
         actor: String,
         provenance: ProspectProvenance,
         scope: TenantScope,
-    ): List<UUID> =
-        dataSource.scoped(scope) { connection ->
+    ): List<UUID> {
+        prospects.forEach { require(scope.admits(it.tenantId)) { "prospect tenant ${it.tenantId} is outside the scoped tenants" } }
+        return dataSource.scoped(scope) { connection ->
             val sql =
                 """
                 insert into mesta.prospect (id, tenant_id, name, source, sector, region, description,
@@ -111,12 +114,13 @@ class JdbcProspectStore(
                 }
             }
         }
+    }
 
     /** The prospect's state after every stored event, or null when no prospect has that id. */
     override fun load(
         id: UUID,
         scope: TenantScope,
-    ): ProspectState? = dataSource.scoped(scope) { connection -> replayLocked(connection, id) }
+    ): ProspectState? = dataSource.scoped(scope) { connection -> replayLocked(connection, id, scope) }
 
     /** The raw event rows in append order — the audit trail [load]'s replay summarizes. */
     override fun history(
@@ -124,7 +128,7 @@ class JdbcProspectStore(
         scope: TenantScope,
     ): List<ProspectEventRow>? =
         dataSource.scoped(scope) { connection ->
-            selectProspect(connection, id) ?: return@scoped null
+            selectProspect(connection, id, scope) ?: return@scoped null
             connection
                 .prepareStatement(
                     """
@@ -146,18 +150,28 @@ class JdbcProspectStore(
                 }
         }
 
-    /** Every prospect of the tenant currently standing at [stage]. */
+    /**
+     * Up to [limit] prospects of the tenant currently standing at [stage], newest first. One query
+     * reads each prospect's latest event alongside its header — replay under an advisory lock is
+     * the `load`/`append` contract; a pipeline page needs the current state, not a lock on every
+     * row it lists.
+     */
     override fun listAtStage(
         tenantId: UUID,
         stage: ProspectStage,
+        limit: Int,
+        offset: Int,
         scope: TenantScope,
     ): List<ProspectState> {
+        if (!scope.admits(tenantId)) return emptyList()
         val sql =
             """
-            select p.id
+            select p.id, p.tenant_id, p.name, p.source, p.sector, p.region, p.description,
+                   p.registered_at, p.source_ref,
+                   latest.event_type, latest.actor, latest.occurred_at
             from mesta.prospect p
             left join lateral (
-                select e.event_type, e.stage_to
+                select e.event_type, e.actor, e.occurred_at, e.stage_to
                 from mesta.prospect_event e
                 where e.prospect_id = p.id
                 order by e.seq desc
@@ -165,16 +179,19 @@ class JdbcProspectStore(
             ) latest on true
             where p.tenant_id = ?
               and coalesce(latest.stage_to, 'sourced') = ?
-            order by p.registered_at desc
+            order by p.registered_at desc, p.id
+            limit ? offset ?
             """.trimIndent()
         return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setString(2, stage.wireValue)
+                statement.setInt(3, limit)
+                statement.setInt(4, offset)
                 statement.executeQuery().use { rows ->
                     buildList {
                         while (rows.next()) {
-                            add(replayLocked(connection, rows.getObject(1, UUID::class.java))!!)
+                            add(rows.toPipelineState(stage))
                         }
                     }
                 }
@@ -195,7 +212,7 @@ class JdbcProspectStore(
     ): ProspectState =
         dataSource.scoped(scope) { connection ->
             val before =
-                replayLocked(connection, prospectId)
+                replayLocked(connection, prospectId, scope)
                     ?: throw NoSuchElementException("no prospect $prospectId")
             val after = before.next(event)
             insertEvent(connection, prospectId, before.stage, event, provenance)
@@ -205,6 +222,7 @@ class JdbcProspectStore(
     private fun replayLocked(
         connection: Connection,
         prospectId: UUID,
+        scope: TenantScope,
     ): ProspectState? {
         connection
             .prepareStatement(
@@ -213,13 +231,14 @@ class JdbcProspectStore(
                 statement.setObject(1, prospectId)
                 statement.executeQuery().close()
             }
-        val prospect = selectProspect(connection, prospectId) ?: return null
+        val prospect = selectProspect(connection, prospectId, scope) ?: return null
         return replay(prospect, selectEvents(connection, prospectId))
     }
 
     private fun selectProspect(
         connection: Connection,
         prospectId: UUID,
+        scope: TenantScope,
     ): Prospect? =
         connection
             .prepareStatement(
@@ -238,7 +257,7 @@ class JdbcProspectStore(
                         description = rows.getString(6),
                         registeredAt = rows.getObject(7, OffsetDateTime::class.java).toInstant(),
                         sourceRef = rows.getString(8),
-                    )
+                    ).takeIf { scope.admits(it.tenantId) }
                 }
             }
 
@@ -265,6 +284,34 @@ class JdbcProspectStore(
                     }
                 }
             }
+
+    /**
+     * One [listAtStage] row: the prospect header plus its newest event's verdict fields. The stage
+     * is the one the query filtered for (the latest event's `stage_to`); a terminal event's actor
+     * is the decider — replay's `decidedBy`/`lastEventAt` without replaying every event.
+     */
+    private fun ResultSet.toPipelineState(stage: ProspectStage): ProspectState {
+        val eventType = getString(10)
+        val occurredAt = getObject(12, OffsetDateTime::class.java)?.toInstant()
+        val prospect =
+            Prospect(
+                id = getObject(1, UUID::class.java),
+                tenantId = getObject(2, UUID::class.java),
+                name = getString(3),
+                source = ProspectSource.fromWireValue(getString(4)),
+                sector = getString(5),
+                region = getString(6),
+                description = getString(7),
+                registeredAt = getObject(8, OffsetDateTime::class.java).toInstant(),
+                sourceRef = getString(9),
+            )
+        return ProspectState(
+            prospect = prospect,
+            stage = stage,
+            decidedBy = if (eventType == "passed" || eventType == "invested") getString(11) else null,
+            lastEventAt = occurredAt ?: prospect.registeredAt,
+        )
+    }
 
     private fun ResultSet.toEventRow() =
         ProspectEventRow(

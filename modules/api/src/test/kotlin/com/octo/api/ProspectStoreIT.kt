@@ -86,7 +86,11 @@ class ProspectStoreIT {
         store.create(p, "analyst-1", provenance, TenantScope.All)
 
         assertThat(store.load(p.id, TenantScope.All)!!.stage).isEqualTo(ProspectStage.SOURCED)
-        assertThat(store.listAtStage(tenantId, ProspectStage.SOURCED, TenantScope.All).map { it.prospect.id }).containsExactly(p.id)
+        assertThat(
+            store.listAtStage(tenantId, ProspectStage.SOURCED, limit = 500, offset = 0, TenantScope.All).map {
+                it.prospect.id
+            },
+        ).containsExactly(p.id)
 
         store.append(
             p.id,
@@ -116,8 +120,12 @@ class ProspectStoreIT {
 
         assertThat(invested.stage).isEqualTo(ProspectStage.INVESTED)
         assertThat(invested.decidedBy).isEqualTo("ic-chair")
-        assertThat(store.listAtStage(tenantId, ProspectStage.SOURCED, TenantScope.All)).isEmpty()
-        assertThat(store.listAtStage(tenantId, ProspectStage.INVESTED, TenantScope.All).map { it.prospect.id }).containsExactly(p.id)
+        assertThat(store.listAtStage(tenantId, ProspectStage.SOURCED, limit = 500, offset = 0, TenantScope.All)).isEmpty()
+        assertThat(
+            store.listAtStage(tenantId, ProspectStage.INVESTED, limit = 500, offset = 0, TenantScope.All).map {
+                it.prospect.id
+            },
+        ).containsExactly(p.id)
         assertThatThrownBy {
             store.append(
                 p.id,
@@ -206,6 +214,45 @@ class ProspectStoreIT {
     }
 
     @Test
+    fun `a tenants scope cannot read or write a prospect outside its list`() {
+        val tenantId = tenant()
+        val other = tenant()
+        val p = prospect(tenantId)
+        store.create(p, "analyst-1", provenance, TenantScope.All)
+
+        val outside = TenantScope.Tenants(listOf(other))
+        assertThat(store.load(p.id, outside)).isNull()
+        assertThat(store.history(p.id, outside)).isNull()
+        assertThat(store.listAtStage(tenantId, ProspectStage.SOURCED, limit = 500, offset = 0, outside)).isEmpty()
+        assertThatThrownBy {
+            store.append(
+                p.id,
+                ProspectEvent.Passed("analyst-1", t0.plusSeconds(1), ProspectStage.SOURCED, "out of scope"),
+                provenance,
+                outside,
+            )
+        }.isInstanceOf(NoSuchElementException::class.java)
+        assertThatThrownBy {
+            store.create(prospect(other), "analyst-1", provenance, TenantScope.Tenants(listOf(tenantId)))
+        }.isInstanceOf(IllegalArgumentException::class.java)
+        assertThatThrownBy {
+            store.importBatch(listOf(prospect(other)), "analyst-1", provenance, TenantScope.Tenants(listOf(tenantId)))
+        }.isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `a tenants scope cannot write or read rules outside its list`() {
+        val rules = JdbcScreeningRuleStore(dataSource)
+        val tenantId = tenant()
+        val other = tenant()
+        assertThatThrownBy {
+            rules.define(other, "mandate", "Mandate", "{}", "admin", provenance, TenantScope.Tenants(listOf(tenantId)))
+        }.isInstanceOf(IllegalArgumentException::class.java)
+        rules.define(tenantId, "mandate", "Mandate", "{}", "admin", provenance, TenantScope.All)
+        assertThat(rules.activeRules(tenantId, TenantScope.Tenants(listOf(other)))).isEmpty()
+    }
+
+    @Test
     fun `an unknown prospect is a clean miss`() {
         assertThat(store.load(UUID.randomUUID(), TenantScope.All)).isNull()
         assertThatThrownBy {
@@ -216,6 +263,32 @@ class ProspectStoreIT {
                 TenantScope.All,
             )
         }.isInstanceOf(NoSuchElementException::class.java)
+    }
+
+    @Test
+    fun `bulk import dedupes on the external ref per tenant and source`() {
+        val tenantId = tenant()
+        val otherTenant = tenant()
+        val a = prospect(tenantId).copy(name = "a", sourceRef = "crm-1")
+        val dupe = prospect(tenantId).copy(name = "a-again", sourceRef = "crm-1") // same ref, same source
+        val noRef = prospect(tenantId).copy(name = "manual")
+
+        // first sync: the in-batch duplicate is skipped, the ref-less row registers
+        assertThat(store.importBatch(listOf(a, dupe, noRef), "crm-sync", provenance, TenantScope.All))
+            .containsExactlyInAnyOrder(a.id, noRef.id)
+        // a re-sync is a no-op: V21's partial unique index is the arbiter
+        assertThat(
+            store.importBatch(listOf(prospect(tenantId).copy(sourceRef = "crm-1")), "crm-sync", provenance, TenantScope.All),
+        ).isEmpty()
+        // the same ref under another source, or another tenant, is a different record
+        val otherSource = prospect(tenantId).copy(source = ProspectSource.REFERRAL, sourceRef = "crm-1")
+        val otherTenantRow = prospect(otherTenant).copy(sourceRef = "crm-1")
+        assertThat(store.importBatch(listOf(otherSource, otherTenantRow), "crm-sync", provenance, TenantScope.All))
+            .containsExactlyInAnyOrder(otherSource.id, otherTenantRow.id)
+        // a null ref never dedupes — a second ref-less import inserts again
+        val noRef2 = prospect(tenantId).copy(name = "manual-2")
+        assertThat(store.importBatch(listOf(noRef2), "crm-sync", provenance, TenantScope.All)).containsExactly(noRef2.id)
+        assertThat(store.load(a.id, TenantScope.All)!!.prospect.sourceRef).isEqualTo("crm-1")
     }
 
     @Test

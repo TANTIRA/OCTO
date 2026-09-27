@@ -9,9 +9,9 @@ import javax.sql.DataSource
  * transaction-local GUCs `app.user_id` / `app.tenant_ids`.
  *
  * The row-level-security policies that read those GUCs land in the RLS slice of #197 — until they
- * exist, isolation comes from each store query's own `tenant_id` predicates plus the membership
- * checks at the API edge, exactly as before. Once the policies ship, a call that forgets to scope
- * fails closed (the policies see no user and no tenants), never open.
+ * exist, isolation comes from [admits] on `Tenants` scopes, each store query's `tenant_id`
+ * predicates, and the membership checks at the API edge. Once the policies ship, a call that
+ * forgets to scope fails closed (the policies see no user and no tenants), never open.
  *
  * Service scopes are not a privilege escalation: the caller is already trusted code; the
  * boundary protects against the *omitted* `tenant_id` filter, not against the caller itself.
@@ -30,6 +30,15 @@ sealed interface TenantScope {
     /** A platform-wide scan (collectors/pollers that legitimately span tenants). */
     data object All : TenantScope
 }
+
+/**
+ * Whether [scope] may touch a row of [tenantId] at all. `Tenants` fails closed outside its list —
+ * the Kotlin stand-in for the policy `app.tenant_ids` will express once RLS lands (#197): a store
+ * answers reads with "no row" and refuses writes outright. `User` carries no tenant set, so its
+ * check stays where it always was — the role lookup at the API edge — and `All` is explicitly
+ * unbounded for platform scans.
+ */
+fun TenantScope.admits(tenantId: UUID): Boolean = this !is TenantScope.Tenants || tenantId in tenantIds
 
 /**
  * Opens a connection in one transaction with [scope]'s GUCs set (`set_config(…, is_local = true)`

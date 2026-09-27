@@ -11,6 +11,7 @@ import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
 import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
+import com.octo.workflow.TaskEvent
 import com.octo.workflow.TaskState
 import com.octo.workflow.persistence.JdbcTaskStore
 import com.octo.workflow.persistence.TaskProvenance
@@ -54,8 +55,10 @@ class ProspectConfiguration {
             override fun listAtStage(
                 tenantId: UUID,
                 stage: ProspectStage,
+                limit: Int,
+                offset: Int,
                 scope: TenantScope,
-            ) = store.listAtStage(tenantId, stage, scope)
+            ) = store.listAtStage(tenantId, stage, limit, offset, scope)
 
             override fun append(
                 prospectId: UUID,
@@ -76,6 +79,17 @@ class ProspectConfiguration {
             ) = store.create(task, provenance)
 
             override fun state(taskId: UUID) = store.load(taskId)
+
+            override fun append(
+                taskId: UUID,
+                event: TaskEvent,
+                provenance: TaskProvenance,
+            ) = store.append(taskId, event, provenance)
+
+            override fun listForSubject(
+                subjectType: String,
+                subjectId: String,
+            ) = store.listForSubject(subjectType, subjectId)
         }
     }
 

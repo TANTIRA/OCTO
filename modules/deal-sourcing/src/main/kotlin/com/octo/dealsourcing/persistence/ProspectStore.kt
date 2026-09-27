@@ -59,10 +59,15 @@ interface ProspectStore {
         scope: TenantScope,
     ): List<ProspectEventRow>?
 
-    /** Every prospect of the tenant currently standing at [stage]. */
+    /**
+     * Up to [limit] prospects of the tenant currently standing at [stage], newest registrations
+     * first, after skipping [offset] — a bounded page, never the whole stage.
+     */
     fun listAtStage(
         tenantId: UUID,
         stage: ProspectStage,
+        limit: Int,
+        offset: Int,
         scope: TenantScope,
     ): List<ProspectState>
 

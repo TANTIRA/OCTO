@@ -17,6 +17,7 @@ import com.octo.dealsourcing.persistence.ScreeningRuleRow
 import com.octo.dealsourcing.registered
 import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
+import com.octo.workflow.TaskEvent
 import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState
 import com.octo.workflow.TaskStatus
@@ -39,6 +40,7 @@ import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import java.util.UUID
 import java.util.function.Supplier
+import com.octo.workflow.next as nextTask
 
 /**
  * `/api/v1/prospects` end to end with a stubbed store and directory: members of the right role register
@@ -47,6 +49,7 @@ import java.util.function.Supplier
  */
 class ProspectEndpointTest {
     private val member = UUID.randomUUID()
+    private val approver = UUID.randomUUID()
     private val viewer = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val store = FakeProspectStore()
@@ -61,7 +64,7 @@ class ProspectEndpointTest {
                 Supplier {
                     TenantDirectory { id ->
                         when (id) {
-                            member -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
+                            member, approver -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
                             viewer -> listOf(TenantAccess(tenantId, "acme", TenantRole.VIEWER))
                             else -> emptyList()
                         }
@@ -212,7 +215,8 @@ class ProspectEndpointTest {
             mvc
                 .perform(
                     post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }),
-                ).andExpect(status().isAccepted)
+                ).andExpect(status().isOk) // the review already in flight comes back, not a second task
+                .andExpect(jsonPath("$.taskId").value(taskId.toString()))
                 .andExpect(jsonPath("$.taskStatus").value("open"))
 
             mvc
@@ -236,9 +240,164 @@ class ProspectEndpointTest {
         }
     }
 
+    @Test
+    fun `an IC task is decided through the task endpoint and the requester cannot decide it`() {
+        run { mvc ->
+            val id = mvc.registered()
+            for (stage in listOf("screening", "due-diligence", "ic-review")) {
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/transition")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"to":"$stage"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+            }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isAccepted)
+            val taskId = tasks.opened().single { it.kind == TaskKind.APPROVAL }.id
+
+            mvc // the requester can never decide their own approval — segregation of duties
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict)
+            mvc // a viewer holds no write on the task
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved"}""")
+                        .with(jwt().jwt { it.subject(viewer.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved","rationale":"conviction"}""")
+                        .with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.taskId").value(taskId.toString()))
+                .andExpect(jsonPath("$.kind").value("approval"))
+                .andExpect(jsonPath("$.status").value("approved"))
+                .andExpect(jsonPath("$.decidedBy").value(approver.toString()))
+
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"invested","rationale":"corridor thesis","taskId":"$taskId"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.stage").value("invested"))
+        }
+    }
+
+    @Test
+    fun `the evidence checklist completes through the task endpoint`() {
+        run { mvc ->
+            val id = mvc.registered()
+            for (stage in listOf("screening", "due-diligence")) {
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/transition")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"to":"$stage"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+            }
+            val taskId = tasks.opened().single().id
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"completed","rationale":"DDQ received"}""")
+                        .with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.kind").value("evidence-request"))
+                .andExpect(jsonPath("$.status").value("completed"))
+        }
+    }
+
+    @Test
+    fun `the task endpoint refuses a task on another prospect, bad input, and unknown tasks`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc.register(member).andExpect(status().isCreated)
+            val other = store.states.keys.last()
+            val taskId = UUID.randomUUID().also { tasks.openAt(it, other) }
+            mvc // the task is bound to `other`, not `id` — 404, not a leak
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/${UUID.randomUUID()}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"nonsense"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isNotFound) // subject binding is checked before the event parses
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$other/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"nonsense"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$other/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"rejected"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest) // a rejection without a rationale is refused
+        }
+    }
+
+    @Test
+    fun `a screen racing a transition answers 409, not 500`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/screening-rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """{"tenantId":"$tenantId","ruleId":"mandate","name":"Mandate","criteria":{"sectors":["saas"]}}""",
+                        ).with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isCreated)
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            store.failAppend = IllegalArgumentException("lost the race")
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/screen").with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict)
+        }
+    }
+
     /** Replays through the real state machine so tests exercise production transition semantics. */
     private class FakeProspectStore : ProspectStore {
         val states = linkedMapOf<UUID, ProspectState>()
+        var failAppend: Throwable? = null
 
         override fun create(
             prospect: Prospect,
@@ -280,8 +439,14 @@ class ProspectEndpointTest {
         override fun listAtStage(
             tenantId: UUID,
             stage: ProspectStage,
+            limit: Int,
+            offset: Int,
             scope: TenantScope,
-        ): List<ProspectState> = states.values.filter { it.prospect.tenantId == tenantId && it.stage == stage }
+        ): List<ProspectState> =
+            states.values
+                .filter { it.prospect.tenantId == tenantId && it.stage == stage }
+                .drop(offset)
+                .take(limit)
 
         override fun append(
             prospectId: UUID,
@@ -289,6 +454,7 @@ class ProspectEndpointTest {
             provenance: ProspectProvenance,
             scope: TenantScope,
         ): ProspectState {
+            failAppend?.let { throw it }
             val current = states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")
             val next = current.next(event)
             states[prospectId] = next
@@ -472,6 +638,114 @@ class ProspectEndpointTest {
         }
     }
 
+    @Test
+    fun `ic-review is idempotent — the task in flight is returned, not duplicated`() {
+        run { mvc ->
+            val id = mvc.registered()
+            for (stage in listOf("screening", "due-diligence", "ic-review")) {
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/transition")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"to":"$stage"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+            }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isAccepted)
+            val taskId = tasks.opened().single { it.kind == TaskKind.APPROVAL }.id
+            mvc // asking again returns the review already in flight — never a second task
+                .perform(
+                    post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.taskId").value(taskId.toString()))
+                .andExpect(jsonPath("$.taskStatus").value("open"))
+            assertThat(tasks.opened().count { it.kind == TaskKind.APPROVAL }).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `a screening review is idempotent — repeated screens return the open task`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            var reviewTaskId: UUID? = null
+            repeat(2) {
+                val result =
+                    mvc
+                        .perform(
+                            post("/api/v1/prospects/$id/screen").with(jwt().jwt { it.subject(member.toString()) }),
+                        ).andExpect(status().isOk)
+                        .andExpect(jsonPath("$.verdict").value("review"))
+                        .andReturn()
+                val body = result.response.contentAsString
+                val thisId = UUID.fromString(body.substringAfter("\"reviewTaskId\":\"").substringBefore('"'))
+                if (reviewTaskId == null) reviewTaskId = thisId else assertThat(thisId).isEqualTo(reviewTaskId)
+            }
+            assertThat(tasks.opened()).hasSize(1)
+        }
+    }
+
+    @Test
+    fun `a rule_id outside the documented shape is a 400, not a 500 from the database`() {
+        run { mvc ->
+            for (bad in listOf("My Rule", "-bad", "x".repeat(65), "UPPER")) {
+                mvc
+                    .perform(
+                        post("/api/v1/screening-rules")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(
+                                """{"tenantId":"$tenantId","ruleId":"$bad","name":"Mandate","criteria":{}}""",
+                            ).with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isBadRequest)
+            }
+            mvc // inside the shape still lands
+                .perform(
+                    post("/api/v1/screening-rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """{"tenantId":"$tenantId","ruleId":"esg.exclusions-2026","name":"ESG","criteria":{}}""",
+                        ).with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isCreated)
+        }
+    }
+
+    @Test
+    fun `the pipeline read is paged and bad paging is refused`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc.register(member).andExpect(status().isCreated)
+            mvc
+                .perform(
+                    get("/api/v1/prospects?tenantId=$tenantId&stage=sourced&limit=1")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.length()").value(1))
+            mvc
+                .perform(
+                    get("/api/v1/prospects?tenantId=$tenantId&stage=sourced&limit=1&offset=1")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(org.hamcrest.Matchers.not(id.toString())))
+            for (bad in listOf("limit=0", "limit=501", "offset=-1")) {
+                mvc
+                    .perform(
+                        get("/api/v1/prospects?tenantId=$tenantId&stage=sourced&$bad")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isBadRequest)
+            }
+        }
+    }
+
     /** Task states keyed by id; `openAt` plants an approval task on the prospect, `approve` resolves it. */
     private class FakeIcTasks : IcTasks {
         private val states = mutableMapOf<UUID, TaskState>()
@@ -484,6 +758,26 @@ class ProspectEndpointTest {
         }
 
         override fun state(taskId: UUID): TaskState? = states[taskId]
+
+        /** Replays through the real task state machine so endpoint tests exercise its rules. */
+        override fun append(
+            taskId: UUID,
+            event: TaskEvent,
+            provenance: TaskProvenance,
+        ): TaskState {
+            val current = states[taskId] ?: throw NoSuchElementException("no task $taskId")
+            val next = current.nextTask(event)
+            states[taskId] = next
+            return next
+        }
+
+        override fun listForSubject(
+            subjectType: String,
+            subjectId: String,
+        ): List<TaskState> =
+            states.values
+                .filter { it.task.subjectType == subjectType && it.task.subjectId == subjectId }
+                .sortedBy { it.task.createdAt }
 
         fun openAt(
             taskId: UUID,

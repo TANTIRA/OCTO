@@ -55,6 +55,31 @@ class JdbcTaskStore(
     fun load(taskId: UUID): TaskState? = dataSource.connection.use { connection -> replayLocked(connection, taskId) }
 
     /**
+     * Every task opened on one subject, in creation order — how a caller answers "is there already
+     * an open task of kind X on this prospect/job" before minting a duplicate.
+     */
+    fun listForSubject(
+        subjectType: String,
+        subjectId: String,
+    ): List<TaskState> =
+        dataSource.connection.use { connection ->
+            connection
+                .prepareStatement(
+                    "select id from mesta.workflow_task where subject_type = ? and subject_id = ? order by created_at",
+                ).use { statement ->
+                    statement.setString(1, subjectType)
+                    statement.setString(2, subjectId)
+                    statement.executeQuery().use { rows ->
+                        buildList {
+                            while (rows.next()) {
+                                replayLocked(connection, rows.getObject(1, UUID::class.java))?.let(::add)
+                            }
+                        }
+                    }
+                }
+        }
+
+    /**
      * Validates [event] against the task's current state and stores it, in one transaction. Throws
      * [IllegalArgumentException] for a transition the state machine rejects, or [NoSuchElementException] for an
      * unknown task; nothing is written in either case.

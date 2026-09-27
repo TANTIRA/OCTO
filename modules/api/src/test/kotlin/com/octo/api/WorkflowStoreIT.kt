@@ -91,6 +91,24 @@ class WorkflowStoreIT {
     }
 
     @Test
+    fun `listForSubject returns every task on the subject in creation order`() {
+        val first = newTask(subject = "prospect-1")
+        val second = newTask(TaskKind.REVIEW, subject = "prospect-1")
+        val other = newTask(subject = "prospect-2")
+        store.create(first, provenance)
+        store.create(second, provenance)
+        store.create(other, provenance)
+        store.append(first.id, TaskEvent.Approved("bob", at(1)), provenance)
+
+        val tasks = store.listForSubject("valuation-event", "prospect-1")
+        assertThat(tasks.map { it.task.id }).containsExactly(first.id, second.id)
+        assertThat(tasks.map { it.task.kind }).containsExactly(TaskKind.APPROVAL, TaskKind.REVIEW)
+        assertThat(tasks.first().status).isEqualTo(TaskStatus.APPROVED) // replayed state, not just the header
+        assertThat(store.listForSubject("valuation-event", "prospect-2").map { it.task.id }).containsExactly(other.id)
+        assertThat(store.listForSubject("valuation-event", "nobody")).isEmpty()
+    }
+
+    @Test
     fun `two writers racing to decide one task cannot both succeed`() {
         val task = newTask()
         store.create(task, provenance)
@@ -112,7 +130,10 @@ class WorkflowStoreIT {
         assertThat(store.load(task.id)?.status).isEqualTo(TaskStatus.APPROVED)
     }
 
-    private fun newTask(kind: TaskKind = TaskKind.APPROVAL) = Task(UUID.randomUUID(), kind, "valuation-event", "ve-1", "alice", at(0))
+    private fun newTask(
+        kind: TaskKind = TaskKind.APPROVAL,
+        subject: String = "ve-1",
+    ) = Task(UUID.randomUUID(), kind, "valuation-event", subject, "alice", at(0))
 
     private companion object {
         val T0: Instant = Instant.parse("2026-09-24T09:00:00Z")
