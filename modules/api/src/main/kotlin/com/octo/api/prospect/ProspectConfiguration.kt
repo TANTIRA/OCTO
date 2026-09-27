@@ -6,6 +6,10 @@ import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
 import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.persistence.JdbcProspectStore
+import com.octo.dealsourcing.persistence.JdbcScreeningRuleStore
+import com.octo.dealsourcing.persistence.ProspectProvenance
+import com.octo.dealsourcing.persistence.ProspectStore
+import com.octo.dealsourcing.persistence.ScreeningRuleRow
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.workflow.Task
@@ -62,6 +66,27 @@ class ProspectConfiguration {
             ) = store.create(task, provenance)
 
             override fun state(taskId: UUID) = store.load(taskId)
+        }
+    }
+
+    @Bean
+    fun jdbcScreeningRules(dataSource: ObjectProvider<DataSource>): ScreeningRules {
+        val store by lazy { JdbcScreeningRuleStore(dataSource.getObject()) }
+        return object : ScreeningRules {
+            override fun define(
+                tenantId: UUID,
+                ruleId: String,
+                name: String,
+                criteria: String,
+                actor: String,
+                provenance: ProspectProvenance,
+                scope: TenantScope,
+            ) = store.define(tenantId, ruleId, name, criteria, actor, provenance, scope)
+
+            override fun activeRules(
+                tenantId: UUID,
+                scope: TenantScope,
+            ) = store.activeRules(tenantId, scope)
         }
     }
 }

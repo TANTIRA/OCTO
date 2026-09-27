@@ -7,6 +7,14 @@ import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectSource
 import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
+import com.octo.dealsourcing.ScreeningCriteria
+import com.octo.dealsourcing.ScreeningOutcome
+import com.octo.dealsourcing.ScreeningVerdict
+import com.octo.dealsourcing.TenantScope
+import com.octo.dealsourcing.evaluateAll
+import com.octo.dealsourcing.persistence.ProspectProvenance
+import com.octo.dealsourcing.persistence.ProspectStore
+import com.octo.dealsourcing.persistence.ScreeningRuleRow
 import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
@@ -39,6 +47,25 @@ interface IcTasks {
     fun state(taskId: UUID): TaskState?
 }
 
+/** The tenant's versioned screening rules; `JdbcScreeningRuleStore` behind it in production. */
+interface ScreeningRules {
+    /** Appends the next version of [ruleId]; returns the version written. */
+    fun define(
+        tenantId: UUID,
+        ruleId: String,
+        name: String,
+        criteria: String,
+        actor: String,
+        provenance: ProspectProvenance,
+        scope: TenantScope,
+    ): Int
+
+    fun activeRules(
+        tenantId: UUID,
+        scope: TenantScope,
+    ): List<ScreeningRuleRow>
+}
+
 /**
  * `/api/v1/prospects` (deal-sourcing, #201): the deterministic pipeline the Investment Analyst and CRM
  * workflows will screen on. Registration and transitions are tenant writes — a `viewer` may read every
@@ -50,6 +77,9 @@ interface IcTasks {
 class ProspectController(
     private val prospects: ProspectStore,
     private val tasks: IcTasks,
+    private val rules: ScreeningRules,
+    private val tenants: TenantDirectory,
+    private val json: com.fasterxml.jackson.databind.ObjectMapper,
     private val tenants: TenantDirectory,
 ) {
     @PostMapping("/api/v1/prospects")
@@ -156,7 +186,32 @@ class ProspectController(
             } catch (_: IllegalArgumentException) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
+        if (event is ProspectEvent.Advanced && after.stage == ProspectStage.DUE_DILIGENCE) {
+            openDiligenceChecklist(id, jwt.subject)
+        }
         return ResponseEntity.ok(after.view())
+    }
+
+    /**
+     * Landing in `due-diligence` opens the evidence checklist: a REVIEW-kind task on the prospect.
+     * The task state machine tracks who gathers and closes it; the pipeline itself only demands
+     * that the request exists — diligence output (DDQ, docs) is a later slice.
+     */
+    private fun openDiligenceChecklist(
+        prospectId: UUID,
+        requester: String,
+    ) {
+        tasks.open(
+            Task(
+                UUID.randomUUID(),
+                TaskKind.EVIDENCE_REQUEST,
+                "prospect",
+                prospectId.toString(),
+                requester,
+                Instant.now(),
+            ),
+            TaskProvenance("api", UUID.randomUUID()),
+        )
     }
 
     /**
@@ -197,6 +252,110 @@ class ProspectController(
             )
         tasks.open(task, TaskProvenance("api", UUID.randomUUID()))
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(IcView(task.id, TaskStatus.OPEN.name.lowercase()))
+    }
+
+    /**
+     * `POST /api/v1/screening-rules` — appends the next version of a tenant's screening rule (V20).
+     * Criteria are validated against the domain model at the boundary: an unknown `sources` value
+     * fails closed with 400 rather than persisting a rule that can never match.
+     */
+    @PostMapping("/api/v1/screening-rules")
+    fun defineRule(
+        @RequestBody body: RuleRequest,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<RuleView> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        if (body.ruleId.isBlank() || body.name.isBlank()) return ResponseEntity.badRequest().build()
+        runCatching { ScreeningCriteria.parse(body.criteria) }
+            .getOrElse { return ResponseEntity.badRequest().build() }
+        val version =
+            rules.define(
+                body.tenantId,
+                body.ruleId,
+                body.name,
+                json.writeValueAsString(body.criteria),
+                jwt.subject,
+                ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
+                TenantScope.User(userId),
+            )
+        return ResponseEntity.status(HttpStatus.CREATED).body(RuleView(body.ruleId, version))
+    }
+
+    /**
+     * `POST /api/v1/prospects/{id}/screen` — evaluates the tenant's active rules conjunctively:
+     * REJECT appends `passed` with the violated constraints as its rationale, REVIEW opens a review
+     * task (a person resolves what data could not), CLEAR leaves the prospect eligible to advance.
+     */
+    @PostMapping("/api/v1/prospects/{id}/screen")
+    fun screen(
+        @PathVariable id: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<ScreenView> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val current =
+            prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        if (current.stage != ProspectStage.SCREENING) return ResponseEntity.status(HttpStatus.CONFLICT).build()
+        val scope = TenantScope.User(userId)
+        val outcome = screen(current.prospect, scope)
+        when (outcome.verdict) {
+            ScreeningVerdict.REJECT ->
+                prospects.append(
+                    id,
+                    ProspectEvent.Passed(
+                        jwt.subject,
+                        Instant.now(),
+                        current.stage,
+                        "screened out: ${outcome.reasons.joinToString("; ")}",
+                    ),
+                    ProspectProvenance("api", UUID.randomUUID()),
+                    TenantScope.User(userId),
+                )
+            ScreeningVerdict.REVIEW -> {
+                val task =
+                    Task(
+                        UUID.randomUUID(),
+                        TaskKind.REVIEW,
+                        "prospect",
+                        id.toString(),
+                        jwt.subject,
+                        Instant.now(),
+                    )
+                tasks.open(task, TaskProvenance("api", UUID.randomUUID()))
+                return ResponseEntity.ok(
+                    ScreenView(outcome.verdict.name.lowercase(), outcome.reasons, current.stage.wireValue, task.id),
+                )
+            }
+            else -> {}
+        }
+        val stage = prospects.load(id, TenantScope.User(userId))?.stage?.wireValue ?: current.stage.wireValue
+        return ResponseEntity.ok(ScreenView(outcome.verdict.name.lowercase(), outcome.reasons, stage, null))
+    }
+
+    private fun screen(
+        prospect: Prospect,
+        scope: TenantScope,
+    ): ScreeningOutcome {
+        val rows = rules.activeRules(prospect.tenantId, scope)
+        if (rows.isEmpty()) {
+            return ScreeningOutcome(
+                ScreeningVerdict.REVIEW,
+                listOf("no active screening rule for the tenant"),
+            )
+        }
+        val parsed =
+            rows.map { row ->
+                val fields: Map<String, List<String>> =
+                    json.readValue(
+                        row.criteria,
+                        object : com.fasterxml.jackson.core.type.TypeReference<Map<String, List<String>>>() {},
+                    )
+                row.name to ScreeningCriteria.parse(fields)
+            }
+        return evaluateAll(prospect, parsed)
     /** The request names only where to land; `from` is the replayed stage, never client-asserted. */
     private fun eventOf(
         body: TransitionRequest,
@@ -260,6 +419,26 @@ class ProspectController(
     data class IcView(
         val taskId: UUID,
         val taskStatus: String,
+    )
+
+    data class RuleRequest(
+        val tenantId: UUID,
+        val ruleId: String,
+        val name: String,
+        val criteria: Map<String, List<String>>,
+        val correlationId: UUID? = null,
+    )
+
+    data class RuleView(
+        val ruleId: String,
+        val version: Int,
+    )
+
+    data class ScreenView(
+        val verdict: String,
+        val reasons: List<String>,
+        val stage: String,
+        val reviewTaskId: UUID? = null,
     )
 
         val correlationId: UUID? = null,
