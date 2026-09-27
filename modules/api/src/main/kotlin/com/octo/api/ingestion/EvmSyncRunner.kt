@@ -25,6 +25,7 @@ class EvmSyncRunner(
     private val windowsScanned = counter(meters, "onchain.evm.scan.windows")
     private val windowShrinks = counter(meters, "onchain.evm.scan.window_shrinks")
     private val skippedContracts = counter(meters, "onchain.evm.scan.skipped_contracts")
+    private val malformedLogs = counter(meters, "onchain.evm.scan.malformed_logs")
     private val snapshotsInserted = counter(meters, "onchain.evm.balance.snapshots")
     private val failedWallets = counter(meters, "onchain.evm.balance.failed_wallets")
     private val pollErrors = counter(meters, "onchain.evm.poll.errors")
@@ -41,6 +42,12 @@ class EvmSyncRunner(
             windowsScanned?.increment(report.windowsScanned.toDouble())
             windowShrinks?.increment(report.windowShrinks.toDouble())
             skippedContracts?.increment(report.skippedContracts.size.toDouble())
+            malformedLogs?.increment(report.malformedLogs.size.toDouble())
+            if (report.malformedLogs.isNotEmpty()) {
+                // Malformed logs are never re-scanned (the cursor advanced past them) — surface
+                // loudly so the runbook gap check fires before recon has to find it.
+                log.warn("evm scan dropped {} malformed logs: {}", report.malformedLogs.size, report.malformedLogs)
+            }
             if (report.logsSeen > 0 || report.skippedContracts.isNotEmpty() || report.windowShrinks > 0) {
                 log.info(
                     "evm scan {}: {} legs from {} logs across {} windows (head {}, {} shrinks, skipped contracts {})",

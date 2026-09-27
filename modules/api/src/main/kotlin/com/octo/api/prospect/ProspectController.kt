@@ -123,6 +123,64 @@ class ProspectController(
         return ResponseEntity.ok(state.view())
     }
 
+    /**
+     * `POST /api/v1/prospects/import` — the CRM/referral adapter's bulk intake. Each item registers
+     * deduplicated on `(tenant, source, source_ref)`: a re-sync is a no-op, so adapters can poll
+     * freely without duplicate prospects. Items without `sourceRef` always register.
+     */
+    @PostMapping("/api/v1/prospects/import")
+    fun import(
+        @RequestBody body: ImportRequest,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<ImportView> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        if (body.items.isEmpty()) return ResponseEntity.badRequest().build()
+        val registered = Instant.now()
+        val items =
+            body.items.mapNotNull { item ->
+                runCatching {
+                    Prospect(
+                        id = UUID.randomUUID(),
+                        tenantId = body.tenantId,
+                        name = item.name,
+                        source = ProspectSource.fromWireValue(item.source),
+                        sector = item.sector,
+                        region = item.region,
+                        description = item.description,
+                        registeredAt = registered,
+                        sourceRef = item.sourceRef,
+                    )
+                }.getOrNull() ?: return ResponseEntity.badRequest().build()
+            }
+        val inserted =
+            prospects.importBatch(
+                items,
+                jwt.subject,
+                ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
+                TenantScope.User(userId),
+            )
+        return ResponseEntity.ok(ImportView(inserted.size, items.size - inserted.size, inserted))
+    }
+
+    /**
+     * `GET /api/v1/prospects/{id}/events` — the append-only audit trail itself: every transition with
+     * actor, rationale, business/recorded time, provenance correlation, and the IC task that
+     * authorized an `invested`. Read-side mirror of why the store keeps events, not just state.
+     */
+    @GetMapping("/api/v1/prospects/{id}/events")
+    fun events(
+        @PathVariable id: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<List<EventView>> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val state = prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        roleIn(userId, state.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        val rows = prospects.history(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(rows.map { it.view() })
+    }
+
     @GetMapping("/api/v1/prospects")
     fun pipeline(
         @RequestParam tenantId: UUID,
@@ -384,6 +442,20 @@ class ProspectController(
 
     private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
 
+    private fun com.octo.dealsourcing.persistence.ProspectEventRow.view() =
+        EventView(
+            seq = seq,
+            eventType = eventType,
+            stageFrom = stageFrom?.wireValue,
+            stageTo = stageTo?.wireValue,
+            actor = actor,
+            rationale = rationale,
+            occurredAt = occurredAt,
+            recordedAt = recordedAt,
+            correlationId = correlationId,
+            taskId = taskId,
+        )
+
     private fun ProspectState.view() =
         ProspectView(
             id = prospect.id,
@@ -398,6 +470,27 @@ class ProspectController(
             decidedBy = decidedBy,
             lastEventAt = lastEventAt,
         )
+
+    data class ImportItem(
+        val name: String,
+        val source: String,
+        val sourceRef: String? = null,
+        val sector: String? = null,
+        val region: String? = null,
+        val description: String? = null,
+    )
+
+    data class ImportRequest(
+        val tenantId: UUID,
+        val items: List<ImportItem>,
+        val correlationId: UUID? = null,
+    )
+
+    data class ImportView(
+        val inserted: Int,
+        val duplicates: Int,
+        val ids: List<UUID>,
+    )
 
     data class RegisterRequest(
         val tenantId: UUID,
@@ -442,6 +535,17 @@ class ProspectController(
     )
 
         val correlationId: UUID? = null,
+    data class EventView(
+        val seq: Long,
+        val eventType: String,
+        val stageFrom: String?,
+        val stageTo: String?,
+        val actor: String,
+        val rationale: String?,
+        val occurredAt: Instant,
+        val recordedAt: Instant,
+        val correlationId: UUID,
+        val taskId: UUID?,
     )
 
     data class ProspectView(

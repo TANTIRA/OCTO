@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  Activity,
   Bell,
   ChartPie,
   Clock,
@@ -124,6 +125,14 @@ const COMMANDS: Command[] = [
     icon: Bell,
   },
   {
+    id: "go-ops",
+    group: "Navigation",
+    title: "Ops console",
+    detail: "Live API health and surface links",
+    shortcut: "G X",
+    icon: Activity,
+  },
+  {
     id: "do-position",
     group: "Actions",
     title: "Record a transaction",
@@ -166,6 +175,29 @@ const COMMANDS: Command[] = [
 ];
 
 const GROUP_ORDER = ["Recent", "Navigation", "Actions"];
+
+// Commands navigate by setting the area hash — the app shell owns area
+// selection and keeps location.hash in sync (deep links + back button).
+const AREA_BY_COMMAND: Record<string, string> = {
+  "go-overview": "overview",
+  "go-positions": "positions",
+  "go-assets": "assets",
+  "go-deals": "deals",
+  "go-recon": "recon",
+  "go-alerts": "alerts",
+  "recent-ic-memo": "deals",
+  "recent-break": "recon",
+  "do-position": "positions",
+  "do-prospect": "deals",
+  "do-recon": "recon",
+  "do-report": "overview",
+  "do-alert-rule": "alerts",
+};
+
+// Commands that leave the shell entirely (route-level navigation).
+const PATH_BY_COMMAND: Record<string, string> = {
+  "go-ops": "/admin",
+};
 
 const EXIT_MS = 140;
 
@@ -268,6 +300,19 @@ export default function CommandMenu1() {
     return () => doc.removeEventListener("keydown", onKeyDown);
   }, [openMenu]);
 
+  const run = useCallback(
+    (command?: Command) => {
+      const target = command ?? activeCommand;
+      const area = target ? AREA_BY_COMMAND[target.id] : undefined;
+      const path = target ? PATH_BY_COMMAND[target.id] : undefined;
+      if (path) window.location.assign(path);
+      else if (area) window.location.hash = area;
+      setQuery("");
+      setActiveIndex(0);
+      close();
+    },
+    [activeCommand, close],
+  );
   const run = useCallback(() => {
     setQuery("");
     setActiveIndex(0);
@@ -303,6 +348,7 @@ export default function CommandMenu1() {
       case "Enter":
         if (!activeCommand) break;
         event.preventDefault();
+        run(activeCommand);
         run();
         break;
     }
@@ -449,6 +495,7 @@ export default function CommandMenu1() {
                                 onMouseDown={(event) => {
                                   event.preventDefault();
                                   setActiveIndex(index);
+                                  run(command);
                                   run();
                                 }}
                                 className={cx(

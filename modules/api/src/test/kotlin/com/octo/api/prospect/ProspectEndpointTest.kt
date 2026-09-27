@@ -11,6 +11,7 @@ import com.octo.dealsourcing.ProspectStage
 import com.octo.dealsourcing.ProspectState
 import com.octo.dealsourcing.TenantScope
 import com.octo.dealsourcing.next
+import com.octo.dealsourcing.persistence.ProspectEventRow
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
@@ -253,6 +254,29 @@ class ProspectEndpointTest {
             scope: TenantScope,
         ): ProspectState? = states[id]
 
+        val eventRows = mutableMapOf<UUID, MutableList<ProspectEventRow>>()
+
+        override fun importBatch(
+            prospects: List<Prospect>,
+            actor: String,
+            provenance: ProspectProvenance,
+            scope: TenantScope,
+        ): List<UUID> {
+            val seen =
+                states.values
+                    .map { Triple(it.prospect.tenantId, it.prospect.source, it.prospect.sourceRef) }
+                    .toMutableSet()
+            return prospects
+                .filter { it.sourceRef == null || seen.add(Triple(it.tenantId, it.source, it.sourceRef)) }
+                .onEach { states[it.id] = registered(it) }
+                .map { it.id }
+        }
+
+        override fun history(
+            id: UUID,
+            scope: TenantScope,
+        ): List<ProspectEventRow>? = eventRows[id] ?: states[id]?.let { emptyList() }
+
         override fun listAtStage(
             tenantId: UUID,
             stage: ProspectStage,
@@ -267,6 +291,30 @@ class ProspectEndpointTest {
         ): ProspectState {
             val current = states[prospectId] ?: throw NoSuchElementException("no prospect $prospectId")
             return current.next(event).also { states[prospectId] = it }
+            val next = current.next(event)
+            states[prospectId] = next
+            eventRows
+                .getOrPut(prospectId) { mutableListOf() }
+                .add(
+                    ProspectEventRow(
+                        seq = (eventRows[prospectId]?.size ?: 0) + 1L,
+                        eventType =
+                            when (event) {
+                                is ProspectEvent.Advanced -> "advanced"
+                                is ProspectEvent.Passed -> "passed"
+                                is ProspectEvent.Invested -> "invested"
+                            },
+                        stageFrom = current.stage,
+                        stageTo = next.stage,
+                        actor = event.actor,
+                        rationale = (event as? ProspectEvent.Passed)?.rationale ?: (event as? ProspectEvent.Invested)?.rationale,
+                        occurredAt = event.at,
+                        recordedAt = java.time.Instant.now(),
+                        correlationId = provenance.correlationId,
+                        taskId = (event as? ProspectEvent.Invested)?.taskId,
+                    ),
+                )
+            return next
         }
     }
 
@@ -345,6 +393,69 @@ class ProspectEndpointTest {
             val task = tasks.opened().single()
             assertThat(task.kind).isEqualTo(TaskKind.EVIDENCE_REQUEST)
             assertThat(task.subjectId).isEqualTo(id.toString())
+        }
+    }
+
+    @Test
+    fun `the event trail reads back actor, rationale and provenance in append order`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"screening"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"passed","rationale":"off-mandate"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            mvc
+                .perform(get("/api/v1/prospects/$id/events").with(jwt().jwt { it.subject(viewer.toString()) }))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$[0].eventType").value("advanced"))
+                .andExpect(jsonPath("$[0].stageFrom").value("sourced"))
+                .andExpect(jsonPath("$[0].stageTo").value("screening"))
+                .andExpect(jsonPath("$[0].actor").value(member.toString()))
+                .andExpect(jsonPath("$[1].eventType").value("passed"))
+                .andExpect(jsonPath("$[1].rationale").value("off-mandate"))
+                .andExpect(jsonPath("$[1].correlationId").exists())
+            mvc
+                .perform(
+                    get("/api/v1/prospects/$id/events")
+                        .with(jwt().jwt { it.subject(UUID.randomUUID().toString()) }),
+                ).andExpect(status().isNotFound)
+        }
+    }
+
+    @Test
+    fun `a bulk import dedupes on the external ref and refuses bad input`() {
+        run { mvc ->
+            val body =
+                """{"tenantId":"$tenantId","items":[""" +
+                    """{"name":"A","source":"crm","sourceRef":"crm-1"},""" +
+                    """{"name":"B","source":"crm","sourceRef":"crm-1"},""" +
+                    """{"name":"C","source":"referral"}]}"""
+            mvc
+                .perform(
+                    post("/api/v1/prospects/import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body)
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.inserted").value(2))
+                .andExpect(jsonPath("$.duplicates").value(1))
+            mvc
+                .perform(
+                    post("/api/v1/prospects/import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId","items":[{"name":"X","source":"nosuch"}]}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
         }
     }
 

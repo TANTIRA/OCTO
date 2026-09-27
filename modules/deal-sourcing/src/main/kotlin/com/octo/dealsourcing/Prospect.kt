@@ -47,6 +47,7 @@ data class Prospect(
     val region: String?,
     val description: String?,
     val registeredAt: Instant,
+    val sourceRef: String? = null,
 ) {
     init {
         require(name.isNotBlank()) { "a prospect must name itself" }
