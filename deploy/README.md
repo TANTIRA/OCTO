@@ -40,6 +40,11 @@ Set in the Dokploy compose environment (never committed). Keys mirror
   hairpin back through it, so JWKS fetches fail and every bearer token 401s.
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — publishable
   anon key, baked into the web bundle by the Dockerfile build args.
+- `API_INTERNAL_URL` — `/api/*` same-origin proxy target. **Also a build
+  arg**: Next.js evaluates `rewrites()` during `next build` and serializes
+  the result into the standalone routes manifest, so a runtime env var can
+  never reach it. Hardcoded `http://api:8080` in the compose `build.args`
+  (compose-network service name, not a secret).
 - `NEO4J_URI` (default `bolt://octo-neo4j-db:7687`), `NEO4J_DATABASE`, `NEO4J_USER`, `NEO4J_PASSWORD`.
 - Optional vendor keys (`HELIUS_*`, `ALPHA_VANTAGE_*`, `ARBITRUM_*`, `OPENROUTER_*`, `DECISION_MODEL*`) are declared as **bare pass-throughs** in the compose `environment:` list — they reach the container only when set in the Dokploy env. Do not give them empty defaults: Spring's `@ConditionalOnProperty` treats a present-but-empty value as *configured* and the api crash-loops (`rpcBaseUrl must be https`).
 
