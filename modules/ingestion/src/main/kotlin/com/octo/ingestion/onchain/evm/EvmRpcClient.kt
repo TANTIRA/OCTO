@@ -40,7 +40,11 @@ class EvmRpcClient(
 ) : EvmRpcApi {
     private val ids = AtomicLong()
 
-    override fun chainId(): Long = rpc("eth_chainId", mapper.createArrayNode()).asQuantity().toLong()
+    override fun chainId(): Long =
+        rpc("eth_chainId", mapper.createArrayNode())
+            .asQuantityOrNull()
+            ?.toLong()
+            ?: throw EvmException("evm rpc eth_chainId returned a malformed quantity")
 
     override fun finalizedBlock(): JsonNode = rpc("eth_getBlockByNumber", mapper.createArrayNode().add("finalized").add(false))
 
@@ -76,28 +80,31 @@ class EvmRpcClient(
     }
 
     override fun nativeBalance(address: String): BigInteger =
-        rpc("eth_getBalance", mapper.createArrayNode().add(address).add("finalized")).asQuantity()
+        rpc("eth_getBalance", mapper.createArrayNode().add(address).add("finalized"))
+            .asQuantityOrNull()
+            ?: throw EvmException("evm rpc eth_getBalance returned a malformed quantity for $address")
 
     override fun balanceOf(
         contract: String,
         address: String,
     ): BigInteger? {
         val data = BALANCE_OF_SELECTOR + address.asTopic().removePrefix("0x")
-        return ethCall(contract, data)?.toQuantity()
+        return ethCall(contract, data)?.toQuantityOrNull()
     }
 
     override fun decimals(contract: String): Int? =
         ethCall(contract, DECIMALS_SELECTOR)
-            ?.toQuantity()
+            ?.toQuantityOrNull()
             ?.let { runCatching { it.intValueExact() }.getOrNull() }
             ?.takeIf { it in 0..255 }
 
-    override fun totalSupply(contract: String): BigInteger? = ethCall(contract, TOTAL_SUPPLY_SELECTOR)?.toQuantity()
+    override fun totalSupply(contract: String): BigInteger? = ethCall(contract, TOTAL_SUPPLY_SELECTOR)?.toQuantityOrNull()
 
     override fun transactionCount(address: String): Long =
         rpc("eth_getTransactionCount", mapper.createArrayNode().add(address).add("finalized"))
-            .asQuantity()
-            .toLong()
+            .asQuantityOrNull()
+            ?.toLong()
+            ?: throw EvmException("evm rpc eth_getTransactionCount returned a malformed quantity for $address")
 
     /**
      * `eth_call` at `finalized`; returns the hex return-data string, or null when the call
@@ -202,5 +209,13 @@ internal fun Long.toHexQuantity(): String = "0x" + toString(16)
 
 internal fun JsonNode.asQuantity(): BigInteger = BigInteger(asText().removePrefix("0x"), 16)
 
+/**
+ * Quantity or null — malformed/missing hex never throws and never becomes zero: a field that
+ * cannot be read is a record the caller must drop (fail closed), not a fabricated value.
+ */
+internal fun JsonNode.asQuantityOrNull(): BigInteger? = runCatching { asQuantity() }.getOrNull()
+
 /** Return-data hex (possibly shorter than 32 bytes after leading-zero trim) -> quantity. */
 internal fun String.toQuantity(): BigInteger = BigInteger(removePrefix("0x"), 16)
+
+internal fun String.toQuantityOrNull(): BigInteger? = runCatching { toQuantity() }.getOrNull()
