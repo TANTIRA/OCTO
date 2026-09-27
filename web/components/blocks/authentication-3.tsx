@@ -106,6 +106,8 @@ export default function Authentication3() {
   const [index, setIndex] = useState(0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [recovering, setRecovering] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const quote = QUOTES[index];
@@ -118,6 +120,13 @@ export default function Authentication3() {
     const id = setInterval(() => step(1), 7000);
     return () => clearInterval(id);
   }, [step]);
+
+  // Already signed in — nothing to do here, go straight to the app.
+  useEffect(() => {
+    supabase?.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.replace("/app");
+    });
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -148,6 +157,27 @@ export default function Authentication3() {
       setError(oauthError.message);
       setPending(false);
     }
+  };
+
+  // Non-enumerating: the response is identical whether or not the account
+  // exists. Delivery depends on deployment SMTP (self-hosted mailer may be
+  // a catch-all until configured) — the flow is honest either way.
+  const recover = async () => {
+    if (!supabase || recovering || pending) return;
+    if (!email) {
+      setError("Enter your work email first.");
+      return;
+    }
+    setRecovering(true);
+    setError(null);
+    setNotice(null);
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    setRecovering(false);
+    setNotice(
+      "If an account exists for that address, a reset link is on its way.",
+    );
   };
 
   return (
@@ -203,9 +233,11 @@ export default function Authentication3() {
                   </label>
                   <button
                     type="button"
+                    onClick={recover}
+                    disabled={recovering || pending || !supabase}
                     className={cx("text-xs", linkClass, focus)}
                   >
-                    Forgot password?
+                    {recovering ? "Sending…" : "Forgot password?"}
                   </button>
                 </div>
                 <div className="relative">
@@ -253,6 +285,15 @@ export default function Authentication3() {
                   className="rounded-[var(--rb-r-md,8px)] border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
                 >
                   {error}
+                </p>
+              )}
+
+              {notice && (
+                <p
+                  role="status"
+                  className="rounded-[var(--rb-r-md,8px)] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200"
+                >
+                  {notice}
                 </p>
               )}
 
