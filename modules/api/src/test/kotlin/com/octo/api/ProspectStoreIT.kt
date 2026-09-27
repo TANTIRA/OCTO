@@ -361,6 +361,20 @@ class ProspectStoreIT {
     }
 
     @Test
+    fun `the store itself bounds a pipeline page`() {
+        val tenantId = tenant()
+        assertThatThrownBy {
+            store.listAtStage(tenantId, ProspectStage.SOURCED, limit = 501, offset = 0, TenantScope.All)
+        }.isInstanceOf(IllegalArgumentException::class.java)
+        assertThatThrownBy {
+            store.listAtStage(tenantId, ProspectStage.SOURCED, limit = 0, offset = 0, TenantScope.All)
+        }.isInstanceOf(IllegalArgumentException::class.java)
+        assertThatThrownBy {
+            store.listAtStage(tenantId, ProspectStage.SOURCED, limit = 200, offset = -1, TenantScope.All)
+        }.isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
     fun `a retired rule leaves the active set and a later define re-activates it`() {
         val rules = JdbcScreeningRuleStore(dataSource)
         val tenantId = tenant()
