@@ -17,6 +17,7 @@ kover {
                     "com.octo.workflow.audit.JdbcAuditLog",
                     "com.octo.workflow.persistence.*",
                     "com.octo.workflow.report.JdbcReportJobStore",
+                    "com.octo.workflow.report.JdbcReportScheduleStore",
                 )
             }
         }
