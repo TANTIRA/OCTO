@@ -33,6 +33,13 @@ Set in the Dokploy compose environment (never committed). Keys mirror
 - `DB_USER=octo_app`, `DB_MIGRATION_USER=octo_migrate` — the least-privilege roles from `infra/init-db-roles.sql` (create/rename before first api boot; `octo_migrate` needs `CREATE` on the database for the `mesta` schema + Flyway history).
 - `SUPABASE_INTERNAL_URL`, `SUPABASE_STORAGE_ENDPOINT` → internal Kong URLs.
 - `AUTH_ISSUER`, `AUTH_JWKS_URL`, `AUTH_PUBLIC_URL`, `API_PUBLIC_URL`.
+  `AUTH_ISSUER` stays the *public* issuer string (it is matched against the
+  token `iss` claim), but `AUTH_JWKS_URL` must be the **internal** Kong path —
+  `http://octo-supabase-tonh7d-kong-1:8000/auth/v1/.well-known/jwks.json`. The
+  public URL resolves to the Traefik ingress IP and the api container cannot
+  hairpin back through it, so JWKS fetches fail and every bearer token 401s.
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — publishable
+  anon key, baked into the web bundle by the Dockerfile build args.
 - `NEO4J_URI` (default `bolt://octo-neo4j-db:7687`), `NEO4J_DATABASE`, `NEO4J_USER`, `NEO4J_PASSWORD`.
 - Optional vendor keys (`HELIUS_*`, `ALPHA_VANTAGE_*`, `ARBITRUM_*`, `OPENROUTER_*`, `DECISION_MODEL*`) are declared as **bare pass-throughs** in the compose `environment:` list — they reach the container only when set in the Dokploy env. Do not give them empty defaults: Spring's `@ConditionalOnProperty` treats a present-but-empty value as *configured* and the api crash-loops (`rpcBaseUrl must be https`).
 
@@ -55,6 +62,19 @@ Set in the Dokploy compose environment (never committed). Keys mirror
 - **`VPS_getProjectLogsV1` / `VPS_getProjectContainersV1`** (Hostinger VM
   `1943271`, project `octo-app-kbf88q`) are the fast path for crash loops and
   container health when Dokploy's own log procedures don't answer.
+- **ES256 vs HS256 signing:** GoTrue signed HS256 until `JWT_KEYS`/`JWT_JWKS`
+  were provisioned (dokploy helpers can't make EC keys — run
+  `utils/add-new-auth-keys.sh` from supabase/supabase with the deployment's
+  `JWT_SECRET`). Until then `/auth/v1/.well-known/jwks.json` returns
+  `{"keys":[]}` and the api's JWKS decoder rejects every token.
+- **Env changes don't recreate containers:** `docker compose up -d` only
+  recreates services whose rendered config changed. A Supabase-side key/env
+  change leaves the api running with a stale JWKS cache — restart the app
+  project (`VPS_restartProjectV1`) after rotating signing material.
+- **User provisioning is invite-only:** `DISABLE_SIGNUP=true`; operators add
+  users via Supabase Studio → Authentication → Users (dashboard basic-auth in
+  the supabase compose env). `octo-ops-smoke@test.invalid` is a synthetic
+  smoke account for end-to-end auth checks, not a person.
 - **Redeploy vs deploy:** `compose.redeploy` reuses the built image; a compose
   or env change needs full `compose.deploy` (rebuild + recreate).
 - **Env writes** go through `compose.update` with the complete env blob —
