@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import {
   useCallback,
   useEffect,
@@ -16,6 +17,11 @@ import {
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+// Wallets are browser objects — render only on the client.
+const WalletSignIn = dynamic(() => import("@/components/wallet-sign-in"), {
+  ssr: false,
+});
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
@@ -315,7 +321,7 @@ export default function Authentication3() {
               <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4 flex gap-2">
               <button
                 type="button"
                 onClick={signInWithGoogle}
@@ -325,6 +331,10 @@ export default function Authentication3() {
                 <GoogleMark className="h-4 w-4" />
                 Google
               </button>
+              <WalletSignIn
+                onError={setError}
+                className={cx(btnProvider, transition, focus)}
+              />
             </div>
           </div>
         </div>
