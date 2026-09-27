@@ -1,6 +1,7 @@
 package com.octo.api.data
 
 import com.octo.api.access.TenantDirectory
+import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesQuery
 import com.octo.ingestion.persistence.TimeSeriesReader
 import org.springframework.format.annotation.DateTimeFormat
@@ -37,10 +38,15 @@ class DataController(
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<DataResponse> {
         if (endDate.isBefore(startDate)) return ResponseEntity.badRequest().build()
-        val tenantId = series.datasetTenant(datasetId) ?: return ResponseEntity.notFound().build()
         val userId = runCatching { UUID.fromString(jwt.subject) }.getOrNull() ?: return ResponseEntity.notFound().build()
+        val scope = TenantScope.User(userId)
+        val tenantId = series.datasetTenant(datasetId, scope) ?: return ResponseEntity.notFound().build()
         if (tenants.tenantsOf(userId).none { it.tenantId == tenantId }) return ResponseEntity.notFound().build()
-        val observations = series.query(TimeSeriesQuery(datasetId, startDate, endDate, fields?.takeIf { it.isNotEmpty() }, asOfTime, since))
+        val observations =
+            series.query(
+                TimeSeriesQuery(datasetId, startDate, endDate, fields?.takeIf { it.isNotEmpty() }, asOfTime, since),
+                scope,
+            )
         return ResponseEntity.ok(
             DataResponse(
                 datasetId = datasetId,

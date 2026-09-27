@@ -3,6 +3,7 @@ package com.octo.api
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.BreakKind
 import com.octo.recon.matching.persistence.JdbcReconciliationStore
+import com.octo.recon.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
@@ -92,11 +93,11 @@ class ReconciliationStoreIT {
         val tenantId = tenant()
         val eventId = event("admin-x", "t-2", "-50")
         val brk = Break(BreakKind.AMOUNT_MISMATCH, "admin-x", "t-2", eventId, mapOf("source" to "-49", "ibor" to "-50"))
-        assertThat(store.existingTask(tenantId, brk)).isNull()
+        assertThat(store.existingTask(tenantId, brk, TenantScope.All)).isNull()
 
         val taskId = task()
-        store.record(tenantId, UUID.randomUUID(), brk, taskId, UUID.randomUUID())
-        assertThat(store.existingTask(tenantId, brk)).isEqualTo(taskId)
+        store.record(tenantId, UUID.randomUUID(), brk, taskId, UUID.randomUUID(), TenantScope.All)
+        assertThat(store.existingTask(tenantId, brk, TenantScope.All)).isEqualTo(taskId)
         assertThatThrownBy {
             store.record(
                 tenantId,
@@ -104,16 +105,18 @@ class ReconciliationStoreIT {
                 brk,
                 task(),
                 UUID.randomUUID(),
+                TenantScope.All,
             )
         }.isInstanceOf(SQLException::class.java)
-        store.record(tenantId, UUID.randomUUID(), brk, null, UUID.randomUUID()) // tomorrow's repeat, no new task
-        assertThat(store.existingTask(tenant(), brk)).isNull() // another tenant does not see it
+        store.record(tenantId, UUID.randomUUID(), brk, null, UUID.randomUUID(), TenantScope.All) // tomorrow's repeat, no new task
+        assertThat(store.existingTask(tenant(), brk, TenantScope.All)).isNull() // another tenant does not see it
 
         val missing = Break(BreakKind.MISSING_IN_IBOR, "admin-x", "t-3", null, emptyMap())
-        store.record(tenantId, UUID.randomUUID(), missing, task(), UUID.randomUUID())
-        assertThat(store.existingTask(tenantId, missing)).isNotNull()
-        assertThatThrownBy { store.record(tenantId, UUID.randomUUID(), missing.copy(ledgerEventId = eventId), null, UUID.randomUUID()) }
-            .isInstanceOf(SQLException::class.java) // missing-in-ibor may not carry an event
+        store.record(tenantId, UUID.randomUUID(), missing, task(), UUID.randomUUID(), TenantScope.All)
+        assertThat(store.existingTask(tenantId, missing, TenantScope.All)).isNotNull()
+        assertThatThrownBy {
+            store.record(tenantId, UUID.randomUUID(), missing.copy(ledgerEventId = eventId), null, UUID.randomUUID(), TenantScope.All)
+        }.isInstanceOf(SQLException::class.java) // missing-in-ibor may not carry an event
     }
 
     private companion object {

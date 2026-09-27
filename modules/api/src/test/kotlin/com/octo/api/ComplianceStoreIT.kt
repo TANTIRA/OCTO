@@ -8,6 +8,7 @@ import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.evaluate
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.JdbcComplianceStore
+import com.octo.recon.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
@@ -76,25 +77,33 @@ class ComplianceStoreIT {
             tenantId,
             ComplianceRule("conc", 1, "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.25"))),
             provenance,
+            TenantScope.All,
         )
         store.defineRule(
             tenantId,
             ComplianceRule("conc", 2, "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.30"))),
             provenance,
+            TenantScope.All,
         )
         store.defineRule(
             tenantId,
             ComplianceRule("eur", 1, "EUR cap", ComplianceCheck.CurrencyExposureLimit(Currency.getInstance("EUR"), BigDecimal("0.4"))),
             provenance,
+            TenantScope.All,
         )
-        store.defineRule(tenantId, ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))), provenance)
+        store.defineRule(
+            tenantId,
+            ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))),
+            provenance,
+            TenantScope.All,
+        )
 
-        val rules = store.activeRules(tenantId)
+        val rules = store.activeRules(tenantId, TenantScope.All)
         assertThat(rules.map { it.id to it.version }).containsExactly("conc" to 2, "cov" to 1, "eur" to 1)
         assertThat((rules[0].check as ComplianceCheck.ConcentrationLimit).maxFraction).isEqualByComparingTo("0.30")
         assertThat((rules[2].check as ComplianceCheck.CurrencyExposureLimit).currency.currencyCode).isEqualTo("EUR")
-        assertThat(store.activeRules(tenant())).isEmpty()
-        assertThatThrownBy { store.defineRule(tenantId, rules[0], provenance) }.isInstanceOf(SQLException::class.java)
+        assertThat(store.activeRules(tenant(), TenantScope.All)).isEmpty()
+        assertThatThrownBy { store.defineRule(tenantId, rules[0], provenance, TenantScope.All) }.isInstanceOf(SQLException::class.java)
     }
 
     @Test
@@ -104,17 +113,33 @@ class ComplianceStoreIT {
         val coverage = CoverageReport(asOf, asOf.plusYears(1), usd, "base", null, null, null, null, BigDecimal("1.1"))
         val breach = evaluate(listOf(floor), ComplianceInputs("fund-1", asOf, coverage = coverage)).single()
         assertThat(breach.result).isEqualTo(Result.BREACH)
-        assertThat(store.breachTask(tenantId, breach)).isNull()
+        assertThat(store.breachTask(tenantId, breach, TenantScope.All)).isNull()
 
         val taskId = task()
-        store.record(tenantId, breach, taskId, UUID.randomUUID())
-        assertThat(store.breachTask(tenantId, breach)).isEqualTo(taskId)
-        assertThatThrownBy { store.record(tenantId, breach, task(), UUID.randomUUID()) }.isInstanceOf(SQLException::class.java)
+        store.record(tenantId, breach, taskId, UUID.randomUUID(), TenantScope.All)
+        assertThat(store.breachTask(tenantId, breach, TenantScope.All)).isEqualTo(taskId)
+        assertThatThrownBy {
+            store.record(
+                tenantId,
+                breach,
+                task(),
+                UUID.randomUUID(),
+                TenantScope.All,
+            )
+        }.isInstanceOf(SQLException::class.java)
 
         val pass = breach.copy(result = Result.PASS, explanation = "restated")
-        store.record(tenantId, pass, null, UUID.randomUUID())
+        store.record(tenantId, pass, null, UUID.randomUUID(), TenantScope.All)
         // A task is allowed only on a breach.
-        assertThatThrownBy { store.record(tenantId, pass, task(), UUID.randomUUID()) }.isInstanceOf(SQLException::class.java)
+        assertThatThrownBy {
+            store.record(
+                tenantId,
+                pass,
+                task(),
+                UUID.randomUUID(),
+                TenantScope.All,
+            )
+        }.isInstanceOf(SQLException::class.java)
     }
 
     private companion object {

@@ -5,6 +5,7 @@ import com.octo.analytics.persistence.ModelRun
 import com.octo.analytics.persistence.ModelRunOutput
 import com.octo.analytics.persistence.ModelStatus
 import com.octo.analytics.persistence.OutputKind
+import com.octo.analytics.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
@@ -31,8 +32,8 @@ class ModelRunStoreIT {
                 ModelRunOutput(LocalDate.parse("2026-03-31"), OutputKind.SMOOTHED, """{"bull": 0.9, "bear": 0.1}"""),
             )
 
-        val recorded = store.record(run, outputs)
-        val loaded = store.load(run.id)
+        val recorded = store.record(run, outputs, TenantScope.All)
+        val loaded = store.load(run.id, TenantScope.All)
 
         assertThat(recorded.recordedAt).isNotNull()
         // jsonb normalizes key order and spacing, so the json fields are compared by content, the rest exactly.
@@ -44,34 +45,38 @@ class ModelRunStoreIT {
         assertThat(loaded.validationWindow).isNull()
         assertThat(loaded.status).isEqualTo(ModelStatus.CHALLENGER)
         assertThat(
-            store.outputs(run.id, OutputKind.FILTERED).map {
+            store.outputs(run.id, OutputKind.FILTERED, TenantScope.All).map {
                 it.asOfDate
             },
         ).containsExactly(LocalDate.parse("2026-03-31"), LocalDate.parse("2026-06-30"))
-        assertThat(store.outputs(run.id, OutputKind.SMOOTHED)).hasSize(1)
+        assertThat(store.outputs(run.id, OutputKind.SMOOTHED, TenantScope.All)).hasSize(1)
     }
 
     @Test
     fun `a version is immutable and a bad output rolls the whole run back`() {
         val first = run("factor-v1")
-        store.record(first)
-        assertSqlState(UNIQUE_VIOLATION) { store.record(first.copy(id = UUID.randomUUID(), parameters = """{"beta": 1.1}""")) }
+        store.record(first, scope = TenantScope.All)
+        assertSqlState(UNIQUE_VIOLATION) {
+            store.record(first.copy(id = UUID.randomUUID(), parameters = """{"beta": 1.1}"""), scope = TenantScope.All)
+        }
 
         val broken = run("factor-v2")
         assertSqlState(CHECK_VIOLATION) {
-            store.record(broken, listOf(ModelRunOutput(LocalDate.parse("2026-06-30"), OutputKind.FILTERED, "[1, 2]")))
+            store.record(broken, listOf(ModelRunOutput(LocalDate.parse("2026-06-30"), OutputKind.FILTERED, "[1, 2]")), TenantScope.All)
         }
-        assertThat(store.load(broken.id)).isNull()
+        assertThat(store.load(broken.id, TenantScope.All)).isNull()
     }
 
     @Test
     fun `runs are append-only and their json must be objects`() {
         val run = run("kalman-v1")
-        store.record(run, listOf(ModelRunOutput(LocalDate.parse("2026-06-30"), OutputKind.FILTERED, """{"level": 1.5}""")))
+        store.record(run, listOf(ModelRunOutput(LocalDate.parse("2026-06-30"), OutputKind.FILTERED, """{"level": 1.5}""")), TenantScope.All)
         assertSqlState(RESTRICT_VIOLATION) { execute(owner, "update mesta.model_run set status = 'retired' where id = '${run.id}'") }
         assertSqlState(RESTRICT_VIOLATION) { execute(owner, "delete from mesta.model_run_output where run_id = '${run.id}'") }
-        assertSqlState(CHECK_VIOLATION) { store.record(run("kalman-v2").copy(parameters = "42")) }
-        assertSqlState(CHECK_VIOLATION) { store.record(run("kalman-v3").copy(supersedesId = run.id, rationale = " ")) }
+        assertSqlState(CHECK_VIOLATION) { store.record(run("kalman-v2").copy(parameters = "42"), scope = TenantScope.All) }
+        assertSqlState(
+            CHECK_VIOLATION,
+        ) { store.record(run("kalman-v3").copy(supersedesId = run.id, rationale = " "), scope = TenantScope.All) }
     }
 
     private fun run(version: String) =

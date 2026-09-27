@@ -6,9 +6,11 @@ import com.octo.api.access.Tenant
 import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.api.access.TenantScope
 import com.octo.api.access.next
 import com.octo.api.access.registered
 import com.octo.api.access.replay
+import com.octo.api.access.scoped
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Instant
@@ -42,7 +44,10 @@ class JdbcAccessStore(
             insert into mesta.tenant (id, slug, display_name, source_system, correlation_id)
             values (?, ?, ?, ?, ?)
             """.trimIndent()
-        dataSource.connection.use { connection ->
+        // The access store is the platform's security substrate (#197): it reads and writes the
+        // membership tables the RLS policies themselves consult, so it runs under an explicit
+        // `All` scope — the queries' own predicates still constrain the rows.
+        dataSource.scoped(TenantScope.All) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenant.id)
                 statement.setString(2, tenant.slug)
@@ -66,7 +71,7 @@ class JdbcAccessStore(
             insert into mesta.tenant_member (tenant_id, user_id, created_at, source_system, correlation_id)
             values (?, ?, ?, ?, ?)
             """.trimIndent()
-        dataSource.connection.use { connection ->
+        dataSource.scoped(TenantScope.All) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setObject(2, userId)
@@ -82,7 +87,7 @@ class JdbcAccessStore(
     fun load(
         tenantId: UUID,
         userId: UUID,
-    ): MembershipState? = dataSource.connection.use { connection -> replayLocked(connection, tenantId, userId) }
+    ): MembershipState? = dataSource.scoped(TenantScope.All) { connection -> replayLocked(connection, tenantId, userId) }
 
     /**
      * Validates [event] against the membership's current state and stores it, in one transaction.
@@ -94,23 +99,15 @@ class JdbcAccessStore(
         userId: UUID,
         event: MembershipEvent,
         provenance: AccessProvenance,
-    ): MembershipState {
-        dataSource.connection.use { connection ->
-            connection.autoCommit = false
-            try {
-                val before =
-                    replayLocked(connection, tenantId, userId)
-                        ?: throw NoSuchElementException("no member $userId in tenant $tenantId")
-                val after = before.next(event)
-                insertEvent(connection, tenantId, userId, event, provenance)
-                connection.commit()
-                return after
-            } catch (failure: Exception) {
-                connection.rollback()
-                throw failure
-            }
+    ): MembershipState =
+        dataSource.scoped(TenantScope.All) { connection ->
+            val before =
+                replayLocked(connection, tenantId, userId)
+                    ?: throw NoSuchElementException("no member $userId in tenant $tenantId")
+            val after = before.next(event)
+            insertEvent(connection, tenantId, userId, event, provenance)
+            after
         }
-    }
 
     /**
      * The tenants [userId] currently holds a role in. The state machine guarantees the latest event
@@ -133,7 +130,7 @@ class JdbcAccessStore(
             where m.user_id = ? and latest.role is not null
             order by t.slug
             """.trimIndent()
-        return dataSource.connection.use { connection ->
+        return dataSource.scoped(TenantScope.All) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, userId)
                 statement.executeQuery().use { rows ->

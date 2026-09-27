@@ -1,5 +1,6 @@
 package com.octo.api.report
 
+import com.octo.workflow.TenantScope
 import com.octo.workflow.report.JobStatus
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
@@ -11,12 +12,18 @@ import java.util.UUID
 class FakeReportJobs : ReportJobs {
     val jobs = linkedMapOf<UUID, ReportJob>()
 
-    override fun submit(request: ReportRequest): ReportJob {
+    override fun submit(
+        request: ReportRequest,
+        scope: TenantScope,
+    ): ReportJob {
         val now = Instant.now()
         return ReportJob(UUID.randomUUID(), request, JobStatus.NEW, null, null, null, null, now, now).also { jobs[it.id] = it }
     }
 
-    override fun load(id: UUID) = jobs[id]
+    override fun load(
+        id: UUID,
+        scope: TenantScope,
+    ) = jobs[id]
 
     override fun claimNext() = jobs.values.firstOrNull { it.status == JobStatus.NEW }?.let { move(it.id, JobStatus.EXECUTING) }
 

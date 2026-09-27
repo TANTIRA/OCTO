@@ -3,6 +3,7 @@ package com.octo.api
 import com.octo.ingestion.persistence.JdbcTimeSeriesStore
 import com.octo.ingestion.persistence.Observation
 import com.octo.ingestion.persistence.ObservationProvenance
+import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesQuery
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -65,38 +66,43 @@ class TimeSeriesStoreIT {
     @Test
     fun `asOfTime gives the value in force then, since gives what changed, fields select`() {
         val (ds, tenant) = dataset()
-        assertThat(store.datasetTenant(ds)).isEqualTo(tenant)
+        assertThat(store.datasetTenant(ds, TenantScope.All)).isEqualTo(tenant)
         val loaded =
-            store.write(listOf(nav(ds, q2, "100"), nav(ds, q1, "90"), nav(ds, q2, "0.12", field = "irr")), provenance).maxOf {
-                it.recordedAt!!
-            }
-        val restated = store.write(listOf(nav(ds, q2, "101").copy(supersedesId = null)), provenance).single()
+            store
+                .write(
+                    listOf(nav(ds, q2, "100"), nav(ds, q1, "90"), nav(ds, q2, "0.12", field = "irr")),
+                    provenance,
+                    TenantScope.All,
+                ).maxOf {
+                    it.recordedAt!!
+                }
+        val restated = store.write(listOf(nav(ds, q2, "101").copy(supersedesId = null)), provenance, TenantScope.All).single()
         assertThat(restated.recordedAt).isAfter(loaded)
 
-        val latest = store.query(TimeSeriesQuery(ds, q1, q2))
+        val latest = store.query(scope = TenantScope.All, query = TimeSeriesQuery(ds, q1, q2))
         assertThat(latest.map { it.field to it.value.toPlainString() }).containsExactly(
             "irr" to "0.1200000000",
             "nav" to "90.0000000000",
             "nav" to "101.0000000000",
         )
 
-        val asOfFirst = store.query(TimeSeriesQuery(ds, q1, q2, fields = setOf("nav"), asOfTime = loaded))
+        val asOfFirst = store.query(scope = TenantScope.All, query = TimeSeriesQuery(ds, q1, q2, fields = setOf("nav"), asOfTime = loaded))
         assertThat(asOfFirst.map { it.value.toPlainString() }).containsExactly("90.0000000000", "100.0000000000")
 
-        val changed = store.query(TimeSeriesQuery(ds, q1, q2, since = loaded))
+        val changed = store.query(scope = TenantScope.All, query = TimeSeriesQuery(ds, q1, q2, since = loaded))
         assertThat(changed).hasSize(1)
         assertThat(changed.single().value.toPlainString()).isEqualTo("101.0000000000")
-        assertThat(store.query(TimeSeriesQuery(ds, q2.plusDays(1), q2.plusDays(1)))).isEmpty()
+        assertThat(store.query(scope = TenantScope.All, query = TimeSeriesQuery(ds, q2.plusDays(1), q2.plusDays(1)))).isEmpty()
     }
 
     @Test
     fun `a refused observation rolls the batch back, and an unknown dataset has no tenant`() {
         val (ds, _) = dataset()
         assertThatThrownBy {
-            store.write(listOf(nav(ds, q2, "100"), nav(ds, q2, "1", field = "Bad Field")), provenance)
+            store.write(listOf(nav(ds, q2, "100"), nav(ds, q2, "1", field = "Bad Field")), provenance, TenantScope.All)
         }.isInstanceOf(SQLException::class.java)
-        assertThat(store.query(TimeSeriesQuery(ds, q1, q2))).isEmpty()
-        assertThat(store.datasetTenant(UUID.randomUUID())).isNull()
+        assertThat(store.query(scope = TenantScope.All, query = TimeSeriesQuery(ds, q1, q2))).isEmpty()
+        assertThat(store.datasetTenant(UUID.randomUUID(), TenantScope.All)).isNull()
         assertThatThrownBy { TimeSeriesQuery(ds, q2, q1) }.isInstanceOf(IllegalArgumentException::class.java)
     }
 

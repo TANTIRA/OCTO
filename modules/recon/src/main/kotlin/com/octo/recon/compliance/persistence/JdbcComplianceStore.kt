@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.Evaluation
+import com.octo.recon.persistence.TenantScope
+import com.octo.recon.persistence.scoped
 import java.math.BigDecimal
 import java.util.Currency
 import java.util.UUID
@@ -19,18 +21,23 @@ data class ComplianceProvenance(
 /** What the runner and endpoints read and write. */
 interface ComplianceStore {
     /** The latest active version of every rule of the tenant. */
-    fun activeRules(tenantId: UUID): List<ComplianceRule>
+    fun activeRules(
+        tenantId: UUID,
+        scope: TenantScope,
+    ): List<ComplianceRule>
 
     fun defineRule(
         tenantId: UUID,
         rule: ComplianceRule,
         provenance: ComplianceProvenance,
+        scope: TenantScope,
     )
 
     /** The task already opened for this breach on this date, if V14's `compliance_breach_once` already holds a row. */
     fun breachTask(
         tenantId: UUID,
         evaluation: Evaluation,
+        scope: TenantScope,
     ): UUID?
 
     /** Records one evaluation; a breach carries the task it opened. Returns the row id. */
@@ -39,6 +46,7 @@ interface ComplianceStore {
         evaluation: Evaluation,
         taskId: UUID?,
         correlationId: UUID,
+        scope: TenantScope,
     ): UUID
 }
 
@@ -52,14 +60,17 @@ class JdbcComplianceStore(
 ) : ComplianceStore {
     private val json = ObjectMapper()
 
-    override fun activeRules(tenantId: UUID): List<ComplianceRule> {
+    override fun activeRules(
+        tenantId: UUID,
+        scope: TenantScope,
+    ): List<ComplianceRule> {
         val sql =
             """
             select distinct on (rule_id) rule_id, version, name, definition::text
             from mesta.compliance_rule where tenant_id = ? and active
             order by rule_id, version desc
             """.trimIndent()
-        return dataSource.connection.use { connection ->
+        return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.executeQuery().use { rows ->
@@ -81,13 +92,14 @@ class JdbcComplianceStore(
         tenantId: UUID,
         rule: ComplianceRule,
         provenance: ComplianceProvenance,
+        scope: TenantScope,
     ) {
         val sql =
             """
             insert into mesta.compliance_rule (tenant_id, rule_id, version, name, definition, actor, correlation_id)
             values (?, ?, ?, ?, ?::jsonb, ?, ?)
             """.trimIndent()
-        dataSource.connection.use { connection ->
+        dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setString(2, rule.id)
@@ -104,13 +116,14 @@ class JdbcComplianceStore(
     override fun breachTask(
         tenantId: UUID,
         evaluation: Evaluation,
+        scope: TenantScope,
     ): UUID? {
         val sql =
             """
             select task_id from mesta.compliance_evaluation
             where tenant_id = ? and rule_id = ? and subject = ? and as_of_date = ? and result = 'breach'
             """.trimIndent()
-        return dataSource.connection.use { connection ->
+        return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setString(2, evaluation.rule.id)
@@ -126,6 +139,7 @@ class JdbcComplianceStore(
         evaluation: Evaluation,
         taskId: UUID?,
         correlationId: UUID,
+        scope: TenantScope,
     ): UUID {
         val sql =
             """
@@ -134,7 +148,7 @@ class JdbcComplianceStore(
             values (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)
             returning id
             """.trimIndent()
-        return dataSource.connection.use { connection ->
+        return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setString(2, evaluation.rule.id)

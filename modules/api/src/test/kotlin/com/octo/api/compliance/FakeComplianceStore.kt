@@ -5,6 +5,7 @@ import com.octo.recon.compliance.Evaluation
 import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
+import com.octo.recon.persistence.TenantScope
 import java.sql.SQLException
 import java.util.UUID
 
@@ -13,18 +14,21 @@ class FakeComplianceStore : ComplianceStore {
     val rules = mutableMapOf<UUID, MutableList<ComplianceRule>>()
     val recorded = mutableListOf<Triple<Evaluation, UUID?, UUID>>()
 
-    override fun activeRules(tenantId: UUID) =
-        rules[tenantId]
-            .orEmpty()
-            .groupBy {
-                it.id
-            }.values
-            .map { versions -> versions.maxBy { it.version } }
+    override fun activeRules(
+        tenantId: UUID,
+        scope: TenantScope,
+    ) = rules[tenantId]
+        .orEmpty()
+        .groupBy {
+            it.id
+        }.values
+        .map { versions -> versions.maxBy { it.version } }
 
     override fun defineRule(
         tenantId: UUID,
         rule: ComplianceRule,
         provenance: ComplianceProvenance,
+        scope: TenantScope,
     ) {
         val versions = rules.getOrPut(tenantId) { mutableListOf() }
         if (versions.any { it.id == rule.id && it.version == rule.version }) throw SQLException("duplicate version", "23505")
@@ -34,6 +38,7 @@ class FakeComplianceStore : ComplianceStore {
     override fun breachTask(
         tenantId: UUID,
         evaluation: Evaluation,
+        scope: TenantScope,
     ) = recorded.firstOrNull { (e, _, _) -> e.result == Result.BREACH && e.sameKey(evaluation) }?.second
 
     override fun record(
@@ -41,9 +46,10 @@ class FakeComplianceStore : ComplianceStore {
         evaluation: Evaluation,
         taskId: UUID?,
         correlationId: UUID,
+        scope: TenantScope,
     ): UUID {
         if (evaluation.result == Result.BREACH &&
-            breachTask(tenantId, evaluation) != null
+            breachTask(tenantId, evaluation, scope) != null
         ) {
             throw SQLException("compliance_breach_once", "23505")
         }

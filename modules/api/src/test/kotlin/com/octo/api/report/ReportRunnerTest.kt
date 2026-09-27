@@ -2,6 +2,7 @@ package com.octo.api.report
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.octo.workflow.TenantScope
 import com.octo.workflow.report.JobStatus
 import com.octo.workflow.report.ReportRequest
 import com.octo.workflow.report.ReportType
@@ -32,8 +33,8 @@ class ReportRunnerTest {
 
     @Test
     fun `a performance job runs the methodology 2 engine on the inline series and keeps the requested measures`() {
-        jobs.submit(request())
-        jobs.submit(request(measures = emptyList()))
+        jobs.submit(request(), TenantScope.All)
+        jobs.submit(request(measures = emptyList()), TenantScope.All)
         runner.poll()
 
         val (selected, all) = jobs.jobs.values.toList()
@@ -49,10 +50,10 @@ class ReportRunnerTest {
 
     @Test
     fun `an unsupported type, source or measure ends in error with the reason, and the queue keeps draining`() {
-        jobs.submit(request(type = ReportType.EXPOSURE))
-        jobs.submit(request(source = "commitment"))
-        jobs.submit(request(measures = listOf("moic")))
-        jobs.submit(request())
+        jobs.submit(request(type = ReportType.EXPOSURE), TenantScope.All)
+        jobs.submit(request(source = "commitment"), TenantScope.All)
+        jobs.submit(request(measures = listOf("moic")), TenantScope.All)
+        jobs.submit(request(), TenantScope.All)
         runner.poll()
 
         val (exposure, commitment, moic, ok) = jobs.jobs.values.toList()

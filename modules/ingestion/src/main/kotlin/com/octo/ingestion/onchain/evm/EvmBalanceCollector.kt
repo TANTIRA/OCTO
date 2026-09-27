@@ -41,8 +41,18 @@ class EvmBalanceCollector(
         if (number == null || !number.isTextual) {
             throw EvmException("endpoint does not expose a 'finalized' block tag for ${config.chain}")
         }
-        val head = number.asQuantity().toLong()
-        val asOf = Instant.ofEpochSecond(block.path("timestamp").asQuantity().toLong())
+        val head =
+            number
+                .asQuantityOrNull()
+                ?.toLong()
+                ?: throw EvmException("endpoint returned a malformed 'finalized' block number for ${config.chain}")
+        val asOf =
+            block
+                .path("timestamp")
+                .asQuantityOrNull()
+                ?.toLong()
+                ?.let { runCatching { Instant.ofEpochSecond(it) }.getOrNull() }
+                ?: throw EvmException("finalized block for ${config.chain} lacks a readable timestamp")
         val contracts = store.tokenContracts(config.chain)
 
         var snapshots = 0

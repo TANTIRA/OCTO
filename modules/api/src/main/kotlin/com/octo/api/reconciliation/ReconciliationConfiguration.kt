@@ -3,6 +3,7 @@ package com.octo.api.reconciliation
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.persistence.JdbcReconciliationStore
 import com.octo.recon.matching.persistence.ReconciliationStore
+import com.octo.recon.persistence.TenantScope
 import com.octo.workflow.persistence.JdbcTaskStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
@@ -26,7 +27,8 @@ class ReconciliationConfiguration {
             override fun existingTask(
                 tenantId: UUID,
                 brk: Break,
-            ) = store.existingTask(tenantId, brk)
+                scope: TenantScope,
+            ) = store.existingTask(tenantId, brk, scope)
 
             override fun record(
                 tenantId: UUID,
@@ -34,7 +36,8 @@ class ReconciliationConfiguration {
                 brk: Break,
                 taskId: UUID?,
                 correlationId: UUID,
-            ) = store.record(tenantId, runId, brk, taskId, correlationId)
+                scope: TenantScope,
+            ) = store.record(tenantId, runId, brk, taskId, correlationId, scope)
         }
     }
 

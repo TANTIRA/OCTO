@@ -4,6 +4,7 @@ import com.octo.recon.matching.BreakKind
 import com.octo.recon.matching.IborRecord
 import com.octo.recon.matching.SourceRecord
 import com.octo.recon.matching.Tolerance
+import com.octo.recon.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import org.assertj.core.api.Assertions.assertThat
@@ -95,11 +96,12 @@ class ReconciliationRunnerTest {
                     override fun existingTask(
                         tenantId: UUID,
                         brk: com.octo.recon.matching.Break,
-                    ) = store.existingTask(tenantId, brk).also {
+                        scope: TenantScope,
+                    ) = store.existingTask(tenantId, brk, scope).also {
                         if (it ==
                             null
                         ) {
-                            store.record(tenantId, UUID.randomUUID(), brk, winner, UUID.randomUUID())
+                            store.record(tenantId, UUID.randomUUID(), brk, winner, UUID.randomUUID(), TenantScope.All)
                         }
                     }
                 },

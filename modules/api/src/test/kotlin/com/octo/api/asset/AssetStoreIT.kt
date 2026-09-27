@@ -1,6 +1,7 @@
 package com.octo.api.asset
 
 import com.octo.api.access.Tenant
+import com.octo.api.access.TenantScope
 import com.octo.api.access.persistence.AccessProvenance
 import com.octo.api.access.persistence.JdbcAccessStore
 import com.octo.api.asset.persistence.JdbcAssetStore
@@ -30,6 +31,7 @@ class AssetStoreIT {
         DriverManagerDataSource(postgres.jdbcUrl, postgres.username, postgres.password)
     }
     private val store by lazy { JdbcAssetStore(dataSource) }
+    private val scope by lazy { TenantScope.Tenants(listOf(tenantId)) }
     private val provenance = AssetProvenance("integration-test", "quant-1", UUID.randomUUID())
     private val tenantId by lazy {
         Tenant(UUID.randomUUID(), "t-${UUID.randomUUID().toString().take(8)}", "Tenant")
@@ -60,23 +62,30 @@ class AssetStoreIT {
     @Test
     fun `an asset round-trips and a superseding row inherits the lineage's identifiers`() {
         val original = fund()
-        store.create(original, listOf(Identifier("lei", "5493001KJTIIGC8Y1R12"), Identifier("crm", "C-1")), provenance)
-        val loaded = store.load(original.id)!!
+        store.create(original, listOf(Identifier("lei", "5493001KJTIIGC8Y1R12"), Identifier("crm", "C-1")), provenance, scope)
+        val loaded = store.load(original.id, scope)!!
         assertThat(loaded.asset).isEqualTo(original)
         assertThat(loaded.identifiers).containsExactly(Identifier("crm", "C-1"), Identifier("lei", "5493001KJTIIGC8Y1R12"))
         assertThat(loaded.supersededBy).isNull()
 
         val corrected = fund(supersedes = original.id).copy(displayName = "Fund I (Feeder)")
-        store.create(corrected, listOf(Identifier("vendor:preqin", "PQ-1")), provenance)
-        assertThat(store.load(original.id)!!.supersededBy).isEqualTo(corrected.id)
-        assertThat(store.load(corrected.id)!!.identifiers.map { it.scheme }).containsExactly("crm", "lei", "vendor:preqin")
+        store.create(corrected, listOf(Identifier("vendor:preqin", "PQ-1")), provenance, scope)
+        assertThat(store.load(original.id, scope)!!.supersededBy).isEqualTo(corrected.id)
+        assertThat(store.load(corrected.id, scope)!!.identifiers.map { it.scheme }).containsExactly("crm", "lei", "vendor:preqin")
     }
 
     @Test
     fun `a refused identifier rolls the asset back, and an unknown id is null`() {
         val asset = fund()
-        assertThatThrownBy { store.create(asset, listOf(Identifier("lei", "bad")), provenance) }.isInstanceOf(SQLException::class.java)
-        assertThat(store.load(asset.id)).isNull()
+        assertThatThrownBy {
+            store.create(
+                asset,
+                listOf(Identifier("lei", "bad")),
+                provenance,
+                scope,
+            )
+        }.isInstanceOf(SQLException::class.java)
+        assertThat(store.load(asset.id, scope)).isNull()
     }
 
     private companion object {

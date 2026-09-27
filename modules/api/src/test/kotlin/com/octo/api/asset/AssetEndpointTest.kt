@@ -52,7 +52,7 @@ class AssetEndpointTest {
             ).withBean(
                 AssetStore::class.java,
                 Supplier {
-                    AssetStore { id ->
+                    AssetStore { id, _ ->
                         asset.takeIf { it.asset.id == id }
                     }
                 },

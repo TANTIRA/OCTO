@@ -1,5 +1,7 @@
 package com.octo.workflow.report
 
+import com.octo.workflow.TenantScope
+import com.octo.workflow.scoped
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.OffsetDateTime
@@ -10,7 +12,10 @@ import javax.sql.DataSource
 class JdbcReportJobStore(
     private val dataSource: DataSource,
 ) : ReportJobs {
-    override fun submit(request: ReportRequest): ReportJob {
+    override fun submit(
+        request: ReportRequest,
+        scope: TenantScope,
+    ): ReportJob {
         val sql =
             """
             insert into mesta.report_job (tenant_id, report_type, position_source_type, position_source_id, measures, parameters,
@@ -18,7 +23,7 @@ class JdbcReportJobStore(
             values (?, ?, ?, ?, ?, ?::jsonb, ?, ?)
             returning *
             """.trimIndent()
-        return dataSource.connection.use { connection ->
+        return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, request.tenantId)
                 statement.setString(2, request.type.wireValue)
@@ -36,8 +41,11 @@ class JdbcReportJobStore(
         }
     }
 
-    override fun load(id: UUID): ReportJob? =
-        dataSource.connection.use { connection ->
+    override fun load(
+        id: UUID,
+        scope: TenantScope,
+    ): ReportJob? =
+        dataSource.scoped(scope) { connection ->
             connection.prepareStatement("select * from mesta.report_job where id = ?").use { statement ->
                 statement.setObject(1, id)
                 statement.executeQuery().use { rows -> if (rows.next()) rows.toJob() else null }
@@ -52,7 +60,7 @@ class JdbcReportJobStore(
             where id = (select id from mesta.report_job where status = 'new' order by created_at limit 1 for update skip locked)
             returning *
             """.trimIndent()
-        return dataSource.connection.use { connection ->
+        return dataSource.scoped(TenantScope.All) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.executeQuery().use { rows -> if (rows.next()) rows.toJob() else null }
             }
@@ -93,7 +101,7 @@ class JdbcReportJobStore(
         assignment: String,
         bind: (java.sql.PreparedStatement) -> Unit,
     ): ReportJob =
-        dataSource.connection.use { connection: Connection ->
+        dataSource.scoped(TenantScope.All) { connection: Connection ->
             connection.prepareStatement("update mesta.report_job set $assignment where id = ? returning *").use { statement ->
                 bind(statement)
                 statement.executeQuery().use { rows ->

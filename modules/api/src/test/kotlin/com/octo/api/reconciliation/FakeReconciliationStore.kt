@@ -3,6 +3,7 @@ package com.octo.api.reconciliation
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.IborRecord
 import com.octo.recon.matching.persistence.ReconciliationStore
+import com.octo.recon.persistence.TenantScope
 import java.sql.SQLException
 import java.time.ZoneId
 import java.util.UUID
@@ -27,6 +28,7 @@ class FakeReconciliationStore(
     override fun existingTask(
         tenantId: UUID,
         brk: Break,
+        scope: TenantScope,
     ) = rows.firstOrNull { it.taskId != null && it.brk.sameKey(brk) }?.taskId
 
     override fun record(
@@ -35,8 +37,9 @@ class FakeReconciliationStore(
         brk: Break,
         taskId: UUID?,
         correlationId: UUID,
+        scope: TenantScope,
     ): UUID {
-        if (taskId != null && existingTask(tenantId, brk) != null) throw SQLException("reconciliation_break_one_task", "23505")
+        if (taskId != null && existingTask(tenantId, brk, scope) != null) throw SQLException("reconciliation_break_one_task", "23505")
         rows += Row(runId, brk, taskId)
         return UUID.randomUUID()
     }

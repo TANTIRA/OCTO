@@ -12,6 +12,6 @@ class AssetConfiguration {
     @Bean
     fun jdbcAssetStore(dataSource: ObjectProvider<DataSource>): AssetStore {
         val store by lazy { JdbcAssetStore(dataSource.getObject()) }
-        return AssetStore { id -> store.load(id) }
+        return AssetStore { id, scope -> store.load(id, scope) }
     }
 }

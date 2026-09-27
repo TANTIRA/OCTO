@@ -134,19 +134,31 @@ class HeliusRpcClient(
     }
 
     override fun tokenAccountsByOwner(address: String): JsonNode {
-        val owner = mapper.createObjectNode().put("programId", SPL_TOKEN_PROGRAM_ID)
-        val cfg =
-            mapper
-                .createObjectNode()
-                .put("encoding", "jsonParsed")
-                .put("commitment", "finalized")
-        val args =
-            mapper
-                .createArrayNode()
-                .add(address)
-                .add(owner)
-                .add(cfg)
-        return rpc("getTokenAccountsByOwner", args)
+        // SPL Token and Token-2022 are different programs — the same wallet can hold both.
+        // Query each and merge `value` deduped by pubkey, the way stakeAccounts merges offsets.
+        val merged = mapper.createObjectNode()
+        val values = merged.putArray("value")
+        val seen = mutableSetOf<String>()
+        for (programId in TOKEN_PROGRAM_IDS) {
+            val owner = mapper.createObjectNode().put("programId", programId)
+            val cfg =
+                mapper
+                    .createObjectNode()
+                    .put("encoding", "jsonParsed")
+                    .put("commitment", "finalized")
+            val args =
+                mapper
+                    .createArrayNode()
+                    .add(address)
+                    .add(owner)
+                    .add(cfg)
+            rpc("getTokenAccountsByOwner", args)
+                .path("value")
+                .forEach { account ->
+                    if (seen.add(account.path("pubkey").asText())) values.add(account)
+                }
+        }
+        return merged
     }
 
     override fun stakeAccounts(address: String): JsonNode {
@@ -265,7 +277,11 @@ class HeliusRpcClient(
     companion object {
         val TIMEOUT: Duration = Duration.ofSeconds(15)
         const val SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        const val TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         const val STAKE_PROGRAM_ID = "Stake11111111111111111111111111111111111111"
+
+        /** Token programs whose accounts a wallet can own — both are queried on every scan. */
+        val TOKEN_PROGRAM_IDS = listOf(SPL_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID)
 
         /** Byte offsets of `Authorized::staker` and `Authorized::withdrawer` in the stake layout. */
         val AUTHORIZED_OFFSETS = listOf(12, 44)

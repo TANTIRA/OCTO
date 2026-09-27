@@ -92,12 +92,24 @@ class HeliusRpcClientTest {
     }
 
     @Test
-    fun `tokenAccountsByOwner queries the SPL token program parsed`() {
-        val transport = FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"result":{"value":[]}}"""))
-        client(transport).tokenAccountsByOwner("walletX")
-        val body = transport.bodyOf(0)
-        assertEquals(HeliusRpcClient.SPL_TOKEN_PROGRAM_ID, body["params"][1]["programId"].asText())
-        assertEquals("jsonParsed", body["params"][2]["encoding"].asText())
+    fun `tokenAccountsByOwner queries both token programs and merges deduped by pubkey`() {
+        val splAcct = """{"pubkey":"sharedAta","account":{"data":{}}}"""
+        val t22Acct = """{"pubkey":"t22only","account":{"data":{}}}"""
+        val transport =
+            FakeTransport(
+                okJson("""{"jsonrpc":"2.0","id":1,"result":{"value":[$splAcct]}}"""),
+                okJson("""{"jsonrpc":"2.0","id":2,"result":{"value":[$splAcct,$t22Acct]}}"""),
+            )
+
+        val result = client(transport).tokenAccountsByOwner("walletX")
+
+        assertEquals(2, transport.requests.size)
+        assertEquals(HeliusRpcClient.SPL_TOKEN_PROGRAM_ID, transport.bodyOf(0)["params"][1]["programId"].asText())
+        assertEquals(HeliusRpcClient.TOKEN_2022_PROGRAM_ID, transport.bodyOf(1)["params"][1]["programId"].asText())
+        assertEquals("jsonParsed", transport.bodyOf(0)["params"][2]["encoding"].asText())
+        assertEquals("finalized", transport.bodyOf(1)["params"][2]["commitment"].asText())
+        // The pubkey present under both programs merges into one row.
+        assertEquals(listOf("sharedAta", "t22only"), result["value"].map { it["pubkey"].asText() })
     }
 
     @Test

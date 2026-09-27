@@ -432,6 +432,8 @@ function WorkspaceSwitcher({
   workspaces: { name: string; members: string }[];
 }) {
   const [workspace, setWorkspace] = useState(workspaces[0]?.name ?? "");
+function WorkspaceSwitcher() {
+  const [workspace, setWorkspace] = useState(WORKSPACES[0].name);
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -512,6 +514,7 @@ function WorkspaceSwitcher({
   }, [open]);
 
   const active = workspaces.find((item) => item.name === workspace);
+  const active = WORKSPACES.find((item) => item.name === workspace);
 
   return (
     <div ref={rootRef} className="relative">
@@ -549,12 +552,14 @@ function WorkspaceSwitcher({
           ref={menuRef}
           role="menu"
           aria-label="Switch vehicle"
+          aria-label="Switch workspace"
           className={cx(
             "absolute left-0 right-0 top-[calc(100%+0.25rem)] z-30 origin-top rounded-[var(--rb-r-2xl,14px)] border border-oklch(0.922 0 0) border-neutral-200 bg-white p-1 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.10)] transition-[opacity,transform] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none dark:border-oklch(1 0 0 / 10%)",
             shown ? "scale-100 opacity-100" : "scale-95 opacity-0",
           )}
         >
           {workspaces.map((item) => (
+          {WORKSPACES.map((item) => (
             <button
               key={item.name}
               type="button"
@@ -598,6 +603,7 @@ function WorkspaceSwitcher({
             )}
           >
             Add vehicle
+            Add workspace
           </button>
         </div>
       )}
@@ -745,6 +751,7 @@ function NavigationFrame({
           <button
             type="button"
             aria-label="Ayu Wijaya, investment director"
+            aria-label="Marta Kowalczyk, dispatch manager"
             onMouseEnter={() => showTip("account")}
             onFocus={() => showTip("account")}
             onBlur={hideTip}
@@ -757,12 +764,14 @@ function NavigationFrame({
             MK
           </button>
           {tip("account", "Ayu Wijaya")}
+          {tip("account", "Marta Kowalczyk")}
         </span>
       </div>
 
       <div className="flex w-64 min-w-0 flex-col bg-neutral-50 dark:bg-neutral-900">
         <div className="shrink-0 px-2 pb-1 pt-2">
           <WorkspaceSwitcher workspaces={workspaces} />
+          <WorkspaceSwitcher />
         </div>
 
         <div className="relative min-h-0 flex-1">
@@ -848,6 +857,9 @@ export default function AppShell2() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerShown, setDrawerShown] = useState(false);
   const [workspaces, setWorkspaces] = useState(WORKSPACES);
+  const [areaId, setAreaId] = useState(AREAS[0].id);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerShown, setDrawerShown] = useState(false);
   const content = useScrollFade<HTMLElement>();
   const shouldFocusRef = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -969,6 +981,7 @@ export default function AppShell2() {
           onSelectArea={selectArea}
           workspaces={workspaces}
         />
+        <NavigationFrame areaId={areaId} onSelectArea={setAreaId} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -1139,6 +1152,7 @@ export default function AppShell2() {
               areaId={areaId}
               onSelectArea={selectArea}
               workspaces={workspaces}
+              onSelectArea={setAreaId}
               onClose={closeDrawer}
             />
           </div>

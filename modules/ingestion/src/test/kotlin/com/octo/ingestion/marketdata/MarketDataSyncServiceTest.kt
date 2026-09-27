@@ -7,6 +7,7 @@ import com.octo.ingestion.marketdata.alphavantage.AlphaVantageException
 import com.octo.ingestion.marketdata.alphavantage.AlphaVantageNormalizer
 import com.octo.ingestion.persistence.Observation
 import com.octo.ingestion.persistence.ObservationProvenance
+import com.octo.ingestion.persistence.TenantScope
 import com.octo.ingestion.persistence.TimeSeriesWriter
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -53,6 +54,7 @@ private class RecordingWriter : TimeSeriesWriter {
     override fun write(
         observations: List<Observation>,
         provenance: ObservationProvenance,
+        scope: TenantScope,
     ): List<Observation> {
         batches += observations to provenance
         return observations
