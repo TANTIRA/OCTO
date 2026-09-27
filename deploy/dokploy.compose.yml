@@ -28,6 +28,12 @@ services:
       - SUPABASE_STORAGE_ENDPOINT=${SUPABASE_STORAGE_ENDPOINT}
       - AUTH_ISSUER=${AUTH_ISSUER}
       - AUTH_JWKS_URL=${AUTH_JWKS_URL}
+      # External neo4j service (octo-neo4j-db) — reachable because api and neo4j
+      # share dokploy-network. Bolt is never exposed through Traefik.
+      - NEO4J_URI=${NEO4J_URI:-bolt://octo-neo4j-db:7687}
+      - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
       - TYPEDB_ADDR=typedb:1729
       - TYPEDB_DATABASE=${TYPEDB_DATABASE:-octo}
       - TYPEDB_USER=${TYPEDB_USER}
@@ -94,6 +100,9 @@ services:
           cpus: "0.5"
           memory: 256M
 
+# Graph store: the external octo-neo4j-db Dokploy service (bolt :7687 on
+# dokploy-network). It lives outside this compose so Browser and the app share
+# one graph; bolt stays private — Traefik only exposes labelled HTTP services.
   typedb:
     image: typedb/typedb:${TYPEDB_VERSION}
     restart: unless-stopped

@@ -1,3 +1,5 @@
+# OCTO web image: infra/docker-compose.yml pulls ${REGISTRY_URL}/octo-web:${WEB_IMAGE_TAG};
+# deploy/dokploy.compose.yml builds it on the Dokploy host. Build context is web/.
 # OCTO web image: infra/docker-compose.yml pulls ${REGISTRY_URL}/octo-web:${WEB_IMAGE_TAG}.
 # Build from the repo root:  docker build -t "$REGISTRY_URL/octo-web:$WEB_IMAGE_TAG" -f web/Dockerfile web
 FROM node:22-alpine AS deps
@@ -6,9 +8,9 @@ COPY package.json package-lock.json ./
 RUN npm ci
 # Build from the repo root:  docker build -t "$REGISTRY_URL/octo-web:$WEB_IMAGE_TAG" web/
 #
-# Three stages so the runtime image carries the standalone server only — no dev
-# dependencies, no sources. `next build` emits `.next/standalone`, a pruned server
-# bundle; it needs only static assets and public files copied alongside.
+# next.config.ts sets output: "standalone" — `next build` emits .next/standalone,
+# a pruned server bundle; the runtime stage carries only that, static assets, and
+# public files. No dev dependencies, no sources.
 
 FROM node:22-alpine AS deps
 WORKDIR /app
