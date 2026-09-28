@@ -32,8 +32,9 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       // Next hydrates from inline RSC payloads; 'unsafe-inline' is the cost of
-      // not running per-request nonces.
-      "script-src 'self' 'unsafe-inline'",
+      // not running per-request nonces. react-refresh eval()s modules in dev —
+      // unsafe-eval is dev-only, never in the production policy.
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self'",
