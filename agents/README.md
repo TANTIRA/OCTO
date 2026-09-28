@@ -26,14 +26,14 @@ service's only client and its only tool surface.
 ## Model roles
 
 | Role | Model | Client |
-|---|---|---|
+| --- | --- | --- |
 | `judge` | `typesafe/jev-1.13` | decisions endpoint (`octo_agents/judge.py`) — typed noul/choice/score questions with calibrated probabilities; never drafts |
 | `drafter` | `deepseek/deepseek-v4.1-flash` | `ChatOpenRouter` (`octo_agents/chat.py`) — deepagent planning, tool use, prose |
 
 ## Env
 
 | Var | Purpose |
-|---|---|
+| --- | --- |
 | `OPENROUTER_API_KEY` | model provider key (required) |
 | `OCTO_API_BASE_URL` | Kotlin api base, default `http://api:8080` |
 | `OCTO_AGENT_TOKEN` | service-principal JWT for api calls (tasks+drafts scope) |
