@@ -119,8 +119,9 @@ class LedgerMigrationIT {
             """
             insert into octo.ledger_event
                 (external_id, flow_type, monetary_amount, currency_code, occurred_at, supersedes_id,
-                 rationale, source_system, actor, ingestion_run_id, correlation_id)
-            values (?, ?, ?, ?, now(), ?, ?, 'test', 'integration-test', ?, ?)
+                 rationale, tenant_id, source_system, actor, ingestion_run_id, correlation_id)
+            values (?, ?, ?, ?, now(), ?, ?, (select id from octo.tenant where slug = 'octo-ops'),
+                    'test', 'integration-test', ?, ?)
             returning id
             """.trimIndent()
         connection.prepareStatement(sql).use { statement ->

@@ -105,8 +105,8 @@ class ReconciliationMigrationIT {
     private fun ledgerEvent(): UUID =
         query(
             """
-            insert into octo.ledger_event (flow_type, monetary_amount, currency_code, occurred_at, source_system, actor, ingestion_run_id, correlation_id)
-            values ('contribution', -100, 'USD', now(), 'admin-a', 'it', gen_random_uuid(), gen_random_uuid()) returning id
+            insert into octo.ledger_event (tenant_id, flow_type, monetary_amount, currency_code, occurred_at, source_system, actor, ingestion_run_id, correlation_id)
+            values ('$tenant', 'contribution', -100, 'USD', now(), 'admin-a', 'it', gen_random_uuid(), gen_random_uuid()) returning id
             """.trimIndent(),
         )
 

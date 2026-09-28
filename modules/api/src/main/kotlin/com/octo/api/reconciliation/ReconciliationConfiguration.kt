@@ -20,9 +20,11 @@ class ReconciliationConfiguration {
         val store by lazy { JdbcReconciliationStore(dataSource.getObject()) }
         return object : ReconciliationStore {
             override fun iborRecords(
+                tenantId: UUID,
                 sourceSystem: String,
                 zone: ZoneId,
-            ) = store.iborRecords(sourceSystem, zone)
+                scope: TenantScope,
+            ) = store.iborRecords(tenantId, sourceSystem, zone, scope)
 
             override fun existingTask(
                 tenantId: UUID,

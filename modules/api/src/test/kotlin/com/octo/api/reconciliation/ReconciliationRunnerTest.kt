@@ -44,6 +44,7 @@ class ReconciliationRunnerTest {
             )
 
         assertThat(first.matched).isEqualTo(1)
+        assertThat(store.lookups).containsExactly(tenantId to TenantScope.Tenants(listOf(tenantId)))
         assertThat(
             first.outcomes.map {
                 it.brk.kind
@@ -93,6 +94,13 @@ class ReconciliationRunnerTest {
         val racing =
             ReconciliationRunner(
                 object : com.octo.recon.matching.persistence.ReconciliationStore by store {
+                    override fun iborRecords(
+                        tenantId: UUID,
+                        sourceSystem: String,
+                        zone: java.time.ZoneId,
+                        scope: TenantScope,
+                    ) = store.iborRecords(tenantId, sourceSystem, zone, scope)
+
                     override fun existingTask(
                         tenantId: UUID,
                         brk: com.octo.recon.matching.Break,
