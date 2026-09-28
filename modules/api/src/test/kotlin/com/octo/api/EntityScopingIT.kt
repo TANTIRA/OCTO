@@ -76,7 +76,7 @@ class EntityScopingIT {
                 s.execute("grant usage on schema octo to rls_probe")
                 s.execute(
                     "grant select on octo.ledger_event, octo.onchain_transfer, " +
-                        "octo.tracked_address, octo.tenant_setting to rls_probe",
+                        "octo.tracked_address, octo.tenant_setting, octo.agent_run to rls_probe",
                 )
 
                 s.execute(
@@ -129,6 +129,18 @@ class EntityScopingIT {
                     "insert into octo.tenant_setting (tenant_id, key, value, source_system, correlation_id) values " +
                         "('$tenantA', 'rate_limit_per_minute', '60', 'test', '$runId'), " +
                         "('$tenantB', 'rate_limit_per_minute', '10', 'test', '$runId')",
+                )
+
+                // V33 agent runs: same run_key both sides of the boundary — the dedupe key is
+                // per-tenant by constraint, the rows stay invisible to each other by RLS.
+                s.execute(
+                    "insert into octo.agent_run " +
+                        "(tenant_id, workflow, run_key, subject_type, subject_id, status, actor, " +
+                        "input, models, source_system, correlation_id) values " +
+                        "('$tenantA', 'screening-dd', 'shared-key', 'prospect', 'p', 'completed', " +
+                        "'agent', '{}', '{}', 'test', '$runId'), " +
+                        "('$tenantB', 'screening-dd', 'shared-key', 'prospect', 'p', 'completed', " +
+                        "'agent', '{}', '{}', 'test', '$runId')",
                 )
             }
             c.commit()
@@ -198,6 +210,15 @@ class EntityScopingIT {
     @Test
     fun `tenant settings stay inside their boundary`() {
         val rows = "select count(*) from octo.tenant_setting where correlation_id = '$runId'"
+        assertThat(scopedCount(rows, user = "$member")).isEqualTo(1)
+        assertThat(scopedCount(rows, tenants = "$tenantB")).isEqualTo(1)
+        assertThat(scopedCount(rows, tenants = "*")).isEqualTo(2)
+        assertThat(scopedCount(rows, user = "${UUID.randomUUID()}")).isEqualTo(0)
+    }
+
+    @Test
+    fun `agent runs stay inside their boundary`() {
+        val rows = "select count(*) from octo.agent_run where correlation_id = '$runId'"
         assertThat(scopedCount(rows, user = "$member")).isEqualTo(1)
         assertThat(scopedCount(rows, tenants = "$tenantB")).isEqualTo(1)
         assertThat(scopedCount(rows, tenants = "*")).isEqualTo(2)
