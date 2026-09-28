@@ -167,7 +167,10 @@ class DecisionStoreIT {
             connection
                 .createStatement()
                 .executeQuery("select id from octo.tenant where slug = 'octo-ops'")
-                .let { rows -> rows.next(); rows.getObject(1, UUID::class.java) }
+                .let { rows ->
+                    rows.next()
+                    rows.getObject(1, UUID::class.java)
+                }
         }
 
     private fun recordClaim(): UUID =

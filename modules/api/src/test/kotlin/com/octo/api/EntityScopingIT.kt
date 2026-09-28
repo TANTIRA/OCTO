@@ -24,10 +24,26 @@ class EntityScopingIT {
     private val tenantB = UUID.randomUUID()
     private val member = UUID.randomUUID()
 
-    // Hyphen-stripped UUIDs are 32 base58-safe chars — unique wallets per test run.
-    private val walletA = UUID.randomUUID().toString().replace("-", "")
-    private val walletOther = UUID.randomUUID().toString().replace("-", "")
-    private val walletUntracked = UUID.randomUUID().toString().replace("-", "")
+    // Hyphen-stripped UUIDs are 32 chars; '0' is the only hex char outside base58 — swap it
+    // and every wallet is unique per test run while matching the tracked_address shape check.
+    private val walletA =
+        UUID
+            .randomUUID()
+            .toString()
+            .replace("-", "")
+            .replace('0', '1')
+    private val walletOther =
+        UUID
+            .randomUUID()
+            .toString()
+            .replace("-", "")
+            .replace('0', '1')
+    private val walletUntracked =
+        UUID
+            .randomUUID()
+            .toString()
+            .replace("-", "")
+            .replace('0', '1')
 
     private val owner by lazy {
         Flyway
@@ -79,13 +95,14 @@ class EntityScopingIT {
                 )
 
                 // Stamped rows: one in tenant A, one in the V30 house tenant, one platform-shared.
+                // ingestion_run_id tags this test's rows — earlier tests' rows share the amounts.
                 s.execute(
                     "insert into octo.ledger_event (flow_type, monetary_amount, currency_code, occurred_at, " +
                         "tenant_id, source_system, actor, ingestion_run_id, correlation_id) values " +
-                        "('contribution', -100, 'USD', now(), '$tenantA', 'test', 'it', gen_random_uuid(), gen_random_uuid()), " +
-                        "('contribution', -200, 'USD', now(), (select id from octo.tenant where slug = 'octo-ops'), " +
-                        "'test', 'it', gen_random_uuid(), gen_random_uuid()), " +
-                        "('contribution', -300, 'USD', now(), null, 'test', 'it', gen_random_uuid(), gen_random_uuid())",
+                        "('contribution', -100, 'USD', now(), '$tenantA', 'test', 'it', '$runId', gen_random_uuid()), " +
+                        "('contribution', -200, 'USD', now(), (select id from octo.tenant " +
+                        "where slug = 'octo-ops'), 'test', 'it', '$runId', gen_random_uuid()), " +
+                        "('contribution', -300, 'USD', now(), null, 'test', 'it', '$runId', gen_random_uuid())",
                 )
 
                 // Watches: tenant A tracks walletA, tenant B tracks walletOther; walletUntracked has no row.
@@ -96,8 +113,9 @@ class EntityScopingIT {
                 )
                 // Derived rows on each wallet.
                 s.execute(
-                    "insert into octo.onchain_transfer (external_id, chain, signature, slot, block_time, commitment, " +
-                        "wallet, amount_raw, decimals, direction, transfer_kind, source_system, actor, ingestion_run_id, correlation_id) values " +
+                    "insert into octo.onchain_transfer (external_id, chain, signature, slot, block_time, " +
+                        "commitment, wallet, amount_raw, decimals, direction, transfer_kind, source_system, " +
+                        "actor, ingestion_run_id, correlation_id) values " +
                         "('x-${UUID.randomUUID()}', 'solana', 'sig-a', 1, now(), 'finalized', " +
                         "'$walletA', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid()), " +
                         "('x-${UUID.randomUUID()}', 'solana', 'sig-b', 2, now(), 'finalized', " +
@@ -126,11 +144,15 @@ class EntityScopingIT {
                     s.execute()
                 }
             c.createStatement().use { s ->
-                s.executeQuery(sql).use { rs -> rs.next(); rs.getInt(1) }
+                s.executeQuery(sql).use { rs ->
+                    rs.next()
+                    rs.getInt(1)
+                }
             }
         }
 
-    private val ledgerRows = "select count(*) from octo.ledger_event where monetary_amount in (-100, -200, -300)"
+    private val runId = UUID.randomUUID()
+    private val ledgerRows = "select count(*) from octo.ledger_event where ingestion_run_id = '$runId'"
     private val transferRows =
         "select count(*) from octo.onchain_transfer where wallet in ('$walletA', '$walletOther', '$walletUntracked')"
 
