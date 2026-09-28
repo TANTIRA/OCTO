@@ -71,7 +71,8 @@ class ReconciliationEndpointTest {
     private fun record(
         id: String,
         amount: String,
-    ) = """{"sourceSystem": "admin-a", "externalId": "$id", "amount": "$amount", "currency": "USD", "date": "2026-06-30"}"""
+        currency: String = "USD",
+    ) = """{"sourceSystem": "admin-a", "externalId": "$id", "amount": "$amount", "currency": "$currency", "date": "2026-06-30"}"""
 
     private fun post(
         subject: UUID,
@@ -109,6 +110,31 @@ class ReconciliationEndpointTest {
                     post("/api/v1/reconciliations").contentType(MediaType.APPLICATION_JSON).content(body(record("t-1", "-100"))),
                 ).andExpect(status().isForbidden)
             assertThat(store.rows).isEmpty()
+        }
+    }
+
+    @Test
+    fun `an unreadable zone, currency, or negative tolerance is a client error`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    post(
+                        analyst,
+                        """{"tenantId": "$tenantId", "zone": "Mars/Olympus", "records": [${record("t-1", "-100")}]}""",
+                    ),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(post(analyst, body(record("t-1", "-100", "US"))))
+                .andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post(
+                        analyst,
+                        """{"tenantId": "$tenantId", "tolerance": {"amount": "-1", "days": 0}, "records": [${record("t-1", "-100")}]}""",
+                    ),
+                ).andExpect(status().isBadRequest)
+            assertThat(store.rows).isEmpty()
+            assertThat(opened).isEmpty()
         }
     }
 }

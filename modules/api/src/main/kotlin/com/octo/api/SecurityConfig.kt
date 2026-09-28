@@ -1,6 +1,7 @@
 package com.octo.api
 
 import com.octo.api.ingestion.HeliusWebhookAuthFilter
+import jakarta.servlet.DispatcherType
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
@@ -44,8 +45,16 @@ class SecurityConfig {
             .securityMatcher("/api/v1/ingestion/webhooks/helius")
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .authorizeHttpRequests { it.anyRequest().authenticated() }
-            .addFilterBefore(
+            .authorizeHttpRequests {
+                // An exception triggers an ERROR dispatch to /error with the SecurityContext
+                // already cleared; denying it would mask every failure as 403, including the
+                // filter's own sendError(401) for a missing or wrong webhook secret.
+                it
+                    .dispatcherTypeMatchers(DispatcherType.ERROR)
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated()
+            }.addFilterBefore(
                 HeliusWebhookAuthFilter(env.getProperty("HELIUS_WEBHOOK_SECRET")),
                 UsernamePasswordAuthenticationFilter::class.java,
             )
@@ -62,7 +71,12 @@ class SecurityConfig {
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
+                // Same ERROR dispatch as the webhook chain: without this, a parse failure,
+                // a type-mismatched path variable, or an internal error answers 403 instead
+                // of its real status.
                 it
+                    .dispatcherTypeMatchers(DispatcherType.ERROR)
+                    .permitAll()
                     .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
                     .permitAll()
                     .anyRequest()

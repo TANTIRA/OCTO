@@ -142,6 +142,39 @@ class ComplianceStoreIT {
         }.isInstanceOf(SQLException::class.java)
     }
 
+    @Test
+    fun `a scope that does not admit the tenant sees nothing and refuses writes`() {
+        val tenantId = tenant()
+        val elsewhere = TenantScope.Tenants(listOf(UUID.randomUUID()))
+        store.defineRule(
+            tenantId,
+            ComplianceRule("conc", 1, "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.25"))),
+            provenance,
+            TenantScope.All,
+        )
+        val breach =
+            evaluate(
+                listOf(ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2")))),
+                ComplianceInputs(
+                    "fund-1",
+                    asOf,
+                    coverage = CoverageReport(asOf, asOf.plusYears(1), usd, "base", null, null, null, null, BigDecimal("1.1")),
+                ),
+            ).single()
+        assertThat(store.activeRules(tenantId, elsewhere)).isEmpty()
+        assertThat(store.breachTask(tenantId, breach, elsewhere)).isNull()
+        assertThatThrownBy {
+            store.defineRule(
+                tenantId,
+                ComplianceRule("x", 1, "X", ComplianceCheck.CoverageFloor(BigDecimal("1.0"))),
+                provenance,
+                elsewhere,
+            )
+        }.isInstanceOf(IllegalArgumentException::class.java)
+        assertThatThrownBy { store.record(tenantId, breach, null, UUID.randomUUID(), elsewhere) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+    }
+
     private companion object {
         @Container
         @JvmStatic

@@ -84,6 +84,16 @@ class ReportJobStoreIT {
     }
 
     @Test
+    fun `a scope that does not admit the job's tenant hides it and refuses the write`() {
+        val tenantId = tenant()
+        val elsewhere = TenantScope.Tenants(listOf(UUID.randomUUID()))
+        val job = store.submit(request(tenantId), TenantScope.All)
+        assertThat(store.load(job.id, elsewhere)).isNull()
+        assertThatThrownBy { store.submit(request(tenantId), elsewhere) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
     fun `the trigger refuses a transition out of order and the store surfaces it`() {
         val job = store.submit(request(tenant()), TenantScope.All)
         assertThatThrownBy { store.complete(job.id, "{}") }.isInstanceOf(SQLException::class.java) // still new

@@ -1,5 +1,6 @@
 package com.octo.api
 
+import jakarta.servlet.DispatcherType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
@@ -49,6 +50,27 @@ class SecurityConfigTest {
                 mvc.perform(get(protected)).andExpect(status().isForbidden)
             }
             mvc.perform(get("/api/funds")).andExpect(status().isForbidden)
+        }
+    }
+
+    @Test
+    fun `the error dispatch is permitted so a failure is not masked as 403`() {
+        // A controller exception or a filter's sendError() re-dispatches to /error with the
+        // SecurityContext cleared; denying that dispatch answered 403 for every failure,
+        // real status included. The dispatch must reach the error handler instead.
+        contextRunner.run { context ->
+            val mvc: MockMvc =
+                MockMvcBuilders
+                    .webAppContextSetup(context)
+                    .apply<DefaultMockMvcBuilder>(springSecurity())
+                    .build()
+            mvc
+                .perform(
+                    get("/error").with { request ->
+                        request.dispatcherType = DispatcherType.ERROR
+                        request
+                    },
+                ).andExpect { result -> assertThat(result.response.status).isNotEqualTo(403) }
         }
     }
 
