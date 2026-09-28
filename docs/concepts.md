@@ -21,18 +21,18 @@ concept names. A concept that grows a second purpose is split, not extended.
 | Instrument flow | Append-only record of a non-ISO flow (token, NFT, stake account); ledger event's onchain counterpart | `mesta.instrument_flow`, `ibor-core` | built | token transfer, onchain flow |
 | Valuation event | Point-in-time valuation record feeding analytics | `mesta.valuation_event` | built | mark, valuation |
 | Position | Current holding, always derived from ledger + instrument flows — never written | `ibor-core` (derivation) | built | holding |
-| Capital event | PE corporate action: capital call, distribution, fee, carried interest | `ibor-core` (#6 slice 14) | ratified | drawdown, call |
+| Capital event | PE corporate action: capital call, distribution, fee, carried interest | `ibor-core` `FlowType` + `analytics/Pacing.kt` primitives | built | drawdown, call |
 
 ## Ingestion & staging
 
 | Concept | Purpose | Where | Status | Aliases |
 | --- | --- | --- | --- | --- |
-| Staging | Landing zone for untrusted vendor data; nothing here is a ledger fact | `onchain_transfer`, `onchain_balance_snapshot`, `decision_staging`, `timeseries` | built | raw intake, landing |
+| Staging | Landing zone for untrusted vendor data; nothing here is a ledger fact | `onchain_transfer`, `onchain_balance_snapshot`, `document_classification`/`claim_assessment` (V2 decision staging), `timeseries_observation` | built | raw intake, landing |
 | Promotion | Verified transition from staging to ledger facts; dedupe via `source_system`+`external_id`, correction via `supersedes_id`+rationale | `InstrumentFlowPromoter`, `ibor-core` | built | finalize, commit |
 | Finality gate | Only chain state observed as `finalized` may promote; vendor commitment claims are never trusted | `OnchainWebhookService`, `FinalityProbe` | built | commitment check |
 | Tracked address | Wallet under observation by the onchain ingestion | `mesta.tracked_address` | built | watched wallet |
-| Cursor | Per-address resume point for the ingestion poller | `tracked_address_event`, adapter stores | built | checkpoint, bookmark |
-| Time series | Bi-temporal fact: `effective_date` + `recorded_at`, append-only | `mesta.timeseries` | built | point-in-time data |
+| Cursor | Per-address resume point for the ingestion poller — derived from the staged rows themselves (`newestStagedSlot`), not stored separately | adapter stores (`JdbcOnchainStagingStore`) | built | checkpoint, bookmark |
+| Time series | Bi-temporal fact: `effective_date` + `recorded_at`, append-only | `mesta.dataset` + `mesta.timeseries_observation` | built | point-in-time data |
 
 ## Investment ontology
 
@@ -41,7 +41,7 @@ concept names. A concept that grows a second purpose is split, not extended.
 | Instrument | Anything a wallet can hold that is not an ISO currency, keyed by `instrument-id` | `mesta.instrument`, `ontology/` | built | token, mint, contract |
 | Asset | Private-market position entity with external identifier xrefs | `mesta.asset`, `asset_xref` | built | holding entity, security |
 | Wallet | Custody point for instruments on a chain | ontology, `wallet-custody` | built | address, account |
-| Fund / LP / GP / portfolio company / prospect | Core private-markets entities | `ontology/octo-investment.cypher` | ratified | vehicle, investor, manager |
+| Fund / LP / GP / portfolio company / prospect | Core private-markets entities | `ontology/octo-investment.cypher` (`fund`, `limited-partner`, `fund-manager`, `operating-company`) | built (graph side); prospect also has `mesta.prospect` | vehicle, investor, manager |
 | Look-through | Path-sum exposure across entity/instrument hierarchies; rejects cycles | `lookthrough/Exposure.kt` | built | transparency, drill-down |
 
 ## Governance & workflow
@@ -51,7 +51,7 @@ concept names. A concept that grows a second purpose is split, not extended.
 | Task | Unit of routed operational work with assignment rules | `mesta.workflow_task` | built | work item, ticket |
 | Approval gate | High-impact outbound artifacts require human approval before release | `workflow/report` | built | release gate, sign-off |
 | Audit event | Immutable record of a governed action | `mesta.audit_event` | built | audit trail |
-| Tenant | Access boundary for firm-level data isolation | `mesta.tenant_access` | built | org, workspace |
+| Tenant | Access boundary for firm-level data isolation | `mesta.tenant` + `mesta.tenant_member(_event)` (V8) | built | org, workspace |
 
 ## Analytics & reporting
 

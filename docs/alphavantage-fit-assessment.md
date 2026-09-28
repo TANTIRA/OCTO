@@ -3,7 +3,7 @@
 Evaluation of [Alpha Vantage](https://www.alphavantage.co/documentation/) as a market-data source for OCTO. Read on 2026-09-26. Unlike the earlier assessments an adapter slice already exists as scaffolding (`modules/ingestion/.../marketdata/`): it is not wired to a scheduler, pulls nothing until the gates below clear, and is written so deleting it is a one-directory revert.
 
 - **Risk tier:** T0 for this document. T2 for the ingestion adapter, because it writes market data that analytics treats as financial fact.
-- **Status:** proposed, not approved. Blocked on the licence question below and on the same instrument-concept gap as [xStocks](xstocks-fit-assessment.md), [Arbitrum](arbitrum-fit-assessment.md), and [TradingView](tradingview-mcp-fit-assessment.md).
+- **Status:** implemented — `ingestion/marketdata/alphavantage/` (client, normalizer, `MarketDataSyncService`) shipped. The instrument-concept gap it shared with xStocks/Arbitrum/TradingView closed in V10; the licence note below remains the operative caveat.
 
 ## What it is
 

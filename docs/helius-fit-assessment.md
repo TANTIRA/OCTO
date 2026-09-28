@@ -3,7 +3,7 @@
 Evaluation of [Helius](https://www.helius.dev/llms-full.txt) as the Solana onchain data source for OCTO. No API calls were made; this is a documentation-only assessment of the published docs and API catalog.
 
 - **Risk tier:** T0 for this document. T2 for a read-only ingestion adapter, because it writes financial facts to the ledger. T3 for anything that signs or submits transactions.
-- **Status:** proposed. Solana is the first chain in scope; Helius is the designated provider. Blocked on the same decision as [xStocks](xstocks-fit-assessment.md) and [Arbitrum](arbitrum-fit-assessment.md): the ontology has no instrument concept (tracked in #109).
+- **Status:** implemented — the Solana adapter shipped: `onchain/helius/` client, normalizers, finality probe, and `POST /api/v1/ingestion/webhooks/helius` in `api`. The instrument blocker it shared with xStocks/Arbitrum resolved in V10.
 
 ## What Helius is
 

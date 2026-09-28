@@ -48,7 +48,7 @@ Every page links to a runbook. Alerts without an action are deleted.
 
 ## 4. Production readiness review
 
-State of `main` on 2026-09-24. ✅ passes, ⚠️ acceptable for now, ❌ must fix before the first production deploy.
+State of `main` on 2026-09-27. ✅ passes, ⚠️ acceptable for now, ❌ must fix before the first production deploy.
 
 | Area | Check | State | Evidence and fix |
 | --- | --- | --- | --- |
@@ -64,16 +64,16 @@ State of `main` on 2026-09-24. ✅ passes, ⚠️ acceptable for now, ❌ must f
 | Dependencies | api waits for what it needs | ⚠️ | `depends_on` covers the graph store only; PostgreSQL lives in another compose project, so readiness plus `start_period` is the real gate |
 | Auth | fails closed without a JWKS URL | ✅ | `SecurityConfig` |
 | Data | migrations run as a separate role; the runtime role cannot update or delete | ✅ | `DB_MIGRATION_*`, V3, `RuntimeRoleGrantsIT` |
-| Data | backups and point-in-time recovery | ❌ | ADR-0002 assigns it to the operator; no runbook exists (system-design.md marks it ⬜) |
+| Data | backups and point-in-time recovery | ⚠️ | ADR-0002 assigns it to the operator; [restore-runbook.md](restore-runbook.md) now covers the procedure — a rehearsed restore is still pending |
 | Release | rollback path for every migration | ⚠️ | each PR states one; none has been rehearsed. AGENTS.md requires a tested rollback for T2 |
 | Testing | integration tests run in CI | ❌ | CI is blocked by GitHub billing; the ITs run only on developer machines |
 
 ## 5. Reliability backlog, ranked by SLO impact
 
 1. **Restore CI.** Nothing merges with a green check today. Blocks every other item's verification.
-2. **Observability baseline** (this issue's PR 2): probes, Prometheus, correlation ids, structured logs. Without it none of the SLIs can be measured.
+2. ~~Observability baseline~~ — probes, Prometheus, correlation ids, and structured logs all ship (§4).
 3. ~~Dockerfile and image build~~ — done in #76.
-4. **Backup and restore runbook**, with one rehearsed restore. The ledger is append-only, so a lost database is unrecoverable by replay.
+4. ~~Backup and restore runbook~~ — `docs/restore-runbook.md`; the rehearsed restore half is still open.
 5. ~~Compose follow-ups~~ — healthcheck on readiness and `MaxRAMPercentage` in #76; the OTEL variable is dropped until a collector exists.
 6. **Migration rollback rehearsal** for V5–V7 on staging, as AGENTS.md requires for T2.
 7. **Timeouts on outbound calls.** `JdkHttpTransport` has a 30-second request timeout; the decision-model call sits on the ingestion path, so a slow vendor becomes a slow ingest. Add a circuit breaker once the call is on a user-facing path.
