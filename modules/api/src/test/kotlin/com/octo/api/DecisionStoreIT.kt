@@ -159,11 +159,20 @@ class DecisionStoreIT {
             }
             return UUID(0, 0)
         }
-        return store.record(documentSha256, classification, provenance(externalId), supersedesId, rationale)
+        return store.record(houseTenant(), documentSha256, classification, provenance(externalId), supersedesId, rationale)
     }
+
+    private fun houseTenant(): UUID =
+        dataSource().connection.use { connection ->
+            connection
+                .createStatement()
+                .executeQuery("select id from octo.tenant where slug = 'octo-ops'")
+                .let { rows -> rows.next(); rows.getObject(1, UUID::class.java) }
+        }
 
     private fun recordClaim(): UUID =
         store.record(
+            houseTenant(),
             claimText = "Revenue grew 21% year over year.",
             sourceDocumentSha256 = "b".repeat(64),
             support =

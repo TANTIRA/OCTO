@@ -25,7 +25,13 @@ enum class FlowType(
     OTHER_INCOME("other-income", false),
 }
 
-/** One row of `octo.ledger_event`. [amount] is investor-signed: contributions negative. */
+/**
+ * One row of `octo.ledger_event`. [amount] is investor-signed: contributions negative.
+ *
+ * Write contract (V30): every row carries `tenant_id` stamped by the writer — the subject this
+ * flow belongs to lives in the graph, so nothing in PG derives the boundary. A missing stamp
+ * doesn't leak; RLS makes the row visible to platform scans (`TenantScope.All`) only.
+ */
 data class LedgerEvent(
     val id: UUID,
     val flowType: FlowType,

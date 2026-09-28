@@ -22,9 +22,13 @@ data class Provenance(
  * Staging for document-type decisions (`octo.document_classification`). The row is append-only;
  * a corrected classification is a new row linked by [supersedesId], which the database requires
  * a [rationale] for.
+ *
+ * [tenantId] stamps the row's access boundary (V30): the document's subject lives in the graph,
+ * so nothing downstream re-derives it — the caller must know which tenant's data it classified.
  */
 interface DocumentClassificationStore {
     fun record(
+        tenantId: UUID,
         documentSha256: String,
         classification: DocumentClassification,
         provenance: Provenance,
@@ -39,6 +43,7 @@ interface DocumentClassificationStore {
  */
 interface ClaimAssessmentStore {
     fun record(
+        tenantId: UUID,
         claimText: String,
         sourceDocumentSha256: String?,
         support: ClaimSupport,

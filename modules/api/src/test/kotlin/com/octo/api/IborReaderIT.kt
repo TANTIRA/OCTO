@@ -3,6 +3,7 @@ package com.octo.api
 import com.octo.iborcore.commitmentPosition
 import com.octo.iborcore.latestValuation
 import com.octo.iborcore.persistence.JdbcIborReader
+import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.flywaydb.core.Flyway
 import org.junit.jupiter.api.Test
@@ -44,7 +45,7 @@ class IborReaderIT {
         val d = ledger("contribution", "-110", "2022-01-10T00:00:00Z", supersedes = c)
         ledger("contribution", "-999", "2022-01-10T00:00:00Z") // unrelated row, must not load
 
-        val rows = reader.ledgerEvents(setOf(a, b))
+        val rows = reader.ledgerEvents(setOf(a, b), TenantScope.All)
         assertThat(rows.map { it.id }).containsExactlyInAnyOrder(a, b, c, d)
 
         val position = commitmentPosition(rows, setOf(a, b, c, d), later, ZoneOffset.UTC)
@@ -58,12 +59,12 @@ class IborReaderIT {
         val original = valuation("100", "2024-12-31")
         val fix = valuation("105", "2024-12-31", supersedes = original)
 
-        val rows = reader.valuationEvents(setOf(original))
+        val rows = reader.valuationEvents(setOf(original), TenantScope.All)
         assertThat(rows.map { it.id }).containsExactlyInAnyOrder(original, fix)
 
         val nav = latestValuation(rows, setOf(original, fix), LocalDate.parse("2024-12-31"), later)
         assertThat(nav?.amount).isEqualByComparingTo(BigDecimal("105"))
-        assertThat(reader.valuationEvents(emptySet())).isEmpty()
+        assertThat(reader.valuationEvents(emptySet(), TenantScope.All)).isEmpty()
     }
 
     private fun ledger(
