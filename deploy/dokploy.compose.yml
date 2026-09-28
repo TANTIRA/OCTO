@@ -95,6 +95,7 @@ services:
       - OCTO_AGENT_TOKEN=${OCTO_AGENT_TOKEN}
       - OCTO_AGENTS_TOKEN=${OCTO_AGENTS_TOKEN}
       - OCTO_AGENTS_SCREENING_DD_ENABLED=${OCTO_AGENTS_SCREENING_DD_ENABLED:-false}
+      - OCTO_AGENTS_DD_ENABLED=${OCTO_AGENTS_DD_ENABLED:-false}
     networks:
       - default
       - dokploy-network

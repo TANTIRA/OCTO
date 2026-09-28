@@ -211,6 +211,67 @@ class ProspectEndpointTest {
     }
 
     @Test
+    fun `dd-evidence opens one task per workstream, reuses on retry, and completes through the task endpoint`() {
+        run { mvc ->
+            val id = mvc.registered()
+            val taskId =
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/dd-evidence")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"workstream":"market","summary":"gap in demand evidence"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+                    .andExpect(jsonPath("$.opened").value(true))
+                    .andReturn()
+                    .response.contentAsString
+                    .let {
+                        com.fasterxml.jackson.databind
+                            .ObjectMapper()
+                            .readTree(it)["taskId"]
+                            .asText()
+                    }
+
+            // A retried run on the same workstream reuses the open task instead of duplicating.
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/dd-evidence")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"workstream":"market","summary":"retried"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.taskId").value(taskId))
+                .andExpect(jsonPath("$.opened").value(false))
+
+            // The task decides through the same endpoint as the checklist — the dd: subject binds.
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"completed","rationale":"evidence gathered"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("completed"))
+
+            // Viewers and unknown callers never write; a bad workstream is a 400, not a 500.
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/dd-evidence")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"workstream":"Legal","summary":"s"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/dd-evidence")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"workstream":"ops","summary":"s"}""")
+                        .with(jwt().jwt { it.subject(viewer.toString()) }),
+                ).andExpect(status().isNotFound)
+        }
+    }
+
+    @Test
     fun `viewers never write, a blank rationale is 400, and no token is refused`() {
         run { mvc ->
             val id = mvc.registered()

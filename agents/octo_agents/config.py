@@ -31,6 +31,8 @@ class Settings(BaseSettings):
 
     # First workflow gate: Investment Screening & DD, tasks-only per ADR-0005.
     octo_agents_screening_dd_enabled: bool = False
+    # Parallel DD workstreams (F3) — subagent orchestration, evidence tasks only.
+    octo_agents_dd_enabled: bool = False
 
     request_timeout_s: float = 60.0
 

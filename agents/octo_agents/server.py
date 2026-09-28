@@ -16,6 +16,7 @@ from .chat import drafter_model
 from .config import Settings, get_settings
 from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
+from .workflows.due_diligence import run_due_diligence
 from .workflows.screening_dd import run_screening_dd
 
 app = FastAPI(title="octo-agents", version="0.1.0")
@@ -76,6 +77,36 @@ def screening_dd(
         timeout_s=settings.request_timeout_s,
     )
     result = run_screening_dd(
+        agent_model=drafter_model(settings, registry),
+        judge=_judge(settings, registry),
+        api=api,
+        prospect_id=body.prospect_id,
+    )
+    return result.model_dump()
+
+
+class DueDiligenceRequest(BaseModel):
+    prospect_id: str
+
+
+@app.post("/v1/workflows/due-diligence")
+def due_diligence(
+    body: DueDiligenceRequest,
+    _: None = Depends(require_caller),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    if not settings.octo_agents_dd_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="due-diligence workflow is feature-flagged off",
+        )
+    registry = _registry(settings)
+    api = OctoApiClient(
+        settings.octo_api_base_url,
+        settings.octo_agent_token,
+        timeout_s=settings.request_timeout_s,
+    )
+    result = run_due_diligence(
         agent_model=drafter_model(settings, registry),
         judge=_judge(settings, registry),
         api=api,
