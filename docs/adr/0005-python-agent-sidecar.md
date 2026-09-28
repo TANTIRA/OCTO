@@ -1,6 +1,6 @@
 # ADR-0005: Python Agent Sidecar for AIP Workflows
 
-- Status: Superseded by [ADR-0006](0006-kotlin-native-aip-orchestration.md)
+- Status: Proposed
 - Date: 2026-09-28
 - Risk tier: T2 (new deployable, confidential-data processor, AI-supported decisions)
 - Decision owner: CTO + Blue Team (AI governance per `AGENTS.md` and `docs/data-security-governance.md`)
