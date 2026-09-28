@@ -19,6 +19,7 @@ from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
 from .workflows.due_diligence import run_due_diligence
 from .workflows.ic_memo import run_ic_memo
+from .workflows.lp_report import run_lp_report
 from .workflows.screening_dd import run_screening_dd
 
 app = FastAPI(title="octo-agents", version="0.1.0")
@@ -131,6 +132,44 @@ def due_diligence(
         prospect_id=body.prospect_id,
         tenant_id=body.tenant_id,
         run_key=body.run_key or str(uuid4()),
+        models=_models(registry),
+    )
+    return result.model_dump()
+
+
+class LpReportRequest(BaseModel):
+    job_id: str
+    tenant_id: str
+    position_source_type: str
+    position_source_id: str
+    measures: list[str] = []
+    parameters: dict[str, Any] = {}
+    run_key: str | None = None
+
+
+@app.post("/v1/workflows/lp-report")
+def lp_report(
+    body: LpReportRequest,
+    _: None = Depends(require_caller),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    if not settings.octo_agents_lp_report_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="lp-report workflow is feature-flagged off",
+        )
+    registry = _registry(settings)
+    result = run_lp_report(
+        agent_model=drafter_model(settings, registry),
+        judge=_judge(settings, registry),
+        api=_api(settings),
+        job_id=body.job_id,
+        tenant_id=body.tenant_id,
+        run_key=body.run_key or str(uuid4()),
+        position_source_type=body.position_source_type,
+        position_source_id=body.position_source_id,
+        measures=body.measures,
+        parameters=body.parameters,
         models=_models(registry),
     )
     return result.model_dump()

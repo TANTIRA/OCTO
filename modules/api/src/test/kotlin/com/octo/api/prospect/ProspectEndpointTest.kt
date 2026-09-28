@@ -211,6 +211,44 @@ class ProspectEndpointTest {
     }
 
     @Test
+    fun `agent-ic-memo passes the sidecar result through for members, not viewers, and 503s when it is down`() {
+        run { mvc ->
+            val id = mvc.registered()
+            agentsBehavior = { workflow, _ ->
+                mapOf(
+                    "workflow_seen" to workflow,
+                    "memo" to "ic memo prose",
+                    "ic_review_requested" to true,
+                )
+            }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-ic-memo")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.workflow_seen").value("ic-memo"))
+                .andExpect(jsonPath("$.ic_review_requested").value(true))
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-ic-memo")
+                        .with(jwt().jwt { it.subject(viewer.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-ic-memo")
+                        .with(jwt().jwt { it.subject(UUID.randomUUID().toString()) }),
+                ).andExpect(status().isNotFound)
+
+            agentsBehavior = { _, _ -> throw AgentsUnavailableException(java.io.IOException("down")) }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-ic-memo")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isServiceUnavailable)
+        }
+    }
+
+    @Test
     fun `dd-evidence opens one task per workstream, reuses on retry, and completes through the task endpoint`() {
         run { mvc ->
             val id = mvc.registered()
