@@ -69,6 +69,34 @@ services:
         reservations:
           memory: 512M
 
+  # Python agent sidecar (ADR-0005) — AIP workflow orchestration. Internal only:
+  # no Traefik labels, so no public route — the api reaches it on
+  # dokploy-network like the neo4j datastore. Feature-flagged per workflow.
+  agents:
+    build:
+      context: ../agents
+      dockerfile: Dockerfile
+    image: ${AGENTS_IMAGE:-octo-agents}:${AGENTS_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      - OPENROUTER_API_KEY
+      - OCTO_API_BASE_URL=http://api:8080
+      - OCTO_AGENT_TOKEN=${OCTO_AGENT_TOKEN}
+      - OCTO_AGENTS_TOKEN=${OCTO_AGENTS_TOKEN}
+      - OCTO_AGENTS_SCREENING_DD_ENABLED=${OCTO_AGENTS_SCREENING_DD_ENABLED:-false}
+    networks:
+      - default
+      - dokploy-network
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 256M
+
   web:
     build:
       context: ../web

@@ -16,3 +16,14 @@ Private-equity investment platform: a standardized Ontology (prospects, funds, p
 - always cross-check the final works before commiting and push to repository, prevent from conflict when it takes to creating pull request.
 - code must have this points: simple, usable, scalable, and secure/safe.
 - When the task is complex, delegates sub agents to solving the problems.
+
+## Resources
+
+- [https://openrouter.ai/typesafe/jev-1.13](https://openrouter.ai/typesafe/jev-1.13)
+- [https://openrouter.ai/deepseek/deepseek-v4.1-flash](https://openrouter.ai/deepseek/deepseek-v4.1-flash)
+- [https://github.com/langchain-ai/deepagents.git](https://github.com/langchain-ai/deepagents.git)
+- [https://docs.langchain.com/oss/python/integrations/chat/openrouter.md](https://docs.langchain.com/oss/python/integrations/chat/openrouter.md)
+- [https://reference.langchain.com/python/langchain-openrouter.md](https://reference.langchain.com/python/langchain-openrouter.md)
+- [https://docs.langchain.com/llms.txt](https://docs.langchain.com/llms.txt)
+- <https://docs.langchain.com/oss/python/deepagents/async-subagents.md>
+- <https://x.com/RuujSs/status/2102774731606991003>

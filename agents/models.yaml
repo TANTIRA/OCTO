@@ -1,0 +1,19 @@
+# Approved-model registry — versioned per ADR-0005.
+#
+# Every entry names the OpenRouter model id, its role, and whether the platform
+# may send it confidential payloads (zdr). `zdr: true` means the model has an
+# approved zero-data-retention route; every request also carries
+# provider {zdr: true, allow_fallbacks: false} so OpenRouter itself rejects
+# non-ZDR routing — fail closed at both layers.
+#
+# Role separation is deliberate: jev scores, it never drafts.
+models:
+  typesafe/jev-1.13:
+    role: judge
+    zdr: true
+    notes: TypeSafe System-One decision model. Called via /api/alpha/decisions
+      with noul/choice/score question primitives — never a chat/completion client.
+  deepseek/deepseek-v4.1-flash:
+    role: drafter
+    zdr: true
+    notes: Chat model driving deepagent planning, tool use and prose drafting.
