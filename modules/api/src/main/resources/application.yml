@@ -22,6 +22,7 @@ spring:
       # V3 grants the api's own login (the datasource username above) access to the octo schema.
       runtime_role: ${DB_USER:octo}
 
+
 management:
   endpoints:
     web:
@@ -45,6 +46,12 @@ logging:
     format:
       # One JSON object per line, with the MDC (correlation_id from CorrelationIdFilter) as fields.
       console: ecs
+
+octo:
+  rate-limit:
+    # Requests per minute one tenant may consume before the API answers 429. Per-tenant override:
+    # tenant_setting key 'rate_limit_per_minute' (V31).
+    default-per-minute: ${OCTO_RATE_LIMIT_PER_MINUTE:120}
 
 server:
   port: 8080

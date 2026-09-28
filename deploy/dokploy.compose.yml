@@ -54,6 +54,11 @@ services:
       - ARBITRUM_MAX_BLOCK_WINDOW
       - ARBITRUM_POLL_MS
       - ARBITRUM_POLL_INITIAL_DELAY_MS
+      # Per-tenant rate-limit counters (RateLimitFilter). Point at the shared dokploy-network
+      # Redis if one is provisioned, or the octo-redis service below.
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - OCTO_RATE_LIMIT_PER_MINUTE=${OCTO_RATE_LIMIT_PER_MINUTE:-120}
     networks:
       - default
       - dokploy-network
@@ -98,6 +103,25 @@ services:
           memory: 1G
         reservations:
           memory: 256M
+
+  # Quota counters for RateLimitFilter — internal only (no Traefik labels, no host port).
+  # Losing its data resets current-minute counters; nothing durable lives here, so no volume.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 96M
 
   web:
     build:

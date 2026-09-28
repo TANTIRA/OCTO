@@ -76,7 +76,7 @@ class EntityScopingIT {
                 s.execute("grant usage on schema octo to rls_probe")
                 s.execute(
                     "grant select on octo.ledger_event, octo.onchain_transfer, " +
-                        "octo.tracked_address to rls_probe",
+                        "octo.tracked_address, octo.tenant_setting to rls_probe",
                 )
 
                 s.execute(
@@ -113,15 +113,22 @@ class EntityScopingIT {
                 )
                 // Derived rows on each wallet.
                 s.execute(
-                    "insert into octo.onchain_transfer (external_id, chain, signature, slot, block_time, " +
-                        "commitment, wallet, amount_raw, decimals, direction, transfer_kind, source_system, " +
-                        "actor, ingestion_run_id, correlation_id) values " +
+                    "insert into octo.onchain_transfer (external_id, chain, signature, slot, " +
+                        "block_time, commitment, wallet, amount_raw, decimals, direction, " +
+                        "transfer_kind, source_system, actor, ingestion_run_id, correlation_id) values " +
                         "('x-${UUID.randomUUID()}', 'solana', 'sig-a', 1, now(), 'finalized', " +
                         "'$walletA', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid()), " +
                         "('x-${UUID.randomUUID()}', 'solana', 'sig-b', 2, now(), 'finalized', " +
                         "'$walletOther', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid()), " +
                         "('x-${UUID.randomUUID()}', 'solana', 'sig-u', 3, now(), 'finalized', " +
                         "'$walletUntracked', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid())",
+                )
+
+                // V31 settings: one key per tenant, same key name — the boundary, not the key, isolates.
+                s.execute(
+                    "insert into octo.tenant_setting (tenant_id, key, value, source_system, correlation_id) values " +
+                        "('$tenantA', 'rate_limit_per_minute', '60', 'test', '$runId'), " +
+                        "('$tenantB', 'rate_limit_per_minute', '10', 'test', '$runId')",
                 )
             }
             c.commit()
@@ -186,6 +193,15 @@ class EntityScopingIT {
         assertThat(scopedCount(transferRows, user = "$member")).isEqualTo(1)
         assertThat(scopedCount(transferRows, tenants = "$tenantA")).isEqualTo(1)
         assertThat(scopedCount(transferRows, tenants = "*")).isEqualTo(3)
+    }
+
+    @Test
+    fun `tenant settings stay inside their boundary`() {
+        val rows = "select count(*) from octo.tenant_setting where correlation_id = '$runId'"
+        assertThat(scopedCount(rows, user = "$member")).isEqualTo(1)
+        assertThat(scopedCount(rows, tenants = "$tenantB")).isEqualTo(1)
+        assertThat(scopedCount(rows, tenants = "*")).isEqualTo(2)
+        assertThat(scopedCount(rows, user = "${UUID.randomUUID()}")).isEqualTo(0)
     }
 
     @Test

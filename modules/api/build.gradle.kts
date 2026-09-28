@@ -24,6 +24,7 @@ dependencies {
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.security)
     implementation(libs.spring.boot.starter.oauth2.rs)
+    implementation(libs.spring.boot.starter.data.redis)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlin.reflect)
     implementation(libs.flyway.core)
