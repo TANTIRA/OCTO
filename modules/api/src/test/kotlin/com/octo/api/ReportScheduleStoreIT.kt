@@ -85,7 +85,9 @@ class ReportScheduleStoreIT {
     @Test
     fun `claimDue leases due rows only and markRun clears the lease`() {
         val tenantId = tenant()
-        val now = Instant.now()
+        // next_run_at is timestamptz (microsecond precision); the CI clock is nanosecond-precise, so
+        // truncate here or the round-tripped value never compares equal to `next` (main-red flake, #211).
+        val now = Instant.now().truncatedTo(ChronoUnit.MICROS)
         val due = store.upsert(schedule(tenantId, now.minus(1, ChronoUnit.MINUTES)), TenantScope.All)
         store.upsert(schedule(tenantId, now.plus(1, ChronoUnit.HOURS)), TenantScope.All) // future: not due
         store.upsert(schedule(tenantId).copy(active = false), TenantScope.All) // inactive: not due
