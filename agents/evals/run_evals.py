@@ -13,9 +13,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from octo_agents.config import get_settings  # noqa: E402
-from octo_agents.judge import JudgeClient, NoulQuestion  # noqa: E402
-from octo_agents.registry import ApprovedModelRegistry  # noqa: E402
+from octo_agents.config import get_settings
+from octo_agents.judge import JudgeClient, NoulQuestion
+from octo_agents.registry import ApprovedModelRegistry
 
 THRESHOLD = 0.7
 EVAL_DIR = Path(__file__).resolve().parent

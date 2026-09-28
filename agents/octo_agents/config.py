@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     octo_agents_dd_enabled: bool = False
     # IC memo drafting (F5) — judged draft, ic-review task only when the gate passes.
     octo_agents_ic_memo_enabled: bool = False
+    # LP report drafting (F8) — narrates a report job's inline facts, release-gated.
+    octo_agents_lp_report_enabled: bool = False
 
     request_timeout_s: float = 60.0
 

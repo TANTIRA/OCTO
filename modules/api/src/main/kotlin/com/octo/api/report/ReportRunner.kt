@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.octo.analytics.CashFlow
 import com.octo.analytics.CashFlowSeries
 import com.octo.analytics.performance
+import com.octo.api.agents.AgentsClient
 import com.octo.iborcore.FlowType
 import com.octo.iborcore.LedgerEvent
 import com.octo.iborcore.glJournal
@@ -29,6 +30,7 @@ import java.util.UUID
 class ReportRunner(
     private val jobs: ReportJobs,
     private val json: ObjectMapper,
+    private val agents: AgentsClient,
 ) {
     private val log = LoggerFactory.getLogger(ReportRunner::class.java)
 
@@ -53,6 +55,7 @@ class ReportRunner(
         when (job.request.type) {
             ReportType.PERFORMANCE -> performanceReport(job)
             ReportType.GL_EXPORT -> glExportReport(job)
+            ReportType.LP_REPORT -> lpReport(job)
             // TODO(#105): exposure over lookThrough() and attribution over brinson() need their input shapes agreed.
             ReportType.EXPOSURE, ReportType.ATTRIBUTION -> error("report type ${job.request.type.wireValue} is not supported yet")
         }
@@ -157,6 +160,37 @@ class ReportRunner(
             val id: UUID = UUID.randomUUID(),
             val supersedesId: UUID? = null,
         )
+    }
+
+    /**
+     * LP report (ADR-0005 F8): the sidecar narrates the job's own parameters into an LP letter.
+     * The draft lands as the job's `done` result only when jev's support/completeness gate passes;
+     * a refusal errors the job and the judged draft stays auditable on `agent_run` under
+     * `report-job:{id}`. Outbound release is still the approval task of `/release` — the artifact
+     * is sealed until a human approves it.
+     */
+    private fun lpReport(job: ReportJob): Map<String, Any?> {
+        val outcome =
+            agents.run(
+                "lp-report",
+                mapOf(
+                    "tenant_id" to job.request.tenantId.toString(),
+                    "run_key" to "report-job:${job.id}",
+                    "job_id" to job.id.toString(),
+                    "position_source_type" to job.request.positionSourceType,
+                    "position_source_id" to job.request.positionSourceId,
+                    "measures" to job.request.measures,
+                    "parameters" to
+                        json.readValue(
+                            job.request.parameters,
+                            object : com.fasterxml.jackson.core.type.TypeReference<Map<String, Any?>>() {},
+                        ),
+                ),
+            )
+        require(outcome["status"] == "completed") {
+            "lp-report ${outcome["status"] ?: "failed"}: ${outcome["stage_note"] ?: "the jev gate refused the draft"}"
+        }
+        return outcome
     }
 
     private fun sha256(text: String) =

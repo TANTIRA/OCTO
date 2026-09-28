@@ -1,6 +1,7 @@
 package com.octo.api.report
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.octo.api.agents.AgentsClient
 import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.persistence.JdbcTaskStore
@@ -107,7 +108,8 @@ class ReportConfiguration {
     fun reportRunner(
         jobs: ReportJobs,
         json: ObjectMapper,
-    ) = ReportRunner(jobs, json)
+        agents: AgentsClient,
+    ) = ReportRunner(jobs, json, agents)
 
     @Bean
     @ConditionalOnProperty("octo.reports.schedules.poll", havingValue = "true", matchIfMissing = true)
