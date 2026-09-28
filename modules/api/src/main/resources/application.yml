@@ -7,6 +7,9 @@ spring:
     password: ${DB_PASSWORD:}
   flyway:
     enabled: true
+    # Explicit url: with the routing datasource as the sole DataSource bean, Boot's
+    # JdbcConnectionDetails isn't registered, so url+credentials must stand alone here.
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}
     locations: classpath:db/migration
     # Pin the managed schema: DB_USER defaults to "octo" and V28 converges every object on
     # the octo schema, so relying on the connection's current_schema would move
