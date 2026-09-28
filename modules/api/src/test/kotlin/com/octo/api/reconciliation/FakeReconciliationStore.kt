@@ -19,11 +19,14 @@ class FakeReconciliationStore(
     )
 
     val rows = mutableListOf<Row>()
+    val lookups = mutableListOf<Pair<UUID, TenantScope>>()
 
     override fun iborRecords(
+        tenantId: UUID,
         sourceSystem: String,
         zone: ZoneId,
-    ) = ledger.filter { it.sourceSystem == sourceSystem }
+        scope: TenantScope,
+    ) = ledger.filter { it.sourceSystem == sourceSystem }.also { lookups += tenantId to scope }
 
     override fun existingTask(
         tenantId: UUID,

@@ -2,6 +2,7 @@ package com.octo.recon.matching.persistence
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.persistence.TenantScope
+import com.octo.persistence.admits
 import com.octo.persistence.scoped
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.IborRecord
@@ -15,8 +16,10 @@ import javax.sql.DataSource
 interface ReconciliationStore {
     /** The current ledger events of one source system as [IborRecord]s, dated in [zone]. Superseded rows are excluded. */
     fun iborRecords(
+        tenantId: UUID,
         sourceSystem: String,
         zone: ZoneId,
+        scope: TenantScope,
     ): List<IborRecord>
 
     /** The task an earlier run opened for this break key, or null. */
@@ -44,28 +47,38 @@ class JdbcReconciliationStore(
     private val json = ObjectMapper()
 
     override fun iborRecords(
+        tenantId: UUID,
         sourceSystem: String,
         zone: ZoneId,
+        scope: TenantScope,
     ): List<IborRecord> {
+        if (!scope.admits(tenantId)) return emptyList()
         // V1 keys (source_system, external_id) once per chain: a correction carries no external id and supersedes
         // the keyed root, so the id of the current event is the root's, found by walking the chain forward.
         val sql =
             """
             with recursive chain as (
                 select e.id, e.external_id as root_external_id
-                from octo.ledger_event e where e.source_system = ? and e.external_id is not null
+                from octo.ledger_event e where e.tenant_id = ? and e.source_system = ? and e.external_id is not null
                 union all
-                select s.id, c.root_external_id from octo.ledger_event s join chain c on s.supersedes_id = c.id)
+                select s.id, c.root_external_id from octo.ledger_event s join chain c on s.supersedes_id = c.id
+                where s.tenant_id = ? and s.source_system = ?)
             select e.id, e.source_system, coalesce(c.root_external_id, e.external_id) as external_id,
                    e.monetary_amount, e.currency_code, e.occurred_at
             from octo.ledger_event e left join chain c on c.id = e.id
-            where e.source_system = ? and not exists (select 1 from octo.ledger_event s where s.supersedes_id = e.id)
+            where e.tenant_id = ? and e.source_system = ?
+              and not exists (select 1 from octo.ledger_event s where s.supersedes_id = e.id
+                              and s.tenant_id = e.tenant_id and s.source_system = e.source_system)
             order by e.occurred_at, e.id
             """.trimIndent()
-        return dataSource.connection.use { connection ->
+        return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
-                statement.setString(1, sourceSystem)
+                statement.setObject(1, tenantId)
                 statement.setString(2, sourceSystem)
+                statement.setObject(3, tenantId)
+                statement.setString(4, sourceSystem)
+                statement.setObject(5, tenantId)
+                statement.setString(6, sourceSystem)
                 statement.executeQuery().use { rows ->
                     generateSequence { if (rows.next()) rows else null }
                         .map {
@@ -93,6 +106,7 @@ class JdbcReconciliationStore(
         brk: Break,
         scope: TenantScope,
     ): UUID? {
+        if (!scope.admits(tenantId)) return null
         val sql =
             """
             select task_id from octo.reconciliation_break
@@ -119,6 +133,7 @@ class JdbcReconciliationStore(
         correlationId: UUID,
         scope: TenantScope,
     ): UUID {
+        require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
         val sql =
             """
             insert into octo.reconciliation_break (tenant_id, run_id, kind, source_system, source_ref, ledger_event_id, detail, task_id, correlation_id)

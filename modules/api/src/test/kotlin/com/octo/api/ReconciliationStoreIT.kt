@@ -54,14 +54,17 @@ class ReconciliationStoreIT {
         externalId: String?,
         amount: String,
         supersedes: UUID? = null,
+        tenantId: UUID? = null,
     ) = query(
         """
         insert into octo.ledger_event (external_id, flow_type, monetary_amount, currency_code, occurred_at, supersedes_id, rationale,
-                                        source_system, actor, ingestion_run_id, correlation_id)
+                                        tenant_id, source_system, actor, ingestion_run_id, correlation_id)
         values (${externalId?.let {
             "'$it'"
         } ?: "null"}, 'contribution', $amount, 'USD', '2026-06-30T10:00:00Z', ${supersedes?.let { "'$it'" } ?: "null"},
-                ${supersedes?.let { "'corrected'" } ?: "null"}, '$system', 'it', gen_random_uuid(), gen_random_uuid())
+                ${supersedes?.let { "'corrected'" } ?: "null"}, ${tenantId?.let {
+            "'$it'"
+        } ?: "null"}, '$system', 'it', gen_random_uuid(), gen_random_uuid())
         returning id
         """.trimIndent(),
     )
@@ -75,12 +78,15 @@ class ReconciliationStoreIT {
     @Test
     fun `the ledger side holds only current events of the source system, dated in the zone`() {
         val system = "admin-${UUID.randomUUID().toString().take(8)}"
-        val original = event(system, "t-1", "-100")
-        val corrected = event(system, null, "-101", supersedes = original) // V1: the key stays on the root; the correction carries none
-        val unattributed = event(system, null, "5")
-        event("other-system", "t-1", "-100")
+        val tenantId = tenant()
+        val scope = TenantScope.Tenants(listOf(tenantId))
+        val original = event(system, "t-1", "-100", tenantId = tenantId)
+        // V1: the key stays on the root; the correction carries none
+        val corrected = event(system, null, "-101", supersedes = original, tenantId = tenantId)
+        val unattributed = event(system, null, "5", tenantId = tenantId)
+        event("other-system", "t-1", "-100", tenantId = tenantId)
 
-        val records = store.iborRecords(system, ZoneOffset.UTC).associateBy { it.id }
+        val records = store.iborRecords(tenantId, system, ZoneOffset.UTC, scope).associateBy { it.id }
         assertThat(records.keys).containsExactlyInAnyOrder(corrected, unattributed)
         assertThat(records.getValue(corrected).externalId).isEqualTo("t-1")
         assertThat(records.getValue(corrected).amount).isEqualByComparingTo("-101")
@@ -89,9 +95,30 @@ class ReconciliationStoreIT {
     }
 
     @Test
+    fun `the same external id may belong to different tenants`() {
+        val system = "admin-${UUID.randomUUID().toString().take(8)}"
+        val first = tenant()
+        val second = tenant()
+        val original = event(system, "shared", "-100", tenantId = first)
+        val other = event(system, "shared", "-200", tenantId = second)
+        val corrected = event(system, null, "-101", supersedes = original, tenantId = first)
+        assertThat(store.iborRecords(first, system, ZoneOffset.UTC, TenantScope.Tenants(listOf(first))).map { it.id })
+            .containsExactly(corrected)
+        assertThat(store.iborRecords(second, system, ZoneOffset.UTC, TenantScope.Tenants(listOf(second))).map { it.id })
+            .containsExactly(other)
+        assertThat(store.iborRecords(first, system, ZoneOffset.UTC, TenantScope.Tenants(listOf(second)))).isEmpty()
+        event(system, null, "-1")
+        assertThat(store.iborRecords(first, system, ZoneOffset.UTC, TenantScope.All).map { it.id })
+            .containsExactly(corrected)
+        assertThatThrownBy { event(system, null, "-201", supersedes = other, tenantId = first) }
+            .isInstanceOf(SQLException::class.java)
+        assertThatThrownBy { event(system, "unowned", "-1") }.isInstanceOf(SQLException::class.java)
+    }
+
+    @Test
     fun `a break records with its task once per key, and the task is found by later runs`() {
         val tenantId = tenant()
-        val eventId = event("admin-x", "t-2", "-50")
+        val eventId = event("admin-x", "t-2", "-50", tenantId = tenantId)
         val brk = Break(BreakKind.AMOUNT_MISMATCH, "admin-x", "t-2", eventId, mapOf("source" to "-49", "ibor" to "-50"))
         assertThat(store.existingTask(tenantId, brk, TenantScope.All)).isNull()
 
@@ -109,7 +136,11 @@ class ReconciliationStoreIT {
             )
         }.isInstanceOf(SQLException::class.java)
         store.record(tenantId, UUID.randomUUID(), brk, null, UUID.randomUUID(), TenantScope.All) // tomorrow's repeat, no new task
-        assertThat(store.existingTask(tenant(), brk, TenantScope.All)).isNull() // another tenant does not see it
+        val otherTenant = tenant()
+        assertThat(store.existingTask(otherTenant, brk, TenantScope.All)).isNull() // another tenant does not see it
+        assertThatThrownBy {
+            store.record(otherTenant, UUID.randomUUID(), brk, null, UUID.randomUUID(), TenantScope.All)
+        }.isInstanceOf(SQLException::class.java)
 
         val missing = Break(BreakKind.MISSING_IN_IBOR, "admin-x", "t-3", null, emptyMap())
         store.record(tenantId, UUID.randomUUID(), missing, task(), UUID.randomUUID(), TenantScope.All)

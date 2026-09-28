@@ -54,7 +54,7 @@ class ReconciliationRunner(
         correlationId: UUID,
     ): RunResult {
         val scope = TenantScope.Tenants(listOf(tenantId))
-        val ibor = source.map { it.sourceSystem }.toSet().flatMap { store.iborRecords(it, zone) }
+        val ibor = source.map { it.sourceSystem }.toSet().flatMap { store.iborRecords(tenantId, it, zone, scope) }
         val result = reconcile(source, ibor, tolerance)
         val runId = UUID.randomUUID()
         val outcomes =
