@@ -4,6 +4,7 @@ import com.octo.api.access.persistence.AccessAdministration
 import com.octo.api.access.persistence.AccessProvenance
 import com.octo.api.access.persistence.JdbcAccessStore
 import com.octo.api.access.persistence.JdbcTenantSettingsStore
+import com.octo.api.access.persistence.TenantPlacements
 import com.octo.api.access.persistence.TenantSettings
 import com.octo.persistence.TenantScope
 import org.springframework.beans.factory.ObjectProvider
@@ -94,5 +95,12 @@ class AccessConfiguration {
                 scope: TenantScope,
             ) = store.put(tenantId, key, value, actor, provenance, scope)
         }
+    }
+
+    /** The V32 placement registry (tier + datasource_key), behind the same lazy boundary. */
+    @Bean
+    fun jdbcTenantPlacements(dataSource: ObjectProvider<DataSource>): TenantPlacements {
+        val store by lazy { JdbcAccessStore(dataSource.getObject()) }
+        return TenantPlacements { tenantId -> store.placementOf(tenantId) }
     }
 }

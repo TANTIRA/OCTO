@@ -35,6 +35,7 @@ data class AccessProvenance(
 class JdbcAccessStore(
     private val dataSource: DataSource,
 ) : TenantDirectory,
+    TenantPlacements,
     AccessAdministration {
     fun createTenant(
         tenant: Tenant,
@@ -143,6 +144,24 @@ class JdbcAccessStore(
             }
         }
     }
+
+    /** The tenant's placement (V32): `pool` + null key until promoted per the isolation runbook. */
+    override fun placementOf(tenantId: UUID): TenantPlacement? =
+        dataSource.scoped(TenantScope.All) { connection ->
+            connection
+                .prepareStatement(
+                    "select isolation_tier, datasource_key from octo.tenant where id = ?",
+                ).use { statement ->
+                    statement.setObject(1, tenantId)
+                    statement.executeQuery().use { rows ->
+                        if (!rows.next()) {
+                            null
+                        } else {
+                            TenantPlacement(tenantId, rows.getString(1), rows.getString(2))
+                        }
+                    }
+                }
+        }
 
     private fun replayLocked(
         connection: Connection,
