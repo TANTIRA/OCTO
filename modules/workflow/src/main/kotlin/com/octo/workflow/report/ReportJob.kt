@@ -11,6 +11,7 @@ enum class ReportType(
     PERFORMANCE("performance"),
     EXPOSURE("exposure"),
     ATTRIBUTION("attribution"),
+    GL_EXPORT("gl-export"),
     ;
 
     companion object {
@@ -52,7 +53,7 @@ data class ReportRequest(
     }
 }
 
-/** One row of `mesta.report_job`. [result] is jsonb object text; present exactly when [status] is DONE. */
+/** One row of `octo.report_job`. [result] is jsonb object text; present exactly when [status] is DONE. */
 data class ReportJob(
     val id: UUID,
     val request: ReportRequest,

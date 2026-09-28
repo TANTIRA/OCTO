@@ -26,7 +26,7 @@ class TimeSeriesStoreIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -43,9 +43,9 @@ class TimeSeriesStoreIT {
                 statement
                     .executeQuery(
                         """
-                        with t as (insert into mesta.tenant (slug, display_name, source_system, correlation_id)
+                        with t as (insert into octo.tenant (slug, display_name, source_system, correlation_id)
                                    values ('t-${UUID.randomUUID().toString().take(8)}', 'T', 'test', gen_random_uuid()) returning id)
-                        insert into mesta.dataset (tenant_id, name, description, unit, source_system, actor, correlation_id)
+                        insert into octo.dataset (tenant_id, name, description, unit, source_system, actor, correlation_id)
                         select id, 'nav.quarterly', 'NAV', 'currency', 'test', 'it', gen_random_uuid() from t
                         returning id, tenant_id
                         """.trimIndent(),
@@ -111,8 +111,8 @@ class TimeSeriesStoreIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

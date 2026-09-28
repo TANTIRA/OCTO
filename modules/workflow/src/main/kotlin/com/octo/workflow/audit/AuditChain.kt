@@ -23,7 +23,7 @@ data class AuditEntry(
     }
 }
 
-/** One stored link of `mesta.audit_event`. Read from the database, [entry] carries details in its jsonb text form. */
+/** One stored link of `octo.audit_event`. Read from the database, [entry] carries details in its jsonb text form. */
 class AuditRecord(
     val seq: Long,
     val entry: AuditEntry,
@@ -59,7 +59,7 @@ fun verifyAuditChain(records: List<AuditRecord>): ChainBreak? {
     return null
 }
 
-/** sha256(prev_hash ‖ canonical row), over the same bytes as `mesta.audit_event_canonical` in V6. */
+/** sha256(prev_hash ‖ canonical row), over the same bytes as `octo.audit_event_canonical` in V6. */
 internal fun linkHash(record: AuditRecord): ByteArray {
     val entry = record.entry
     val fields =

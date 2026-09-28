@@ -9,7 +9,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 import javax.sql.DataSource
 
-/** JDBC access to `mesta.report_job` (V13). Every transition is one statement; the trigger refuses anything out of order. */
+/** JDBC access to `octo.report_job` (V13). Every transition is one statement; the trigger refuses anything out of order. */
 class JdbcReportJobStore(
     private val dataSource: DataSource,
 ) : ReportJobs {
@@ -20,7 +20,7 @@ class JdbcReportJobStore(
         require(scope.admits(request.tenantId)) { "report tenant ${request.tenantId} is outside the scoped tenants" }
         val sql =
             """
-            insert into mesta.report_job (tenant_id, report_type, position_source_type, position_source_id, measures, parameters,
+            insert into octo.report_job (tenant_id, report_type, position_source_type, position_source_id, measures, parameters,
                                           requested_by, correlation_id)
             values (?, ?, ?, ?, ?, ?::jsonb, ?, ?)
             returning *
@@ -48,7 +48,7 @@ class JdbcReportJobStore(
         scope: TenantScope,
     ): ReportJob? =
         dataSource.scoped(scope) { connection ->
-            connection.prepareStatement("select * from mesta.report_job where id = ?").use { statement ->
+            connection.prepareStatement("select * from octo.report_job where id = ?").use { statement ->
                 statement.setObject(1, id)
                 statement.executeQuery().use { rows ->
                     if (rows.next()) rows.toJob().takeIf { scope.admits(it.request.tenantId) } else null
@@ -60,8 +60,8 @@ class JdbcReportJobStore(
         // skip locked: a job another runner holds in its claim transaction is passed over, never double-claimed.
         val sql =
             """
-            update mesta.report_job set status = 'executing'
-            where id = (select id from mesta.report_job where status = 'new' order by created_at limit 1 for update skip locked)
+            update octo.report_job set status = 'executing'
+            where id = (select id from octo.report_job where status = 'new' order by created_at limit 1 for update skip locked)
             returning *
             """.trimIndent()
         return dataSource.scoped(TenantScope.All) { connection ->
@@ -106,7 +106,7 @@ class JdbcReportJobStore(
         bind: (java.sql.PreparedStatement) -> Unit,
     ): ReportJob =
         dataSource.scoped(TenantScope.All) { connection: Connection ->
-            connection.prepareStatement("update mesta.report_job set $assignment where id = ? returning *").use { statement ->
+            connection.prepareStatement("update octo.report_job set $assignment where id = ? returning *").use { statement ->
                 bind(statement)
                 statement.executeQuery().use { rows ->
                     if (!rows.next()) throw NoSuchElementException("no report job $id")

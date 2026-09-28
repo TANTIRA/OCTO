@@ -7,7 +7,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 /**
- * One bi-temporal fact of `mesta.timeseries_observation` (V12): [effectiveDate] is when the value is true of
+ * One bi-temporal fact of `octo.timeseries_observation` (V12): [effectiveDate] is when the value is true of
  * the world, [recordedAt] is when the platform learned it (assigned by the database, so null before a write).
  * A correction is a new observation that supersedes the old one with a [rationale].
  */

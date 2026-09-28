@@ -8,7 +8,7 @@ import java.time.ZoneOffset
 import java.util.UUID
 import javax.sql.DataSource
 
-/** JDBC access to `mesta.timeseries_observation` (V12). Insert and read only; the table is append-only. */
+/** JDBC access to `octo.timeseries_observation` (V12). Insert and read only; the table is append-only. */
 class JdbcTimeSeriesStore(
     private val dataSource: DataSource,
 ) : TimeSeriesReader,
@@ -21,7 +21,7 @@ class JdbcTimeSeriesStore(
     ): List<Observation> {
         val sql =
             """
-            insert into mesta.timeseries_observation (dataset_id, series_key, field, effective_date, value, supersedes_id, rationale,
+            insert into octo.timeseries_observation (dataset_id, series_key, field, effective_date, value, supersedes_id, rationale,
                                                       source_system, actor, ingestion_run_id, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             returning recorded_at
@@ -54,7 +54,7 @@ class JdbcTimeSeriesStore(
         scope: TenantScope,
     ): UUID? =
         dataSource.scoped(scope) { connection ->
-            connection.prepareStatement("select tenant_id from mesta.dataset where id = ?").use { statement ->
+            connection.prepareStatement("select tenant_id from octo.dataset where id = ?").use { statement ->
                 statement.setObject(1, datasetId)
                 statement.executeQuery().use { rows -> if (rows.next()) rows.getObject("tenant_id", UUID::class.java) else null }
             }
@@ -83,7 +83,7 @@ class JdbcTimeSeriesStore(
             """
             select distinct on (series_key, field, effective_date)
                    series_key, field, effective_date, value, recorded_at, supersedes_id, rationale
-            from mesta.timeseries_observation
+            from octo.timeseries_observation
             where ${conditions.joinToString(" and ")}
             order by series_key, field, effective_date, recorded_at desc
             """.trimIndent()

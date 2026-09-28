@@ -16,6 +16,10 @@ import java.sql.SQLException
  * and the api connects as a separate runtime role, the way `infra/docker-compose.yml` wires
  * `DB_MIGRATION_USER` and `DB_USER`. The other ITs run everything as one superuser, so a missing
  * grant is invisible to them. Skipped when Docker is unavailable.
+ *
+ * Since V27 the runtime role is also subject to row-level security, so the connection declares
+ * `app.tenant_ids = '*'` once — the TenantScope.All the service paths actually run under —
+ * because a session with no scope GUCs fails closed by design (RowLevelSecurityIT proves that).
  */
 @Testcontainers(disabledWithoutDocker = true)
 class RuntimeRoleGrantsIT {
@@ -23,8 +27,8 @@ class RuntimeRoleGrantsIT {
     fun `the runtime role can insert into and read every append-only table`() {
         for ((table, insert) in INSERTS) {
             execute(insert)
-            assertThat(single("select count(*) from mesta.$table"))
-                .describedAs("rows the runtime role can read in mesta.$table")
+            assertThat(single("select count(*) from octo.$table"))
+                .describedAs("rows the runtime role can read in octo.$table")
                 .isNotEqualTo(0L)
         }
     }
@@ -32,7 +36,7 @@ class RuntimeRoleGrantsIT {
     @Test
     fun `update and delete are refused on privilege before the append-only trigger fires`() {
         execute(INSERTS.getValue("ledger_event"))
-        for (sql in listOf("update mesta.ledger_event set actor = 'tampered'", "delete from mesta.ledger_event")) {
+        for (sql in listOf("update octo.ledger_event set actor = 'tampered'", "delete from octo.ledger_event")) {
             assertThatThrownBy { execute(sql) }
                 .describedAs(sql)
                 .isInstanceOfSatisfying(SQLException::class.java) { assertThat(it.sqlState).isEqualTo(INSUFFICIENT_PRIVILEGE) }
@@ -43,7 +47,7 @@ class RuntimeRoleGrantsIT {
     fun `the runtime role has no privilege on the Flyway history`() {
         assertThat(
             single(
-                "select bool_or(has_table_privilege('mesta.flyway_schema_history', p)) " +
+                "select bool_or(has_table_privilege('octo.flyway_schema_history', p)) " +
                     "from unnest(array['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) p",
             ),
         ).isEqualTo(false)
@@ -62,8 +66,8 @@ class RuntimeRoleGrantsIT {
         }
 
     private companion object {
-        const val MIGRATOR = "mesta_migrator"
-        const val RUNTIME = "mesta_app"
+        const val MIGRATOR = "octo_migrator"
+        const val RUNTIME = "octo_app"
 
         /** SQLSTATE for a missing privilege. The append-only trigger raises 23001 instead. */
         const val INSUFFICIENT_PRIVILEGE = "42501"
@@ -72,7 +76,7 @@ class RuntimeRoleGrantsIT {
             mapOf(
                 "ledger_event" to
                     """
-                    insert into mesta.ledger_event
+                    insert into octo.ledger_event
                         (flow_type, monetary_amount, currency_code, occurred_at,
                          source_system, actor, ingestion_run_id, correlation_id)
                     values ('contribution', 1000000.00, 'USD', now(),
@@ -80,7 +84,7 @@ class RuntimeRoleGrantsIT {
                     """.trimIndent(),
                 "document_classification" to
                     """
-                    insert into mesta.document_classification
+                    insert into octo.document_classification
                         (document_sha256, document_type, confidence, distribution, requires_review,
                          model_version, source_system, actor, ingestion_run_id, correlation_id)
                     values (repeat('a', 64), 'pitch-deck', 0.9, '{}', false,
@@ -88,7 +92,7 @@ class RuntimeRoleGrantsIT {
                     """.trimIndent(),
                 "claim_assessment" to
                     """
-                    insert into mesta.claim_assessment
+                    insert into octo.claim_assessment
                         (claim_text, support_probability, support_threshold, review_band, supported,
                          requires_review, model_version, source_system, actor, ingestion_run_id, correlation_id)
                     values ('Revenue grew 21% year over year.', 0.7, 0.5, 0.15, true,
@@ -96,7 +100,7 @@ class RuntimeRoleGrantsIT {
                     """.trimIndent(),
                 "valuation_event" to
                     """
-                    insert into mesta.valuation_event
+                    insert into octo.valuation_event
                         (monetary_amount, currency_code, as_of_date, valuation_method,
                          source_system, actor, ingestion_run_id, correlation_id)
                     values (1000000.00, 'USD', current_date, 'mark-to-model',
@@ -104,33 +108,33 @@ class RuntimeRoleGrantsIT {
                     """.trimIndent(),
                 "workflow_task" to
                     """
-                    insert into mesta.workflow_task
+                    insert into octo.workflow_task
                         (kind, subject_type, subject_id, requested_by, source_system, correlation_id)
                     values ('review', 'valuation-event', 've-1', 'alice', 'test', gen_random_uuid())
                     """.trimIndent(),
                 // The segregation-of-duties trigger reads workflow_task as the inserting (runtime) role.
                 "workflow_task_event" to
                     """
-                    insert into mesta.workflow_task_event (task_id, event_type, actor, occurred_at, correlation_id)
-                    select id, 'completed', 'bob', now(), gen_random_uuid() from mesta.workflow_task limit 1
+                    insert into octo.workflow_task_event (task_id, event_type, actor, occurred_at, correlation_id)
+                    select id, 'completed', 'bob', now(), gen_random_uuid() from octo.workflow_task limit 1
                     """.trimIndent(),
                 // Order matters: member references tenant, and the event references the member.
                 "tenant" to
                     """
-                    insert into mesta.tenant (slug, display_name, source_system, correlation_id)
+                    insert into octo.tenant (slug, display_name, source_system, correlation_id)
                     values ('acme-capital', 'Acme Capital', 'test', gen_random_uuid())
                     """.trimIndent(),
                 "tenant_member" to
                     """
-                    insert into mesta.tenant_member (tenant_id, user_id, source_system, correlation_id)
-                    select id, '00000000-0000-0000-0000-000000000001', 'test', gen_random_uuid() from mesta.tenant limit 1
+                    insert into octo.tenant_member (tenant_id, user_id, source_system, correlation_id)
+                    select id, '00000000-0000-0000-0000-000000000001', 'test', gen_random_uuid() from octo.tenant limit 1
                     """.trimIndent(),
                 // The trigger reads tenant_member_event and enforces its rules as the runtime role.
                 "tenant_member_event" to
                     """
-                    insert into mesta.tenant_member_event (tenant_id, user_id, event_type, role, actor, occurred_at, correlation_id)
+                    insert into octo.tenant_member_event (tenant_id, user_id, event_type, role, actor, occurred_at, correlation_id)
                     select tenant_id, user_id, 'granted', 'analyst', '00000000-0000-0000-0000-000000000002', now(), gen_random_uuid()
-                    from mesta.tenant_member limit 1
+                    from octo.tenant_member limit 1
                     """.trimIndent(),
             )
 
@@ -138,7 +142,7 @@ class RuntimeRoleGrantsIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
+                .withDatabaseName("octo")
                 .withUsername("admin")
                 .withPassword("admin")
 
@@ -155,11 +159,13 @@ class RuntimeRoleGrantsIT {
                 .configure()
                 .dataSource(postgres.jdbcUrl, MIGRATOR, MIGRATOR)
                 .locations("classpath:db/migration")
-                .schemas("mesta")
+                .schemas("octo")
                 .placeholders(mapOf("runtime_role" to RUNTIME))
                 .load()
                 .migrate()
-            DriverManager.getConnection(postgres.jdbcUrl, RUNTIME, RUNTIME)
+            DriverManager.getConnection(postgres.jdbcUrl, RUNTIME, RUNTIME).apply {
+                createStatement().use { it.execute("select set_config('app.tenant_ids', '*', false)") }
+            }
         }
     }
 }

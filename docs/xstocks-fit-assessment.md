@@ -3,7 +3,7 @@
 Evaluation of [xStocks](https://docs.xstocks.fi) as an instrument or data source for OCTO. No API calls were made; this is a documentation-only assessment based on the published docs.
 
 - **Risk tier:** T3 for anything touching issuance, redemption, or keys (mainnet contracts, key management). T1 for read-only public market metadata
-- **Status:** proposed, out of current scope. The platform models private-market entities and has no instrument concept
+- **Status:** proposed, out of current scope. Since this assessment was written the `instrument` concept has landed — `instrument`/`instrument_flow` tables (V10) and `instrument`/`solana-mint`/`evm-contract` in `ontology/octo-investment.cypher` — so the "nowhere to attach" gap below is closed; the product-scope question stands
 
 ## What xStocks is
 

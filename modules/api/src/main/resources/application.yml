@@ -3,23 +3,28 @@ spring:
     name: octo
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}
-    username: ${DB_USER:mesta}
+    username: ${DB_USER:octo}
     password: ${DB_PASSWORD:}
   flyway:
     enabled: true
+    # Explicit url: with the routing datasource as the sole DataSource bean, Boot's
+    # JdbcConnectionDetails isn't registered, so url+credentials must stand alone here.
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}
     locations: classpath:db/migration
-    # Pin the managed schema: DB_USER defaults to "mesta" and the V1 migration creates the mesta
-    # schema, so relying on the connection's current_schema would move flyway_schema_history
-    # between public (first boot) and mesta (later boots) and fail with a non-empty-schema error.
-    schemas: mesta
+    # Pin the managed schema: DB_USER defaults to "octo" and V28 converges every object on
+    # the octo schema, so relying on the connection's current_schema would move
+    # flyway_schema_history between public (first boot) and octo (later boots) and fail
+    # with a non-empty-schema error.
+    schemas: octo
     # Migrations run as a dedicated identity in every deployed environment:
     # infra/docker-compose.yml always sets DB_MIGRATION_*. The fallback to the application role
     # exists so a local run without a separate migration role works, and is never the production path.
-    user: ${DB_MIGRATION_USER:${DB_USER:mesta}}
+    user: ${DB_MIGRATION_USER:${DB_USER:octo}}
     password: ${DB_MIGRATION_PASSWORD:${DB_PASSWORD:}}
     placeholders:
-      # V3 grants the api's own login (the datasource username above) access to the mesta schema.
-      runtime_role: ${DB_USER:mesta}
+      # V3 grants the api's own login (the datasource username above) access to the octo schema.
+      runtime_role: ${DB_USER:octo}
+
 
 management:
   endpoints:
@@ -44,6 +49,12 @@ logging:
     format:
       # One JSON object per line, with the MDC (correlation_id from CorrelationIdFilter) as fields.
       console: ecs
+
+octo:
+  rate-limit:
+    # Requests per minute one tenant may consume before the API answers 429. Per-tenant override:
+    # tenant_setting key 'rate_limit_per_minute' (V31).
+    default-per-minute: ${OCTO_RATE_LIMIT_PER_MINUTE:120}
 
 server:
   port: 8080

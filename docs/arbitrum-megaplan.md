@@ -3,7 +3,7 @@
 Phased execution plan for Arbitrum One ingestion into the onchain pipeline, in the same phase style as the original megaplan (`megaplan §P5`, `phase 8` in V16). Each phase is one GitHub issue and one or more `<400`-line PRs. The design rationale lives in [arbitrum-ingestion-design.md](arbitrum-ingestion-design.md); this doc is the "in what order, and when is it done" companion.
 
 - **Risk tier:** T0 for this document. Each phase carries its own tier; the T2 phases (migration, ontology, adapter) follow the T2 rules — plan agreed in the issue before code.
-- **Status:** proposed. Decisions below were agreed before this doc was written.
+- **Status:** shipped — phases ARB-1 through ARB-8 landed (V17 migration, ontology EVM terms, `onchain/evm/` adapter, api wiring). Kept as the execution record.
 - **Grounded in:** [arbitrum-ingestion-design.md](arbitrum-ingestion-design.md), [arbitrum-fit-assessment.md](arbitrum-fit-assessment.md), `V10__onchain_ingestion.sql`, `V16__onchain_claim_evidence.sql`, `ontology/octo-investment.cypher`, `modules/ingestion/.../onchain/`
 
 ## Locked decisions
@@ -37,7 +37,7 @@ V10 and V16 are live — additive only.
   `tracked_address.address` (`tracked_address_solana_shape`), `onchain_transfer.wallet`/`counterparty`/`mint_address`, `onchain_balance_snapshot.wallet`, `instrument.mint_address`, `instrument_flow.wallet`, `onchain_claim_evidence.subject_address` (V16).
 - `instrument_kind_known` gains `'erc20'`; `instrument_native_iff_no_mint` unchanged (ETH = `native-token`, null mint).
 - Seed `arbitrum-one:native` (ETH, 18 decimals) **plus** native USDC `0xaf88d065e77c8cc2239327c5edb3a432268e5831` and bridged USDC.e `0xff970a61a04b1ca14834a43f5de4533ebddb5cc8` as distinct `erc20` rows — the classic confusion must be impossible by construction. Addresses stored lowercase.
-- `ALTER TABLE mesta.onchain_transfer RENAME COLUMN helius_payload TO vendor_payload` — column is always NULL today (TODO #114 comment moves with it).
+- `ALTER TABLE octo.onchain_transfer RENAME COLUMN helius_payload TO vendor_payload` — column is always NULL today (TODO #114 comment moves with it).
 - `commitment = 'finalized'` CHECK is **not** widened — EVM staging only ever reads `finalized`-tagged blocks, so the value stays honest.
 
 **Files:** `db/migrations/V17__arbitrum_evm_support.sql`; `modules/api/.../OnchainMigrationIT.kt` extended (EVM shape accepted on `arbitrum-one`, rejected on `solana`; base58 rejected on `arbitrum-one`; `erc20` kind; seed rows).
@@ -59,7 +59,7 @@ Provider couplings found while writing this plan:
 
 - `JdbcOnchainStagingStore` writes `ONCHAIN_SOURCE_SYSTEM` (`'helius-solana'`) on every insert → add `sourceSystem: String = ONCHAIN_SOURCE_SYSTEM` to `OnchainTransfer`, `OnchainBalance`, `OnchainEvidence` (mirroring the existing defaulted `chain` field); the store writes `t.sourceSystem`. Solana behaviour unchanged.
 - `newestSignature(chain, wallet)` is a Solana `until` cursor → add `newestStagedSlot(chain): Long?` (max staged `slot` per chain) for the EVM block cursor.
-- Balance snapshots need the registered contract set → add `tokenContracts(chain): List<TokenContract>` reading `mesta.instrument` rows with non-null `mint_address` (`mint_address`, `decimals`).
+- Balance snapshots need the registered contract set → add `tokenContracts(chain): List<TokenContract>` reading `octo.instrument` rows with non-null `mint_address` (`mint_address`, `decimals`).
 
 **Files:** `OnchainTypes.kt`, `OnchainStagingStore.kt`, `JdbcOnchainStagingStore.kt`, `OnchainIngestionConfiguration.kt` delegate, `OnchainStagingStoreIT`.
 
@@ -92,7 +92,7 @@ Provider couplings found while writing this plan:
 
 ### ARB-7 — Wiring, boundary rule, metrics (api, T1)
 
-- `application.yml`: `mesta.onchain.evm.arbitrum-one.{rpc-url, start-block, poll-ms}`; `.env.example` gains the names only.
+- `application.yml`: `octo.onchain.evm.arbitrum-one.{rpc-url, start-block, poll-ms}`; `.env.example` gains the names only.
 - `EvmIngestionConfiguration` with `@ConditionalOnProperty` on the rpc-url; `EvmSyncRunner` on `@Scheduled(fixedDelayString)` mirroring `ReportRunner` — nothing today calls `syncAll()`/`collect()`, so this phase also establishes the onchain scheduling pattern.
 - `ModuleBoundaryTest` gains the `evm` vendor-package clause mirroring the `helius` one.
 - Micrometer in the runner only (services return report objects; `ingestion` stays Micrometer-free): blocks scanned, legs staged, contracts skipped, cursor lag gauge, snapshot failures.

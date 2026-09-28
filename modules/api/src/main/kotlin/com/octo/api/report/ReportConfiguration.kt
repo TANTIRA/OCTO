@@ -20,7 +20,7 @@ import org.springframework.scheduling.annotation.EnableScheduling
 import java.util.UUID
 import javax.sql.DataSource
 
-/** Wires the report store lazily like `AccessConfiguration`; the poller runs unless `mesta.reports.poll` is false. */
+/** Wires the report store lazily like `AccessConfiguration`; the poller runs unless `octo.reports.poll` is false. */
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
 class ReportConfiguration {
@@ -103,14 +103,14 @@ class ReportConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty("mesta.reports.poll", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty("octo.reports.poll", havingValue = "true", matchIfMissing = true)
     fun reportRunner(
         jobs: ReportJobs,
         json: ObjectMapper,
     ) = ReportRunner(jobs, json)
 
     @Bean
-    @ConditionalOnProperty("mesta.reports.schedules.poll", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty("octo.reports.schedules.poll", havingValue = "true", matchIfMissing = true)
     fun reportScheduleRunner(
         schedules: ReportSchedules,
         jobs: ReportJobs,

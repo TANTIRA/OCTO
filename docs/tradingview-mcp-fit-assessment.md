@@ -53,7 +53,7 @@ OCTO is a platform sold to funds. Its analytics reference prices (§2.4 KS-PME n
 
 - **Third-party MCP servers need Security Blue Team review before use** (AGENTS.md). This server is remote, hosted by the vendor, and authenticates with OAuth. It does not appear on the approved list in repo TANTIRA.
 - **Confidential data must not leave the platform.** Every tool argument goes to TradingView. A symbol search or a screener query reveals which companies the fund is looking at, which is deal-flow information and at least Confidential. The `DataClassification` guard that protects the decision-model client would need to cover this transport too.
-- **Write tools are out.** Creating watchlists or alerts on a personal account writes user data outside the platform's audit log (`mesta.audit_event`). An agent tool allowlist must exclude all ten write tools.
+- **Write tools are out.** Creating watchlists or alerts on a personal account writes user data outside the platform's audit log (`octo.audit_event`). An agent tool allowlist must exclude all ten write tools.
 - **Agents that act need an allowlist, cost limits, and human approval.** The MCP server hands an agent 35 tools at once; the platform must expose only the read tools it has licensed.
 
 ## Architectural placement

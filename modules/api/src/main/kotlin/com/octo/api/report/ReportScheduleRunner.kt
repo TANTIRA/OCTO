@@ -26,7 +26,7 @@ class ReportScheduleRunner(
 ) {
     private val log = LoggerFactory.getLogger(ReportScheduleRunner::class.java)
 
-    @Scheduled(fixedDelayString = "\${mesta.reports.schedules.poll-ms:30000}")
+    @Scheduled(fixedDelayString = "\${octo.reports.schedules.poll-ms:30000}")
     fun poll() = schedules.claimDue(Instant.now(), lease).forEach(::fire)
 
     fun fire(schedule: ReportSchedule) {

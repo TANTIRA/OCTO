@@ -28,6 +28,7 @@ services:
       - SUPABASE_STORAGE_ENDPOINT=${SUPABASE_STORAGE_ENDPOINT}
       - AUTH_ISSUER=${AUTH_ISSUER}
       - AUTH_JWKS_URL=${AUTH_JWKS_URL}
+      - AUTH_AUDIENCE=${AUTH_AUDIENCE:-authenticated}
       # External neo4j service (octo-neo4j-db) — reachable because api and neo4j
       # share dokploy-network. Bolt is never exposed through Traefik.
       - NEO4J_URI=${NEO4J_URI:-bolt://octo-neo4j-db:7687}
@@ -37,6 +38,8 @@ services:
       - OPENROUTER_API_KEY
       - DECISION_MODEL
       - DECISION_MODEL_ENDPOINT
+      # Comma-separated JWT subjects allowed to provision tenants (admin API). Unset = nobody.
+      - OCTO_PLATFORM_ADMINS=${OCTO_PLATFORM_ADMINS:-}
       - HELIUS_API_KEY
       - HELIUS_RPC_URL
       - HELIUS_WALLET_API_URL
@@ -51,6 +54,11 @@ services:
       - ARBITRUM_MAX_BLOCK_WINDOW
       - ARBITRUM_POLL_MS
       - ARBITRUM_POLL_INITIAL_DELAY_MS
+      # Per-tenant rate-limit counters (RateLimitFilter). Point at the shared dokploy-network
+      # Redis if one is provisioned, or the octo-redis service below.
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - OCTO_RATE_LIMIT_PER_MINUTE=${OCTO_RATE_LIMIT_PER_MINUTE:-120}
     networks:
       - default
       - dokploy-network
@@ -67,6 +75,53 @@ services:
           memory: 2G
         reservations:
           memory: 512M
+
+  # Python agent sidecar (ADR-0005) — AIP workflow orchestration. Internal only:
+  # no Traefik labels, so no public route — the api reaches it on
+  # dokploy-network like the neo4j datastore. Feature-flagged per workflow.
+  agents:
+    build:
+      context: ../agents
+      dockerfile: Dockerfile
+    image: ${AGENTS_IMAGE:-octo-agents}:${AGENTS_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      - OPENROUTER_API_KEY
+      - OCTO_API_BASE_URL=http://api:8080
+      - OCTO_AGENT_TOKEN=${OCTO_AGENT_TOKEN}
+      - OCTO_AGENTS_TOKEN=${OCTO_AGENTS_TOKEN}
+      - OCTO_AGENTS_SCREENING_DD_ENABLED=${OCTO_AGENTS_SCREENING_DD_ENABLED:-false}
+    networks:
+      - default
+      - dokploy-network
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  # Quota counters for RateLimitFilter — internal only (no Traefik labels, no host port).
+  # Losing its data resets current-minute counters; nothing durable lives here, so no volume.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 96M
 
   web:
     build:

@@ -24,7 +24,7 @@ class OnchainClaimEvidenceIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -55,7 +55,7 @@ class OnchainClaimEvidenceIT {
         assertThat(store.insertEvidence(listOf(evidence), run, UUID.randomUUID(), "test")).isZero()
 
         dataSource().connection.use { c ->
-            c.prepareStatement("update mesta.onchain_claim_evidence set observed_text = 'mutated'").use { s ->
+            c.prepareStatement("update octo.onchain_claim_evidence set observed_text = 'mutated'").use { s ->
                 assertThatThrownBy { s.executeUpdate() }.hasMessageContaining("append-only")
             }
         }
@@ -81,8 +81,8 @@ class OnchainClaimEvidenceIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

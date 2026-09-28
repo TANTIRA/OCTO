@@ -32,7 +32,7 @@ class WorkflowStoreIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -187,8 +187,8 @@ class WorkflowStoreIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

@@ -131,8 +131,8 @@ recommend, never transition.
 | Workflow element | Status | Where |
 | --- | --- | --- |
 | Intake: register, dedupe, source lineage | Built | `POST /api/v1/prospects`, `POST /api/v1/prospects/import` (`source_ref` dedup, V21) |
-| Pipeline stages + audit | Built | `mesta.prospect` + `prospect_event` (V18): `sourced → screening → due-diligence → ic-review → invested|passed`; `GET /prospects/{id}/events` reads the append-only trail |
-| Screening: versioned criteria | Built | `mesta.screening_rule` (V20) + `Screening.kt` — CLEAR/REVIEW/REJECT; `REVIEW` is the doc's "unknown never becomes fail" |
+| Pipeline stages + audit | Built | `octo.prospect` + `prospect_event` (V18): `sourced → screening → due-diligence → ic-review → invested|passed`; `GET /prospects/{id}/events` reads the append-only trail |
+| Screening: versioned criteria | Built | `octo.screening_rule` (V20) + `Screening.kt` — CLEAR/REVIEW/REJECT; `REVIEW` is the doc's "unknown never becomes fail" |
 | DDQ: checklist trigger | Built | entering `due-diligence` opens an `EVIDENCE_REQUEST` workflow task |
 | IC decision: approval gate | Built | `POST /prospects/{id}/ic-review` opens an approval task; `invested` requires it approved and records `task_id` (V19) — the doc's signed decision record |
 | Extraction + citations | Designed here, unbuilt | needs `control-panel` eval sets and prompt versioning |

@@ -3,7 +3,7 @@
 Evaluation of [Arbitrum](https://docs.arbitrum.io/llms-full.txt) as a settlement network and onchain data source for OCTO. No RPC calls were made; this is a documentation-only assessment of the published docs.
 
 - **Risk tier:** T0 for this document. T2 for a read-only ingestion adapter, because it writes financial facts to the ledger. T3 for anything that holds keys, signs, bridges, or deploys contracts
-- **Status:** superseded into a design. The instrument blocker is resolved (`instrument`/`instrument_flow` exist since V10) and the adapter design lives in [arbitrum-ingestion-design.md](arbitrum-ingestion-design.md); the `ledger_event` mapping below predates that table
+- **Status:** implemented. The instrument blocker resolved in V10, the adapter design in [arbitrum-ingestion-design.md](arbitrum-ingestion-design.md) shipped as `modules/ingestion/.../onchain/evm/` + V17; the `ledger_event` mapping below predates that table
 
 ## What Arbitrum is
 
@@ -47,7 +47,7 @@ The Fast Feed on Arbitrum One is not a finality level. Its block numbers are ten
 
 Why `finalized` and nothing earlier:
 
-- **The ledger is append-only.** `mesta.ledger_event` never updates or deletes a row. A fact written before finality and then reorged away would need a superseding row, with a rationale, for an event that never happened. Finalized blocks do not reorganize, so gating on `finalized` makes that impossible.
+- **The ledger is append-only.** `octo.ledger_event` never updates or deletes a row. A fact written before finality and then reorged away would need a superseding row, with a rationale, for an event that never happened. Finalized blocks do not reorganize, so gating on `finalized` makes that impossible.
 - **Wait on the block tag, not a confirmation count.** Ethereum's "12 blocks" habit does not translate: Arbitrum produces blocks far faster than Ethereum finalizes them.
 - **Below `finalized`, detect reorgs by block-hash continuity** (`parentHash`) and rewind to the common ancestor. Never key anything on a block number alone: after a reorg, the same number can hold different transactions.
 

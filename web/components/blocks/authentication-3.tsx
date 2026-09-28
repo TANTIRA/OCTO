@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import {
   useCallback,
   useEffect,
@@ -13,9 +14,15 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
+  KeyRound,
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+// Wallets are browser objects — render only on the client.
+const WalletSignIn = dynamic(() => import("@/components/wallet-sign-in"), {
+  ssr: false,
+});
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
@@ -153,6 +160,27 @@ export default function Authentication3() {
     });
     if (oauthError) {
       setError(oauthError.message);
+      setPending(false);
+    }
+  };
+
+  // SAML SSO is domain-based: the work email's domain resolves the IdP the
+  // Auth admin API registered for it. The SDK redirects to the IdP URL.
+  const signInWithSso = async () => {
+    if (!supabase || pending) return;
+    const domain = email.split("@")[1]?.trim().toLowerCase();
+    if (!domain) {
+      setError("Enter your work email first — SSO routes by its domain.");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    const { error: ssoError } = await supabase.auth.signInWithSSO({
+      domain,
+      options: { redirectTo: `${window.location.origin}/app` },
+    });
+    if (ssoError) {
+      setError(ssoError.message);
       setPending(false);
     }
   };
@@ -315,7 +343,7 @@ export default function Authentication3() {
               <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4 flex gap-2">
               <button
                 type="button"
                 onClick={signInWithGoogle}
@@ -324,6 +352,20 @@ export default function Authentication3() {
               >
                 <GoogleMark className="h-4 w-4" />
                 Google
+              </button>
+              <WalletSignIn
+                onError={setError}
+                className={cx(btnProvider, transition, focus)}
+              />
+              <button
+                type="button"
+                onClick={signInWithSso}
+                disabled={pending || !supabase}
+                title="Enterprise single sign-on — uses your work email's domain"
+                className={cx(btnProvider, transition, focus)}
+              >
+                <KeyRound aria-hidden="true" className="h-4 w-4" />
+                SSO
               </button>
             </div>
           </div>

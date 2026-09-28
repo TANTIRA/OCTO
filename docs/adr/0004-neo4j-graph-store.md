@@ -44,7 +44,7 @@ Unchanged from ADR-0003: Supabase PostgreSQL owns the append-only IBOR ledger, w
 ### Negative
 
 - Neo4j Community cannot natively enforce role/cardinality semantics TypeQL expressed (`@card`, n-ary relations, polymorphic `plays`) — validation depends on SHACL pre-checks and the reified-node convention being applied correctly by writers.
-- `mesta.asset.typedb_iid` and the `typedbIid` field kept their names at decision time; V25 (`#189`) has since renamed them to `graph_node_id`/`graphNodeId` — the column stores the graph element id regardless of engine.
+- `octo.asset.typedb_iid` and the `typedbIid` field kept their names at decision time; V25 (`#189`) has since renamed them to `graph_node_id`/`graphNodeId` — the column stores the graph element id regardless of engine.
 - Typed-relation inference TypeDB offered (rule-based reasoning inside the store) moves to application code or SHACL rules.
 
 ### Neutralized risks

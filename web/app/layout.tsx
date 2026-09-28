@@ -12,7 +12,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className="bg-white text-neutral-900 antialiased dark:bg-neutral-950 dark:text-white">
+      <body
+        className="bg-white text-neutral-900 antialiased dark:bg-neutral-950 dark:text-white"
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>

@@ -71,8 +71,8 @@ class ModelRunStoreIT {
     fun `runs are append-only and their json must be objects`() {
         val run = run("kalman-v1")
         store.record(run, listOf(ModelRunOutput(LocalDate.parse("2026-06-30"), OutputKind.FILTERED, """{"level": 1.5}""")), TenantScope.All)
-        assertSqlState(RESTRICT_VIOLATION) { execute(owner, "update mesta.model_run set status = 'retired' where id = '${run.id}'") }
-        assertSqlState(RESTRICT_VIOLATION) { execute(owner, "delete from mesta.model_run_output where run_id = '${run.id}'") }
+        assertSqlState(RESTRICT_VIOLATION) { execute(owner, "update octo.model_run set status = 'retired' where id = '${run.id}'") }
+        assertSqlState(RESTRICT_VIOLATION) { execute(owner, "delete from octo.model_run_output where run_id = '${run.id}'") }
         assertSqlState(CHECK_VIOLATION) { store.record(run("kalman-v2").copy(parameters = "42"), scope = TenantScope.All) }
         assertSqlState(
             CHECK_VIOLATION,
@@ -105,8 +105,8 @@ class ModelRunStoreIT {
     }
 
     private companion object {
-        const val MIGRATOR = "mesta_migrator"
-        const val RUNTIME = "mesta_app"
+        const val MIGRATOR = "octo_migrator"
+        const val RUNTIME = "octo_app"
         const val UNIQUE_VIOLATION = "23505"
         const val CHECK_VIOLATION = "23514"
         const val RESTRICT_VIOLATION = "23001"
@@ -115,7 +115,7 @@ class ModelRunStoreIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
+                .withDatabaseName("octo")
                 .withUsername("admin")
                 .withPassword("admin")
 
@@ -129,7 +129,7 @@ class ModelRunStoreIT {
                 .configure()
                 .dataSource(postgres.jdbcUrl, MIGRATOR, MIGRATOR)
                 .locations("classpath:db/migration")
-                .schemas("mesta")
+                .schemas("octo")
                 .placeholders(mapOf("runtime_role" to RUNTIME))
                 .load()
                 .migrate()
@@ -144,7 +144,7 @@ class ModelRunStoreIT {
                 connection.createStatement().use { statement ->
                     statement
                         .executeQuery(
-                            "insert into mesta.tenant (slug, display_name, source_system, correlation_id) values ('acme', 'Acme', 'test', gen_random_uuid()) returning id",
+                            "insert into octo.tenant (slug, display_name, source_system, correlation_id) values ('acme', 'Acme', 'test', gen_random_uuid()) returning id",
                         ).use { rows ->
                             rows.next()
                             rows.getObject("id", UUID::class.java)

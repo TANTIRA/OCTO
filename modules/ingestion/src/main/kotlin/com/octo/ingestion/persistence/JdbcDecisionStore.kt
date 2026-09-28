@@ -21,6 +21,7 @@ class JdbcDecisionStore(
     private val json = ObjectMapper()
 
     override fun record(
+        tenantId: UUID,
         documentSha256: String,
         classification: DocumentClassification,
         provenance: Provenance,
@@ -29,11 +30,11 @@ class JdbcDecisionStore(
     ): UUID {
         val sql =
             """
-            insert into mesta.document_classification
-                (external_id, document_sha256, document_type, confidence, distribution,
+            insert into octo.document_classification
+                (tenant_id, external_id, document_sha256, document_type, confidence, distribution,
                  requires_review, model_provider, model_version, decision_request_id,
                  supersedes_id, rationale, source_system, actor, ingestion_run_id, correlation_id)
-            values (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            values (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             returning id
             """.trimIndent()
         val distribution =
@@ -42,27 +43,29 @@ class JdbcDecisionStore(
             )
         dataSource.connection.use { connection ->
             connection.prepareStatement(sql).use { statement ->
-                statement.setString(1, provenance.externalId)
-                statement.setString(2, documentSha256)
-                statement.setString(3, classification.documentType.wireValue)
-                statement.setDouble(4, classification.confidence)
-                statement.setString(5, distribution)
-                statement.setBoolean(6, classification.requiresReview)
-                statement.setString(7, classification.lineage.provider)
-                statement.setString(8, classification.lineage.model)
-                statement.setString(9, classification.lineage.requestId)
-                statement.setNullableUuid(10, supersedesId)
-                statement.setString(11, rationale)
-                statement.setString(12, provenance.sourceSystem)
-                statement.setString(13, provenance.actor)
-                statement.setObject(14, provenance.ingestionRunId)
-                statement.setObject(15, provenance.correlationId)
+                statement.setObject(1, tenantId)
+                statement.setString(2, provenance.externalId)
+                statement.setString(3, documentSha256)
+                statement.setString(4, classification.documentType.wireValue)
+                statement.setDouble(5, classification.confidence)
+                statement.setString(6, distribution)
+                statement.setBoolean(7, classification.requiresReview)
+                statement.setString(8, classification.lineage.provider)
+                statement.setString(9, classification.lineage.model)
+                statement.setString(10, classification.lineage.requestId)
+                statement.setNullableUuid(11, supersedesId)
+                statement.setString(12, rationale)
+                statement.setString(13, provenance.sourceSystem)
+                statement.setString(14, provenance.actor)
+                statement.setObject(15, provenance.ingestionRunId)
+                statement.setObject(16, provenance.correlationId)
                 return statement.returnedId()
             }
         }
     }
 
     override fun record(
+        tenantId: UUID,
         claimText: String,
         sourceDocumentSha256: String?,
         support: ClaimSupport,
@@ -73,33 +76,34 @@ class JdbcDecisionStore(
     ): UUID {
         val sql =
             """
-            insert into mesta.claim_assessment
-                (external_id, claim_text, source_document_sha256, support_probability,
+            insert into octo.claim_assessment
+                (tenant_id, external_id, claim_text, source_document_sha256, support_probability,
                  support_threshold, review_band, supported, requires_review,
                  model_provider, model_version, decision_request_id,
                  supersedes_id, rationale, source_system, actor, ingestion_run_id, correlation_id)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             returning id
             """.trimIndent()
         dataSource.connection.use { connection ->
             connection.prepareStatement(sql).use { statement ->
-                statement.setString(1, provenance.externalId)
-                statement.setString(2, claimText)
-                statement.setString(3, sourceDocumentSha256)
-                statement.setDouble(4, support.probability)
-                statement.setDouble(5, policy.supportThreshold)
-                statement.setDouble(6, policy.reviewBand)
-                statement.setBoolean(7, support.supported)
-                statement.setBoolean(8, support.requiresReview)
-                statement.setString(9, support.lineage.provider)
-                statement.setString(10, support.lineage.model)
-                statement.setString(11, support.lineage.requestId)
-                statement.setNullableUuid(12, supersedesId)
-                statement.setString(13, rationale)
-                statement.setString(14, provenance.sourceSystem)
-                statement.setString(15, provenance.actor)
-                statement.setObject(16, provenance.ingestionRunId)
-                statement.setObject(17, provenance.correlationId)
+                statement.setObject(1, tenantId)
+                statement.setString(2, provenance.externalId)
+                statement.setString(3, claimText)
+                statement.setString(4, sourceDocumentSha256)
+                statement.setDouble(5, support.probability)
+                statement.setDouble(6, policy.supportThreshold)
+                statement.setDouble(7, policy.reviewBand)
+                statement.setBoolean(8, support.supported)
+                statement.setBoolean(9, support.requiresReview)
+                statement.setString(10, support.lineage.provider)
+                statement.setString(11, support.lineage.model)
+                statement.setString(12, support.lineage.requestId)
+                statement.setNullableUuid(13, supersedesId)
+                statement.setString(14, rationale)
+                statement.setString(15, provenance.sourceSystem)
+                statement.setString(16, provenance.actor)
+                statement.setObject(17, provenance.ingestionRunId)
+                statement.setObject(18, provenance.correlationId)
                 return statement.returnedId()
             }
         }

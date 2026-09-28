@@ -25,7 +25,7 @@ class OnchainMigrationIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -45,13 +45,13 @@ class OnchainMigrationIT {
             assertThat(
                 count(
                     "select count(*) from information_schema.tables " +
-                        "where table_schema = 'mesta' and table_name = '$table'",
+                        "where table_schema = 'octo' and table_name = '$table'",
                 ),
-            ).describedAs("mesta.%s after migration", table).isEqualTo(1)
+            ).describedAs("octo.%s after migration", table).isEqualTo(1)
         }
         assertThat(
             count(
-                "select count(*) from mesta.instrument " +
+                "select count(*) from octo.instrument " +
                     "where external_key = 'solana:native' and instrument_kind = 'native-token' " +
                     "and mint_address is null and decimals = 9",
             ),
@@ -62,7 +62,7 @@ class OnchainMigrationIT {
     fun `the arbitrum instruments are seeded — native ETH and both USDC deployments`() {
         assertThat(
             count(
-                "select count(*) from mesta.instrument " +
+                "select count(*) from octo.instrument " +
                     "where external_key = 'arbitrum-one:native' and instrument_kind = 'native-token' " +
                     "and mint_address is null and decimals = 18",
             ),
@@ -71,7 +71,7 @@ class OnchainMigrationIT {
         // never merged by symbol.
         assertThat(
             count(
-                "select count(*) from mesta.instrument " +
+                "select count(*) from octo.instrument " +
                     "where chain = 'arbitrum-one' and instrument_kind = 'erc20' " +
                     "and mint_address in ('0xaf88d065e77c8cc2239327c5edb3a432268e5831', " +
                     "'0xff970a61a04b1ca14834a43f5de4533ebddb5cc8')",
@@ -130,7 +130,7 @@ class OnchainMigrationIT {
         val id = insertTransfer()
         assertThatThrownBy {
             connection.createStatement().use {
-                it.executeUpdate("update mesta.onchain_transfer set direction = 'out' where id = '$id'")
+                it.executeUpdate("update octo.onchain_transfer set direction = 'out' where id = '$id'")
             }
         }.isInstanceOf(SQLException::class.java).hasMessageContaining("append-only")
     }
@@ -170,14 +170,14 @@ class OnchainMigrationIT {
         insertWatchEvent(address, "watched")
         assertThatThrownBy { insertWatchEvent(address, "watched") }
             .isInstanceOf(SQLException::class.java)
-        assertThat(count("select count(*) from mesta.tracked_address_event where address = '$address'")).isEqualTo(1)
+        assertThat(count("select count(*) from octo.tracked_address_event where address = '$address'")).isEqualTo(1)
     }
 
     @Test
     fun `a balance snapshot keeps provider usd_value out of the ledger tables`() {
         val sql =
             """
-            insert into mesta.onchain_balance_snapshot
+            insert into octo.onchain_balance_snapshot
                 (external_id, as_of, chain, wallet, mint_address, amount_raw, decimals,
                  usd_value, source, source_system, actor, ingestion_run_id, correlation_id)
             values (?, now(), 'solana', ?, null, 1000000000, 9, 41.25, 'wallet-api',
@@ -194,7 +194,7 @@ class OnchainMigrationIT {
         assertThatThrownBy {
             connection.createStatement().use {
                 it.executeUpdate(
-                    "insert into mesta.onchain_balance_snapshot " +
+                    "insert into octo.onchain_balance_snapshot " +
                         "(external_id, as_of, chain, wallet, amount_raw, decimals, source, " +
                         "source_system, actor, ingestion_run_id, correlation_id) " +
                         "values ('bad-src', now(), 'solana', '${trackedAddress()}', 1, 9, 'coinbase', " +
@@ -214,7 +214,7 @@ class OnchainMigrationIT {
 
     private fun nativeInstrumentId(): UUID =
         connection.createStatement().use { statement ->
-            statement.executeQuery("select id from mesta.instrument where external_key = 'solana:native'").use {
+            statement.executeQuery("select id from octo.instrument where external_key = 'solana:native'").use {
                 it.next()
                 it.getObject(1, UUID::class.java)
             }
@@ -229,7 +229,7 @@ class OnchainMigrationIT {
     private fun insertTrackedAddress(address: String) {
         connection.createStatement().use {
             it.executeUpdate(
-                "insert into mesta.tracked_address (chain, address, source_system, correlation_id) " +
+                "insert into octo.tracked_address (chain, address, source_system, correlation_id) " +
                     "values ('solana', '$address', 'test', gen_random_uuid())",
             )
         }
@@ -242,7 +242,7 @@ class OnchainMigrationIT {
     ) {
         connection.createStatement().use {
             it.executeUpdate(
-                "insert into mesta.tracked_address_event " +
+                "insert into octo.tracked_address_event " +
                     "(chain, address, event_type, actor, rationale, occurred_at, correlation_id) " +
                     "values ('solana', '$address', '$type', 'integration-test', " +
                     "${rationale?.let { r -> "'$r'" } ?: "null"}, now(), gen_random_uuid())",
@@ -257,7 +257,7 @@ class OnchainMigrationIT {
     ): UUID? {
         val sql =
             """
-            insert into mesta.onchain_transfer
+            insert into octo.onchain_transfer
                 (external_id, chain, signature, slot, block_time, commitment, wallet,
                  amount_raw, decimals, direction, transfer_kind,
                  source_system, actor, ingestion_run_id, correlation_id)
@@ -287,7 +287,7 @@ class OnchainMigrationIT {
     ): UUID? {
         val sql =
             """
-            insert into mesta.onchain_transfer
+            insert into octo.onchain_transfer
                 (external_id, chain, signature, slot, block_time, commitment, wallet,
                  mint_address, amount_raw, decimals, direction, transfer_kind,
                  source_system, actor, ingestion_run_id, correlation_id)
@@ -318,7 +318,7 @@ class OnchainMigrationIT {
     ): UUID? {
         val sql =
             """
-            insert into mesta.instrument_flow
+            insert into octo.instrument_flow
                 (external_id, instrument_id, chain, wallet, flow_type, amount_raw, decimals,
                  occurred_at, supersedes_id, rationale,
                  source_system, actor, ingestion_run_id, correlation_id)
@@ -349,8 +349,8 @@ class OnchainMigrationIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

@@ -3,7 +3,7 @@
 Evaluation of [TypeSafe](https://docs.typesafe.ai/llms-full.txt) as a judgment layer for OCTO. No API calls were made and no agent skill was installed; this is a documentation-only assessment.
 
 - **Risk tier of any implementation:** T2 — judgment used for investment decisions and financial-data classification
-- **Status:** proposed, not approved. Blocked on Security Blue Team review and an approved-model registry entry
+- **Status:** implemented — `typesafe/jev-1.13` is `DecisionModelConfig.DEFAULT_MODEL` behind the two shipped decision points (system-design §3.6). The Blue-Team review / registry entry the assessment called for is a process record outside this repo
 
 ## What TypeSafe is
 

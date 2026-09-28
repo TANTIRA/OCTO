@@ -1,0 +1,4 @@
+# Astral ty config — the repo's only Python lives in the agent sidecar.
+[environment]
+root = ["./agents"]
+python = "./agents/.venv"

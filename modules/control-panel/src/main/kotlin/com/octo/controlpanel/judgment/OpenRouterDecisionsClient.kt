@@ -10,6 +10,7 @@ class OpenRouterDecisionsClient(
     private val config: DecisionModelConfig,
     private val transport: JudgmentTransport,
     private val objectMapper: ObjectMapper = defaultObjectMapper(),
+    private val registry: ModelRegistry = ModelRegistry.DEFAULT,
 ) : JudgmentClient {
     override fun decide(
         state: ClassifiedState,
@@ -19,6 +20,8 @@ class OpenRouterDecisionsClient(
         if (!state.classification.mayLeavePlatform) {
             throw ConfidentialStateRejectedException(state.classification)
         }
+        // Fail-closed: an unapproved or non-ZDR model never receives platform data (ADR-0005).
+        registry.require(config.model, ModelRole.JUDGE)
 
         val request =
             DecisionsRequest(

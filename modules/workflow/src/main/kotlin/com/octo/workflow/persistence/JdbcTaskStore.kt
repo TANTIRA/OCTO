@@ -20,7 +20,7 @@ data class TaskProvenance(
 )
 
 /**
- * JDBC access to `mesta.workflow_task` and `mesta.workflow_task_event` (V5, V7). A task's state is never stored:
+ * JDBC access to `octo.workflow_task` and `octo.workflow_task_event` (V5, V7). A task's state is never stored:
  * [load] replays its events through the state machine, and [append] validates a new event against that replay
  * before inserting it. Both run under the per-task advisory lock V7's trigger takes, so two writers to one task
  * serialize and neither can interleave an event into a history the other has already replayed.
@@ -70,7 +70,7 @@ class JdbcTaskStore(
             try {
                 connection
                     .prepareStatement(
-                        "select pg_advisory_xact_lock(hashtextextended('mesta.workflow_task:subject:' || ?::text || ':' || ?::text, 0))",
+                        "select pg_advisory_xact_lock(hashtextextended('octo.workflow_task:subject:' || ?::text || ':' || ?::text, 0))",
                     ).use { statement ->
                         statement.setString(1, task.subjectType)
                         statement.setString(2, task.subjectId)
@@ -100,7 +100,7 @@ class JdbcTaskStore(
     ): List<UUID> =
         connection
             .prepareStatement(
-                "select id from mesta.workflow_task where subject_type = ? and subject_id = ? order by created_at",
+                "select id from octo.workflow_task where subject_type = ? and subject_id = ? order by created_at",
             ).use { statement ->
                 statement.setString(1, subjectType)
                 statement.setString(2, subjectId)
@@ -120,7 +120,7 @@ class JdbcTaskStore(
     ) {
         val sql =
             """
-            insert into mesta.workflow_task (id, kind, subject_type, subject_id, requested_by, created_at, source_system, correlation_id)
+            insert into octo.workflow_task (id, kind, subject_type, subject_id, requested_by, created_at, source_system, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         connection.prepareStatement(sql).use { statement ->
@@ -165,7 +165,7 @@ class JdbcTaskStore(
         connection: Connection,
         taskId: UUID,
     ): TaskState? {
-        connection.prepareStatement("select pg_advisory_xact_lock(hashtextextended('mesta.workflow_task:' || ?::text, 0))").use {
+        connection.prepareStatement("select pg_advisory_xact_lock(hashtextextended('octo.workflow_task:' || ?::text, 0))").use {
             it.setObject(1, taskId)
             it.executeQuery().close()
         }
@@ -179,7 +179,7 @@ class JdbcTaskStore(
     ): Task? =
         connection
             .prepareStatement(
-                "select kind, subject_type, subject_id, requested_by, created_at from mesta.workflow_task where id = ?",
+                "select kind, subject_type, subject_id, requested_by, created_at from octo.workflow_task where id = ?",
             ).use {
                 it.setObject(1, taskId)
                 it.executeQuery().use { rows ->
@@ -202,7 +202,7 @@ class JdbcTaskStore(
     ): List<TaskEvent> =
         connection
             .prepareStatement(
-                "select event_type, actor, assignee, rationale, occurred_at from mesta.workflow_task_event where task_id = ? order by seq",
+                "select event_type, actor, assignee, rationale, occurred_at from octo.workflow_task_event where task_id = ? order by seq",
             ).use { statement ->
                 statement.setObject(1, taskId)
                 statement.executeQuery().use { rows ->
@@ -245,7 +245,7 @@ class JdbcTaskStore(
             }
         val sql =
             """
-            insert into mesta.workflow_task_event (task_id, event_type, actor, assignee, rationale, occurred_at, correlation_id)
+            insert into octo.workflow_task_event (task_id, event_type, actor, assignee, rationale, occurred_at, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         connection.prepareStatement(sql).use { statement ->

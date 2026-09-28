@@ -40,7 +40,7 @@ class AuditLogIT {
     fun `the runtime role can append but never read the log`() {
         runtimeLog.append(entry("alice"))
         assertSqlState(INSUFFICIENT_PRIVILEGE) { JdbcAuditLog(runtime).readAll() }
-        assertSqlState(INSUFFICIENT_PRIVILEGE) { execute(runtime, "delete from mesta.audit_event") }
+        assertSqlState(INSUFFICIENT_PRIVILEGE) { execute(runtime, "delete from octo.audit_event") }
     }
 
     @Test
@@ -48,7 +48,7 @@ class AuditLogIT {
         execute(
             owner,
             """
-            insert into mesta.audit_event (seq, occurred_at, recorded_at, actor, action, subject_type, subject_id,
+            insert into octo.audit_event (seq, occurred_at, recorded_at, actor, action, subject_type, subject_id,
                                            correlation_id, prev_hash, hash)
             values (999, now(), '2000-01-01', 'forger', 'x', 'y', 'z', gen_random_uuid(), '\x00', '\x00')
             """.trimIndent(),
@@ -64,17 +64,17 @@ class AuditLogIT {
         runtimeLog.append(entry("original"))
         val seq = auditor.readAll().last().seq
         for (sql in listOf(
-            "update mesta.audit_event set actor = 'x' where seq = $seq",
-            "delete from mesta.audit_event",
-            "truncate mesta.audit_event",
+            "update octo.audit_event set actor = 'x' where seq = $seq",
+            "delete from octo.audit_event",
+            "truncate octo.audit_event",
         )) {
             assertSqlState(RESTRICT_VIOLATION) { execute(owner, sql) }
         }
 
-        superuserEdit("update mesta.audit_event set actor = 'mallory' where seq = $seq")
+        superuserEdit("update octo.audit_event set actor = 'mallory' where seq = $seq")
         assertThat(verifyAuditChain(auditor.readAll())).isEqualTo(ChainBreak(seq, "hash does not match the row's contents"))
 
-        superuserEdit("update mesta.audit_event set actor = 'original' where seq = $seq")
+        superuserEdit("update octo.audit_event set actor = 'original' where seq = $seq")
         assertThat(verifyAuditChain(auditor.readAll())).isNull()
     }
 
@@ -83,9 +83,9 @@ class AuditLogIT {
 
     /** What only a superuser can do: switch the append-only trigger off around an edit. */
     private fun superuserEdit(sql: String) {
-        execute(superuser, "alter table mesta.audit_event disable trigger audit_event_append_only")
+        execute(superuser, "alter table octo.audit_event disable trigger audit_event_append_only")
         execute(superuser, sql)
-        execute(superuser, "alter table mesta.audit_event enable trigger audit_event_append_only")
+        execute(superuser, "alter table octo.audit_event enable trigger audit_event_append_only")
     }
 
     private fun assertSqlState(
@@ -96,10 +96,10 @@ class AuditLogIT {
     }
 
     private companion object {
-        const val MIGRATOR = "mesta_migrator"
-        const val RUNTIME = "mesta_app"
+        const val MIGRATOR = "octo_migrator"
+        const val RUNTIME = "octo_app"
 
-        /** SQLSTATE for a missing privilege, and the one `mesta.reject_mutation()` raises. */
+        /** SQLSTATE for a missing privilege, and the one `octo.reject_mutation()` raises. */
         const val INSUFFICIENT_PRIVILEGE = "42501"
         const val RESTRICT_VIOLATION = "23001"
 
@@ -107,7 +107,7 @@ class AuditLogIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
+                .withDatabaseName("octo")
                 .withUsername("admin")
                 .withPassword("admin")
 
@@ -122,7 +122,7 @@ class AuditLogIT {
                 .configure()
                 .dataSource(postgres.jdbcUrl, MIGRATOR, MIGRATOR)
                 .locations("classpath:db/migration")
-                .schemas("mesta")
+                .schemas("octo")
                 .placeholders(mapOf("runtime_role" to RUNTIME))
                 .load()
                 .migrate()

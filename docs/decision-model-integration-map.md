@@ -6,7 +6,7 @@ ontology types in `ontology/octo-investment.cypher`. Client implementation lives
 
 - **Model:** `typesafe/jev-1.13` via the OpenRouter decisions endpoint
 - **Risk tier:** T2 — models used for decisions. Preconditions listed at the end
-- **Status:** points 5 and 6 are implemented and persist to the append-only staging tables `mesta.document_classification` and `mesta.claim_assessment`. Point 1 is unblocked — `screening-decision` now carries `model-version`, `result-distribution`, `confidence-level`, and `external-id` — but not yet implemented. Points 8, 9, and 10 are not started
+- **Status:** points 5 and 6 are implemented and persist to the append-only staging tables `octo.document_classification` and `octo.claim_assessment`. Point 1 is unblocked — `screening-decision` now carries `model-version`, `result-distribution`, `confidence-level`, and `external-id` — but not yet implemented. Points 8, 9, and 10 are not started
 
 ## How to read this
 
@@ -58,7 +58,7 @@ These are real blockers for the affected points, and ontology changes are T2 and
 | No identity-merge provenance type | 7 | `supersedes` exists for ledger corrections, not entity merges. A merge needs its own auditable record |
 | `rationale` cannot be model-written | 1 | The model produces no prose. Cited reasons for a recommendation must be assembled from the criteria and the underlying `extracted-claim` citations, not generated |
 
-The first two were the screening blockers and are closed. `external-id` doubles as the provider request id, linking a graph decision back to the staged row in `mesta.claim_assessment`.
+The first two were the screening blockers and are closed. `external-id` doubles as the provider request id, linking a graph decision back to the staged row in `octo.claim_assessment`.
 
 ## Explicit exclusions
 
@@ -118,7 +118,7 @@ Where the first two live:
 | 5 | `modules/ingestion/.../classification/` — `DocumentType`, `DocumentClassificationCriteria`, `DocumentClassifier` |
 | 6 | `modules/ingestion/.../extraction/` — `ClaimSupportPolicy`, `ClaimSupportAssessor` |
 
-Both return a decision record with the model lineage and a `requiresReview` flag. Persistence lives in `modules/ingestion/.../persistence/` — `DocumentClassificationStore` and `ClaimAssessmentStore` interfaces with `JdbcDecisionStore` writing to the append-only tables `mesta.document_classification` and `mesta.claim_assessment` (V2 migration). Corrections are new rows linked by `supersedes_id` with a mandatory rationale, replay is rejected by a `(source_system, external_id)` unique index, and the full probability distribution is stored as `jsonb` — the argmax alone cannot show how marginal a decision was. The graph attributes (`document.document-type`, `extracted-claim.confidence-level`) are written downstream after review; staging is the record of what the model said.
+Both return a decision record with the model lineage and a `requiresReview` flag. Persistence lives in `modules/ingestion/.../persistence/` — `DocumentClassificationStore` and `ClaimAssessmentStore` interfaces with `JdbcDecisionStore` writing to the append-only tables `octo.document_classification` and `octo.claim_assessment` (V2 migration). Corrections are new rows linked by `supersedes_id` with a mandatory rationale, replay is rejected by a `(source_system, external_id)` unique index, and the full probability distribution is stored as `jsonb` — the argmax alone cannot show how marginal a decision was. The graph attributes (`document.document-type`, `extracted-claim.confidence-level`) are written downstream after review; staging is the record of what the model said.
 
 
 ## Preconditions

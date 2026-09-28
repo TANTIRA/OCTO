@@ -28,7 +28,7 @@ class ProspectStoreIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -43,7 +43,7 @@ class ProspectStoreIT {
             connection.createStatement().use { statement ->
                 statement
                     .executeQuery(
-                        "insert into mesta.tenant (slug, display_name, source_system, correlation_id) " +
+                        "insert into octo.tenant (slug, display_name, source_system, correlation_id) " +
                             "values ('t-${UUID.randomUUID().toString().take(8)}', 'T', 'test', gen_random_uuid()) returning id",
                     ).use { rows ->
                         rows.next()
@@ -58,7 +58,7 @@ class ProspectStoreIT {
             connection.createStatement().use { statement ->
                 statement
                     .executeQuery(
-                        "insert into mesta.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
+                        "insert into octo.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
                             "values ('$kind', 'prospect', 'x', 'test', 'test', gen_random_uuid()) returning id",
                     ).use { rows ->
                         rows.next()
@@ -210,14 +210,14 @@ class ProspectStoreIT {
             dataSource.connection.use { connection ->
                 connection
                     .createStatement()
-                    .execute("update mesta.prospect set name = 'x' where id = '${p.id}'")
+                    .execute("update octo.prospect set name = 'x' where id = '${p.id}'")
             }
         }.isInstanceOf(SQLException::class.java)
         assertThatThrownBy {
             dataSource.connection.use { connection ->
                 connection
                     .createStatement()
-                    .execute("delete from mesta.prospect_event where prospect_id = '${p.id}'")
+                    .execute("delete from octo.prospect_event where prospect_id = '${p.id}'")
             }
         }.isInstanceOf(SQLException::class.java)
     }
@@ -345,7 +345,7 @@ class ProspectStoreIT {
             connection
                 .prepareStatement(
                     """
-                    insert into mesta.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, occurred_at, correlation_id)
+                    insert into octo.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, occurred_at, correlation_id)
                     values (?, 'advanced', ?, ?, 'someone', now(), gen_random_uuid())
                     """.trimIndent(),
                 ).use { statement ->

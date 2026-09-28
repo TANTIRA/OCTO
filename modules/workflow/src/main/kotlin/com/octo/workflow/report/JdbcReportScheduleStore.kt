@@ -10,7 +10,7 @@ import java.util.UUID
 import javax.sql.DataSource
 
 /**
- * JDBC access to `mesta.report_schedule` (V22). `claimDue` leases rows inside one statement so two
+ * JDBC access to `octo.report_schedule` (V22). `claimDue` leases rows inside one statement so two
  * pollers never double-fire; `markRun` clears the lease when it advances the cadence.
  */
 class JdbcReportScheduleStore(
@@ -22,7 +22,7 @@ class JdbcReportScheduleStore(
     ): ReportSchedule {
         val sql =
             """
-            insert into mesta.report_schedule (id, tenant_id, name, report_type, position_source_type, position_source_id,
+            insert into octo.report_schedule (id, tenant_id, name, report_type, position_source_type, position_source_id,
                                                measures, parameters, cron, next_run_at, active)
             values (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)
             on conflict (id) do update set
@@ -58,7 +58,7 @@ class JdbcReportScheduleStore(
         scope: TenantScope,
     ): ReportSchedule? =
         dataSource.scoped(scope) { connection ->
-            connection.prepareStatement("select * from mesta.report_schedule where id = ?").use { statement ->
+            connection.prepareStatement("select * from octo.report_schedule where id = ?").use { statement ->
                 statement.setObject(1, id)
                 statement.executeQuery().use { rows -> if (rows.next()) rows.toSchedule() else null }
             }
@@ -70,7 +70,7 @@ class JdbcReportScheduleStore(
     ): List<ReportSchedule> =
         dataSource.scoped(scope) { connection ->
             connection
-                .prepareStatement("select * from mesta.report_schedule where tenant_id = ? order by created_at")
+                .prepareStatement("select * from octo.report_schedule where tenant_id = ? order by created_at")
                 .use { statement ->
                     statement.setObject(1, tenantId)
                     statement.executeQuery().use { rows ->
@@ -86,8 +86,8 @@ class JdbcReportScheduleStore(
         // The lease move is the claim: a row becomes visible to other pollers again only after it lapses.
         val sql =
             """
-            update mesta.report_schedule set claimed_until = ?
-            where id in (select id from mesta.report_schedule
+            update octo.report_schedule set claimed_until = ?
+            where id in (select id from octo.report_schedule
                          where active and next_run_at <= ? and (claimed_until is null or claimed_until <= ?)
                          for update skip locked)
             returning *
@@ -110,7 +110,7 @@ class JdbcReportScheduleStore(
     ) {
         dataSource.scoped(TenantScope.All) { connection ->
             connection
-                .prepareStatement("update mesta.report_schedule set next_run_at = ?, claimed_until = null where id = ?")
+                .prepareStatement("update octo.report_schedule set next_run_at = ?, claimed_until = null where id = ?")
                 .use { statement ->
                     statement.setObject(1, nextRunAt.atOffset(java.time.ZoneOffset.UTC))
                     statement.setObject(2, id)

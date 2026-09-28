@@ -4,6 +4,8 @@ import com.octo.iborcore.FlowType
 import com.octo.iborcore.LedgerEvent
 import com.octo.iborcore.ValuationEvent
 import com.octo.iborcore.ValuationMethod
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.sql.ResultSet
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -14,12 +16,19 @@ import javax.sql.DataSource
 /**
  * Reads the append-only IBOR fact tables. Each call returns the supersession component of [members]
  * (up to the originals, then down to every correction): what derivation needs, not the whole table.
+ *
+ * Every call runs inside [TenantScope] — V30's row-level policies make an unscoped read return
+ * nothing, so [scope] is a required parameter, not a default. Callers pass `User` for API reads,
+ * `Tenants` for batch runs that know their tenant set, `All` for platform scans.
  */
 class JdbcIborReader(
     private val dataSource: DataSource,
 ) {
-    fun ledgerEvents(members: Set<UUID>): List<LedgerEvent> =
-        component(LEDGER, members, "flow_type, occurred_at") { row ->
+    fun ledgerEvents(
+        members: Set<UUID>,
+        scope: TenantScope,
+    ): List<LedgerEvent> =
+        component(LEDGER, members, "flow_type, occurred_at", scope) { row ->
             LedgerEvent(
                 id = row.uuid("id")!!,
                 flowType = FlowType.entries.first { it.wireValue == row.getString("flow_type") },
@@ -31,8 +40,11 @@ class JdbcIborReader(
             )
         }
 
-    fun valuationEvents(members: Set<UUID>): List<ValuationEvent> =
-        component(VALUATION, members, "as_of_date, valuation_method") { row ->
+    fun valuationEvents(
+        members: Set<UUID>,
+        scope: TenantScope,
+    ): List<ValuationEvent> =
+        component(VALUATION, members, "as_of_date, valuation_method", scope) { row ->
             ValuationEvent(
                 id = row.uuid("id")!!,
                 amount = row.getBigDecimal("monetary_amount"),
@@ -48,6 +60,7 @@ class JdbcIborReader(
         table: String,
         members: Set<UUID>,
         extraColumns: String,
+        scope: TenantScope,
         map: (ResultSet) -> T,
     ): List<T> {
         if (members.isEmpty()) return emptyList()
@@ -69,7 +82,7 @@ class JdbcIborReader(
             where id in (select id from down)
             order by recorded_at, id
             """.trimIndent()
-        dataSource.connection.use { connection ->
+        dataSource.scoped(scope) { connection ->
             val ids = connection.createArrayOf("uuid", members.toTypedArray())
             connection.prepareStatement(sql).use { statement ->
                 statement.setArray(1, ids)
@@ -83,7 +96,7 @@ class JdbcIborReader(
     private fun ResultSet.uuid(column: String): UUID? = getObject(column, UUID::class.java)
 
     private companion object {
-        const val LEDGER = "mesta.ledger_event"
-        const val VALUATION = "mesta.valuation_event"
+        const val LEDGER = "octo.ledger_event"
+        const val VALUATION = "octo.valuation_event"
     }
 }

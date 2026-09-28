@@ -226,4 +226,35 @@ class OpenRouterDecisionsClientTest {
 
         assertEquals(0, transport.calls)
     }
+
+    @Test
+    fun `an unapproved model is rejected before any request is made`() {
+        val transport = ok("""{"model":"x","answers":{}}""")
+        val client = OpenRouterDecisionsClient(config.copy(model = "acme/unknown-1"), transport)
+
+        assertFailsWith<ModelNotApprovedException> {
+            client.decide(
+                ClassifiedState(DataClassification.Internal, "state"),
+                mapOf("q" to NoulQuestion("?", NoulCriteria("t", "f"))),
+            )
+        }
+
+        assertEquals(0, transport.calls)
+    }
+
+    @Test
+    fun `a non-ZDR model is rejected before any request is made`() {
+        val transport = ok("""{"model":"x","answers":{}}""")
+        val registry = ModelRegistry(listOf(ApprovedModel("acme/leaky-1", zeroDataRetention = false, role = ModelRole.JUDGE)))
+        val client = OpenRouterDecisionsClient(config.copy(model = "acme/leaky-1"), transport, registry = registry)
+
+        assertFailsWith<ModelNotApprovedException> {
+            client.decide(
+                ClassifiedState(DataClassification.Internal, "state"),
+                mapOf("q" to NoulQuestion("?", NoulCriteria("t", "f"))),
+            )
+        }
+
+        assertEquals(0, transport.calls)
+    }
 }

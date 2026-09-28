@@ -1,17 +1,31 @@
 package com.octo.api
 
+import com.octo.api.access.TenantDirectory
+import com.octo.api.access.persistence.TenantSettings
 import com.octo.api.ingestion.HeliusWebhookAuthFilter
 import jakarta.servlet.DispatcherType
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
 import org.springframework.core.env.Environment
+import org.springframework.data.redis.connection.RedisConnectionFactory
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
+import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator
+import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm
-import org.springframework.security.oauth2.jwt.JwtValidators
+import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.jwt.JwtClaimNames
+import org.springframework.security.oauth2.jwt.JwtClaimValidator
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
@@ -61,11 +75,26 @@ class SecurityConfig {
         return http.build()
     }
 
+    /**
+     * Redis backing the per-tenant quota counters — exists only when `REDIS_HOST` is configured,
+     * so a deployment without the cache tier keeps working (the limiter simply isn't registered).
+     */
+    @Bean
+    @ConditionalOnProperty(name = ["REDIS_HOST"])
+    fun rateLimitRedisFactory(env: Environment): LettuceConnectionFactory =
+        LettuceConnectionFactory(
+            env.getRequiredProperty("REDIS_HOST"),
+            env.getProperty("REDIS_PORT", "6379").toInt(),
+        )
+
     @Bean
     @Order(2)
     fun securityFilterChain(
         http: HttpSecurity,
         env: Environment,
+        redis: ObjectProvider<RedisConnectionFactory>,
+        tenantDirectory: TenantDirectory,
+        tenantSettings: TenantSettings,
     ): SecurityFilterChain {
         http
             .csrf { it.disable() }
@@ -90,6 +119,18 @@ class SecurityConfig {
             http.addFilterBefore(
                 DevSubjectAuthFilter(env.getProperty("AUTH_DEV_SUBJECT")),
                 UsernamePasswordAuthenticationFilter::class.java,
+        // Per-tenant quota counts authenticated traffic only, so it runs after the bearer token
+        // has been verified — a forged X-Tenant-Id cannot reach somebody else's counter because
+        // the tenant comes from resolved membership, not the request.
+        redis.ifAvailable { factory ->
+            http.addFilterAfter(
+                RateLimitFilter(
+                    StringRedisTemplate(factory),
+                    tenantSettings,
+                    tenantDirectory,
+                    env.getProperty("octo.rate-limit.default-per-minute", Int::class.java, 120),
+                ),
+                BearerTokenAuthenticationFilter::class.java,
             )
         }
 
@@ -104,14 +145,40 @@ class SecurityConfig {
                     .withJwkSetUri(jwksUri)
                     .jwsAlgorithm(SignatureAlgorithm.ES256)
                     .build()
-            env
-                .getProperty("AUTH_ISSUER")
-                ?.takeIf(String::isNotBlank)
-                ?.let { decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(it)) }
+            decoder.setJwtValidator(bearerTokenValidator(env))
             http.oauth2ResourceServer { resourceServer ->
                 resourceServer.jwt { jwt -> jwt.decoder(decoder) }
             }
         }
         return http.build()
     }
+}
+
+/**
+ * Bearer-token validation for the resource-server chain: expiry always, the issuer when
+ * `AUTH_ISSUER` is configured, and the audience when `AUTH_AUDIENCE` is — GoTrue signs
+ * `aud: "authenticated"` (`GOTRUE_JWT_AUD`), so a token minted by the same issuer for a
+ * different audience still fails here.
+ */
+internal fun bearerTokenValidator(env: Environment): OAuth2TokenValidator<Jwt> {
+    val validators = mutableListOf<OAuth2TokenValidator<Jwt>>(JwtTimestampValidator())
+    env
+        .getProperty("AUTH_ISSUER")
+        ?.takeIf(String::isNotBlank)
+        ?.let { validators += JwtIssuerValidator(it) }
+    env
+        .getProperty("AUTH_AUDIENCE")
+        ?.takeIf(String::isNotBlank)
+        ?.let { audience ->
+            // JWT `aud` may be a string or a list; GoTrue emits the string form.
+            validators +=
+                JwtClaimValidator<Any>(JwtClaimNames.AUD) { aud ->
+                    when (aud) {
+                        is String -> aud == audience
+                        is Collection<*> -> audience in aud
+                        else -> false
+                    }
+                }
+        }
+    return DelegatingOAuth2TokenValidator(validators)
 }

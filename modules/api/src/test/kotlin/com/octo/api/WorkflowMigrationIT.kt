@@ -22,7 +22,7 @@ class WorkflowMigrationIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -35,7 +35,7 @@ class WorkflowMigrationIT {
         rawEvent(task, "assigned", actor = "alice", assignee = "bob")
         rawEvent(task, "approved", actor = "bob")
 
-        assertThat(count("select count(*) from mesta.workflow_task_event where task_id = '$task'")).isEqualTo(2)
+        assertThat(count("select count(*) from octo.workflow_task_event where task_id = '$task'")).isEqualTo(2)
     }
 
     @Test
@@ -70,7 +70,7 @@ class WorkflowMigrationIT {
         rawEvent(task, "completed", actor = "alice")
 
         for (table in listOf("workflow_task", "workflow_task_event")) {
-            assertRefused(RESTRICT_VIOLATION) { execute("delete from mesta.$table") }
+            assertRefused(RESTRICT_VIOLATION) { execute("delete from octo.$table") }
         }
     }
 
@@ -117,11 +117,11 @@ class WorkflowMigrationIT {
 
         assertRefused(CHECK_VIOLATION) { rawEvent(task, "approved", actor = "bob", occurredAt = "2026-09-24T09:00:00Z") }
         rawEvent(task, "assigned", actor = "alice", assignee = "carol", occurredAt = "2026-09-24T10:00:00Z")
-        assertThat(count("select count(distinct seq) from mesta.workflow_task_event where task_id = '$task'")).isEqualTo(2)
+        assertThat(count("select count(distinct seq) from octo.workflow_task_event where task_id = '$task'")).isEqualTo(2)
         assertThat(
             count(
-                "select count(*) from mesta.workflow_task_event where task_id = '$task' and assignee = 'carol' " +
-                    "and seq = (select max(seq) from mesta.workflow_task_event where task_id = '$task')",
+                "select count(*) from octo.workflow_task_event where task_id = '$task' and assignee = 'carol' " +
+                    "and seq = (select max(seq) from octo.workflow_task_event where task_id = '$task')",
             ),
         ).describedAs("the tie goes to the later arrival").isEqualTo(1)
     }
@@ -129,7 +129,7 @@ class WorkflowMigrationIT {
     private fun newTask(kind: String = "approval"): UUID {
         val id = UUID.randomUUID()
         execute(
-            "insert into mesta.workflow_task (id, kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
+            "insert into octo.workflow_task (id, kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
                 "values ('$id', '$kind', 'valuation-event', 've-1', 'alice', 'test', gen_random_uuid())",
         )
         return id
@@ -146,7 +146,7 @@ class WorkflowMigrationIT {
         dataSource.connection.use { connection ->
             connection
                 .prepareStatement(
-                    "insert into mesta.workflow_task_event " +
+                    "insert into octo.workflow_task_event " +
                         "(task_id, event_type, actor, assignee, rationale, occurred_at, correlation_id) " +
                         "values (?, ?, ?, ?, ?, coalesce(?::timestamptz, now()), gen_random_uuid())",
                 ).use { statement ->
@@ -192,8 +192,8 @@ class WorkflowMigrationIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

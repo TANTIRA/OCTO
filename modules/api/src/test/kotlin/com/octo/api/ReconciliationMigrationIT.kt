@@ -12,7 +12,7 @@ import java.sql.SQLException
 import java.util.UUID
 
 /**
- * Runs the real Flyway migrations and exercises the V15 `mesta.reconciliation_break` invariants (#107): the sides
+ * Runs the real Flyway migrations and exercises the V15 `octo.reconciliation_break` invariants (#107): the sides
  * a kind must have, append-only, and one task per break key across runs. Skipped without Docker.
  */
 @Testcontainers(disabledWithoutDocker = true)
@@ -22,7 +22,7 @@ class ReconciliationMigrationIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -34,18 +34,18 @@ class ReconciliationMigrationIT {
         query(
             """
             with created as (
-                insert into mesta.tenant (slug, display_name, source_system, correlation_id)
+                insert into octo.tenant (slug, display_name, source_system, correlation_id)
                 values ('acme', 'Acme', 'test', gen_random_uuid())
                 on conflict (slug) do nothing
                 returning id)
-            select id from created union all select id from mesta.tenant where slug = 'acme'
+            select id from created union all select id from octo.tenant where slug = 'acme'
             """.trimIndent(),
         )
     }
 
     @Test
     fun `migration creates the table, its append-only trigger and the one-task index`() {
-        assertThat(count("select count(*) from pg_tables where schemaname = 'mesta' and tablename = 'reconciliation_break'")).isEqualTo(1)
+        assertThat(count("select count(*) from pg_tables where schemaname = 'octo' and tablename = 'reconciliation_break'")).isEqualTo(1)
         assertThat(count("select count(*) from pg_trigger where tgname = 'reconciliation_break_append_only'")).isEqualTo(1)
         assertThat(count("select count(*) from pg_indexes where indexname = 'reconciliation_break_one_task'")).isEqualTo(1)
     }
@@ -65,7 +65,7 @@ class ReconciliationMigrationIT {
         }.isInstanceOf(SQLException::class.java)
         assertThatThrownBy {
             execute(
-                "delete from mesta.reconciliation_break where source_ref = 't-1'",
+                "delete from octo.reconciliation_break where source_ref = 't-1'",
             )
         }.isInstanceOf(SQLException::class.java)
     }
@@ -93,7 +93,7 @@ class ReconciliationMigrationIT {
         connection
             .prepareStatement(
                 """
-                insert into mesta.reconciliation_break (tenant_id, run_id, kind, source_system, source_ref, ledger_event_id, task_id, correlation_id)
+                insert into octo.reconciliation_break (tenant_id, run_id, kind, source_system, source_ref, ledger_event_id, task_id, correlation_id)
                 values (?, gen_random_uuid(), ?, 'admin-a', ?, ?, ?, gen_random_uuid())
                 """.trimIndent(),
             ).use { statement ->
@@ -105,7 +105,7 @@ class ReconciliationMigrationIT {
     private fun ledgerEvent(): UUID =
         query(
             """
-            insert into mesta.ledger_event (flow_type, monetary_amount, currency_code, occurred_at, source_system, actor, ingestion_run_id, correlation_id)
+            insert into octo.ledger_event (flow_type, monetary_amount, currency_code, occurred_at, source_system, actor, ingestion_run_id, correlation_id)
             values ('contribution', -100, 'USD', now(), 'admin-a', 'it', gen_random_uuid(), gen_random_uuid()) returning id
             """.trimIndent(),
         )
@@ -113,7 +113,7 @@ class ReconciliationMigrationIT {
     private fun task(): UUID =
         query(
             """
-            insert into mesta.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id)
+            insert into octo.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id)
             values ('evidence-request', 'reconciliation-break', 'x', 'recon-runner', 'test', gen_random_uuid()) returning id
             """.trimIndent(),
         )
@@ -147,8 +147,8 @@ class ReconciliationMigrationIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

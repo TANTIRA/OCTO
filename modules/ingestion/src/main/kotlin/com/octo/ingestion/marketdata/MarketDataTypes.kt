@@ -26,7 +26,7 @@ data class MarketDataPoint(
 )
 
 /**
- * One series the platform pulls into a registered `mesta.dataset`. [seriesKey] is the
+ * One series the platform pulls into a registered `octo.dataset`. [seriesKey] is the
  * platform's own naming — e.g. `equity:MSFT`, `fx:EURUSD`, `crypto:BTCUSD` — never a vendor
  * symbol. [quoteCurrency] is the FX to-currency / crypto market; unused for equities.
  */

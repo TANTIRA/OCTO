@@ -30,7 +30,7 @@ class DecisionStoreIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -43,7 +43,7 @@ class DecisionStoreIT {
     fun `migration creates both staging tables and their append-only triggers`() {
         assertThat(
             count(
-                "select count(*) from pg_tables where schemaname = 'mesta' and tablename in ('document_classification', 'claim_assessment')",
+                "select count(*) from pg_tables where schemaname = 'octo' and tablename in ('document_classification', 'claim_assessment')",
             ),
         ).describedAs("decision staging tables after migration")
             .isEqualTo(2)
@@ -60,10 +60,10 @@ class DecisionStoreIT {
         val id = recordClassification()
         assertThat(
             count(
-                "select count(*) from mesta.document_classification where id = '$id' and document_type = 'pitch-deck' and confidence = 0.82",
+                "select count(*) from octo.document_classification where id = '$id' and document_type = 'pitch-deck' and confidence = 0.82",
             ),
         ).isEqualTo(1)
-        assertThat(count("select count(*) from mesta.document_classification where id = '$id' and distribution ->> 'pitch-deck' = '0.82'"))
+        assertThat(count("select count(*) from octo.document_classification where id = '$id' and distribution ->> 'pitch-deck' = '0.82'"))
             .describedAs("the full distribution must persist, not only the argmax")
             .isEqualTo(1)
     }
@@ -73,7 +73,7 @@ class DecisionStoreIT {
         val id = recordClaim()
         assertThat(
             count(
-                "select count(*) from mesta.claim_assessment where id = '$id' and supported = true and support_threshold = 0.5 and review_band = 0.15",
+                "select count(*) from octo.claim_assessment where id = '$id' and supported = true and support_threshold = 0.5 and review_band = 0.15",
             ),
         ).isEqualTo(1)
     }
@@ -98,7 +98,7 @@ class DecisionStoreIT {
         assertThatThrownBy {
             dataSource().connection.use { connection ->
                 connection.createStatement().use {
-                    it.executeUpdate("update mesta.document_classification set confidence = 0.1 where id = '$id'")
+                    it.executeUpdate("update octo.document_classification set confidence = 0.1 where id = '$id'")
                 }
             }
         }.isInstanceOf(SQLException::class.java).hasMessageContaining("append-only")
@@ -148,7 +148,7 @@ class DecisionStoreIT {
             dataSource().connection.use { connection ->
                 connection
                     .prepareStatement(
-                        "insert into mesta.document_classification (document_sha256, document_type, confidence, distribution, requires_review, model_version, source_system, actor, ingestion_run_id, correlation_id) values (?, ?, 0.5, '{}', false, 'test', 'test', 'it', ?, ?)",
+                        "insert into octo.document_classification (document_sha256, document_type, confidence, distribution, requires_review, model_version, source_system, actor, ingestion_run_id, correlation_id) values (?, ?, 0.5, '{}', false, 'test', 'test', 'it', ?, ?)",
                     ).use { statement ->
                         statement.setString(1, documentSha256)
                         statement.setString(2, rawTypeOverride)
@@ -159,11 +159,23 @@ class DecisionStoreIT {
             }
             return UUID(0, 0)
         }
-        return store.record(documentSha256, classification, provenance(externalId), supersedesId, rationale)
+        return store.record(houseTenant(), documentSha256, classification, provenance(externalId), supersedesId, rationale)
     }
+
+    private fun houseTenant(): UUID =
+        dataSource().connection.use { connection ->
+            connection
+                .createStatement()
+                .executeQuery("select id from octo.tenant where slug = 'octo-ops'")
+                .let { rows ->
+                    rows.next()
+                    rows.getObject(1, UUID::class.java)
+                }
+        }
 
     private fun recordClaim(): UUID =
         store.record(
+            houseTenant(),
             claimText = "Revenue grew 21% year over year.",
             sourceDocumentSha256 = "b".repeat(64),
             support =
@@ -203,8 +215,8 @@ class DecisionStoreIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

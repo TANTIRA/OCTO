@@ -3,7 +3,7 @@
 Evaluation of [Alpha Vantage](https://www.alphavantage.co/documentation/) as a market-data source for OCTO. Read on 2026-09-26. Unlike the earlier assessments an adapter slice already exists as scaffolding (`modules/ingestion/.../marketdata/`): it is not wired to a scheduler, pulls nothing until the gates below clear, and is written so deleting it is a one-directory revert.
 
 - **Risk tier:** T0 for this document. T2 for the ingestion adapter, because it writes market data that analytics treats as financial fact.
-- **Status:** proposed, not approved. Blocked on the licence question below and on the same instrument-concept gap as [xStocks](xstocks-fit-assessment.md), [Arbitrum](arbitrum-fit-assessment.md), and [TradingView](tradingview-mcp-fit-assessment.md).
+- **Status:** implemented — `ingestion/marketdata/alphavantage/` (client, normalizer, `MarketDataSyncService`) shipped. The instrument-concept gap it shared with xStocks/Arbitrum/TradingView closed in V10; the licence note below remains the operative caveat.
 
 ## What it is
 
@@ -63,13 +63,13 @@ OCTO writes vendor values into the bi-temporal `timeseries_observation` store an
 The same shape as every vendor: Alpha Vantage formats stop at the adapter, and nothing outside `marketdata.alphavantage` references `function=` names or `"4a. close (USD)"` keys. `MarketDataPoint`/`MarketDataTarget` are the vendor-neutral types, mirroring the `onchain/helius` split; `HttpTransport` and `RetryPolicy` moved to a shared `ingestion.http` package so no vendor package imports another.
 
 ```text
-Alpha Vantage ──► marketdata.alphavantage ──► mesta.dataset + timeseries_observation ──► analytics:
+Alpha Vantage ──► marketdata.alphavantage ──► octo.dataset + timeseries_observation ──► analytics:
   GET /query      adapter (this slice)        (V12 bi-temporal store)                    benchmark levels,
  (daily, read-                                                         FX translation,
      only)                                                             token marks
 ```
 
-Unlike the TradingView assessment, the landing surface exists: slice 6 shipped `mesta.dataset` and `timeseries_observation`, so the adapter needs no schema change — only a registered dataset per tenant.
+Unlike the TradingView assessment, the landing surface exists: slice 6 shipped `octo.dataset` and `timeseries_observation`, so the adapter needs no schema change — only a registered dataset per tenant.
 
 ## Before adopting
 

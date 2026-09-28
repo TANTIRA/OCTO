@@ -1,0 +1,284 @@
+package com.octo.api.access
+
+import com.octo.api.OctoApplication
+import com.octo.api.access.persistence.AccessAdministration
+import com.octo.api.access.persistence.AccessProvenance
+import com.octo.api.access.persistence.TenantSettings
+import com.octo.persistence.TenantScope
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+import org.springframework.boot.test.context.runner.WebApplicationContextRunner
+import org.springframework.http.MediaType
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
+import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import java.time.Instant
+import java.util.UUID
+import java.util.function.Supplier
+
+/**
+ * `/api/v1/admin/tenants` end to end with a fake administration store: a platform admin provisions,
+ * a tenant ADMIN manages their own members, every other caller — member, non-member, no token —
+ * is denied, and the state machine's rejected transitions surface as 409.
+ */
+class AdminTenantsEndpointTest {
+    private val platformAdmin = UUID.randomUUID()
+    private val tenantAdmin = UUID.randomUUID()
+    private val analyst = UUID.randomUUID()
+    private val tenantId = UUID.randomUUID()
+    private val access = FakeAccess()
+    private val settings = FakeSettings()
+    private val directory =
+        TenantDirectory { id ->
+            when (id) {
+                tenantAdmin -> listOf(TenantAccess(tenantId, "acme", TenantRole.ADMIN))
+                analyst -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
+                else -> emptyList()
+            }
+        }
+
+    private val contextRunner =
+        WebApplicationContextRunner()
+            .withUserConfiguration(OctoApplication::class.java)
+            .withBean(
+                AccessAdministration::class.java,
+                Supplier { access },
+                { it.isPrimary = true },
+            ).withBean(
+                TenantDirectory::class.java,
+                Supplier { directory },
+                { it.isPrimary = true },
+            ).withBean(
+                TenantSettings::class.java,
+                Supplier { settings },
+                { it.isPrimary = true },
+            ).withPropertyValues(
+                "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
+                "OCTO_PLATFORM_ADMINS=$platformAdmin",
+            )
+
+    private fun run(block: (MockMvc) -> Unit) {
+        contextRunner.run { context ->
+            block(MockMvcBuilders.webAppContextSetup(context).apply<DefaultMockMvcBuilder>(springSecurity()).build())
+        }
+    }
+
+    private fun MockMvc.provision(
+        caller: UUID,
+        slug: String = "new-firm",
+    ) = perform(
+        post("/api/v1/admin/tenants")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""{"slug":"$slug","displayName":"New Firm","firstAdminUserId":"${UUID.randomUUID()}"}""")
+            .with(jwt().jwt { it.subject(caller.toString()) }),
+    )
+
+    private fun MockMvc.memberEvent(
+        caller: UUID,
+        tenant: UUID = tenantId,
+        user: UUID = UUID.randomUUID(),
+        body: String,
+    ) = perform(
+        post("/api/v1/admin/tenants/$tenant/members/$user")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(body)
+            .with(jwt().jwt { it.subject(caller.toString()) }),
+    )
+
+    @Test
+    fun `a platform admin provisions a tenant and its first admin`() {
+        run { mvc ->
+            mvc
+                .provision(platformAdmin)
+                .andExpect(status().isCreated)
+                .andExpect(jsonPath("$.slug").value("new-firm"))
+                .andExpect(jsonPath("$.firstAdmin.role").value("admin"))
+                .andExpect(jsonPath("$.firstAdmin.status").value("active"))
+            assertThat(access.provisioned.single().slug).isEqualTo("new-firm")
+        }
+    }
+
+    @Test
+    fun `nobody else can provision — tenant admin, member, and anonymous all get denied`() {
+        run { mvc ->
+            mvc.provision(tenantAdmin, "t-a").andExpect(status().isForbidden)
+            mvc.provision(analyst, "t-b").andExpect(status().isForbidden)
+            mvc
+                .perform(
+                    post("/api/v1/admin/tenants")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"slug":"t-c","displayName":"C","firstAdminUserId":"${UUID.randomUUID()}"}"""),
+                ).andExpect(status().isForbidden)
+            assertThat(access.provisioned).isEmpty()
+        }
+    }
+
+    @Test
+    fun `a tenant admin grants a member in their own tenant only`() {
+        run { mvc ->
+            mvc
+                .memberEvent(tenantAdmin, body = """{"type":"granted","role":"analyst"}""")
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.role").value("analyst"))
+            mvc
+                .memberEvent(tenantAdmin, tenant = UUID.randomUUID(), body = """{"type":"granted","role":"analyst"}""")
+                .andExpect(status().isForbidden)
+            mvc
+                .memberEvent(analyst, body = """{"type":"granted","role":"viewer"}""")
+                .andExpect(status().isForbidden)
+        }
+    }
+
+    @Test
+    fun `a rejected transition surfaces as 409 and an unregistered member as 404`() {
+        run { mvc ->
+            access.nextError = IllegalArgumentException("already active")
+            mvc
+                .memberEvent(tenantAdmin, body = """{"type":"granted","role":"analyst"}""")
+                .andExpect(status().isConflict)
+            access.nextError = null
+            access.registered = false
+            mvc
+                .memberEvent(tenantAdmin, body = """{"type":"role-changed","role":"approver"}""")
+                .andExpect(status().isNotFound)
+            mvc
+                .memberEvent(tenantAdmin, body = """{"type":"bogus"}""")
+                .andExpect(status().isBadRequest)
+            mvc
+                .memberEvent(tenantAdmin, body = """{"type":"revoked"}""")
+                .andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `a tenant admin writes and reads settings but an analyst cannot`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"key":"rate_limit_per_minute","value":"60"}""")
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.rate_limit_per_minute").value("60"))
+            mvc
+                .perform(
+                    get("/api/v1/admin/tenants/$tenantId/settings")
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.rate_limit_per_minute").value("60"))
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"key":"rate_limit_per_minute","value":"10"}""")
+                        .with(jwt().jwt { it.subject(analyst.toString()) }),
+                ).andExpect(status().isForbidden)
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"key":"  ","value":"10"}""")
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isBadRequest)
+        }
+    }
+
+    /** Minimal in-memory settings: key → JSON text per tenant. */
+    private class FakeSettings : TenantSettings {
+        val rows = mutableMapOf<Pair<UUID, String>, String>()
+
+        override fun get(
+            tenantId: UUID,
+            key: String,
+            scope: TenantScope,
+        ): String? = rows[tenantId to key]
+
+        override fun all(
+            tenantId: UUID,
+            scope: TenantScope,
+        ): Map<String, String> = rows.filterKeys { it.first == tenantId }.mapKeys { it.key.second }
+
+        override fun put(
+            tenantId: UUID,
+            key: String,
+            value: String,
+            actor: String,
+            provenance: AccessProvenance,
+            scope: TenantScope,
+        ) {
+            rows[tenantId to key] = value
+        }
+    }
+
+    /** Minimal in-memory administration: records calls, replays a one-member state machine. */
+    private class FakeAccess : AccessAdministration {
+        val provisioned = mutableListOf<Tenant>()
+        val events = mutableListOf<MembershipEvent>()
+        var registered = true
+        var nextError: IllegalArgumentException? = null
+
+        override fun provisionTenant(
+            tenant: Tenant,
+            adminUserId: UUID,
+            grantor: String,
+            registeredAt: Instant,
+            provenance: AccessProvenance,
+        ): MembershipState {
+            provisioned += tenant
+            return MembershipState(tenant.id, adminUserId, MembershipStatus.ACTIVE, TenantRole.ADMIN, registeredAt)
+        }
+
+        override fun registerMember(
+            tenantId: UUID,
+            userId: UUID,
+            registeredAt: Instant,
+            provenance: AccessProvenance,
+        ) {
+            registered = true
+        }
+
+        override fun load(
+            tenantId: UUID,
+            userId: UUID,
+        ): MembershipState? =
+            if (registered) {
+                MembershipState(tenantId, userId, MembershipStatus.NONE, null, Instant.EPOCH)
+            } else {
+                null
+            }
+
+        override fun append(
+            tenantId: UUID,
+            userId: UUID,
+            event: MembershipEvent,
+            provenance: AccessProvenance,
+        ): MembershipState {
+            if (!registered) throw NoSuchElementException("no member")
+            nextError?.let { throw it }
+            events += event
+            val role =
+                when (event) {
+                    is MembershipEvent.Granted -> event.role
+                    is MembershipEvent.RoleChanged -> event.role
+                    is MembershipEvent.Revoked -> null
+                }
+            return MembershipState(
+                tenantId,
+                userId,
+                if (event is MembershipEvent.Revoked) MembershipStatus.REVOKED else MembershipStatus.ACTIVE,
+                role,
+                event.at,
+            )
+        }
+    }
+}

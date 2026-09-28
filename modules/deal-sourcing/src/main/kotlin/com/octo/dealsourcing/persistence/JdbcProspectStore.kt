@@ -26,7 +26,7 @@ data class ProspectProvenance(
 )
 
 /**
- * JDBC access to `mesta.prospect` and `mesta.prospect_event` (V18). A prospect's stage is never
+ * JDBC access to `octo.prospect` and `octo.prospect_event` (V18). A prospect's stage is never
  * stored: [load] replays its events through the state machine, and [append] validates a new event
  * against that replay before inserting it — the `JdbcAccessStore`/`JdbcTaskStore` contract. Writers
  * serialize on a per-prospect advisory lock so neither can interleave an event into a history the
@@ -49,7 +49,7 @@ class JdbcProspectStore(
         require(scope.admits(prospect.tenantId)) { "prospect tenant ${prospect.tenantId} is outside the scoped tenants" }
         val prospectSql =
             """
-            insert into mesta.prospect (id, tenant_id, name, source, sector, region, description,
+            insert into octo.prospect (id, tenant_id, name, source, sector, region, description,
                                         registered_at, source_ref, source_system, actor, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
@@ -90,7 +90,7 @@ class JdbcProspectStore(
         return dataSource.scoped(scope) { connection ->
             val sql =
                 """
-                insert into mesta.prospect (id, tenant_id, name, source, sector, region, description,
+                insert into octo.prospect (id, tenant_id, name, source, sector, region, description,
                                             registered_at, source_ref, source_system, actor, correlation_id)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 on conflict (tenant_id, source, source_ref) where source_ref is not null do nothing
@@ -143,7 +143,7 @@ class JdbcProspectStore(
                     """
                     select seq, event_type, stage_from, stage_to, actor, rationale,
                            occurred_at, recorded_at, correlation_id, task_id
-                    from mesta.prospect_event
+                    from octo.prospect_event
                     where prospect_id = ?
                     order by seq
                     """.trimIndent(),
@@ -181,10 +181,10 @@ class JdbcProspectStore(
             select p.id, p.tenant_id, p.name, p.source, p.sector, p.region, p.description,
                    p.registered_at, p.source_ref,
                    latest.event_type, latest.actor, latest.occurred_at
-            from mesta.prospect p
+            from octo.prospect p
             left join lateral (
                 select e.event_type, e.actor, e.occurred_at, e.stage_to
-                from mesta.prospect_event e
+                from octo.prospect_event e
                 where e.prospect_id = p.id
                 order by e.seq desc
                 limit 1
@@ -238,7 +238,7 @@ class JdbcProspectStore(
     ): ProspectState? {
         connection
             .prepareStatement(
-                "select pg_advisory_xact_lock(hashtextextended('mesta.prospect:' || ?::text, 0))",
+                "select pg_advisory_xact_lock(hashtextextended('octo.prospect:' || ?::text, 0))",
             ).use { statement ->
                 statement.setObject(1, prospectId)
                 statement.executeQuery().close()
@@ -262,7 +262,7 @@ class JdbcProspectStore(
     ): Prospect? =
         connection
             .prepareStatement(
-                "select tenant_id, name, source, sector, region, description, registered_at, source_ref from mesta.prospect where id = ?",
+                "select tenant_id, name, source, sector, region, description, registered_at, source_ref from octo.prospect where id = ?",
             ).use { statement ->
                 statement.setObject(1, prospectId)
                 statement.executeQuery().use { rows ->
@@ -290,7 +290,7 @@ class JdbcProspectStore(
             .prepareStatement(
                 """
                 select event_type, stage_from, stage_to, actor, rationale, occurred_at, task_id
-                from mesta.prospect_event
+                from octo.prospect_event
                 where prospect_id = ?
                 order by seq
                 """.trimIndent(),
@@ -389,7 +389,7 @@ class JdbcProspectStore(
             }
         val sql =
             """
-            insert into mesta.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, rationale, occurred_at, task_id, correlation_id)
+            insert into octo.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, rationale, occurred_at, task_id, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         connection.prepareStatement(sql).use { statement ->

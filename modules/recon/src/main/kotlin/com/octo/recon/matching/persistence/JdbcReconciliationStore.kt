@@ -37,7 +37,7 @@ interface ReconciliationStore {
     ): UUID
 }
 
-/** JDBC access to `mesta.reconciliation_break` (V15) and the ledger side of a run, read straight from `mesta.ledger_event`. */
+/** JDBC access to `octo.reconciliation_break` (V15) and the ledger side of a run, read straight from `octo.ledger_event`. */
 class JdbcReconciliationStore(
     private val dataSource: DataSource,
 ) : ReconciliationStore {
@@ -53,13 +53,13 @@ class JdbcReconciliationStore(
             """
             with recursive chain as (
                 select e.id, e.external_id as root_external_id
-                from mesta.ledger_event e where e.source_system = ? and e.external_id is not null
+                from octo.ledger_event e where e.source_system = ? and e.external_id is not null
                 union all
-                select s.id, c.root_external_id from mesta.ledger_event s join chain c on s.supersedes_id = c.id)
+                select s.id, c.root_external_id from octo.ledger_event s join chain c on s.supersedes_id = c.id)
             select e.id, e.source_system, coalesce(c.root_external_id, e.external_id) as external_id,
                    e.monetary_amount, e.currency_code, e.occurred_at
-            from mesta.ledger_event e left join chain c on c.id = e.id
-            where e.source_system = ? and not exists (select 1 from mesta.ledger_event s where s.supersedes_id = e.id)
+            from octo.ledger_event e left join chain c on c.id = e.id
+            where e.source_system = ? and not exists (select 1 from octo.ledger_event s where s.supersedes_id = e.id)
             order by e.occurred_at, e.id
             """.trimIndent()
         return dataSource.connection.use { connection ->
@@ -95,7 +95,7 @@ class JdbcReconciliationStore(
     ): UUID? {
         val sql =
             """
-            select task_id from mesta.reconciliation_break
+            select task_id from octo.reconciliation_break
             where tenant_id = ? and kind = ? and source_system = ? and source_ref is not distinct from ? and ledger_event_id is not distinct from ?
               and task_id is not null
             """.trimIndent()
@@ -121,7 +121,7 @@ class JdbcReconciliationStore(
     ): UUID {
         val sql =
             """
-            insert into mesta.reconciliation_break (tenant_id, run_id, kind, source_system, source_ref, ledger_event_id, detail, task_id, correlation_id)
+            insert into octo.reconciliation_break (tenant_id, run_id, kind, source_system, source_ref, ledger_event_id, detail, task_id, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)
             returning id
             """.trimIndent()

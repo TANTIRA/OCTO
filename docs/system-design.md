@@ -75,11 +75,11 @@ flowchart TB
 | Component | Technology | Owner | Status |
 | --- | --- | --- | --- |
 | `octo-api` | Kotlin 2.2, Java 21, Spring Boot 3.5, Gradle | OCTO team | ✅ scaffold, auth boundary, migrations |
-| `octo-web` | Separate frontend image (ADR-0001 §6) | OCTO team | ⬜ |
+| `octo-web` | Separate frontend image (ADR-0001 §6) | OCTO team | ✅ `/login`, `/app`, `/admin` + Dockerfile |
 | PostgreSQL, Auth, Storage | Self-hosted Supabase (ADR-0002) | Platform / DevOps | ✅ compose, override |
 | Neo4j | Neo4j Community, schema `ontology/octo-investment.cypher` (ADR-0004) | CTO (ontology) | ✅ schema + CI validation |
 | Decision model | `typesafe/jev-1.13` via OpenRouter | AI Tech Lead | ✅ client, 2 decision points |
-| Backup / PITR | Operator-provided (ADR-0002) | Platform / DevOps | ⬜ runbook |
+| Backup / PITR | Operator-provided (ADR-0002) | Platform / DevOps | ✅ runbook ([restore-runbook.md](restore-runbook.md)); rehearsal pending |
 
 ---
 
@@ -123,7 +123,9 @@ Rules:
 | `control-panel` | Judgment client, data-classification guard | T2 | ✅ |
 | `ontology` | SHACL validation, Cypher ↔ OWL drift checks | T2 | ✅ |
 | `api` | JWT resource server, Flyway, actuator | T2 (auth) | ✅ |
-| `recon`, `workflow`, `deal-sourcing` | — | T2 | ⬜ |
+| `recon` | Source-vs-IBOR reconciliation, post-trade compliance rules and evaluations | T2 | ✅ |
+| `workflow` | Tasks and approvals (event-sourced), report jobs and schedules | T2 | ✅ |
+| `deal-sourcing` | Prospect pipeline (event-sourced stages), screening rules | T2 | ✅ |
 
 ### 2.2 Data ownership
 
@@ -156,14 +158,14 @@ Consequence: `ibor-core` never stores attribution. The caller resolves the event
 | Benchmark feature | OCTO capability | Module | Status |
 | --- | --- | --- | --- |
 | Aladdin IBOR — "one database, one system, one process" | Append-only ledger; positions derived, never written | `ibor-core` | ✅ ledger · 🟡 derivation |
-| Aladdin Performance & Attribution | PE performance (§2); Brinson (§4.2) | `analytics` | 🟡 · ⬜ |
-| Aladdin look-through | Path-sum exposure (§7.2) | `lookthrough` | 🟡 |
-| Aladdin post-trade compliance | Rules evaluated after ledger writes → workflow tasks | `recon` + `workflow` | ⬜ |
-| Aladdin reconciliation / trade matching | Source vs IBOR, graph vs ledger | `recon` | ⬜ |
-| Aladdin risk (VaR/ES, factor) | Methodology §3.4, §4.1 | `analytics` | ⬜ |
-| Marquee Asset service | Asset master using ontology types (owner decision on #6) | `api` + Neo4j | ⬜ |
-| Marquee Data service | Bi-temporal time series (`effective_date` + `recorded_at`) | `ingestion` + `api` | ⬜ |
-| Marquee Report service | Report jobs over the analytics engines | `analytics` + `workflow` + `api` | ⬜ |
+| Aladdin Performance & Attribution | PE performance (§2); Brinson (§4.2) | `analytics` | ✅ engines (`Performance`, `Attribution`) · ⬜ REST surface |
+| Aladdin look-through | Path-sum exposure (§7.2) | `lookthrough` | ✅ engine (`Exposure`) · ⬜ REST surface |
+| Aladdin post-trade compliance | Rules evaluated after ledger writes → workflow tasks | `recon` + `workflow` | ✅ rules + evaluations, breach → `workflow_task` |
+| Aladdin reconciliation / trade matching | Source vs IBOR, graph vs ledger | `recon` | ✅ `/api/v1/reconciliations` + break table → tasks |
+| Aladdin risk (VaR/ES, factor) | Methodology §3.4, §4.1 | `analytics` | ✅ engines (`Risk`, `Factor`, `Regime`) · ⬜ REST surface |
+| Marquee Asset service | Asset master using ontology types (owner decision on #6) | `api` + Neo4j | ✅ `/api/v1/assets/{id}` + `asset_xref` + `graph_node_id` |
+| Marquee Data service | Bi-temporal time series (`effective_date` + `recorded_at`) | `ingestion` + `api` | ✅ `/api/v1/data/{datasetId}` + `timeseries_observation` |
+| Marquee Report service | Report jobs over the analytics engines | `analytics` + `workflow` + `api` | ✅ `/api/v1/reports*` + schedules + runners |
 | Palantir AIP workflows | Evaluated agents behind a tool allowlist | `deal-sourcing`, `control-panel` | ✅ 2 decision points · ⬜ rest |
 
 ### 2.4 Key design decisions
@@ -199,7 +201,7 @@ flowchart LR
 
 ## 3. Low-Level Design
 
-### 3.1 PostgreSQL schema (`mesta`)
+### 3.1 PostgreSQL schema (`octo`)
 
 Tables created by the migrations that already exist. Every table rejects UPDATE and DELETE with a trigger, and every row carries provenance.
 

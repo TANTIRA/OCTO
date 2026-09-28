@@ -13,7 +13,7 @@ import java.sql.SQLException
 import java.util.UUID
 
 /**
- * Runs the real Flyway migrations and exercises the V4 `mesta.valuation_event` invariants: append-only,
+ * Runs the real Flyway migrations and exercises the V4 `octo.valuation_event` invariants: append-only,
  * non-negative NAV, ontology-mirrored valuation methods, and replay protection. Same shape as
  * `LedgerMigrationIT`. Skipped when Docker is unavailable.
  */
@@ -24,7 +24,7 @@ class ValuationMigrationIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -33,14 +33,14 @@ class ValuationMigrationIT {
 
     @Test
     fun `migration creates the valuation table and its append-only trigger`() {
-        assertThat(count("select count(*) from pg_tables where schemaname = 'mesta' and tablename = 'valuation_event'")).isEqualTo(1)
+        assertThat(count("select count(*) from pg_tables where schemaname = 'octo' and tablename = 'valuation_event'")).isEqualTo(1)
         assertThat(count("select count(*) from pg_trigger where tgname = 'valuation_event_append_only'")).isEqualTo(1)
     }
 
     @Test
     fun `update is rejected by the append-only trigger`() {
         val id = valuation("100", "2024-06-30")
-        assertThatThrownBy { execute("update mesta.valuation_event set monetary_amount = 1 where id = '$id'") }
+        assertThatThrownBy { execute("update octo.valuation_event set monetary_amount = 1 where id = '$id'") }
             .isInstanceOf(SQLException::class.java)
             .hasMessageContaining("append-only")
     }
@@ -73,7 +73,7 @@ class ValuationMigrationIT {
             connection
                 .prepareStatement(
                     """
-                    insert into mesta.valuation_event
+                    insert into octo.valuation_event
                         (external_id, monetary_amount, currency_code, as_of_date, valuation_method, supersedes_id,
                          rationale, source_system, actor, ingestion_run_id, correlation_id)
                     values (?, ?, 'USD', ?::date, ?, ?, ?, 'test', 'integration-test', gen_random_uuid(), gen_random_uuid())
@@ -108,8 +108,8 @@ class ValuationMigrationIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

@@ -26,7 +26,7 @@ data class AccessProvenance(
 )
 
 /**
- * JDBC access to `mesta.tenant`, `mesta.tenant_member` and `mesta.tenant_member_event` (V8). Access
+ * JDBC access to `octo.tenant`, `octo.tenant_member` and `octo.tenant_member_event` (V8). Access
  * state is never stored: [load] replays a member's events through the state machine, and [append]
  * validates a new event against that replay before inserting it. Both run under the per-member
  * advisory lock the V8 trigger takes, so two writers to one membership serialize and neither can
@@ -34,57 +34,52 @@ data class AccessProvenance(
  */
 class JdbcAccessStore(
     private val dataSource: DataSource,
-) : TenantDirectory {
+) : TenantDirectory,
+    TenantPlacements,
+    AccessAdministration {
     fun createTenant(
         tenant: Tenant,
         provenance: AccessProvenance,
     ) {
-        val sql =
-            """
-            insert into mesta.tenant (id, slug, display_name, source_system, correlation_id)
-            values (?, ?, ?, ?, ?)
-            """.trimIndent()
         // The access store is the platform's security substrate (#197): it reads and writes the
         // membership tables the RLS policies themselves consult, so it runs under an explicit
         // `All` scope — the queries' own predicates still constrain the rows.
-        dataSource.scoped(TenantScope.All) { connection ->
-            connection.prepareStatement(sql).use { statement ->
-                statement.setObject(1, tenant.id)
-                statement.setString(2, tenant.slug)
-                statement.setString(3, tenant.displayName)
-                statement.setString(4, provenance.sourceSystem)
-                statement.setObject(5, provenance.correlationId)
-                statement.executeUpdate()
-            }
-        }
+        dataSource.scoped(TenantScope.All) { connection -> insertTenant(connection, tenant, provenance) }
     }
 
     /** Registers [userId] in the tenant at [registeredAt]. Access comes from events, not this row. */
-    fun registerMember(
+    override fun registerMember(
         tenantId: UUID,
         userId: UUID,
         registeredAt: Instant,
         provenance: AccessProvenance,
     ) {
-        val sql =
-            """
-            insert into mesta.tenant_member (tenant_id, user_id, created_at, source_system, correlation_id)
-            values (?, ?, ?, ?, ?)
-            """.trimIndent()
-        dataSource.scoped(TenantScope.All) { connection ->
-            connection.prepareStatement(sql).use { statement ->
-                statement.setObject(1, tenantId)
-                statement.setObject(2, userId)
-                statement.setObject(3, registeredAt.atOffset(ZoneOffset.UTC))
-                statement.setString(4, provenance.sourceSystem)
-                statement.setObject(5, provenance.correlationId)
-                statement.executeUpdate()
-            }
-        }
+        dataSource.scoped(TenantScope.All) { connection -> insertMember(connection, tenantId, userId, registeredAt, provenance) }
     }
 
+    /**
+     * Tenant + first admin as one atomic provision (access boundary): the tenant row, the member
+     * registration and the granting event share one transaction, so a failed grant can never leave
+     * an admin-less tenant behind.
+     */
+    override fun provisionTenant(
+        tenant: Tenant,
+        adminUserId: UUID,
+        grantor: String,
+        registeredAt: Instant,
+        provenance: AccessProvenance,
+    ): MembershipState =
+        dataSource.scoped(TenantScope.All) { connection ->
+            insertTenant(connection, tenant, provenance)
+            insertMember(connection, tenant.id, adminUserId, registeredAt, provenance)
+            val event = MembershipEvent.Granted(grantor, registeredAt, TenantRole.ADMIN)
+            val after = registered(tenant.id, adminUserId, registeredAt).next(event)
+            insertEvent(connection, tenant.id, adminUserId, event, provenance)
+            after
+        }
+
     /** The membership's state after every stored event, or null when the pair is not registered. */
-    fun load(
+    override fun load(
         tenantId: UUID,
         userId: UUID,
     ): MembershipState? = dataSource.scoped(TenantScope.All) { connection -> replayLocked(connection, tenantId, userId) }
@@ -94,7 +89,7 @@ class JdbcAccessStore(
      * Throws [IllegalArgumentException] for a transition the state machine rejects, or
      * [NoSuchElementException] for an unregistered pair; nothing is written in either case.
      */
-    fun append(
+    override fun append(
         tenantId: UUID,
         userId: UUID,
         event: MembershipEvent,
@@ -118,11 +113,11 @@ class JdbcAccessStore(
         val sql =
             """
             select m.tenant_id, t.slug, latest.role
-            from mesta.tenant_member m
-            join mesta.tenant t on t.id = m.tenant_id
+            from octo.tenant_member m
+            join octo.tenant t on t.id = m.tenant_id
             join lateral (
                 select e.role
-                from mesta.tenant_member_event e
+                from octo.tenant_member_event e
                 where e.tenant_id = m.tenant_id and e.user_id = m.user_id
                 order by e.seq desc
                 limit 1
@@ -150,6 +145,24 @@ class JdbcAccessStore(
         }
     }
 
+    /** The tenant's placement (V32): `pool` + null key until promoted per the isolation runbook. */
+    override fun placementOf(tenantId: UUID): TenantPlacement? =
+        dataSource.scoped(TenantScope.All) { connection ->
+            connection
+                .prepareStatement(
+                    "select isolation_tier, datasource_key from octo.tenant where id = ?",
+                ).use { statement ->
+                    statement.setObject(1, tenantId)
+                    statement.executeQuery().use { rows ->
+                        if (!rows.next()) {
+                            null
+                        } else {
+                            TenantPlacement(tenantId, rows.getString(1), rows.getString(2))
+                        }
+                    }
+                }
+        }
+
     private fun replayLocked(
         connection: Connection,
         tenantId: UUID,
@@ -157,7 +170,7 @@ class JdbcAccessStore(
     ): MembershipState? {
         connection
             .prepareStatement(
-                "select pg_advisory_xact_lock(hashtextextended('mesta.tenant_member:' || ?::text || ':' || ?::text, 0))",
+                "select pg_advisory_xact_lock(hashtextextended('octo.tenant_member:' || ?::text || ':' || ?::text, 0))",
             ).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setObject(2, userId)
@@ -174,7 +187,7 @@ class JdbcAccessStore(
     ): Instant? =
         connection
             .prepareStatement(
-                "select created_at from mesta.tenant_member where tenant_id = ? and user_id = ?",
+                "select created_at from octo.tenant_member where tenant_id = ? and user_id = ?",
             ).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setObject(2, userId)
@@ -194,7 +207,7 @@ class JdbcAccessStore(
             .prepareStatement(
                 """
                 select event_type, role, actor, rationale, occurred_at
-                from mesta.tenant_member_event
+                from octo.tenant_member_event
                 where tenant_id = ? and user_id = ?
                 order by seq
                 """.trimIndent(),
@@ -221,6 +234,45 @@ class JdbcAccessStore(
 
     private fun role(rows: ResultSet): TenantRole = TenantRole.fromWireValue(rows.getString(2))
 
+    private fun insertTenant(
+        connection: Connection,
+        tenant: Tenant,
+        provenance: AccessProvenance,
+    ) {
+        connection
+            .prepareStatement(
+                "insert into octo.tenant (id, slug, display_name, source_system, correlation_id) values (?, ?, ?, ?, ?)",
+            ).use { statement ->
+                statement.setObject(1, tenant.id)
+                statement.setString(2, tenant.slug)
+                statement.setString(3, tenant.displayName)
+                statement.setString(4, provenance.sourceSystem)
+                statement.setObject(5, provenance.correlationId)
+                statement.executeUpdate()
+            }
+    }
+
+    private fun insertMember(
+        connection: Connection,
+        tenantId: UUID,
+        userId: UUID,
+        registeredAt: Instant,
+        provenance: AccessProvenance,
+    ) {
+        connection
+            .prepareStatement(
+                "insert into octo.tenant_member (tenant_id, user_id, created_at, source_system, correlation_id) " +
+                    "values (?, ?, ?, ?, ?)",
+            ).use { statement ->
+                statement.setObject(1, tenantId)
+                statement.setObject(2, userId)
+                statement.setObject(3, registeredAt.atOffset(ZoneOffset.UTC))
+                statement.setString(4, provenance.sourceSystem)
+                statement.setObject(5, provenance.correlationId)
+                statement.executeUpdate()
+            }
+    }
+
     private fun insertEvent(
         connection: Connection,
         tenantId: UUID,
@@ -236,7 +288,7 @@ class JdbcAccessStore(
             }
         val sql =
             """
-            insert into mesta.tenant_member_event (tenant_id, user_id, event_type, role, actor, rationale, occurred_at, correlation_id)
+            insert into octo.tenant_member_event (tenant_id, user_id, event_type, role, actor, rationale, occurred_at, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         connection.prepareStatement(sql).use { statement ->

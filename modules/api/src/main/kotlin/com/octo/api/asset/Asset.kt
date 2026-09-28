@@ -24,7 +24,7 @@ data class Identifier(
     val value: String,
 )
 
-/** One row of `mesta.asset` (V11). A correction is a new row that supersedes this one with a rationale. */
+/** One row of `octo.asset` (V11). A correction is a new row that supersedes this one with a rationale. */
 data class Asset(
     val id: UUID,
     val tenantId: UUID,

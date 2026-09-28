@@ -23,7 +23,7 @@ class ComplianceMigrationIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -35,11 +35,11 @@ class ComplianceMigrationIT {
         query(
             """
             with created as (
-                insert into mesta.tenant (slug, display_name, source_system, correlation_id)
+                insert into octo.tenant (slug, display_name, source_system, correlation_id)
                 values ('acme', 'Acme', 'test', gen_random_uuid())
                 on conflict (slug) do nothing
                 returning id)
-            select id from created union all select id from mesta.tenant where slug = 'acme'
+            select id from created union all select id from octo.tenant where slug = 'acme'
             """.trimIndent(),
         )
     }
@@ -47,7 +47,7 @@ class ComplianceMigrationIT {
     @Test
     fun `migration creates both tables, their append-only triggers and the breach index`() {
         for (table in listOf("compliance_rule", "compliance_evaluation")) {
-            assertThat(count("select count(*) from pg_tables where schemaname = 'mesta' and tablename = '$table'")).isEqualTo(1)
+            assertThat(count("select count(*) from pg_tables where schemaname = 'octo' and tablename = '$table'")).isEqualTo(1)
             assertThat(count("select count(*) from pg_trigger where tgname = '${table}_append_only'")).isEqualTo(1)
         }
         assertThat(count("select count(*) from pg_indexes where indexname = 'compliance_breach_once'")).isEqualTo(1)
@@ -61,7 +61,7 @@ class ComplianceMigrationIT {
         assertThatThrownBy { rule("Conc 25", 3) }.isInstanceOf(SQLException::class.java)
         assertThatThrownBy { rule("conc-25", 0) }.isInstanceOf(SQLException::class.java)
         assertThatThrownBy { rule("no-check", 1, definition = """{"maxFraction": "0.25"}""") }.isInstanceOf(SQLException::class.java)
-        assertThatThrownBy { execute("update mesta.compliance_rule set active = false where id = '$id'") }
+        assertThatThrownBy { execute("update octo.compliance_rule set active = false where id = '$id'") }
             .isInstanceOf(SQLException::class.java)
             .hasMessageContaining("append-only")
     }
@@ -77,7 +77,7 @@ class ComplianceMigrationIT {
         assertThatThrownBy { evaluation("conc-25", "fund-3", "warning") }.isInstanceOf(SQLException::class.java)
         assertThatThrownBy {
             execute(
-                "delete from mesta.compliance_evaluation where subject = 'fund-1'",
+                "delete from octo.compliance_evaluation where subject = 'fund-1'",
             )
         }.isInstanceOf(SQLException::class.java)
     }
@@ -91,7 +91,7 @@ class ComplianceMigrationIT {
             connection
                 .prepareStatement(
                     """
-                    insert into mesta.compliance_rule (tenant_id, rule_id, version, name, definition, actor, correlation_id)
+                    insert into octo.compliance_rule (tenant_id, rule_id, version, name, definition, actor, correlation_id)
                     values (?, ?, ?, 'Concentration', ?::jsonb, 'integration-test', gen_random_uuid())
                     returning id
                     """.trimIndent(),
@@ -113,7 +113,7 @@ class ComplianceMigrationIT {
         connection
             .prepareStatement(
                 """
-                insert into mesta.compliance_evaluation (tenant_id, rule_id, rule_version, subject, as_of_date, result, explanation, task_id, correlation_id)
+                insert into octo.compliance_evaluation (tenant_id, rule_id, rule_version, subject, as_of_date, result, explanation, task_id, correlation_id)
                 values (?, ?, 1, ?, '2026-06-30', ?, 'largest holding is 0.5 of gross', ?, gen_random_uuid())
                 """.trimIndent(),
             ).use { statement ->
@@ -125,7 +125,7 @@ class ComplianceMigrationIT {
     private fun task(): UUID =
         query(
             """
-            insert into mesta.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id)
+            insert into octo.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id)
             values ('review', 'compliance-breach', 'x', 'compliance-runner', 'test', gen_random_uuid()) returning id
             """.trimIndent(),
         )
@@ -159,8 +159,8 @@ class ComplianceMigrationIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }
