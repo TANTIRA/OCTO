@@ -24,3 +24,33 @@ jobs:
           # DecisionModelEvalTest is reported as skipped.
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: ./gradlew check
+
+  agents:
+    # Python sidecar (ADR-0005). Unit tests run on every change; the live screening-dd judge evals
+    # gate on the model key and are skipped without it (fork PRs), exactly like DecisionModelEvalTest
+    # in the build job. run_evals.py exits non-zero below its threshold, so a regression fails CI.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agents
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install uv
+        run: pipx install uv
+
+      - name: Sync
+        run: uv sync --dev --frozen
+
+      - name: Unit tests
+        run: uv run pytest
+
+      - name: Evals
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "OPENROUTER_API_KEY not set (fork PR) — skipping live screening-dd evals"
+          else
+            uv run evals/run_evals.py
+          fi
