@@ -119,6 +119,9 @@ class SecurityConfig {
             http.addFilterBefore(
                 DevSubjectAuthFilter(env.getProperty("AUTH_DEV_SUBJECT")),
                 UsernamePasswordAuthenticationFilter::class.java,
+            )
+        }
+
         // Per-tenant quota counts authenticated traffic only, so it runs after the bearer token
         // has been verified — a forged X-Tenant-Id cannot reach somebody else's counter because
         // the tenant comes from resolved membership, not the request.
