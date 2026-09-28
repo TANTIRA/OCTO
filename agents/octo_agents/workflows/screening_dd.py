@@ -306,11 +306,13 @@ def run_screening_dd(
             "messages": [
                 (
                     "user",
-                    f"Draft the screening memo for prospect {prospect_id}.\n\n"
-                    "Relevant record excerpts, already scored for this task:\n"
-                    f"{evidence}\n\n"
-                    "Pull the prospect's full state through the tools for anything "
-                    "the excerpts do not cover.",
+                    (
+                        f"Draft the screening memo for prospect {prospect_id}.\n\n"
+                        "Relevant record excerpts, already scored for this task:\n"
+                        f"{evidence}\n\n"
+                        "Pull the prospect's full state through the tools for anything "
+                        "the excerpts do not cover."
+                    ),
                 )
             ]
         }

@@ -183,9 +183,11 @@ def run_due_diligence(
             "messages": [
                 (
                     "user",
-                    f"Run due diligence on prospect {prospect_id}.\n\n"
-                    "Relevant record excerpts, already scored for this task:\n"
-                    f"{evidence}",
+                    (
+                        f"Run due diligence on prospect {prospect_id}.\n\n"
+                        "Relevant record excerpts, already scored for this task:\n"
+                        f"{evidence}"
+                    ),
                 )
             ]
         }
