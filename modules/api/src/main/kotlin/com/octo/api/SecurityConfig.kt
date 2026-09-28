@@ -1,10 +1,17 @@
 package com.octo.api
 
+import com.octo.api.access.TenantDirectory
+import com.octo.api.access.persistence.TenantSettings
 import com.octo.api.ingestion.HeliusWebhookAuthFilter
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
 import org.springframework.core.env.Environment
+import org.springframework.data.redis.connection.RedisConnectionFactory
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
+import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -17,6 +24,7 @@ import org.springframework.security.oauth2.jwt.JwtClaimValidator
 import org.springframework.security.oauth2.jwt.JwtIssuerValidator
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
@@ -58,11 +66,26 @@ class SecurityConfig {
         return http.build()
     }
 
+    /**
+     * Redis backing the per-tenant quota counters — exists only when `REDIS_HOST` is configured,
+     * so a deployment without the cache tier keeps working (the limiter simply isn't registered).
+     */
+    @Bean
+    @ConditionalOnProperty(name = ["REDIS_HOST"])
+    fun rateLimitRedisFactory(env: Environment): LettuceConnectionFactory =
+        LettuceConnectionFactory(
+            env.getRequiredProperty("REDIS_HOST"),
+            env.getProperty("REDIS_PORT", "6379").toInt(),
+        )
+
     @Bean
     @Order(2)
     fun securityFilterChain(
         http: HttpSecurity,
         env: Environment,
+        redis: ObjectProvider<RedisConnectionFactory>,
+        tenantDirectory: TenantDirectory,
+        tenantSettings: TenantSettings,
     ): SecurityFilterChain {
         http
             .csrf { it.disable() }
@@ -74,6 +97,21 @@ class SecurityConfig {
                     .anyRequest()
                     .authenticated()
             }
+
+        // Per-tenant quota counts authenticated traffic only, so it runs after the bearer token
+        // has been verified — a forged X-Tenant-Id cannot reach somebody else's counter because
+        // the tenant comes from resolved membership, not the request.
+        redis.ifAvailable { factory ->
+            http.addFilterAfter(
+                RateLimitFilter(
+                    StringRedisTemplate(factory),
+                    tenantSettings,
+                    tenantDirectory,
+                    env.getProperty("octo.rate-limit.default-per-minute", Int::class.java, 120),
+                ),
+                BearerTokenAuthenticationFilter::class.java,
+            )
+        }
 
         val jwksUri = env.getProperty("AUTH_JWKS_URL")?.takeIf(String::isNotBlank)
         if (jwksUri != null) {

@@ -113,9 +113,9 @@ class EntityScopingIT {
                 )
                 // Derived rows on each wallet.
                 s.execute(
-                    "insert into octo.onchain_transfer (external_id, chain, signature, slot, block_time, " +
-                        "commitment, wallet, amount_raw, decimals, direction, transfer_kind, source_system, " +
-                        "actor, ingestion_run_id, correlation_id) values " +
+                    "insert into octo.onchain_transfer (external_id, chain, signature, slot, " +
+                        "block_time, commitment, wallet, amount_raw, decimals, direction, " +
+                        "transfer_kind, source_system, actor, ingestion_run_id, correlation_id) values " +
                         "('x-${UUID.randomUUID()}', 'solana', 'sig-a', 1, now(), 'finalized', " +
                         "'$walletA', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid()), " +
                         "('x-${UUID.randomUUID()}', 'solana', 'sig-b', 2, now(), 'finalized', " +
