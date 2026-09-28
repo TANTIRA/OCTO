@@ -13,6 +13,7 @@ import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
 import com.octo.workflow.report.ReportType
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.DisposableBean
 import org.springframework.scheduling.annotation.Scheduled
 import java.math.BigDecimal
 import java.security.MessageDigest
@@ -21,6 +22,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Currency
 import java.util.UUID
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Runs queued report jobs in process (#105: a poller, not a queue). Each poll drains the queue one claim at a
@@ -31,8 +34,16 @@ class ReportRunner(
     private val jobs: ReportJobs,
     private val json: ObjectMapper,
     private val agents: AgentsClient,
-) {
+) : DisposableBean {
     private val log = LoggerFactory.getLogger(ReportRunner::class.java)
+    private val heartbeat =
+        Executors.newSingleThreadScheduledExecutor { task ->
+            Thread(task, "report-job-heartbeat").apply { isDaemon = true }
+        }
+
+    override fun destroy() {
+        heartbeat.shutdownNow()
+    }
 
     @Scheduled(fixedDelayString = "\${octo.reports.poll-ms:5000}")
     fun poll() {
@@ -42,14 +53,31 @@ class ReportRunner(
         }
     }
 
-    fun runOne(job: ReportJob): ReportJob =
-        try {
+    fun runOne(job: ReportJob): ReportJob {
+        val claimToken = requireNotNull(job.claimToken) { "report job ${job.id} is not claimed" }
+        val renewal =
+            heartbeat.scheduleAtFixedRate(
+                {
+                    try {
+                        if (!jobs.renew(job.id, claimToken)) log.warn("report job {} lost its lease", job.id)
+                    } catch (e: Exception) {
+                        log.warn("report job {} lease renewal failed", job.id, e)
+                    }
+                },
+                60,
+                60,
+                TimeUnit.SECONDS,
+            )
+        return try {
             val result = json.writeValueAsString(execute(job))
-            jobs.complete(job.id, result, sha256(result))
+            jobs.complete(job.id, claimToken, result, sha256(result))
         } catch (e: Exception) {
             log.warn("report job {} failed: {}", job.id, e.message)
-            jobs.fail(job.id, e.message ?: e::class.simpleName ?: "failed")
+            jobs.fail(job.id, claimToken, e.message ?: e::class.simpleName ?: "failed")
+        } finally {
+            renewal.cancel(false)
         }
+    }
 
     private fun execute(job: ReportJob): Map<String, Any?> =
         when (job.request.type) {

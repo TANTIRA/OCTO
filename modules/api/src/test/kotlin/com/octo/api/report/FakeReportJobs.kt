@@ -25,18 +25,41 @@ class FakeReportJobs : ReportJobs {
         scope: TenantScope,
     ) = jobs[id]
 
-    override fun claimNext() = jobs.values.firstOrNull { it.status == JobStatus.NEW }?.let { move(it.id, JobStatus.EXECUTING) }
+    override fun claimNext() =
+        jobs.values.firstOrNull { it.status == JobStatus.NEW }?.let {
+            move(it.id, JobStatus.EXECUTING) { job ->
+                job.copy(claimToken = UUID.randomUUID(), claimedUntil = Instant.now().plusSeconds(300))
+            }
+        }
+
+    override fun renew(
+        id: UUID,
+        claimToken: UUID,
+    ): Boolean {
+        val job = jobs.getValue(id)
+        if (job.claimToken != claimToken || job.status != JobStatus.EXECUTING) return false
+        jobs[id] = job.copy(claimedUntil = Instant.now().plusSeconds(300))
+        return true
+    }
 
     override fun complete(
         id: UUID,
+        claimToken: UUID,
         result: String,
         artifactSha256: String?,
-    ) = move(id, JobStatus.DONE) { it.copy(result = result, artifactSha256 = artifactSha256) }
+    ) = move(id, JobStatus.DONE) {
+        check(it.claimToken == claimToken)
+        it.copy(result = result, artifactSha256 = artifactSha256, claimToken = null, claimedUntil = null)
+    }
 
     override fun fail(
         id: UUID,
+        claimToken: UUID,
         error: String,
-    ) = move(id, JobStatus.ERROR) { it.copy(error = error) }
+    ) = move(id, JobStatus.ERROR) {
+        check(it.claimToken == claimToken)
+        it.copy(error = error, claimToken = null, claimedUntil = null)
+    }
 
     override fun attachApproval(
         id: UUID,

@@ -67,6 +67,8 @@ data class ReportJob(
     val approvalTaskId: UUID?,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val claimToken: UUID? = null,
+    val claimedUntil: Instant? = null,
 )
 
 /** The job store the endpoints and the runner depend on. */
@@ -84,14 +86,21 @@ interface ReportJobs {
     /** Moves the oldest `new` job to `executing` and returns it, or null when the queue is empty. Two runners never claim the same job. */
     fun claimNext(): ReportJob?
 
+    fun renew(
+        id: UUID,
+        claimToken: UUID,
+    ): Boolean
+
     fun complete(
         id: UUID,
+        claimToken: UUID,
         result: String,
         artifactSha256: String? = null,
     ): ReportJob
 
     fun fail(
         id: UUID,
+        claimToken: UUID,
         error: String,
     ): ReportJob
 

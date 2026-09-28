@@ -36,6 +36,7 @@ class ReportRunnerGlExportTest {
 
         override fun complete(
             id: UUID,
+            claimToken: UUID,
             result: String,
             artifactSha256: String?,
         ): ReportJob {
@@ -45,8 +46,14 @@ class ReportRunnerGlExportTest {
 
         override fun fail(
             id: UUID,
+            claimToken: UUID,
             error: String,
         ): ReportJob = throw AssertionError("job failed: $error")
+
+        override fun renew(
+            id: UUID,
+            claimToken: UUID,
+        ) = true
 
         override fun submit(
             request: ReportRequest,
@@ -107,6 +114,8 @@ class ReportRunnerGlExportTest {
                     correlationId = UUID.randomUUID(),
                 ),
             status = JobStatus.EXECUTING,
+            claimToken = UUID.randomUUID(),
+            claimedUntil = Instant.now().plusSeconds(300),
             result = null,
             error = null,
             artifactSha256 = null,
