@@ -131,7 +131,7 @@ classDiagram
 
     class ReportJob {
         <<entity, mutable status>>
-        QUEUED→RUNNING→DONE/FAILED
+        NEW→EXECUTING→DONE/ERROR
     }
     class ReportSchedule {
         +cron, nextRunAt, claimedUntil

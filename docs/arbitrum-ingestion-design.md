@@ -3,7 +3,7 @@
 Design for a read-only Arbitrum adapter feeding the existing onchain pipeline. This is the "how" companion to [arbitrum-fit-assessment.md](arbitrum-fit-assessment.md), which answered "should we" and remains the finality and risk reference. The platform reads and never signs — nothing in this design touches keys, transactions, bridging, or contract deployment (T3 exclusions stand).
 
 - **Risk tier:** T0 for this document. T2 for what it specifies — an ingestion adapter that writes financial facts. See `AGENTS.md` risk tiers and the fit assessment's T3 exclusions.
-- **Status:** proposed design, pending an issue. Several items are marked **decision needed** — agree them in the issue before code. Execution order and per-phase done-criteria live in [arbitrum-megaplan.md](arbitrum-megaplan.md).
+- **Status:** implemented — the adapter shipped per [arbitrum-megaplan.md](arbitrum-megaplan.md): `V17__arbitrum_evm_support.sql`, the ontology `evm-address`/`evm-contract` terms, `modules/ingestion/.../onchain/evm/` (RPC client, scan service, transfer and balance collectors, evidence adapter), and `EvmIngestionConfiguration`/`EvmSyncRunner` in `api`. The text below is kept as the design record.
 - **Grounded in:** [arbitrum-fit-assessment.md](arbitrum-fit-assessment.md), [helius-fit-assessment.md](helius-fit-assessment.md), [ADR-0001](adr/0001-platform-architecture.md), `V10__onchain_ingestion.sql`, `V16__onchain_claim_evidence.sql`, `ontology/octo-investment.cypher`, `modules/ingestion/.../onchain/`, [Arbitrum docs](https://docs.arbitrum.io/llms-full.txt)
 
 ## What changed since the fit assessment

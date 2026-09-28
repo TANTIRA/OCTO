@@ -3,7 +3,7 @@
 Phased execution plan for Arbitrum One ingestion into the onchain pipeline, in the same phase style as the original megaplan (`megaplan §P5`, `phase 8` in V16). Each phase is one GitHub issue and one or more `<400`-line PRs. The design rationale lives in [arbitrum-ingestion-design.md](arbitrum-ingestion-design.md); this doc is the "in what order, and when is it done" companion.
 
 - **Risk tier:** T0 for this document. Each phase carries its own tier; the T2 phases (migration, ontology, adapter) follow the T2 rules — plan agreed in the issue before code.
-- **Status:** proposed. Decisions below were agreed before this doc was written.
+- **Status:** shipped — phases ARB-1 through ARB-8 landed (V17 migration, ontology EVM terms, `onchain/evm/` adapter, api wiring). Kept as the execution record.
 - **Grounded in:** [arbitrum-ingestion-design.md](arbitrum-ingestion-design.md), [arbitrum-fit-assessment.md](arbitrum-fit-assessment.md), `V10__onchain_ingestion.sql`, `V16__onchain_claim_evidence.sql`, `ontology/octo-investment.cypher`, `modules/ingestion/.../onchain/`
 
 ## Locked decisions
