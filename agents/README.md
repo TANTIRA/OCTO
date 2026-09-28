@@ -39,6 +39,9 @@ service's only client and its only tool surface.
 | `OCTO_AGENT_TOKEN` | service-principal JWT for api calls (tasks+drafts scope) |
 | `OCTO_AGENTS_TOKEN` | bearer the platform presents when calling this service |
 | `OCTO_AGENTS_SCREENING_DD_ENABLED` | feature flag for the first workflow (default off) |
+| `OCTO_AGENTS_DD_ENABLED` | F3 parallel DD workstreams (default off) |
+| `OCTO_AGENTS_IC_MEMO_ENABLED` | F5 IC memo drafting (default off) |
+| `OCTO_AGENTS_LP_REPORT_ENABLED` | F8 LP report drafting (default off) |
 | `MODEL_REGISTRY_PATH` | registry override, default `./models.yaml` |
 
 ## API
@@ -56,6 +59,18 @@ service's only client and its only tool surface.
   low/medium/high/blocker, and high-or-blocker streams mint one
   `EVIDENCE_REQUEST` task each via `POST /prospects/{id}/dd-evidence` on the
   platform — idempotent per workstream. Flag: `OCTO_AGENTS_DD_ENABLED`.
+
+- `POST /v1/workflows/ic-memo` — `{prospect_id}` → F5: drafts the IC memo on
+  the admitted evidence, then jev gates completeness/thesis/evidence. A pass
+  opens the prospect's `ic-review` approval task through the platform — but
+  only while it stands at ic-review; otherwise the memo stays a judged draft
+  on `agent_run`. Flag: `OCTO_AGENTS_IC_MEMO_ENABLED`.
+
+- `POST /v1/workflows/lp-report` — `{job_id, position_source_*, measures,
+  parameters}` → F8: the report runner calls this for `lp-report` jobs. The
+  drafter runs with no tools and narrates only the job's inline facts; jev
+  refuses drafts it cannot support, which errors the job. A `done` job is
+  still sealed until `/release` approval. Flag: `OCTO_AGENTS_LP_REPORT_ENABLED`.
 
 ## Evals
 

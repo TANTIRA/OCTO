@@ -12,6 +12,9 @@ enum class ReportType(
     EXPOSURE("exposure"),
     ATTRIBUTION("attribution"),
     GL_EXPORT("gl-export"),
+
+    /** Agent-drafted LP letter — the sidecar narrates the job's own parameters; release still gates it. */
+    LP_REPORT("lp-report"),
     ;
 
     companion object {

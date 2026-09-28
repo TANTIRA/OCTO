@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.octo.api.agents.AgentsClient
 import com.octo.api.report.ReportRunner
 import com.octo.persistence.TenantScope
 import com.octo.workflow.report.JobStatus
@@ -127,7 +128,7 @@ class ReportRunnerGlExportTest {
             ]}
             """.trimIndent()
 
-        ReportRunner(jobs, json).runOne(job(params))
+        ReportRunner(jobs, json, AgentsClient { _, _ -> error("gl-export never calls the sidecar") }).runOne(job(params))
 
         val result: Map<String, Any?> = json.readValue(jobs.completed ?: error("job did not complete"))
         val lines = result["lines"] as List<*>

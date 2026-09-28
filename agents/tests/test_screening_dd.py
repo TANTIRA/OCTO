@@ -16,11 +16,12 @@ from octo_agents.workflows.screening_dd import run_screening_dd
 
 
 class FakeApi:
-    """Just enough OctoApiClient for the workflow — records the mediated write."""
+    """Just enough OctoApiClient for the workflow — records the mediated writes."""
 
     def __init__(self, events: list[Any]) -> None:
         self.events = events
         self.screening_requests: list[str] = []
+        self.finished: list[dict] = []
 
     def get_prospect(self, prospect_id: str) -> Any:
         return {"id": prospect_id, "stage": "screening", "name": "PT Acme"}
@@ -31,6 +32,13 @@ class FakeApi:
     def request_screening(self, prospect_id: str) -> Any:
         self.screening_requests.append(prospect_id)
         return {"verdict": "review"}
+
+    def record_run(self, **kwargs: Any) -> Any:
+        return {"id": "run-1"}
+
+    def finish_run(self, run_id: str, **kwargs: Any) -> Any:
+        self.finished.append({"run_id": run_id, **kwargs})
+        return {}
 
 
 def fake_judge(*, preflight: float, scores: list[float], advance: float) -> JudgeClient:
@@ -102,6 +110,9 @@ def test_preflight_refusal_spends_no_drafter_call_and_opens_nothing(
         judge=fake_judge(preflight=0.2, scores=[], advance=0.0),
         api=api,
         prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-1",
+        models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
     )
     assert result.status == "refused"
     assert result.memo == ""
@@ -109,6 +120,9 @@ def test_preflight_refusal_spends_no_drafter_call_and_opens_nothing(
     assert result.preflight.probability == 0.2
     assert result.preflight.gap_band == "thin"
     assert api.screening_requests == []
+    # F4: even a refused run lands its row with the verdict that refused it.
+    assert api.finished[0]["status"] == "refused"
+    assert api.finished[0]["verdict"]["sufficient"]["noul"] == 0.2
 
 
 def test_sufficient_record_admits_only_relevant_events_then_screens(
@@ -126,6 +140,9 @@ def test_sufficient_record_admits_only_relevant_events_then_screens(
         judge=fake_judge(preflight=0.9, scores=[5.0, 2.0, 4.0], advance=0.85),
         api=api,
         prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-1",
+        models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
     )
     assert result.status == "completed"
     assert result.memo == "screening memo"
@@ -138,6 +155,8 @@ def test_sufficient_record_admits_only_relevant_events_then_screens(
     assert "heartbeat" not in task_text
     assert result.verdict is not None and result.verdict.proceed
     assert api.screening_requests == ["p-1"]
+    assert api.finished[0]["status"] == "completed"
+    assert api.finished[0]["output"]["memo"] == "screening memo"
 
 
 def test_all_events_below_bar_still_admits_the_top_one(
@@ -150,6 +169,9 @@ def test_all_events_below_bar_still_admits_the_top_one(
         judge=fake_judge(preflight=0.9, scores=[1.0, 2.0], advance=0.3),
         api=api,
         prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-1",
+        models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
     )
     assert result.retrieval is not None and result.retrieval.events_admitted == 1
     assert result.verdict is not None and not result.verdict.proceed
@@ -166,6 +188,9 @@ def test_empty_history_passes_preflight_with_an_empty_evidence_block(
         judge=fake_judge(preflight=0.9, scores=[], advance=0.4),
         api=api,
         prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-1",
+        models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
     )
     assert result.retrieval is not None and result.retrieval.events_total == 0
     assert "(no events on record)" in invocations[0]["messages"][0][1]

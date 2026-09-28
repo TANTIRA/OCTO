@@ -742,7 +742,14 @@ class ProspectController(
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val result =
             try {
-                agents.run("screening-dd", mapOf("prospect_id" to id.toString()))
+                agents.run(
+                    "screening-dd",
+                    mapOf(
+                        "prospect_id" to id.toString(),
+                        "tenant_id" to current.prospect.tenantId.toString(),
+                        "run_key" to UUID.randomUUID().toString(),
+                    ),
+                )
             } catch (e: AgentsUnavailableException) {
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
             } catch (e: AgentsCallException) {
@@ -752,6 +759,45 @@ class ProspectController(
                     ).build()
             }
         counter("deal.prospects.agent_screens")?.increment()
+        return ResponseEntity.ok(result)
+    }
+
+    /**
+     * `POST /api/v1/prospects/{id}/agent-ic-memo` — drafts the IC memo through the sidecar
+     * (ADR-0005 F5): the drafter writes, jev gates completeness/thesis/evidence, and a passing
+     * memo opens the prospect's `ic-review` approval task — but only while the prospect stands
+     * at ic-review; elsewhere the judged draft stays in `agent_run` and nothing advances. Same
+     * auth and error contract as `agentScreen`.
+     */
+    @PostMapping("/api/v1/prospects/{id}/agent-ic-memo")
+    fun agentIcMemo(
+        @PathVariable id: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<Any> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val current =
+            prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        val result =
+            try {
+                agents.run(
+                    "ic-memo",
+                    mapOf(
+                        "prospect_id" to id.toString(),
+                        "tenant_id" to current.prospect.tenantId.toString(),
+                        "run_key" to UUID.randomUUID().toString(),
+                    ),
+                )
+            } catch (e: AgentsUnavailableException) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
+            } catch (e: AgentsCallException) {
+                return ResponseEntity
+                    .status(
+                        if (e.statusCode == 503) HttpStatus.SERVICE_UNAVAILABLE else HttpStatus.BAD_GATEWAY,
+                    ).build()
+            }
+        counter("deal.prospects.agent_ic_memos")?.increment()
         return ResponseEntity.ok(result)
     }
 

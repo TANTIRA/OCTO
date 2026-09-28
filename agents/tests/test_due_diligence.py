@@ -29,6 +29,12 @@ class FakeApi:
         self.evidence_requests.append((prospect_id, workstream))
         return {"taskId": f"task-{workstream}", "opened": True}
 
+    def record_run(self, **kwargs: Any) -> Any:
+        return {"id": "run-1"}
+
+    def finish_run(self, run_id: str, **kwargs: Any) -> Any:
+        return {}
+
 
 def fake_judge(*, preflight: float, bands: dict[str, str]) -> JudgeClient:
     def handler(request: httpx.Request) -> httpx.Response:
@@ -93,6 +99,9 @@ def test_high_and_blocker_streams_mint_evidence_tasks(
         ),
         api=api,
         prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-1",
+        models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
     )
     assert result.status == "completed"
     assert api.evidence_requests == [("p-1", "market"), ("p-1", "financial")]
@@ -118,6 +127,9 @@ def test_all_low_risk_streams_open_no_tasks(monkeypatch: pytest.MonkeyPatch) -> 
         ),
         api=api,
         prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-1",
+        models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
     )
     assert result.status == "completed"
     assert api.evidence_requests == []
@@ -138,6 +150,9 @@ def test_preflight_refusal_runs_no_subagents_and_opens_nothing(
         judge=fake_judge(preflight=0.1, bands={}),
         api=api,
         prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-1",
+        models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
     )
     assert result.status == "refused"
     assert api.evidence_requests == []

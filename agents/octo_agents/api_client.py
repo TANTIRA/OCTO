@@ -65,10 +65,58 @@ class OctoApiClient:
     def request_screening(self, prospect_id: str) -> Any:
         return self._post(f"/api/v1/prospects/{prospect_id}/screen")
 
+    def request_ic_review(self, prospect_id: str) -> Any:
+        return self._post(f"/api/v1/prospects/{prospect_id}/ic-review")
+
     def open_dd_evidence(self, prospect_id: str, workstream: str, summary: str) -> Any:
         return self._post(
             f"/api/v1/prospects/{prospect_id}/dd-evidence",
             {"workstream": workstream, "summary": summary},
+        )
+
+    # agent_run (V33) — F4's audit spine: every production run records before it
+    # starts and finishes when it lands. A replayed run_key returns the existing
+    # row, so a retried trigger reads back instead of duplicating.
+    def record_run(
+        self,
+        *,
+        tenant_id: str,
+        workflow: str,
+        run_key: str,
+        subject_type: str,
+        subject_id: str,
+        input: Any,
+        models: Any,
+        thresholds: Any = None,
+        request_ids: Any = None,
+    ) -> Any:
+        return self._post(
+            "/api/v1/agent-runs",
+            {
+                "tenantId": tenant_id,
+                "workflow": workflow,
+                "runKey": run_key,
+                "subjectType": subject_type,
+                "subjectId": subject_id,
+                "input": input,
+                "models": models,
+                "thresholds": thresholds,
+                "requestIds": request_ids,
+            },
+        )
+
+    def finish_run(
+        self,
+        run_id: str,
+        *,
+        status: str,
+        output: Any = None,
+        verdict: Any = None,
+        error: str | None = None,
+    ) -> Any:
+        return self._post(
+            f"/api/v1/agent-runs/{run_id}/finish",
+            {"status": status, "output": output, "verdict": verdict, "error": error},
         )
 
     def draft_report(

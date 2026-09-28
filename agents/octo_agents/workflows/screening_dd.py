@@ -270,74 +270,142 @@ def judge_memo(
     )
 
 
+def _record_run(
+    api: OctoApiClient,
+    *,
+    tenant_id: str,
+    workflow: str,
+    run_key: str,
+    subject_type: str,
+    subject_id: str,
+    input: Any,
+    models: dict[str, str],
+) -> tuple[str | None, Any | None]:
+    """Opens the agent_run row for this invocation. Returns (run_id, None) for a
+    fresh run, or (None, replayed_output) when run_key already closed — a retried
+    trigger reads its own result back instead of running twice."""
+    recorded = api.record_run(
+        tenant_id=tenant_id,
+        workflow=workflow,
+        run_key=run_key,
+        subject_type=subject_type,
+        subject_id=subject_id,
+        input=input,
+        models=models,
+    )
+    if recorded.get("status") and recorded["status"] != "running" and recorded.get("output"):
+        return None, recorded["output"]
+    return recorded["id"], None
+
+
 def run_screening_dd(
     *,
     agent_model: Any,
     judge: JudgeClient,
     api: OctoApiClient,
     prospect_id: str,
+    tenant_id: str,
+    run_key: str,
+    models: dict[str, str],
 ) -> ScreeningResult:
-    prospect_state = api.get_prospect(prospect_id)
-    raw_events = api.list_prospect_events(prospect_id)
-    events = raw_events if isinstance(raw_events, list) else []
-
-    preflight = preflight_gate(
-        judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
+    run_id, replayed = _record_run(
+        api,
+        tenant_id=tenant_id,
+        workflow="screening-dd",
+        run_key=run_key,
+        subject_type="prospect",
+        subject_id=prospect_id,
+        input={"prospect_id": prospect_id},
+        models=models,
     )
-    if not preflight.record_sufficient:
-        return ScreeningResult(
-            prospect_id=prospect_id,
-            status="refused",
-            preflight=preflight,
+    if replayed is not None:
+        return ScreeningResult.model_validate(replayed)
+
+    try:
+        prospect_state = api.get_prospect(prospect_id)
+        raw_events = api.list_prospect_events(prospect_id)
+        events = raw_events if isinstance(raw_events, list) else []
+
+        preflight = preflight_gate(
+            judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
+        )
+        if not preflight.record_sufficient:
+            result = ScreeningResult(
+                prospect_id=prospect_id,
+                status="refused",
+                preflight=preflight,
+            )
+            api.finish_run(
+                run_id,
+                status="refused",
+                output=result.model_dump(),
+                verdict={"sufficient": {"noul": preflight.probability}},
+            )
+            return result
+
+        admitted, retrieval = score_events(
+            judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
         )
 
-    admitted, retrieval = score_events(
-        judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
-    )
-
-    agent = create_deep_agent(
-        model=agent_model,
-        tools=read_tools(api),
-        system_prompt=SCREENING_PROMPT,
-    )
-    evidence = "\n".join(f"- {_digest(e)}" for e in admitted) or "- (no events on record)"
-    result = agent.invoke(
-        {
-            "messages": [
-                (
-                    "user",
+        agent = create_deep_agent(
+            model=agent_model,
+            tools=read_tools(api),
+            system_prompt=SCREENING_PROMPT,
+        )
+        evidence = "\n".join(f"- {_digest(e)}" for e in admitted) or "- (no events on record)"
+        result = agent.invoke(
+            {
+                "messages": [
                     (
-                        f"Draft the screening memo for prospect {prospect_id}.\n\n"
-                        "Relevant record excerpts, already scored for this task:\n"
-                        f"{evidence}\n\n"
-                        "Pull the prospect's full state through the tools for anything "
-                        "the excerpts do not cover."
-                    ),
-                )
-            ]
-        }
-    )
-    memo = extract_final_text(result)
+                        "user",
+                        (
+                            f"Draft the screening memo for prospect {prospect_id}.\n\n"
+                            "Relevant record excerpts, already scored for this task:\n"
+                            f"{evidence}\n\n"
+                            "Pull the prospect's full state through the tools for anything "
+                            "the excerpts do not cover."
+                        ),
+                    )
+                ]
+            }
+        )
+        memo = extract_final_text(result)
 
-    verdict = judge_memo(
-        judge,
-        prospect_id=prospect_id,
-        prospect_state=prospect_state,
-        events=admitted,
-        memo=memo,
-    )
+        verdict = judge_memo(
+            judge,
+            prospect_id=prospect_id,
+            prospect_state=prospect_state,
+            events=admitted,
+            memo=memo,
+        )
 
-    screening_response = None
-    if verdict.proceed:
-        screening_response = api.request_screening(prospect_id)
+        screening_response = None
+        if verdict.proceed:
+            screening_response = api.request_screening(prospect_id)
 
-    return ScreeningResult(
-        prospect_id=prospect_id,
-        status="completed",
-        memo=memo,
-        preflight=preflight,
-        retrieval=retrieval,
-        verdict=verdict,
-        screening_requested=verdict.proceed,
-        screening_response=screening_response,
-    )
+        result = ScreeningResult(
+            prospect_id=prospect_id,
+            status="completed",
+            memo=memo,
+            preflight=preflight,
+            retrieval=retrieval,
+            verdict=verdict,
+            screening_requested=verdict.proceed,
+            screening_response=screening_response,
+        )
+        api.finish_run(
+            run_id,
+            status="completed",
+            output=result.model_dump(),
+            verdict={
+                "advance": {"noul": verdict.proceed_probability},
+                "rationale": {"choice": verdict.rationale_band},
+                "lineage": verdict.judge_lineage,
+            },
+        )
+        return result
+    except Exception as e:
+        # The run's bookkeeping must not hide its failure — a crashed run lands
+        # `failed` with the error text so F4 sees it, then the error propagates.
+        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        raise
