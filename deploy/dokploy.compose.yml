@@ -38,6 +38,8 @@ services:
       - OPENROUTER_API_KEY
       - DECISION_MODEL
       - DECISION_MODEL_ENDPOINT
+      # Comma-separated JWT subjects allowed to provision tenants (admin API). Unset = nobody.
+      - OCTO_PLATFORM_ADMINS=${OCTO_PLATFORM_ADMINS:-}
       - HELIUS_API_KEY
       - HELIUS_RPC_URL
       - HELIUS_WALLET_API_URL

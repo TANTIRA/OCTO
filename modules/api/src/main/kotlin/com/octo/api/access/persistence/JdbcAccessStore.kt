@@ -34,57 +34,51 @@ data class AccessProvenance(
  */
 class JdbcAccessStore(
     private val dataSource: DataSource,
-) : TenantDirectory {
+) : TenantDirectory,
+    AccessAdministration {
     fun createTenant(
         tenant: Tenant,
         provenance: AccessProvenance,
     ) {
-        val sql =
-            """
-            insert into octo.tenant (id, slug, display_name, source_system, correlation_id)
-            values (?, ?, ?, ?, ?)
-            """.trimIndent()
         // The access store is the platform's security substrate (#197): it reads and writes the
         // membership tables the RLS policies themselves consult, so it runs under an explicit
         // `All` scope — the queries' own predicates still constrain the rows.
-        dataSource.scoped(TenantScope.All) { connection ->
-            connection.prepareStatement(sql).use { statement ->
-                statement.setObject(1, tenant.id)
-                statement.setString(2, tenant.slug)
-                statement.setString(3, tenant.displayName)
-                statement.setString(4, provenance.sourceSystem)
-                statement.setObject(5, provenance.correlationId)
-                statement.executeUpdate()
-            }
-        }
+        dataSource.scoped(TenantScope.All) { connection -> insertTenant(connection, tenant, provenance) }
     }
 
     /** Registers [userId] in the tenant at [registeredAt]. Access comes from events, not this row. */
-    fun registerMember(
+    override fun registerMember(
         tenantId: UUID,
         userId: UUID,
         registeredAt: Instant,
         provenance: AccessProvenance,
     ) {
-        val sql =
-            """
-            insert into octo.tenant_member (tenant_id, user_id, created_at, source_system, correlation_id)
-            values (?, ?, ?, ?, ?)
-            """.trimIndent()
-        dataSource.scoped(TenantScope.All) { connection ->
-            connection.prepareStatement(sql).use { statement ->
-                statement.setObject(1, tenantId)
-                statement.setObject(2, userId)
-                statement.setObject(3, registeredAt.atOffset(ZoneOffset.UTC))
-                statement.setString(4, provenance.sourceSystem)
-                statement.setObject(5, provenance.correlationId)
-                statement.executeUpdate()
-            }
-        }
+        dataSource.scoped(TenantScope.All) { connection -> insertMember(connection, tenantId, userId, registeredAt, provenance) }
     }
 
+    /**
+     * Tenant + first admin as one atomic provision (access boundary): the tenant row, the member
+     * registration and the granting event share one transaction, so a failed grant can never leave
+     * an admin-less tenant behind.
+     */
+    override fun provisionTenant(
+        tenant: Tenant,
+        adminUserId: UUID,
+        grantor: String,
+        registeredAt: Instant,
+        provenance: AccessProvenance,
+    ): MembershipState =
+        dataSource.scoped(TenantScope.All) { connection ->
+            insertTenant(connection, tenant, provenance)
+            insertMember(connection, tenant.id, adminUserId, registeredAt, provenance)
+            val event = MembershipEvent.Granted(grantor, registeredAt, TenantRole.ADMIN)
+            val after = registered(tenant.id, adminUserId, registeredAt).next(event)
+            insertEvent(connection, tenant.id, adminUserId, event, provenance)
+            after
+        }
+
     /** The membership's state after every stored event, or null when the pair is not registered. */
-    fun load(
+    override fun load(
         tenantId: UUID,
         userId: UUID,
     ): MembershipState? = dataSource.scoped(TenantScope.All) { connection -> replayLocked(connection, tenantId, userId) }
@@ -94,7 +88,7 @@ class JdbcAccessStore(
      * Throws [IllegalArgumentException] for a transition the state machine rejects, or
      * [NoSuchElementException] for an unregistered pair; nothing is written in either case.
      */
-    fun append(
+    override fun append(
         tenantId: UUID,
         userId: UUID,
         event: MembershipEvent,
@@ -220,6 +214,45 @@ class JdbcAccessStore(
             }
 
     private fun role(rows: ResultSet): TenantRole = TenantRole.fromWireValue(rows.getString(2))
+
+    private fun insertTenant(
+        connection: Connection,
+        tenant: Tenant,
+        provenance: AccessProvenance,
+    ) {
+        connection
+            .prepareStatement(
+                "insert into octo.tenant (id, slug, display_name, source_system, correlation_id) values (?, ?, ?, ?, ?)",
+            ).use { statement ->
+                statement.setObject(1, tenant.id)
+                statement.setString(2, tenant.slug)
+                statement.setString(3, tenant.displayName)
+                statement.setString(4, provenance.sourceSystem)
+                statement.setObject(5, provenance.correlationId)
+                statement.executeUpdate()
+            }
+    }
+
+    private fun insertMember(
+        connection: Connection,
+        tenantId: UUID,
+        userId: UUID,
+        registeredAt: Instant,
+        provenance: AccessProvenance,
+    ) {
+        connection
+            .prepareStatement(
+                "insert into octo.tenant_member (tenant_id, user_id, created_at, source_system, correlation_id) " +
+                    "values (?, ?, ?, ?, ?)",
+            ).use { statement ->
+                statement.setObject(1, tenantId)
+                statement.setObject(2, userId)
+                statement.setObject(3, registeredAt.atOffset(ZoneOffset.UTC))
+                statement.setString(4, provenance.sourceSystem)
+                statement.setObject(5, provenance.correlationId)
+                statement.executeUpdate()
+            }
+    }
 
     private fun insertEvent(
         connection: Connection,
