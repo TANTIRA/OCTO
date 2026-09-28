@@ -3,6 +3,7 @@ package com.octo.api
 import jakarta.servlet.DispatcherType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 import org.springframework.boot.availability.AvailabilityChangeEvent
@@ -26,7 +27,11 @@ class SecurityConfigTest {
         WebApplicationContextRunner()
             .withUserConfiguration(OctoApplication::class.java)
             .withPropertyValues(
-                "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
+                // Redis auto-config would otherwise mint a localhost factory and the redis health
+                // contributor pulls the aggregate DOWN when no dev redis happens to be running.
+                "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName}," +
+                    "${FlywayAutoConfiguration::class.qualifiedName}," +
+                    "${RedisAutoConfiguration::class.qualifiedName}",
                 // Mirrors application.yml — the context runner does not load it.
                 "management.endpoints.web.exposure.include=health,info,metrics,prometheus",
                 "management.endpoint.health.probes.enabled=true",
@@ -48,7 +53,13 @@ class SecurityConfigTest {
             AvailabilityChangeEvent.publish(context, LivenessState.CORRECT)
             AvailabilityChangeEvent.publish(context, ReadinessState.ACCEPTING_TRAFFIC)
             for (public in listOf("/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness", "/actuator/info")) {
-                mvc.perform(get(public)).andExpect(status().isOk)
+                mvc
+                    .perform(get(public))
+                    .andExpect { result ->
+                        assertThat(result.response.status)
+                            .`as`("GET $public → ${result.response.contentAsString.take(300)}")
+                            .isEqualTo(200)
+                    }
             }
             for (protected in listOf("/actuator/prometheus", "/actuator/metrics")) {
                 mvc.perform(get(protected)).andExpect(status().isForbidden)
