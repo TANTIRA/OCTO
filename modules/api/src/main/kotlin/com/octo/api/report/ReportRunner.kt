@@ -5,6 +5,9 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.octo.analytics.CashFlow
 import com.octo.analytics.CashFlowSeries
 import com.octo.analytics.performance
+import com.octo.iborcore.FlowType
+import com.octo.iborcore.LedgerEvent
+import com.octo.iborcore.glJournal
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
 import com.octo.workflow.report.ReportType
@@ -12,8 +15,11 @@ import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import java.math.BigDecimal
 import java.security.MessageDigest
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Currency
+import java.util.UUID
 
 /**
  * Runs queued report jobs in process (#105: a poller, not a queue). Each poll drains the queue one claim at a
@@ -46,6 +52,7 @@ class ReportRunner(
     private fun execute(job: ReportJob): Map<String, Any?> =
         when (job.request.type) {
             ReportType.PERFORMANCE -> performanceReport(job)
+            ReportType.GL_EXPORT -> glExportReport(job)
             // TODO(#105): exposure over lookThrough() and attribution over brinson() need their input shapes agreed.
             ReportType.EXPOSURE, ReportType.ATTRIBUTION -> error("report type ${job.request.type.wireValue} is not supported yet")
         }
@@ -90,6 +97,65 @@ class ReportRunner(
         data class Flow(
             val date: LocalDate,
             val amount: BigDecimal,
+        )
+    }
+
+    /**
+     * GL export (#6 slice 15): the caller supplies the ledger events inline (position source
+     * `inline-events`, mirroring performance's `inline-series` until graph-store sourcing lands). The
+     * artifact is a balanced double-entry journal reproducible from the row alone (§10.6).
+     */
+    private fun glExportReport(job: ReportJob): Map<String, Any?> {
+        require(job.request.positionSourceType == "inline-events") {
+            "position source ${job.request.positionSourceType} is not supported; pass inline-events until ledger sourcing is resolved from the graph store"
+        }
+        val input = json.readValue<GlExportInput>(job.request.parameters)
+        val events =
+            input.events.map { e ->
+                LedgerEvent(
+                    id = e.id,
+                    flowType = FlowType.entries.first { it.wireValue == e.flowType },
+                    amount = e.amount,
+                    currency = Currency.getInstance(e.currency),
+                    occurredAt = e.occurredAt,
+                    recordedAt = e.recordedAt,
+                    supersedesId = e.supersedesId,
+                )
+            }
+        val journal = glJournal(events, input.knownAt, ZoneId.of(input.zone))
+        return mapOf(
+            "asOf" to journal.asOf,
+            "methodology" to journal.methodology,
+            "debitsByCurrency" to journal.debitsByCurrency.mapKeys { it.key.currencyCode },
+            "creditsByCurrency" to journal.creditsByCurrency.mapKeys { it.key.currencyCode },
+            "lines" to
+                journal.lines.map { line ->
+                    mapOf(
+                        "sourceEventId" to line.sourceEventId,
+                        "date" to line.date,
+                        "currency" to line.currency.currencyCode,
+                        "flowType" to line.flowType.wireValue,
+                        "debit" to mapOf("code" to line.debit.code, "name" to line.debit.name),
+                        "credit" to mapOf("code" to line.credit.code, "name" to line.credit.name),
+                        "amount" to line.amount,
+                    )
+                },
+        )
+    }
+
+    data class GlExportInput(
+        val knownAt: Instant,
+        val events: List<EventInput>,
+        val zone: String = "UTC",
+    ) {
+        data class EventInput(
+            val flowType: String,
+            val amount: BigDecimal,
+            val currency: String,
+            val occurredAt: Instant,
+            val recordedAt: Instant,
+            val id: UUID = UUID.randomUUID(),
+            val supersedesId: UUID? = null,
         )
     }
 

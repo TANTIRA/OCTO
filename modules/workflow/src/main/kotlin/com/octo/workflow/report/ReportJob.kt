@@ -11,6 +11,7 @@ enum class ReportType(
     PERFORMANCE("performance"),
     EXPOSURE("exposure"),
     ATTRIBUTION("attribution"),
+    GL_EXPORT("gl-export"),
     ;
 
     companion object {
