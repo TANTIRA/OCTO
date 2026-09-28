@@ -50,6 +50,13 @@ service's only client and its only tool surface.
   no substance (no drafter call, `status: "refused"`), then per-event `score`
   questions admit only relevant chunks into the memo context.
 
+- `POST /v1/workflows/due-diligence` — `{prospect_id}` → runs the parallel DD
+  pipeline (F3): four read-only subagents (market, financial, legal,
+  operational) with isolated contexts, jev bands each stream
+  low/medium/high/blocker, and high-or-blocker streams mint one
+  `EVIDENCE_REQUEST` task each via `POST /prospects/{id}/dd-evidence` on the
+  platform — idempotent per workstream. Flag: `OCTO_AGENTS_DD_ENABLED`.
+
 ## Evals
 
 `evals/` holds normal / edge / injection cases mirroring #52. Run:

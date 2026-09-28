@@ -25,3 +25,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["octo_agents"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Depends() in argument defaults is FastAPI's dependency-injection idiom — the
+# call produces a marker FastAPI resolves per-request, not an eager default.
+extend-immutable-calls = ["fastapi.Depends"]

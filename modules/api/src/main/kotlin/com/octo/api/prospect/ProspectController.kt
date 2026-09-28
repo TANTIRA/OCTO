@@ -513,8 +513,12 @@ class ProspectController(
         val bound =
             tasks
                 .state(taskId)
-                ?.takeIf { it.task.subjectType == "prospect" && it.task.subjectId == id.toString() }
-                ?: return ResponseEntity.notFound().build()
+                ?.takeIf {
+                    it.task.subjectType == "prospect" &&
+                        // DD workstream tasks carry "{id}:dd:{workstream}" — the same prospect scope,
+                        // a distinct subject so each stream holds one open evidence request.
+                        (it.task.subjectId == id.toString() || it.task.subjectId.startsWith("$id:dd:"))
+                } ?: return ResponseEntity.notFound().build()
         val event = body.toEvent(jwt.subject) ?: return ResponseEntity.badRequest().build()
         // A gate decision on an approval task is governance, not working access: the same
         // approver-or-admin bar the compliance-rule endpoints apply (ComplianceController). Routing
@@ -532,6 +536,52 @@ class ProspectController(
             }
         counter("deal.prospects.task_events", "event", body.event)?.increment()
         return ResponseEntity.ok(after.view())
+    }
+
+    /**
+     * `POST /api/v1/prospects/{id}/dd-evidence` — the mediated write the DD workflow ends in
+     * (ADR-0005 F3): a jev-banded risky workstream becomes an EVIDENCE_REQUEST task on subject
+     * "{id}:dd:{workstream}" — one open task per stream, `openUnlessOpen` makes a retried run
+     * reuse rather than duplicate. Member-or-better like every write here; the model that flagged
+     * the gap never touches the store. The gap text lives in the agent_run record — the task is
+     * the checklist entry a human gathers against and completes through /tasks/{taskId}.
+     */
+    @PostMapping("/api/v1/prospects/{id}/dd-evidence")
+    fun openDdEvidence(
+        @PathVariable id: UUID,
+        @RequestBody body: DdEvidenceRequest,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<Any> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val current =
+            prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        val workstream = body.workstream.trim()
+        if (!workstream.matches(Regex("[a-z][a-z0-9-]{0,62}")) || body.summary.isBlank() ||
+            body.summary.length > DESCRIPTION_LIMIT
+        ) {
+            return ResponseEntity.badRequest().build()
+        }
+        val candidate =
+            Task(
+                UUID.randomUUID(),
+                TaskKind.EVIDENCE_REQUEST,
+                "prospect",
+                "$id:dd:$workstream",
+                jwt.subject,
+                Instant.now(),
+            )
+        val opened =
+            tasks.openUnlessOpen(candidate, TaskProvenance("api", body.correlationId ?: UUID.randomUUID()))
+        counter("deal.prospects.dd_evidence_tasks", "workstream", workstream)?.increment()
+        return ResponseEntity.ok(
+            mapOf(
+                "taskId" to opened.task.id,
+                "workstream" to workstream,
+                "opened" to (opened.task.id == candidate.id),
+            ),
+        )
     }
 
     /**
@@ -872,6 +922,12 @@ class ProspectController(
             }
         }
     }
+
+    data class DdEvidenceRequest(
+        val workstream: String,
+        val summary: String,
+        val correlationId: UUID? = null,
+    )
 
     data class TaskView(
         val taskId: UUID,
