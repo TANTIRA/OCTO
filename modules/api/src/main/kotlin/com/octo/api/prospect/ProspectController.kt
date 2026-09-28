@@ -2,6 +2,9 @@ package com.octo.api.prospect
 
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.api.agents.AgentsCallException
+import com.octo.api.agents.AgentsClient
+import com.octo.api.agents.AgentsUnavailableException
 import com.octo.dealsourcing.Prospect
 import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectSource
@@ -139,6 +142,7 @@ class ProspectController(
     private val tasks: IcTasks,
     private val rules: ScreeningRules,
     private val tenants: TenantDirectory,
+    private val agents: AgentsClient,
     private val json: com.fasterxml.jackson.databind.ObjectMapper,
     meters: ObjectProvider<MeterRegistry>,
 ) {
@@ -667,6 +671,38 @@ class ProspectController(
         counter("deal.prospects.screens", "verdict", outcome.verdict.name.lowercase())?.increment()
         val stage = prospects.load(id, TenantScope.User(userId))?.stage?.wireValue ?: current.stage.wireValue
         return ResponseEntity.ok(ScreenView(outcome.verdict.name.lowercase(), outcome.reasons, stage, null))
+    }
+
+    /**
+     * `POST /api/v1/prospects/{id}/agent-screen` — the on-demand path of the ADR-0005 agent
+     * workflow: the sidecar drafts a screening memo, jev judges it, and a proceed verdict opens
+     * the platform's own `/screen` review task server-side. Members call it for their own
+     * tenant's prospects; a viewer sees 404 like every other write here. A sidecar that is
+     * down, unconfigured, or flag-off answers 503; its own 4xx surfaces as 502.
+     */
+    @PostMapping("/api/v1/prospects/{id}/agent-screen")
+    fun agentScreen(
+        @PathVariable id: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<Any> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val current =
+            prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        val result =
+            try {
+                agents.run("screening-dd", mapOf("prospect_id" to id.toString()))
+            } catch (e: AgentsUnavailableException) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
+            } catch (e: AgentsCallException) {
+                return ResponseEntity
+                    .status(
+                        if (e.statusCode == 503) HttpStatus.SERVICE_UNAVAILABLE else HttpStatus.BAD_GATEWAY,
+                    ).build()
+            }
+        counter("deal.prospects.agent_screens")?.increment()
+        return ResponseEntity.ok(result)
     }
 
     private fun screen(

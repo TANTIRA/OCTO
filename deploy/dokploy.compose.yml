@@ -59,6 +59,10 @@ services:
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - OCTO_RATE_LIMIT_PER_MINUTE=${OCTO_RATE_LIMIT_PER_MINUTE:-120}
+      # Agent sidecar (ADR-0005) — api → agents calls stay on dokploy-network. Unset base
+      # URL makes agent endpoints answer 503; the token is shared with the agents service.
+      - OCTO_AGENTS_BASE_URL=${OCTO_AGENTS_BASE_URL:-http://agents:8080}
+      - OCTO_AGENTS_TOKEN=${OCTO_AGENTS_TOKEN}
     networks:
       - default
       - dokploy-network
