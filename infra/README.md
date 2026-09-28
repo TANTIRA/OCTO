@@ -1,6 +1,6 @@
 # OCTO — Deployment (Dokploy)
 
-Deployment spec for the self-hosted stack. Two Dokploy compose projects share one external network. See [ADR-0002](../docs/adr/0002-self-hosted-supabase.md) for the decision and operational responsibilities, and [ADR-0003](../docs/adr/0003-typedb-ontology-store.md) for the graph-store decision — TypeDB there is superseded by Neo4j per #189 (the api now points at the external `octo-neo4j-db` service).
+Deployment spec for the self-hosted stack. Two Dokploy compose projects share one external network. See [ADR-0002](../docs/adr/0002-self-hosted-supabase.md) for the decision and operational responsibilities, and [ADR-0004](../docs/adr/0004-neo4j-graph-store.md) for the graph-store decision (Neo4j, superseding [ADR-0003](../docs/adr/0003-typedb-ontology-store.md) per #189 — the api now points at the external `octo-neo4j-db` service).
 
 ## Topology
 

@@ -228,7 +228,7 @@ erDiagram
         text display_name 
         char2 region 
         text_arr tags 
-        text typedb_iid 
+        text graph_node_id
         uuid supersedes_id FK
         text rationale 
         text source_system 
