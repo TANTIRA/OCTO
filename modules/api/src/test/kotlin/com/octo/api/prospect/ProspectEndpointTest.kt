@@ -4,6 +4,8 @@ import com.octo.api.OctoApplication
 import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.api.agents.AgentsClient
+import com.octo.api.agents.AgentsUnavailableException
 import com.octo.dealsourcing.Prospect
 import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectSource
@@ -57,6 +59,10 @@ class ProspectEndpointTest {
     private val store = FakeProspectStore()
     private val tasks = FakeIcTasks()
     private val rules = FakeRules()
+    private var agentsBehavior: (String, Map<String, Any>) -> Map<String, Any> = { _, _ ->
+        mapOf("verdict" to mapOf("proceed" to true, "proceed_probability" to 0.9))
+    }
+    private val agents = AgentsClient { workflow, payload -> agentsBehavior(workflow, payload) }
 
     private val contextRunner =
         WebApplicationContextRunner()
@@ -85,6 +91,10 @@ class ProspectEndpointTest {
             ).withBean(
                 ScreeningRules::class.java,
                 Supplier { rules },
+                { it.isPrimary = true },
+            ).withBean(
+                AgentsClient::class.java,
+                Supplier { agents },
                 { it.isPrimary = true },
             ).withPropertyValues(
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
@@ -167,6 +177,36 @@ class ProspectEndpointTest {
                     get("/api/v1/prospects?tenantId=${UUID.randomUUID()}&stage=sourced")
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isNotFound)
+        }
+    }
+
+    @Test
+    fun `agent-screen passes the sidecar verdict through for members, not viewers, and 503s when it is down`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-screen")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.verdict.proceed").value(true))
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-screen")
+                        .with(jwt().jwt { it.subject(viewer.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-screen")
+                        .with(jwt().jwt { it.subject(UUID.randomUUID().toString()) }),
+                ).andExpect(status().isNotFound)
+
+            agentsBehavior = { _, _ -> throw AgentsUnavailableException(java.io.IOException("down")) }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-screen")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isServiceUnavailable)
         }
     }
 
