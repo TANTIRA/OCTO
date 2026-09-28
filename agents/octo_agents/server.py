@@ -134,3 +134,33 @@ def due_diligence(
         models=_models(registry),
     )
     return result.model_dump()
+
+
+class IcMemoRequest(BaseModel):
+    prospect_id: str
+    tenant_id: str
+    run_key: str | None = None
+
+
+@app.post("/v1/workflows/ic-memo")
+def ic_memo(
+    body: IcMemoRequest,
+    _: None = Depends(require_caller),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    if not settings.octo_agents_ic_memo_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ic-memo workflow is feature-flagged off",
+        )
+    registry = _registry(settings)
+    result = run_ic_memo(
+        agent_model=drafter_model(settings, registry),
+        judge=_judge(settings, registry),
+        api=_api(settings),
+        prospect_id=body.prospect_id,
+        tenant_id=body.tenant_id,
+        run_key=body.run_key or str(uuid4()),
+        models=_models(registry),
+    )
+    return result.model_dump()
