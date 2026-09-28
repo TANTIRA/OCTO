@@ -2,12 +2,16 @@ package com.octo.api.access
 
 import com.octo.api.access.persistence.AccessAdministration
 import com.octo.api.access.persistence.AccessProvenance
+import com.octo.api.access.persistence.TenantSettings
+import com.octo.persistence.TenantScope
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
@@ -32,6 +36,7 @@ class AdminTenantsController(
     private val access: AccessAdministration,
     private val directory: TenantDirectory,
     private val platform: PlatformAdmin,
+    private val settings: TenantSettings,
 ) {
     @PostMapping("/api/v1/admin/tenants")
     fun create(
@@ -108,6 +113,52 @@ class AdminTenantsController(
         return MemberView(userId, state.role?.wireValue, state.status.name.lowercase())
     }
 
+    /** `GET …/settings` — the tenant's current configuration, admin eyes only. */
+    @GetMapping("/api/v1/admin/tenants/{tenantId}/settings")
+    fun settings(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable tenantId: UUID,
+    ): Map<String, String> {
+        requireMemberAdmin(jwt, tenantId)
+        return settings.all(tenantId, scopeOf(jwt))
+    }
+
+    /**
+     * `PUT …/settings` — upsert one key. The value must be valid JSON text (`"300"`, `"true"`,
+     * `"{…}"`); the store appends the audit row in the same transaction.
+     */
+    @PutMapping("/api/v1/admin/tenants/{tenantId}/settings")
+    fun putSetting(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable tenantId: UUID,
+        @RequestBody body: PutSetting,
+    ): Map<String, String> {
+        requireMemberAdmin(jwt, tenantId)
+        if (body.key.isBlank()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "setting key must not be blank")
+        }
+        try {
+            settings.put(
+                tenantId,
+                body.key,
+                body.value,
+                jwt.subject,
+                AccessProvenance(SOURCE, UUID.randomUUID()),
+                scopeOf(jwt),
+            )
+        } catch (e: SQLException) {
+            throw translate(e)
+        }
+        return mapOf(body.key to body.value)
+    }
+
+    private fun scopeOf(jwt: Jwt): TenantScope =
+        if (platform.isAdmin(jwt.subject)) {
+            TenantScope.All
+        } else {
+            TenantScope.User(UUID.fromString(jwt.subject))
+        }
+
     private fun requirePlatformAdmin(jwt: Jwt) {
         if (!platform.isAdmin(jwt.subject)) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "tenant provisioning needs a platform admin")
@@ -151,6 +202,11 @@ class AdminTenantsController(
         val type: String,
         val role: String? = null,
         val rationale: String? = null,
+    )
+
+    data class PutSetting(
+        val key: String,
+        val value: String,
     )
 
     data class MemberView(

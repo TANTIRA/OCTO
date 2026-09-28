@@ -3,6 +3,9 @@ package com.octo.api.access
 import com.octo.api.access.persistence.AccessAdministration
 import com.octo.api.access.persistence.AccessProvenance
 import com.octo.api.access.persistence.JdbcAccessStore
+import com.octo.api.access.persistence.JdbcTenantSettingsStore
+import com.octo.api.access.persistence.TenantSettings
+import com.octo.persistence.TenantScope
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -65,4 +68,31 @@ class AccessConfiguration {
      */
     @Bean
     fun platformAdmin(env: Environment): PlatformAdmin = PlatformAdmin(env.getProperty("OCTO_PLATFORM_ADMINS"))
+
+    /** Per-tenant configuration (V31), behind the same lazy datasource boundary. */
+    @Bean
+    fun jdbcTenantSettings(dataSource: ObjectProvider<DataSource>): TenantSettings {
+        val store by lazy { JdbcTenantSettingsStore(dataSource.getObject()) }
+        return object : TenantSettings {
+            override fun get(
+                tenantId: UUID,
+                key: String,
+                scope: TenantScope,
+            ) = store.get(tenantId, key, scope)
+
+            override fun all(
+                tenantId: UUID,
+                scope: TenantScope,
+            ) = store.all(tenantId, scope)
+
+            override fun put(
+                tenantId: UUID,
+                key: String,
+                value: String,
+                actor: String,
+                provenance: AccessProvenance,
+                scope: TenantScope,
+            ) = store.put(tenantId, key, value, actor, provenance, scope)
+        }
+    }
 }

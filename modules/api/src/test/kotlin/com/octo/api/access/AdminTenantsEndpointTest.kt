@@ -3,6 +3,8 @@ package com.octo.api.access
 import com.octo.api.OctoApplication
 import com.octo.api.access.persistence.AccessAdministration
 import com.octo.api.access.persistence.AccessProvenance
+import com.octo.api.access.persistence.TenantSettings
+import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
@@ -12,7 +14,9 @@ import org.springframework.http.MediaType
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
@@ -32,6 +36,7 @@ class AdminTenantsEndpointTest {
     private val analyst = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val access = FakeAccess()
+    private val settings = FakeSettings()
     private val directory =
         TenantDirectory { id ->
             when (id) {
@@ -51,6 +56,10 @@ class AdminTenantsEndpointTest {
             ).withBean(
                 TenantDirectory::class.java,
                 Supplier { directory },
+                { it.isPrimary = true },
+            ).withBean(
+                TenantSettings::class.java,
+                Supplier { settings },
                 { it.isPrimary = true },
             ).withPropertyValues(
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
@@ -147,6 +156,67 @@ class AdminTenantsEndpointTest {
             mvc
                 .memberEvent(tenantAdmin, body = """{"type":"revoked"}""")
                 .andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `a tenant admin writes and reads settings but an analyst cannot`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"key":"rate_limit_per_minute","value":"60"}""")
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.rate_limit_per_minute").value("60"))
+            mvc
+                .perform(
+                    get("/api/v1/admin/tenants/$tenantId/settings")
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.rate_limit_per_minute").value("60"))
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"key":"rate_limit_per_minute","value":"10"}""")
+                        .with(jwt().jwt { it.subject(analyst.toString()) }),
+                ).andExpect(status().isForbidden)
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"key":"  ","value":"10"}""")
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isBadRequest)
+        }
+    }
+
+    /** Minimal in-memory settings: key → JSON text per tenant. */
+    private class FakeSettings : TenantSettings {
+        val rows = mutableMapOf<Pair<UUID, String>, String>()
+
+        override fun get(
+            tenantId: UUID,
+            key: String,
+            scope: TenantScope,
+        ): String? = rows[tenantId to key]
+
+        override fun all(
+            tenantId: UUID,
+            scope: TenantScope,
+        ): Map<String, String> = rows.filterKeys { it.first == tenantId }.mapKeys { it.key.second }
+
+        override fun put(
+            tenantId: UUID,
+            key: String,
+            value: String,
+            actor: String,
+            provenance: AccessProvenance,
+            scope: TenantScope,
+        ) {
+            rows[tenantId to key] = value
         }
     }
 
