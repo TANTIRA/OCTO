@@ -12,7 +12,6 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.math.BigDecimal
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.UUID
@@ -35,7 +34,6 @@ class IborReaderIT {
         DriverManagerDataSource(postgres.jdbcUrl, postgres.username, postgres.password)
     }
     private val reader by lazy { JdbcIborReader(dataSource) }
-    private val later = Instant.now().plusSeconds(60)
 
     @Test
     fun `the reader returns the supersession component and derivation resolves it`() {
@@ -48,7 +46,9 @@ class IborReaderIT {
         val rows = reader.ledgerEvents(setOf(a, b), TenantScope.All)
         assertThat(rows.map { it.id }).containsExactlyInAnyOrder(a, b, c, d)
 
-        val position = commitmentPosition(rows, setOf(a, b, c, d), later, ZoneOffset.UTC)
+        // knownAt derives from the rows' own recorded_at: the container clock can run ahead of
+        // the host's, so a fixed Instant.now() margin flakes under Docker Desktop drift.
+        val position = commitmentPosition(rows, setOf(a, b, c, d), rows.maxOf { it.recordedAt }.plusSeconds(1), ZoneOffset.UTC)
         assertThat(position.called).isEqualByComparingTo("160")
         assertThat(position.cashFlows.map { it.first })
             .containsExactly(LocalDate.parse("2022-01-10"), LocalDate.parse("2023-01-10"))
@@ -62,7 +62,7 @@ class IborReaderIT {
         val rows = reader.valuationEvents(setOf(original), TenantScope.All)
         assertThat(rows.map { it.id }).containsExactlyInAnyOrder(original, fix)
 
-        val nav = latestValuation(rows, setOf(original, fix), LocalDate.parse("2024-12-31"), later)
+        val nav = latestValuation(rows, setOf(original, fix), LocalDate.parse("2024-12-31"), rows.maxOf { it.recordedAt }.plusSeconds(1))
         assertThat(nav?.amount).isEqualByComparingTo(BigDecimal("105"))
         assertThat(reader.valuationEvents(emptySet(), TenantScope.All)).isEmpty()
     }

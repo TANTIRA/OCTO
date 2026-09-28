@@ -39,18 +39,22 @@ class ReconciliationController(
         val userId = runCatching { UUID.fromString(jwt.subject) }.getOrNull() ?: return ResponseEntity.notFound().build()
         val role = tenants.tenantsOf(userId).firstOrNull { it.tenantId == body.tenantId }?.role ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
-        val tolerance = body.tolerance?.let { Tolerance(it.amount, it.days) } ?: Tolerance.EXACT
-        val zone = ZoneId.of(body.zone)
-        val records =
-            body.records.map {
-                SourceRecord(
-                    it.sourceSystem,
-                    it.externalId,
-                    it.amount,
-                    Currency.getInstance(it.currency),
-                    it.date,
+        val (tolerance, zone, records) =
+            runCatching {
+                Triple(
+                    body.tolerance?.let { Tolerance(it.amount, it.days) } ?: Tolerance.EXACT,
+                    ZoneId.of(body.zone),
+                    body.records.map {
+                        SourceRecord(
+                            it.sourceSystem,
+                            it.externalId,
+                            it.amount,
+                            Currency.getInstance(it.currency),
+                            it.date,
+                        )
+                    },
                 )
-            }
+            }.getOrElse { return ResponseEntity.badRequest().build() }
         val result =
             try {
                 runner.run(body.tenantId, records, tolerance, zone, jwt.subject, UUID.randomUUID())

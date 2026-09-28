@@ -1,6 +1,7 @@
 package com.octo.workflow.report
 
 import com.octo.persistence.TenantScope
+import com.octo.persistence.admits
 import com.octo.persistence.scoped
 import java.sql.Connection
 import java.sql.ResultSet
@@ -16,6 +17,7 @@ class JdbcReportJobStore(
         request: ReportRequest,
         scope: TenantScope,
     ): ReportJob {
+        require(scope.admits(request.tenantId)) { "report tenant ${request.tenantId} is outside the scoped tenants" }
         val sql =
             """
             insert into octo.report_job (tenant_id, report_type, position_source_type, position_source_id, measures, parameters,
@@ -48,7 +50,9 @@ class JdbcReportJobStore(
         dataSource.scoped(scope) { connection ->
             connection.prepareStatement("select * from octo.report_job where id = ?").use { statement ->
                 statement.setObject(1, id)
-                statement.executeQuery().use { rows -> if (rows.next()) rows.toJob() else null }
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) rows.toJob().takeIf { scope.admits(it.request.tenantId) } else null
+                }
             }
         }
 

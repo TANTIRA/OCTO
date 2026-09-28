@@ -187,7 +187,7 @@ class EvmRpcClient(
     }
 
     private fun retryAfter(response: TransportResponse): Duration? =
-        response.headers["Retry-After"]?.firstOrNull()?.let { Duration.ofSeconds(it.toLong()) }
+        response.headers["Retry-After"]?.firstOrNull()?.let { runCatching { Duration.ofSeconds(it.toLong()) }.getOrNull() }
 
     companion object {
         val TIMEOUT: Duration = Duration.ofSeconds(15)

@@ -3,6 +3,7 @@ package com.octo.recon.compliance.persistence
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.persistence.TenantScope
+import com.octo.persistence.admits
 import com.octo.persistence.scoped
 import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceRule
@@ -64,6 +65,7 @@ class JdbcComplianceStore(
         tenantId: UUID,
         scope: TenantScope,
     ): List<ComplianceRule> {
+        if (!scope.admits(tenantId)) return emptyList()
         val sql =
             """
             select distinct on (rule_id) rule_id, version, name, definition::text
@@ -94,6 +96,7 @@ class JdbcComplianceStore(
         provenance: ComplianceProvenance,
         scope: TenantScope,
     ) {
+        require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
         val sql =
             """
             insert into octo.compliance_rule (tenant_id, rule_id, version, name, definition, actor, correlation_id)
@@ -118,6 +121,7 @@ class JdbcComplianceStore(
         evaluation: Evaluation,
         scope: TenantScope,
     ): UUID? {
+        if (!scope.admits(tenantId)) return null
         val sql =
             """
             select task_id from octo.compliance_evaluation
@@ -141,6 +145,7 @@ class JdbcComplianceStore(
         correlationId: UUID,
         scope: TenantScope,
     ): UUID {
+        require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
         val sql =
             """
             insert into octo.compliance_evaluation (tenant_id, rule_id, rule_version, subject, as_of_date, result, measured, explanation,

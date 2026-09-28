@@ -71,26 +71,28 @@ class ComplianceController(
             roleIn(userId(jwt) ?: return ResponseEntity.notFound().build(), body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val inputs =
-            ComplianceInputs(
-                subject = body.subject,
-                asOf = body.asOf,
-                exposure = body.exposure?.let { ExposureReport(body.subject, Currency.getInstance(it.currency), it.byAsset) },
-                currencyExposure = body.currencyExposure?.mapKeys { Currency.getInstance(it.key) },
-                coverage =
-                    body.coverage?.let {
-                        CoverageReport(
-                            body.asOf,
-                            body.asOf,
-                            Currency.getInstance(it.currency),
-                            it.scenario,
-                            null,
-                            null,
-                            null,
-                            null,
-                            it.ratio,
-                        )
-                    },
-            )
+            runCatching {
+                ComplianceInputs(
+                    subject = body.subject,
+                    asOf = body.asOf,
+                    exposure = body.exposure?.let { ExposureReport(body.subject, Currency.getInstance(it.currency), it.byAsset) },
+                    currencyExposure = body.currencyExposure?.mapKeys { Currency.getInstance(it.key) },
+                    coverage =
+                        body.coverage?.let {
+                            CoverageReport(
+                                body.asOf,
+                                body.asOf,
+                                Currency.getInstance(it.currency),
+                                it.scenario,
+                                null,
+                                null,
+                                null,
+                                null,
+                                it.ratio,
+                            )
+                        },
+                )
+            }.getOrElse { return ResponseEntity.badRequest().build() }
         val outcomes = runner.run(body.tenantId, inputs, jwt.subject, UUID.randomUUID())
         return ResponseEntity.ok(
             outcomes.map {

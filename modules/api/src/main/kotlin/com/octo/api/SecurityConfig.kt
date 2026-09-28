@@ -3,6 +3,7 @@ package com.octo.api
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.persistence.TenantSettings
 import com.octo.api.ingestion.HeliusWebhookAuthFilter
+import jakarta.servlet.DispatcherType
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
@@ -58,8 +59,16 @@ class SecurityConfig {
             .securityMatcher("/api/v1/ingestion/webhooks/helius")
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .authorizeHttpRequests { it.anyRequest().authenticated() }
-            .addFilterBefore(
+            .authorizeHttpRequests {
+                // An exception triggers an ERROR dispatch to /error with the SecurityContext
+                // already cleared; denying it would mask every failure as 403, including the
+                // filter's own sendError(401) for a missing or wrong webhook secret.
+                it
+                    .dispatcherTypeMatchers(DispatcherType.ERROR)
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated()
+            }.addFilterBefore(
                 HeliusWebhookAuthFilter(env.getProperty("HELIUS_WEBHOOK_SECRET")),
                 UsernamePasswordAuthenticationFilter::class.java,
             )
@@ -91,13 +100,25 @@ class SecurityConfig {
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
+                // Same ERROR dispatch as the webhook chain: without this, a parse failure,
+                // a type-mismatched path variable, or an internal error answers 403 instead
+                // of its real status.
                 it
+                    .dispatcherTypeMatchers(DispatcherType.ERROR)
+                    .permitAll()
                     .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
                     .permitAll()
                     .anyRequest()
                     .authenticated()
             }
 
+        // Local testing only: with AUTH_DEV_BYPASS=true every request runs as the fixed
+        // AUTH_DEV_SUBJECT identity — no issuer needed. Off by default; never set in a
+        // deployed environment.
+        if (env.getProperty("AUTH_DEV_BYPASS")?.toBoolean() == true) {
+            http.addFilterBefore(
+                DevSubjectAuthFilter(env.getProperty("AUTH_DEV_SUBJECT")),
+                UsernamePasswordAuthenticationFilter::class.java,
         // Per-tenant quota counts authenticated traffic only, so it runs after the bearer token
         // has been verified — a forged X-Tenant-Id cannot reach somebody else's counter because
         // the tenant comes from resolved membership, not the request.

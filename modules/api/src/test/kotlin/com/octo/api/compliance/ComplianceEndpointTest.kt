@@ -134,4 +134,17 @@ class ComplianceEndpointTest {
             assertThat(opened).isEmpty()
         }
     }
+
+    @Test
+    fun `an unreadable currency in the evaluation inputs is a client error`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/compliance/evaluations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation.replace("\"USD\"", "\"NOPE\""))
+                        .with(asUser(analyst)),
+                ).andExpect(status().isBadRequest)
+        }
+    }
 }
