@@ -65,6 +65,9 @@ class OctoApiClient:
     def request_screening(self, prospect_id: str) -> Any:
         return self._post(f"/api/v1/prospects/{prospect_id}/screen")
 
+    def request_ic_review(self, prospect_id: str) -> Any:
+        return self._post(f"/api/v1/prospects/{prospect_id}/ic-review")
+
     def open_dd_evidence(self, prospect_id: str, workstream: str, summary: str) -> Any:
         return self._post(
             f"/api/v1/prospects/{prospect_id}/dd-evidence",

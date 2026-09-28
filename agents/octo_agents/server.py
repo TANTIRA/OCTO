@@ -18,6 +18,7 @@ from .config import Settings, get_settings
 from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
 from .workflows.due_diligence import run_due_diligence
+from .workflows.ic_memo import run_ic_memo
 from .workflows.screening_dd import run_screening_dd
 
 app = FastAPI(title="octo-agents", version="0.1.0")
