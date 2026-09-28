@@ -45,8 +45,10 @@ service's only client and its only tool surface.
 
 - `GET /healthz` — liveness for the compose healthcheck
 - `POST /v1/workflows/screening-dd` — `{prospect_id}` → runs the screening
-  pipeline, returns `{memo, verdict{proceed_probability, confidence,
-  judge_lineage}, screening_requested}`
+  pipeline, returns `{status, memo, preflight, retrieval, verdict, screening_requested}`.
+  Two jev gates run before the drafter: a `noul` pre-flight refuses records with
+  no substance (no drafter call, `status: "refused"`), then per-event `score`
+  questions admit only relevant chunks into the memo context.
 
 ## Evals
 
