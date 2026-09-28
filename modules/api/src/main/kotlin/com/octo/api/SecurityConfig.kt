@@ -69,6 +69,16 @@ class SecurityConfig {
                     .authenticated()
             }
 
+        // Local testing only: with AUTH_DEV_BYPASS=true every request runs as the fixed
+        // AUTH_DEV_SUBJECT identity — no issuer needed. Off by default; never set in a
+        // deployed environment.
+        if (env.getProperty("AUTH_DEV_BYPASS")?.toBoolean() == true) {
+            http.addFilterBefore(
+                DevSubjectAuthFilter(env.getProperty("AUTH_DEV_SUBJECT")),
+                UsernamePasswordAuthenticationFilter::class.java,
+            )
+        }
+
         val jwksUri = env.getProperty("AUTH_JWKS_URL")?.takeIf(String::isNotBlank)
         if (jwksUri != null) {
             // Supabase GoTrue signs ES256 (JWT_KEYS/JWT_JWKS keypair); the
