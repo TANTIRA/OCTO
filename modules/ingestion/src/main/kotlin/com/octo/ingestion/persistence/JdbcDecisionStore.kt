@@ -29,7 +29,7 @@ class JdbcDecisionStore(
     ): UUID {
         val sql =
             """
-            insert into mesta.document_classification
+            insert into octo.document_classification
                 (external_id, document_sha256, document_type, confidence, distribution,
                  requires_review, model_provider, model_version, decision_request_id,
                  supersedes_id, rationale, source_system, actor, ingestion_run_id, correlation_id)
@@ -73,7 +73,7 @@ class JdbcDecisionStore(
     ): UUID {
         val sql =
             """
-            insert into mesta.claim_assessment
+            insert into octo.claim_assessment
                 (external_id, claim_text, source_document_sha256, support_probability,
                  support_threshold, review_band, supported, requires_review,
                  model_provider, model_version, decision_request_id,

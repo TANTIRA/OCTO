@@ -12,7 +12,7 @@ import java.sql.SQLException
 import java.util.UUID
 
 /**
- * Runs the real Flyway migrations and exercises the V9 `mesta.model_run` invariants (#102, methodology §9.6):
+ * Runs the real Flyway migrations and exercises the V9 `octo.model_run` invariants (#102, methodology §9.6):
  * append-only, json objects only, one immutable version per family and tenant, labelled outputs. Same shape
  * as `ValuationMigrationIT`. Skipped when Docker is unavailable.
  */
@@ -23,7 +23,7 @@ class ModelRunMigrationIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -35,11 +35,11 @@ class ModelRunMigrationIT {
         query(
             """
             with created as (
-                insert into mesta.tenant (slug, display_name, source_system, correlation_id)
+                insert into octo.tenant (slug, display_name, source_system, correlation_id)
                 values ('acme', 'Acme', 'test', gen_random_uuid())
                 on conflict (slug) do nothing
                 returning id)
-            select id from created union all select id from mesta.tenant where slug = 'acme'
+            select id from created union all select id from octo.tenant where slug = 'acme'
             """.trimIndent(),
         )
     }
@@ -47,7 +47,7 @@ class ModelRunMigrationIT {
     @Test
     fun `migration creates both tables with their append-only triggers`() {
         for (table in listOf("model_run", "model_run_output")) {
-            assertThat(count("select count(*) from pg_tables where schemaname = 'mesta' and tablename = '$table'")).isEqualTo(1)
+            assertThat(count("select count(*) from pg_tables where schemaname = 'octo' and tablename = '$table'")).isEqualTo(1)
             assertThat(count("select count(*) from pg_trigger where tgname = '${table}_append_only'")).isEqualTo(1)
         }
     }
@@ -56,7 +56,7 @@ class ModelRunMigrationIT {
     fun `a version is immutable per family and tenant, and never edited`() {
         val id = run("hmm", "v1")
         assertThatThrownBy { run("hmm", "v1") }.isInstanceOf(SQLException::class.java)
-        assertThatThrownBy { execute("update mesta.model_run set status = 'retired' where id = '$id'") }
+        assertThatThrownBy { execute("update octo.model_run set status = 'retired' where id = '$id'") }
             .isInstanceOf(SQLException::class.java)
             .hasMessageContaining("append-only")
         assertThatThrownBy { run("hmm", "v2", supersedes = id, rationale = " ") }.isInstanceOf(SQLException::class.java)
@@ -87,7 +87,7 @@ class ModelRunMigrationIT {
             connection
                 .prepareStatement(
                     """
-                    insert into mesta.model_run (tenant_id, model_family, model_version, methodology, frequency, data_vintage,
+                    insert into octo.model_run (tenant_id, model_family, model_version, methodology, frequency, data_vintage,
                                                  parameters, status, supersedes_id, rationale, actor, correlation_id)
                     values (?, ?, ?, 'test', 'quarterly', '2026-06-30', ?::jsonb, ?, ?, ?, 'integration-test', gen_random_uuid())
                     returning id
@@ -108,7 +108,7 @@ class ModelRunMigrationIT {
         kind: String,
         values: String,
     ) = execute(
-        "insert into mesta.model_run_output (run_id, as_of_date, kind, values) values ('$runId', '2026-06-30', '$kind', '$values'::jsonb)",
+        "insert into octo.model_run_output (run_id, as_of_date, kind, values) values ('$runId', '2026-06-30', '$kind', '$values'::jsonb)",
     )
 
     private fun execute(sql: String) {
@@ -140,8 +140,8 @@ class ModelRunMigrationIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

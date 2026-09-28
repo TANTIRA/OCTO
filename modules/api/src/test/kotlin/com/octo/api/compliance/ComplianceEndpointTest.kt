@@ -52,7 +52,7 @@ class ComplianceEndpointTest {
             ).withBean(ComplianceStore::class.java, Supplier { store }, { it.isPrimary = true })
             .withBean(TaskOpener::class.java, Supplier { TaskOpener { task, _ -> opened += task } }, { it.isPrimary = true })
             .withPropertyValues(
-                "mesta.reports.poll=false",
+                "octo.reports.poll=false",
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
             )
 

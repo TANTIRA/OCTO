@@ -37,7 +37,7 @@ enum class OutputKind(
 }
 
 /**
- * One row of `mesta.model_run` (V9). The json fields are jsonb object text: the caller serializes its
+ * One row of `octo.model_run` (V9). The json fields are jsonb object text: the caller serializes its
  * `EstimatedModel`, `KalmanFiltered` or `FactorModel` however it likes, and the database refuses anything
  * that is not an object. [version] is immutable per (tenant, family): a re-run with other parameters is a
  * new version, and a correction supersedes with a [rationale] (§10.5).
@@ -70,7 +70,7 @@ data class ModelRunOutput(
     val values: String,
 )
 
-/** JDBC access to `mesta.model_run` and `mesta.model_run_output` (V9). Insert and read only; the tables are append-only. */
+/** JDBC access to `octo.model_run` and `octo.model_run_output` (V9). Insert and read only; the tables are append-only. */
 class JdbcModelRunStore(
     private val dataSource: DataSource,
 ) {
@@ -82,13 +82,13 @@ class JdbcModelRunStore(
     ): ModelRun {
         val runSql =
             """
-            insert into mesta.model_run (id, tenant_id, model_family, model_version, methodology, state_definitions, feature_set,
+            insert into octo.model_run (id, tenant_id, model_family, model_version, methodology, state_definitions, feature_set,
                                          frequency, data_vintage, training_start, training_end, validation_start, validation_end,
                                          parameters, diagnostics, status, supersedes_id, rationale, actor, correlation_id)
             values (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?)
             returning recorded_at
             """.trimIndent()
-        val outputSql = "insert into mesta.model_run_output (run_id, as_of_date, kind, values) values (?, ?, ?, ?::jsonb)"
+        val outputSql = "insert into octo.model_run_output (run_id, as_of_date, kind, values) values (?, ?, ?, ?::jsonb)"
         return dataSource.scoped(scope) { connection ->
             val recordedAt =
                 connection.prepareStatement(runSql).use { statement ->
@@ -136,7 +136,7 @@ class JdbcModelRunStore(
         scope: TenantScope,
     ): ModelRun? =
         dataSource.scoped(scope) { connection ->
-            connection.prepareStatement("select * from mesta.model_run where id = ?").use { statement ->
+            connection.prepareStatement("select * from octo.model_run where id = ?").use { statement ->
                 statement.setObject(1, id)
                 statement.executeQuery().use { rows -> if (rows.next()) rows.toRun() else null }
             }
@@ -149,7 +149,7 @@ class JdbcModelRunStore(
         scope: TenantScope,
     ): List<ModelRunOutput> =
         dataSource.scoped(scope) { connection ->
-            val sql = "select as_of_date, kind, values::text from mesta.model_run_output where run_id = ? and kind = ? order by as_of_date"
+            val sql = "select as_of_date, kind, values::text from octo.model_run_output where run_id = ? and kind = ? order by as_of_date"
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, runId)
                 statement.setString(2, kind.wireValue)

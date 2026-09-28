@@ -30,10 +30,10 @@ class JdbcInstrumentFlowStore(
                            s.transfer_kind, s.supersedes_id, s.rationale, s.recorded_at,
                        s.source_system,
                            s.ingestion_run_id, s.correlation_id
-                      from mesta.onchain_transfer s
+                      from octo.onchain_transfer s
                      where s.commitment = 'finalized'
                        and not exists (
-                           select 1 from mesta.instrument_flow f
+                           select 1 from octo.instrument_flow f
                             where f.source_system = s.source_system
                               and f.external_id = s.external_id)
                      order by s.recorded_at, s.id
@@ -72,7 +72,7 @@ class JdbcInstrumentFlowStore(
 
     override fun instrumentIds(): Map<InstrumentKey, UUID> =
         dataSource.connection.use { c ->
-            c.prepareStatement("select id, chain, mint_address from mesta.instrument").use { s ->
+            c.prepareStatement("select id, chain, mint_address from octo.instrument").use { s ->
                 s.executeQuery().use { r ->
                     buildMap {
                         while (r.next()) {
@@ -89,8 +89,8 @@ class JdbcInstrumentFlowStore(
                 .prepareStatement(
                     """
                     select f.id
-                      from mesta.instrument_flow f
-                      join mesta.onchain_transfer o
+                      from octo.instrument_flow f
+                      join octo.onchain_transfer o
                         on o.source_system = f.source_system
                        and o.external_id = f.external_id
                      where o.id = ?
@@ -111,7 +111,7 @@ class JdbcInstrumentFlowStore(
             c
                 .prepareStatement(
                     """
-                    insert into mesta.instrument_flow
+                    insert into octo.instrument_flow
                         (id, external_id, instrument_id, chain, wallet, token_account, flow_type,
                          amount_raw, decimals, occurred_at, recorded_at, slot, signature,
                          supersedes_id, rationale, source_system, actor, ingestion_run_id, correlation_id)
@@ -153,7 +153,7 @@ class JdbcInstrumentFlowStore(
                     select id, external_id, instrument_id, wallet, token_account, flow_type,
                            amount_raw, decimals, occurred_at, recorded_at, slot, signature,
                            supersedes_id, rationale
-                      from mesta.instrument_flow
+                      from octo.instrument_flow
                      where chain = ? and wallet = ?
                      order by recorded_at, id
                     """.trimIndent(),

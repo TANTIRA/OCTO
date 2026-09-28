@@ -25,7 +25,7 @@ class ReconciliationStoreIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -45,7 +45,7 @@ class ReconciliationStoreIT {
 
     private fun tenant() =
         query(
-            "insert into mesta.tenant (slug, display_name, source_system, correlation_id) " +
+            "insert into octo.tenant (slug, display_name, source_system, correlation_id) " +
                 "values ('t-${UUID.randomUUID().toString().take(8)}', 'T', 'test', gen_random_uuid()) returning id",
         )
 
@@ -56,7 +56,7 @@ class ReconciliationStoreIT {
         supersedes: UUID? = null,
     ) = query(
         """
-        insert into mesta.ledger_event (external_id, flow_type, monetary_amount, currency_code, occurred_at, supersedes_id, rationale,
+        insert into octo.ledger_event (external_id, flow_type, monetary_amount, currency_code, occurred_at, supersedes_id, rationale,
                                         source_system, actor, ingestion_run_id, correlation_id)
         values (${externalId?.let {
             "'$it'"
@@ -68,7 +68,7 @@ class ReconciliationStoreIT {
 
     private fun task() =
         query(
-            "insert into mesta.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
+            "insert into octo.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
                 "values ('evidence-request', 'reconciliation-break', 'x', 'runner', 'test', gen_random_uuid()) returning id",
         )
 
@@ -124,8 +124,8 @@ class ReconciliationStoreIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

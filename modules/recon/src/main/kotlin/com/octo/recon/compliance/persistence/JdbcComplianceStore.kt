@@ -51,7 +51,7 @@ interface ComplianceStore {
 }
 
 /**
- * JDBC access to `mesta.compliance_rule` and `mesta.compliance_evaluation` (V14). A rule's `definition` is the
+ * JDBC access to `octo.compliance_rule` and `octo.compliance_evaluation` (V14). A rule's `definition` is the
  * [ComplianceCheck] as json: `{"check": "concentration-limit", "maxFraction": "0.25"}`,
  * `{"check": "currency-exposure-limit", "currency": "EUR", "maxFraction": "0.4"}`, `{"check": "coverage-floor", "minRatio": "1.2"}`.
  */
@@ -67,7 +67,7 @@ class JdbcComplianceStore(
         val sql =
             """
             select distinct on (rule_id) rule_id, version, name, definition::text
-            from mesta.compliance_rule where tenant_id = ? and active
+            from octo.compliance_rule where tenant_id = ? and active
             order by rule_id, version desc
             """.trimIndent()
         return dataSource.scoped(scope) { connection ->
@@ -96,7 +96,7 @@ class JdbcComplianceStore(
     ) {
         val sql =
             """
-            insert into mesta.compliance_rule (tenant_id, rule_id, version, name, definition, actor, correlation_id)
+            insert into octo.compliance_rule (tenant_id, rule_id, version, name, definition, actor, correlation_id)
             values (?, ?, ?, ?, ?::jsonb, ?, ?)
             """.trimIndent()
         dataSource.scoped(scope) { connection ->
@@ -120,7 +120,7 @@ class JdbcComplianceStore(
     ): UUID? {
         val sql =
             """
-            select task_id from mesta.compliance_evaluation
+            select task_id from octo.compliance_evaluation
             where tenant_id = ? and rule_id = ? and subject = ? and as_of_date = ? and result = 'breach'
             """.trimIndent()
         return dataSource.scoped(scope) { connection ->
@@ -143,7 +143,7 @@ class JdbcComplianceStore(
     ): UUID {
         val sql =
             """
-            insert into mesta.compliance_evaluation (tenant_id, rule_id, rule_version, subject, as_of_date, result, measured, explanation,
+            insert into octo.compliance_evaluation (tenant_id, rule_id, rule_version, subject, as_of_date, result, measured, explanation,
                                                      task_id, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)
             returning id

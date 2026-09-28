@@ -28,7 +28,7 @@ class OnchainStagingStoreIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -136,7 +136,7 @@ class OnchainStagingStoreIT {
             c.createStatement().use { s ->
                 s
                     .executeQuery(
-                        "select source_system from mesta.onchain_transfer where chain = 'arbitrum-one' and signature = '0xsrc'",
+                        "select source_system from octo.onchain_transfer where chain = 'arbitrum-one' and signature = '0xsrc'",
                     ).use { r ->
                         assertThat(r.next()).isTrue()
                         assertThat(r.getString(1)).isEqualTo("rpc-arbitrum-one")
@@ -169,7 +169,7 @@ class OnchainStagingStoreIT {
         dataSource().connection.use { c ->
             c
                 .prepareStatement(
-                    "insert into mesta.tracked_address (chain, address, source_system, correlation_id) values (?, ?, 'test', ?)",
+                    "insert into octo.tracked_address (chain, address, source_system, correlation_id) values (?, ?, 'test', ?)",
                 ).use { s ->
                     s.setString(1, chain)
                     s.setString(2, address)
@@ -188,7 +188,7 @@ class OnchainStagingStoreIT {
         dataSource().connection.use { c ->
             c
                 .prepareStatement(
-                    "insert into mesta.tracked_address_event (chain, address, event_type, actor, rationale, occurred_at, correlation_id) " +
+                    "insert into octo.tracked_address_event (chain, address, event_type, actor, rationale, occurred_at, correlation_id) " +
                         "values (?, ?, ?, 'test', ?, now(), ?)",
                 ).use { s ->
                     s.setString(1, chain)
@@ -248,8 +248,8 @@ class OnchainStagingStoreIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

@@ -3,7 +3,7 @@ package com.octo.ingestion.onchain
 import java.util.UUID
 
 /**
- * The persistence seam between the sync service and `mesta` staging. Implemented by JDBC in
+ * The persistence seam between the sync service and `octo` staging. Implemented by JDBC in
  * `onchain/persistence`; faked in unit tests.
  */
 interface OnchainStagingStore {

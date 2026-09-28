@@ -14,7 +14,7 @@ data class InstrumentKey(
 )
 
 /**
- * The promoter's view of one `mesta.onchain_transfer` row. Vendor-neutral by construction —
+ * The promoter's view of one `octo.onchain_transfer` row. Vendor-neutral by construction —
  * Helius types never leave `modules/ingestion`, and this module reads staging through JDBC only.
  */
 data class StagedTransfer(

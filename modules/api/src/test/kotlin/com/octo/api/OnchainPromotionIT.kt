@@ -31,7 +31,7 @@ class OnchainPromotionIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -177,7 +177,7 @@ class OnchainPromotionIT {
             c
                 .prepareStatement(
                     """
-                    insert into mesta.instrument
+                    insert into octo.instrument
                         (external_key, chain, mint_address, instrument_kind, decimals, symbol,
                          source_system, actor, ingestion_run_id, correlation_id)
                     values (?, 'solana', ?, 'spl-token', 6, 'TST', 'test', 'test', ?, ?)
@@ -202,7 +202,7 @@ class OnchainPromotionIT {
             c
                 .prepareStatement(
                     """
-                    insert into mesta.onchain_transfer
+                    insert into octo.onchain_transfer
                         (external_id, chain, signature, slot, block_time, commitment, wallet,
                          amount_raw, decimals, direction, transfer_kind,
                          supersedes_id, rationale, source_system, actor, ingestion_run_id, correlation_id)
@@ -223,7 +223,7 @@ class OnchainPromotionIT {
 
     private fun stagingIdOf(externalId: String): UUID =
         dataSource().connection.use { c ->
-            c.prepareStatement("select id from mesta.onchain_transfer where external_id = ?").use { s ->
+            c.prepareStatement("select id from octo.onchain_transfer where external_id = ?").use { s ->
                 s.setString(1, externalId)
                 s.executeQuery().use { r ->
                     check(r.next()) { "staging row $externalId not found" }
@@ -238,7 +238,7 @@ class OnchainPromotionIT {
 
     private fun instrumentIdFor(externalKey: String): UUID =
         dataSource().connection.use { c ->
-            c.prepareStatement("select id from mesta.instrument where external_key = ?").use { s ->
+            c.prepareStatement("select id from octo.instrument where external_key = ?").use { s ->
                 s.setString(1, externalKey)
                 s.executeQuery().use { r ->
                     check(r.next()) { "instrument $externalKey not found" }
@@ -252,8 +252,8 @@ class OnchainPromotionIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

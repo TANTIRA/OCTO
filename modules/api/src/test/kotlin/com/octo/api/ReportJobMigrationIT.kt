@@ -12,7 +12,7 @@ import java.sql.SQLException
 import java.util.UUID
 
 /**
- * Runs the real Flyway migrations and exercises the V13 `mesta.report_job` invariants (#105): the status
+ * Runs the real Flyway migrations and exercises the V13 `octo.report_job` invariants (#105): the status
  * machine new -> executing -> done | error enforced by the trigger, outcome columns matching the status,
  * immutable request columns, one approval task after done, and no delete. Skipped without Docker.
  */
@@ -23,7 +23,7 @@ class ReportJobMigrationIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -35,18 +35,18 @@ class ReportJobMigrationIT {
         query(
             """
             with created as (
-                insert into mesta.tenant (slug, display_name, source_system, correlation_id)
+                insert into octo.tenant (slug, display_name, source_system, correlation_id)
                 values ('acme', 'Acme', 'test', gen_random_uuid())
                 on conflict (slug) do nothing
                 returning id)
-            select id from created union all select id from mesta.tenant where slug = 'acme'
+            select id from created union all select id from octo.tenant where slug = 'acme'
             """.trimIndent(),
         )
     }
 
     @Test
     fun `migration creates the table, its transition trigger and the queue index`() {
-        assertThat(count("select count(*) from pg_tables where schemaname = 'mesta' and tablename = 'report_job'")).isEqualTo(1)
+        assertThat(count("select count(*) from pg_tables where schemaname = 'octo' and tablename = 'report_job'")).isEqualTo(1)
         assertThat(count("select count(*) from pg_trigger where tgname = 'report_job_transition'")).isEqualTo(1)
         assertThat(count("select count(*) from pg_indexes where indexname = 'report_job_queue'")).isEqualTo(1)
     }
@@ -62,7 +62,7 @@ class ReportJobMigrationIT {
         set(id, "status = 'done', result = '{\"tvpi\": 1.5}', artifact_sha256 = repeat('a', 64)")
         assertThatThrownBy { set(id, "status = 'executing'") }.isInstanceOf(SQLException::class.java) // terminal
         assertThatThrownBy { set(id, "result = '{}'") }.isInstanceOf(SQLException::class.java) // done rows are frozen
-        assertThatThrownBy { execute("delete from mesta.report_job where id = '$id'") }.isInstanceOf(SQLException::class.java)
+        assertThatThrownBy { execute("delete from octo.report_job where id = '$id'") }.isInstanceOf(SQLException::class.java)
     }
 
     @Test
@@ -92,7 +92,7 @@ class ReportJobMigrationIT {
             connection
                 .prepareStatement(
                     """
-                    insert into mesta.report_job (tenant_id, report_type, position_source_type, position_source_id, measures, requested_by, correlation_id)
+                    insert into octo.report_job (tenant_id, report_type, position_source_type, position_source_id, measures, requested_by, correlation_id)
                     values (?, ?, 'inline-series', 'fund-1', ?::text[], 'analyst-1', gen_random_uuid())
                     returning id
                     """.trimIndent(),
@@ -108,7 +108,7 @@ class ReportJobMigrationIT {
     private fun task(): UUID =
         query(
             """
-            insert into mesta.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id)
+            insert into octo.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id)
             values ('approval', 'report-job', 'r', 'analyst-1', 'test', gen_random_uuid()) returning id
             """.trimIndent(),
         )
@@ -116,7 +116,7 @@ class ReportJobMigrationIT {
     private fun set(
         id: UUID,
         assignment: String,
-    ) = execute("update mesta.report_job set $assignment where id = '$id'")
+    ) = execute("update octo.report_job set $assignment where id = '$id'")
 
     private fun execute(sql: String) {
         dataSource.connection.use { connection -> connection.createStatement().use { it.executeUpdate(sql) } }
@@ -147,8 +147,8 @@ class ReportJobMigrationIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

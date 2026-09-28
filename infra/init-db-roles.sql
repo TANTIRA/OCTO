@@ -17,8 +17,8 @@ create role octo_migrate login password '<replace-at-run-time>';
 
 grant connect on database postgres to octo_app, octo_migrate;
 
--- V1 creates the mesta schema and V2+ create every object in it, so the
--- migration role needs database-level CREATE. It owns what it creates; V3+
--- grants the runtime role select/insert on exactly the tables it needs — never
--- "all tables", because flyway_schema_history lives in mesta too.
+-- V1-V27 create every object under the mesta schema and V28 moves them into
+-- octo, so the migration role needs database-level CREATE. It owns what it
+-- creates; V3+ grants the runtime role select/insert on exactly the tables it
+-- needs — never "all tables", because flyway_schema_history lives there too.
 grant create on database postgres to octo_migrate;

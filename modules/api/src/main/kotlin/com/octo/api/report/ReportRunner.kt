@@ -26,7 +26,7 @@ class ReportRunner(
 ) {
     private val log = LoggerFactory.getLogger(ReportRunner::class.java)
 
-    @Scheduled(fixedDelayString = "\${mesta.reports.poll-ms:5000}")
+    @Scheduled(fixedDelayString = "\${octo.reports.poll-ms:5000}")
     fun poll() {
         while (true) {
             val job = jobs.claimNext() ?: return

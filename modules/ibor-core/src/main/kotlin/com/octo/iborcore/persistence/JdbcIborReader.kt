@@ -83,7 +83,7 @@ class JdbcIborReader(
     private fun ResultSet.uuid(column: String): UUID? = getObject(column, UUID::class.java)
 
     private companion object {
-        const val LEDGER = "mesta.ledger_event"
-        const val VALUATION = "mesta.valuation_event"
+        const val LEDGER = "octo.ledger_event"
+        const val VALUATION = "octo.valuation_event"
     }
 }

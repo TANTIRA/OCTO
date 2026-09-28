@@ -6,7 +6,7 @@ import java.util.UUID
 import javax.sql.DataSource
 
 /**
- * JDBC access to `mesta.audit_event`. [append] is all the api's runtime role can do: V6 grants it INSERT only,
+ * JDBC access to `octo.audit_event`. [append] is all the api's runtime role can do: V6 grants it INSERT only,
  * and the database assigns seq, recorded_at and the hashes. [readAll] needs a role that may read the audit log.
  */
 class JdbcAuditLog(
@@ -15,7 +15,7 @@ class JdbcAuditLog(
     fun append(entry: AuditEntry) {
         val sql =
             """
-            insert into mesta.audit_event (occurred_at, actor, action, subject_type, subject_id, correlation_id, details)
+            insert into octo.audit_event (occurred_at, actor, action, subject_type, subject_id, correlation_id, details)
             values (?, ?, ?, ?, ?, ?, ?::jsonb)
             """.trimIndent()
         dataSource.connection.use { connection ->
@@ -38,7 +38,7 @@ class JdbcAuditLog(
             """
             select seq, occurred_at, recorded_at, actor, action, subject_type, subject_id, correlation_id,
                    details::text, prev_hash, hash
-            from mesta.audit_event
+            from octo.audit_event
             order by seq
             """.trimIndent()
         return dataSource.connection.use { connection ->

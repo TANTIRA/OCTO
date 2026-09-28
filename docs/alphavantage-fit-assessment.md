@@ -63,13 +63,13 @@ OCTO writes vendor values into the bi-temporal `timeseries_observation` store an
 The same shape as every vendor: Alpha Vantage formats stop at the adapter, and nothing outside `marketdata.alphavantage` references `function=` names or `"4a. close (USD)"` keys. `MarketDataPoint`/`MarketDataTarget` are the vendor-neutral types, mirroring the `onchain/helius` split; `HttpTransport` and `RetryPolicy` moved to a shared `ingestion.http` package so no vendor package imports another.
 
 ```text
-Alpha Vantage ──► marketdata.alphavantage ──► mesta.dataset + timeseries_observation ──► analytics:
+Alpha Vantage ──► marketdata.alphavantage ──► octo.dataset + timeseries_observation ──► analytics:
   GET /query      adapter (this slice)        (V12 bi-temporal store)                    benchmark levels,
  (daily, read-                                                         FX translation,
      only)                                                             token marks
 ```
 
-Unlike the TradingView assessment, the landing surface exists: slice 6 shipped `mesta.dataset` and `timeseries_observation`, so the adapter needs no schema change — only a registered dataset per tenant.
+Unlike the TradingView assessment, the landing surface exists: slice 6 shipped `octo.dataset` and `timeseries_observation`, so the adapter needs no schema change — only a registered dataset per tenant.
 
 ## Before adopting
 

@@ -9,7 +9,7 @@ import java.util.UUID
 
 /**
  * Mirrors the `flow-type` @values in `ontology/octo-investment.cypher` and the check constraint on
- * `mesta.ledger_event`. [investorFlow] marks the types that enter the investor cash-flow series;
+ * `octo.ledger_event`. [investorFlow] marks the types that enter the investor cash-flow series;
  * fees, expenses, carry and other income are reported but excluded (owner decision on #6).
  */
 enum class FlowType(
@@ -25,7 +25,7 @@ enum class FlowType(
     OTHER_INCOME("other-income", false),
 }
 
-/** One row of `mesta.ledger_event`. [amount] is investor-signed: contributions negative. */
+/** One row of `octo.ledger_event`. [amount] is investor-signed: contributions negative. */
 data class LedgerEvent(
     val id: UUID,
     val flowType: FlowType,

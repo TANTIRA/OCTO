@@ -30,7 +30,7 @@ class RowLevelSecurityIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -59,37 +59,37 @@ class RowLevelSecurityIT {
                         "end if; end \$\$",
                 )
                 s.execute("create role rls_probe login password 'rls_probe'")
-                s.execute("grant usage on schema mesta to rls_probe")
-                s.execute("grant select, insert on mesta.prospect, mesta.prospect_event to rls_probe")
+                s.execute("grant usage on schema octo to rls_probe")
+                s.execute("grant select, insert on octo.prospect, octo.prospect_event to rls_probe")
 
                 // Fresh random tenants per test — the schema's append-only triggers rightly
                 // refuse deletes, so tests isolate by tenant id instead of cleaning rows.
                 listOf(tenantA, tenantB).forEach { t ->
                     s.execute(
-                        "insert into mesta.tenant (id, slug, display_name, source_system, correlation_id) " +
+                        "insert into octo.tenant (id, slug, display_name, source_system, correlation_id) " +
                             "values ('$t', 't-${t.toString().take(8)}', 'T', 'test', gen_random_uuid())",
                     )
                     s.execute(
-                        "insert into mesta.prospect (tenant_id, name, source, registered_at, source_system, actor, correlation_id) " +
+                        "insert into octo.prospect (tenant_id, name, source, registered_at, source_system, actor, correlation_id) " +
                             "values ('$t', 'P', 'manual', now(), 'test', 'seeder', gen_random_uuid())",
                     )
                 }
                 // One event per prospect so indirect (subselect) policies are exercised.
                 s.execute(
-                    "insert into mesta.prospect_event " +
+                    "insert into octo.prospect_event " +
                         "(prospect_id, event_type, stage_from, stage_to, actor, occurred_at, correlation_id) " +
                         "select id, 'advanced', 'sourced', 'screening', 'seeder', now(), gen_random_uuid() " +
-                        "from mesta.prospect",
+                        "from octo.prospect",
                 )
                 // member is active in tenant A; outsider is granted then revoked there.
                 s.execute(
-                    "insert into mesta.tenant_member (tenant_id, user_id, created_at, source_system, correlation_id) values " +
+                    "insert into octo.tenant_member (tenant_id, user_id, created_at, source_system, correlation_id) values " +
                         "('$tenantA', '$member', now(), 'test', gen_random_uuid()), " +
                         "('$tenantA', '$outsider', now(), 'test', gen_random_uuid())",
                 )
                 val grantor = UUID.randomUUID()
                 s.execute(
-                    "insert into mesta.tenant_member_event " +
+                    "insert into octo.tenant_member_event " +
                         "(tenant_id, user_id, event_type, role, actor, rationale, occurred_at, correlation_id) values " +
                         "('$tenantA', '$member', 'granted', 'analyst', '$grantor', null, now(), gen_random_uuid()), " +
                         "('$tenantA', '$outsider', 'granted', 'viewer', '$grantor', null, now(), gen_random_uuid()), " +
@@ -118,7 +118,7 @@ class RowLevelSecurityIT {
             c.createStatement().use { s ->
                 s
                     .executeQuery(
-                        "select count(*) from mesta.prospect where tenant_id in ('$tenantA', '$tenantB')",
+                        "select count(*) from octo.prospect where tenant_id in ('$tenantA', '$tenantB')",
                     ).use { rs ->
                         rs.next()
                         rs.getInt(1)
@@ -161,7 +161,7 @@ class RowLevelSecurityIT {
             c.createStatement().use { s ->
                 s
                     .executeQuery(
-                        "select count(*) from mesta.prospect_event pe join mesta.prospect p on p.id = pe.prospect_id " +
+                        "select count(*) from octo.prospect_event pe join octo.prospect p on p.id = pe.prospect_id " +
                             "where p.tenant_id in ('$tenantA', '$tenantB')",
                     ).use { rs ->
                         rs.next()
@@ -181,7 +181,7 @@ class RowLevelSecurityIT {
             assertThatThrownBy {
                 c.createStatement().use { s ->
                     s.execute(
-                        "insert into mesta.prospect (tenant_id, name, source, registered_at, source_system, actor, correlation_id) " +
+                        "insert into octo.prospect (tenant_id, name, source, registered_at, source_system, actor, correlation_id) " +
                             "values ('$tenantA', 'P', 'manual', now(), 'test', 'seeder', gen_random_uuid())",
                     )
                 }

@@ -12,7 +12,7 @@ import java.util.UUID
  * writes corrections. A divergence is a report, not a mutation (megaplan §P5).
  */
 
-/** One row of `mesta.onchain_balance_snapshot` — an observed holding, not a ledger fact. */
+/** One row of `octo.onchain_balance_snapshot` — an observed holding, not a ledger fact. */
 data class ObservedBalance(
     val chain: String,
     val wallet: String,

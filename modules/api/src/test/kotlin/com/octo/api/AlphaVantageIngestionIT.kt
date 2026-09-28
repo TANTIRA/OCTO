@@ -36,7 +36,7 @@ class AlphaVantageIngestionIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -60,9 +60,9 @@ class AlphaVantageIngestionIT {
                 statement
                     .executeQuery(
                         """
-                        with t as (insert into mesta.tenant (slug, display_name, source_system, correlation_id)
+                        with t as (insert into octo.tenant (slug, display_name, source_system, correlation_id)
                                    values ('t-${UUID.randomUUID().toString().take(8)}', 'T', 'test', gen_random_uuid()) returning id)
-                        insert into mesta.dataset (tenant_id, name, description, unit, currency_code, source_system, actor, correlation_id)
+                        insert into octo.dataset (tenant_id, name, description, unit, currency_code, source_system, actor, correlation_id)
                         select id, 'mkt.equity.daily', 'Daily equity bars', 'usd/share', 'USD', 'test', 'it', gen_random_uuid() from t
                         returning id
                         """.trimIndent(),
@@ -102,7 +102,7 @@ class AlphaVantageIngestionIT {
             c.createStatement().use { s ->
                 s
                     .executeQuery(
-                        "select source_system, actor from mesta.timeseries_observation " +
+                        "select source_system, actor from octo.timeseries_observation " +
                             "where dataset_id = '$dataset' and field = 'close'",
                     ).use { r ->
                         assertThat(r.next()).isTrue()
@@ -162,8 +162,8 @@ class AlphaVantageIngestionIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

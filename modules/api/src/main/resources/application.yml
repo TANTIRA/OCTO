@@ -3,23 +3,24 @@ spring:
     name: octo
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}
-    username: ${DB_USER:mesta}
+    username: ${DB_USER:octo}
     password: ${DB_PASSWORD:}
   flyway:
     enabled: true
     locations: classpath:db/migration
-    # Pin the managed schema: DB_USER defaults to "mesta" and the V1 migration creates the mesta
-    # schema, so relying on the connection's current_schema would move flyway_schema_history
-    # between public (first boot) and mesta (later boots) and fail with a non-empty-schema error.
-    schemas: mesta
+    # Pin the managed schema: DB_USER defaults to "octo" and V28 converges every object on
+    # the octo schema, so relying on the connection's current_schema would move
+    # flyway_schema_history between public (first boot) and octo (later boots) and fail
+    # with a non-empty-schema error.
+    schemas: octo
     # Migrations run as a dedicated identity in every deployed environment:
     # infra/docker-compose.yml always sets DB_MIGRATION_*. The fallback to the application role
     # exists so a local run without a separate migration role works, and is never the production path.
-    user: ${DB_MIGRATION_USER:${DB_USER:mesta}}
+    user: ${DB_MIGRATION_USER:${DB_USER:octo}}
     password: ${DB_MIGRATION_PASSWORD:${DB_PASSWORD:}}
     placeholders:
-      # V3 grants the api's own login (the datasource username above) access to the mesta schema.
-      runtime_role: ${DB_USER:mesta}
+      # V3 grants the api's own login (the datasource username above) access to the octo schema.
+      runtime_role: ${DB_USER:octo}
 
 management:
   endpoints:

@@ -31,7 +31,7 @@ flowchart TB
     end
 
     subgraph data["Datastores (dokploy-network, no public ports)"]
-        PG[("Postgres — octo-supabase-db<br/>mesta schema · Flyway · RLS")]
+        PG[("Postgres — octo-supabase-db<br/>octo schema · Flyway · RLS")]
         NEO[("Neo4j — octo-neo4j-db<br/>ontology projection (bolt private)")]
         STOR[("Supabase Storage<br/>documents")]
     end
@@ -174,7 +174,7 @@ are the exception (`report_job.status`, `report_schedule.*` cadence fields) and
 are the ones the domain can't replay. Every store call passes through
 `DataSource.scoped`, which is what makes the V27 RLS policies see the scope.
 
-## 3. Entity-relationship diagram — mesta schema, V1–V27
+## 3. Entity-relationship diagram — octo schema, V1–V27
 
 Append-only tables carry `supersedes_id`; `reject_mutation` triggers refuse
 UPDATE/DELETE on them. `tenant_id` marks RLS-governed rows (V27); tables

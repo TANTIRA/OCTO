@@ -27,7 +27,7 @@ class LedgerMigrationIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -36,8 +36,8 @@ class LedgerMigrationIT {
 
     @Test
     fun `migration creates the ledger and its append-only trigger`() {
-        assertThat(count("select count(*) from information_schema.tables where table_schema = 'mesta' and table_name = 'ledger_event'"))
-            .describedAs("mesta.ledger_event after migration")
+        assertThat(count("select count(*) from information_schema.tables where table_schema = 'octo' and table_name = 'ledger_event'"))
+            .describedAs("octo.ledger_event after migration")
             .isEqualTo(1)
         assertThat(count("select count(*) from pg_trigger where tgname = 'ledger_event_append_only'"))
             .describedAs("append-only trigger after migration")
@@ -77,7 +77,7 @@ class LedgerMigrationIT {
         val id = insert()
         assertThatThrownBy {
             connection.createStatement().use {
-                it.executeUpdate("update mesta.ledger_event set rationale = 'rewritten' where id = '$id'")
+                it.executeUpdate("update octo.ledger_event set rationale = 'rewritten' where id = '$id'")
             }
         }.isInstanceOf(SQLException::class.java)
             .hasMessageContaining("append-only")
@@ -88,7 +88,7 @@ class LedgerMigrationIT {
         val id = insert()
         assertThatThrownBy {
             connection.createStatement().use {
-                it.executeUpdate("delete from mesta.ledger_event where id = '$id'")
+                it.executeUpdate("delete from octo.ledger_event where id = '$id'")
             }
         }.isInstanceOf(SQLException::class.java)
     }
@@ -117,7 +117,7 @@ class LedgerMigrationIT {
     ): UUID? {
         val sql =
             """
-            insert into mesta.ledger_event
+            insert into octo.ledger_event
                 (external_id, flow_type, monetary_amount, currency_code, occurred_at, supersedes_id,
                  rationale, source_system, actor, ingestion_run_id, correlation_id)
             values (?, ?, ?, ?, now(), ?, ?, 'test', 'integration-test', ?, ?)
@@ -147,8 +147,8 @@ class LedgerMigrationIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

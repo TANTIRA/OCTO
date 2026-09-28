@@ -6,7 +6,7 @@ import com.octo.ingestion.extraction.ClaimSupportPolicy
 import java.util.UUID
 
 /**
- * Who produced a staged decision row. Mirrors the audit tail on `mesta.ledger_event` so an
+ * Who produced a staged decision row. Mirrors the audit tail on `octo.ledger_event` so an
  * interrupted ingestion run can replay safely: `(source_system, external_id)` is unique, so a
  * replayed record is rejected instead of duplicated.
  */
@@ -19,7 +19,7 @@ data class Provenance(
 )
 
 /**
- * Staging for document-type decisions (`mesta.document_classification`). The row is append-only;
+ * Staging for document-type decisions (`octo.document_classification`). The row is append-only;
  * a corrected classification is a new row linked by [supersedesId], which the database requires
  * a [rationale] for.
  */
@@ -34,7 +34,7 @@ interface DocumentClassificationStore {
 }
 
 /**
- * Staging for claim-support decisions (`mesta.claim_assessment`). The [policy] is persisted with
+ * Staging for claim-support decisions (`octo.claim_assessment`). The [policy] is persisted with
  * the row so the verdict stays reproducible after thresholds change.
  */
 interface ClaimAssessmentStore {

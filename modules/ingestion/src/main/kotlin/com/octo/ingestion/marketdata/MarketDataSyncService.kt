@@ -10,7 +10,7 @@ import java.util.UUID
 
 /**
  * Pulls each target's daily series, normalizes it, and appends the points to its registered
- * `mesta.dataset` (V12). Re-runs are safe: the store is append-only and bi-temporal, so a repeat
+ * `octo.dataset` (V12). Re-runs are safe: the store is append-only and bi-temporal, so a repeat
  * observation supersedes nothing and the `asOfTime` read still resolves to the newest record —
  * the only cost of a replay is a redundant row.
  *

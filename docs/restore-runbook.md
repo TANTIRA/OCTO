@@ -5,7 +5,7 @@ How to recover OCTO's datastores after loss or corruption. Owner: Platform / Dev
 (ADR-0002) — this runbook is the procedure the repo commits to. **T2 by nature:**
 a restore writes financial data; rehearse it on staging before ever needing it.
 
-Read this before touching anything: the `mesta` schema is append-only event logs
+Read this before touching anything: the `octo` schema is append-only event logs
 (`ledger_event`, `prospect_event`, `tenant_member_event`, `workflow_task_event`).
 Nothing regenerates them — there is no upstream to replay from. A database lost
 beyond backup recovery is lost, period, which is why the rehearsal requirement
@@ -23,7 +23,7 @@ exists.
 
 | Store | Service | Contents | Backup layer |
 | --- | --- | --- | --- |
-| PostgreSQL | `octo-supabase-db` (dokploy-network) | `mesta` domain schema, `auth` (GoTrue), `storage` metadata, `flyway_schema_history` | base backup + WAL archive (pgBackRest or wal-g on the DB host) |
+| PostgreSQL | `octo-supabase-db` (dokploy-network) | `octo` domain schema, `auth` (GoTrue), `storage` metadata, `flyway_schema_history` | base backup + WAL archive (pgBackRest or wal-g on the DB host) |
 | Neo4j | `octo-neo4j-db` (dokploy-network) | graph projections from the ontology schema | `neo4j-admin database dump` to object storage |
 | Supabase Storage | `octo-supabase` project | uploaded documents | storage bucket sync / S3-compatible copy |
 
@@ -59,8 +59,8 @@ Then:
    a scratch compose project) and verify:
    ```sql
    select max(installed_rank), bool_and(success) from flyway_schema_history;
-   select count(*) from mesta.ledger_event;
-   select count(*) from mesta.tenant_member_event;
+   select count(*) from octo.ledger_event;
+   select count(*) from octo.tenant_member_event;
    ```
    Row counts should match the last pre-loss metrics; `bool_and(success)` must be true.
 2. Repoint the pooler/api at the restored service (compose env `POSTGRES_HOST`),
@@ -74,8 +74,8 @@ Then:
 For "one table/one tenant damaged" — never roll the whole database back:
 
 ```bash
-pg_dump --host=<restored> -U postgres -d postgres -n mesta \
-  -t mesta.prospect -t mesta.prospect_event --data-only -f /tmp/prospect.sql
+pg_dump --host=<restored> -U postgres -d postgres -n octo \
+  -t octo.prospect -t octo.prospect_event --data-only -f /tmp/prospect.sql
 ```
 
 Load the rows onto live with `psql -f`. The append-only schema means *insert*

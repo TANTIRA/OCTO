@@ -47,7 +47,7 @@ class ReportEndpointTest {
                 { it.isPrimary = true },
             ).withBean(ReportJobs::class.java, Supplier { jobs }, { it.isPrimary = true })
             .withPropertyValues(
-                "mesta.reports.poll=false",
+                "octo.reports.poll=false",
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
             )
 

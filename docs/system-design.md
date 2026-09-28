@@ -201,7 +201,7 @@ flowchart LR
 
 ## 3. Low-Level Design
 
-### 3.1 PostgreSQL schema (`mesta`)
+### 3.1 PostgreSQL schema (`octo`)
 
 Tables created by the migrations that already exist. Every table rejects UPDATE and DELETE with a trigger, and every row carries provenance.
 

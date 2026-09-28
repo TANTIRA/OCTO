@@ -6,7 +6,7 @@ import java.util.UUID
 
 /**
  * Mirrors the `instrument-flow-type` @values in `ontology/octo-investment.cypher` and the check
- * constraints on `mesta.onchain_transfer.transfer_kind` / `mesta.instrument_flow.flow_type` —
+ * constraints on `octo.onchain_transfer.transfer_kind` / `octo.instrument_flow.flow_type` —
  * one string travels staging -> token ledger -> graph and is never re-translated.
  *
  * [inbound] is the sign the flow contributes to a wallet's token position: true credits,
@@ -29,7 +29,7 @@ enum class InstrumentFlowType(
 }
 
 /**
- * One row of `mesta.instrument_flow` — the onchain counterpart of [LedgerEvent]. [amountRaw] is
+ * One row of `octo.instrument_flow` — the onchain counterpart of [LedgerEvent]. [amountRaw] is
  * a non-negative magnitude in base units (like `ledger_event.monetary_amount`); direction lives
  * in [flowType], never in a sign bit. [decimals] is what the source reported at observation time.
  */

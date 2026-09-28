@@ -31,7 +31,7 @@ class ComplianceStoreIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -47,7 +47,7 @@ class ComplianceStoreIT {
             connection.createStatement().use { statement ->
                 statement
                     .executeQuery(
-                        "insert into mesta.tenant (slug, display_name, source_system, correlation_id) " +
+                        "insert into octo.tenant (slug, display_name, source_system, correlation_id) " +
                             "values ('t-${UUID.randomUUID().toString().take(8)}', 'T', 'test', gen_random_uuid()) returning id",
                     ).use { rows ->
                         rows.next()
@@ -61,7 +61,7 @@ class ComplianceStoreIT {
             connection.createStatement().use { statement ->
                 statement
                     .executeQuery(
-                        "insert into mesta.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
+                        "insert into octo.workflow_task (kind, subject_type, subject_id, requested_by, source_system, correlation_id) " +
                             "values ('review', 'compliance-breach', 'x', 'runner', 'test', gen_random_uuid()) returning id",
                     ).use { rows ->
                         rows.next()
@@ -147,8 +147,8 @@ class ComplianceStoreIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

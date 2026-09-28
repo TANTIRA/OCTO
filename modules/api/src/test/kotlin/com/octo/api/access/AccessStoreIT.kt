@@ -26,7 +26,7 @@ class AccessStoreIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -99,7 +99,7 @@ class AccessStoreIT {
         assertThatThrownBy {
             execute(
                 """
-                insert into mesta.tenant_member_event (tenant_id, user_id, event_type, role, actor, occurred_at, correlation_id)
+                insert into octo.tenant_member_event (tenant_id, user_id, event_type, role, actor, occurred_at, correlation_id)
                 values ('${tenant.id}', '$userId', 'granted', 'admin', '${UUID.randomUUID()}', now(), gen_random_uuid())
                 """.trimIndent(),
             )
@@ -111,7 +111,7 @@ class AccessStoreIT {
         assertThatThrownBy {
             execute(
                 """
-                insert into mesta.tenant_member_event (tenant_id, user_id, event_type, role, actor, occurred_at, correlation_id)
+                insert into octo.tenant_member_event (tenant_id, user_id, event_type, role, actor, occurred_at, correlation_id)
                 values ('${tenant.id}', '$newcomer', 'granted', 'admin', '$newcomer', now(), gen_random_uuid())
                 """.trimIndent(),
             )
@@ -136,8 +136,8 @@ class AccessStoreIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

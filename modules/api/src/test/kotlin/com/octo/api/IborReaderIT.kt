@@ -27,7 +27,7 @@ class IborReaderIT {
             .configure()
             .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
             .locations("classpath:db/migration")
-            .schemas("mesta")
+            .schemas("octo")
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
@@ -74,7 +74,7 @@ class IborReaderIT {
     ): UUID =
         insert(
             """
-            insert into mesta.ledger_event
+            insert into octo.ledger_event
                 (flow_type, monetary_amount, currency_code, occurred_at, supersedes_id, rationale,
                  source_system, actor, ingestion_run_id, correlation_id)
             values (?, ?, 'USD', ?::timestamptz, ?, ?, 'test', 'integration-test', gen_random_uuid(), gen_random_uuid())
@@ -94,7 +94,7 @@ class IborReaderIT {
     ): UUID =
         insert(
             """
-            insert into mesta.valuation_event
+            insert into octo.valuation_event
                 (monetary_amount, currency_code, as_of_date, valuation_method, supersedes_id,
                  rationale, source_system, actor, ingestion_run_id, correlation_id)
             values (?, 'USD', ?::date, 'mark-to-model', ?, ?, 'test', 'integration-test', gen_random_uuid(), gen_random_uuid())
@@ -125,8 +125,8 @@ class IborReaderIT {
         @JvmStatic
         val postgres =
             PostgreSQLContainer("postgres:17-alpine")
-                .withDatabaseName("mesta")
-                .withUsername("mesta")
-                .withPassword("mesta")
+                .withDatabaseName("octo")
+                .withUsername("octo")
+                .withPassword("octo")
     }
 }

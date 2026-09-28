@@ -30,10 +30,10 @@ class JdbcOnchainStagingStore(
                 .prepareStatement(
                     """
                     select t.chain, t.address, t.tenant_id, t.label
-                      from mesta.tracked_address t
+                      from octo.tracked_address t
                      where t.chain = ?
                        and (select e.event_type
-                              from mesta.tracked_address_event e
+                              from octo.tracked_address_event e
                              where e.chain = t.chain and e.address = t.address
                              order by e.seq desc
                              limit 1) = 'watched'
@@ -66,7 +66,7 @@ class JdbcOnchainStagingStore(
                 .prepareStatement(
                     """
                     select max(slot)
-                      from mesta.onchain_transfer
+                      from octo.onchain_transfer
                      where chain = ? and wallet = ?
                     """.trimIndent(),
                 ).use { s ->
@@ -90,7 +90,7 @@ class JdbcOnchainStagingStore(
                 .prepareStatement(
                     """
                     select token_account, wallet
-                      from mesta.onchain_balance_snapshot
+                      from octo.onchain_balance_snapshot
                      where chain = ? and token_account is not null
                     """.trimIndent(),
                 ).use { s ->
@@ -111,7 +111,7 @@ class JdbcOnchainStagingStore(
                 .prepareStatement(
                     """
                     select max(slot)
-                      from mesta.onchain_transfer
+                      from octo.onchain_transfer
                      where chain = ?
                     """.trimIndent(),
                 ).use { s ->
@@ -126,7 +126,7 @@ class JdbcOnchainStagingStore(
                 .prepareStatement(
                     """
                     select mint_address, decimals
-                      from mesta.instrument
+                      from octo.instrument
                      where chain = ? and mint_address is not null
                     """.trimIndent(),
                 ).use { s ->
@@ -150,7 +150,7 @@ class JdbcOnchainStagingStore(
         if (transfers.isEmpty()) return 0
         val sql =
             """
-            insert into mesta.onchain_transfer
+            insert into octo.onchain_transfer
                 (external_id, chain, signature, slot, block_hash, block_time, commitment,
                  wallet, counterparty, token_account, mint_address, amount_raw, decimals,
                  direction, transfer_kind, vendor_payload,
@@ -197,7 +197,7 @@ class JdbcOnchainStagingStore(
         if (balances.isEmpty()) return 0
         val sql =
             """
-            insert into mesta.onchain_balance_snapshot
+            insert into octo.onchain_balance_snapshot
                 (external_id, as_of, chain, wallet, token_account, mint_address,
                  amount_raw, decimals, usd_value, source, slot,
                  source_system, actor, ingestion_run_id, correlation_id)
@@ -240,10 +240,10 @@ class JdbcOnchainStagingStore(
                     select distinct on (coalesce(token_account, mint_address))
                            wallet, token_account, mint_address, amount_raw, decimals,
                            usd_value, source, slot, as_of
-                      from mesta.onchain_balance_snapshot s
+                      from octo.onchain_balance_snapshot s
                      where chain = ? and wallet = ?
                        and not exists (
-                           select 1 from mesta.onchain_balance_snapshot x
+                           select 1 from octo.onchain_balance_snapshot x
                             where x.supersedes_id = s.id)
                      order by coalesce(token_account, mint_address), as_of desc
                     """.trimIndent(),
@@ -284,7 +284,7 @@ class JdbcOnchainStagingStore(
             c
                 .prepareStatement(
                     """
-                    insert into mesta.onchain_claim_evidence
+                    insert into octo.onchain_claim_evidence
                         (external_id, claim_ref, chain, subject_address, evidence_kind,
                          observed_numeric, observed_text, observed_payload, as_of,
                          source_system, actor, ingestion_run_id, correlation_id)

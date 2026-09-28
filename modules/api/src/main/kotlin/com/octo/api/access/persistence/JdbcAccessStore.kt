@@ -26,7 +26,7 @@ data class AccessProvenance(
 )
 
 /**
- * JDBC access to `mesta.tenant`, `mesta.tenant_member` and `mesta.tenant_member_event` (V8). Access
+ * JDBC access to `octo.tenant`, `octo.tenant_member` and `octo.tenant_member_event` (V8). Access
  * state is never stored: [load] replays a member's events through the state machine, and [append]
  * validates a new event against that replay before inserting it. Both run under the per-member
  * advisory lock the V8 trigger takes, so two writers to one membership serialize and neither can
@@ -41,7 +41,7 @@ class JdbcAccessStore(
     ) {
         val sql =
             """
-            insert into mesta.tenant (id, slug, display_name, source_system, correlation_id)
+            insert into octo.tenant (id, slug, display_name, source_system, correlation_id)
             values (?, ?, ?, ?, ?)
             """.trimIndent()
         // The access store is the platform's security substrate (#197): it reads and writes the
@@ -68,7 +68,7 @@ class JdbcAccessStore(
     ) {
         val sql =
             """
-            insert into mesta.tenant_member (tenant_id, user_id, created_at, source_system, correlation_id)
+            insert into octo.tenant_member (tenant_id, user_id, created_at, source_system, correlation_id)
             values (?, ?, ?, ?, ?)
             """.trimIndent()
         dataSource.scoped(TenantScope.All) { connection ->
@@ -118,11 +118,11 @@ class JdbcAccessStore(
         val sql =
             """
             select m.tenant_id, t.slug, latest.role
-            from mesta.tenant_member m
-            join mesta.tenant t on t.id = m.tenant_id
+            from octo.tenant_member m
+            join octo.tenant t on t.id = m.tenant_id
             join lateral (
                 select e.role
-                from mesta.tenant_member_event e
+                from octo.tenant_member_event e
                 where e.tenant_id = m.tenant_id and e.user_id = m.user_id
                 order by e.seq desc
                 limit 1
@@ -157,7 +157,7 @@ class JdbcAccessStore(
     ): MembershipState? {
         connection
             .prepareStatement(
-                "select pg_advisory_xact_lock(hashtextextended('mesta.tenant_member:' || ?::text || ':' || ?::text, 0))",
+                "select pg_advisory_xact_lock(hashtextextended('octo.tenant_member:' || ?::text || ':' || ?::text, 0))",
             ).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setObject(2, userId)
@@ -174,7 +174,7 @@ class JdbcAccessStore(
     ): Instant? =
         connection
             .prepareStatement(
-                "select created_at from mesta.tenant_member where tenant_id = ? and user_id = ?",
+                "select created_at from octo.tenant_member where tenant_id = ? and user_id = ?",
             ).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setObject(2, userId)
@@ -194,7 +194,7 @@ class JdbcAccessStore(
             .prepareStatement(
                 """
                 select event_type, role, actor, rationale, occurred_at
-                from mesta.tenant_member_event
+                from octo.tenant_member_event
                 where tenant_id = ? and user_id = ?
                 order by seq
                 """.trimIndent(),
@@ -236,7 +236,7 @@ class JdbcAccessStore(
             }
         val sql =
             """
-            insert into mesta.tenant_member_event (tenant_id, user_id, event_type, role, actor, rationale, occurred_at, correlation_id)
+            insert into octo.tenant_member_event (tenant_id, user_id, event_type, role, actor, rationale, occurred_at, correlation_id)
             values (?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         connection.prepareStatement(sql).use { statement ->

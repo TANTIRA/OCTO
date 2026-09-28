@@ -30,7 +30,7 @@ Set in the Dokploy compose environment (never committed). Keys mirror
 `infra/docker-compose.yml`; see `infra/.env.example` for the full contract.
 
 - `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_DB` → `DB_HOST`/`DB_PORT`/`DB_NAME` for the datasource.
-- `DB_USER=octo_app`, `DB_MIGRATION_USER=octo_migrate` — the least-privilege roles from `infra/init-db-roles.sql` (create/rename before first api boot; `octo_migrate` needs `CREATE` on the database for the `mesta` schema + Flyway history).
+- `DB_USER=octo_app`, `DB_MIGRATION_USER=octo_migrate` — the least-privilege roles from `infra/init-db-roles.sql` (create/rename before first api boot; `octo_migrate` needs `CREATE` on the database for the `octo` schema + Flyway history).
 - `SUPABASE_INTERNAL_URL`, `SUPABASE_STORAGE_ENDPOINT` → internal Kong URLs.
 - `AUTH_ISSUER`, `AUTH_JWKS_URL`, `AUTH_PUBLIC_URL`, `API_PUBLIC_URL`.
   `AUTH_ISSUER` stays the *public* issuer string (it is matched against the
@@ -126,7 +126,7 @@ curl -sf -o /dev/null -w '%{http_code}\n' https://admin-octo.mesta.click
 ```
 
 Flyway runs at api boot as `octo_migrate`; check
-`mesta.flyway_schema_history` (`installed_by`) if a migration looks stale.
+`octo.flyway_schema_history` (`installed_by`) if a migration looks stale.
 
 ## Rollback
 

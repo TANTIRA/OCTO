@@ -121,7 +121,7 @@ data class StakeAccountInfo(
     val chain: String = CHAIN_SOLANA,
 )
 
-/** One address the platform watches, read back from `mesta.tracked_address`. */
+/** One address the platform watches, read back from `octo.tracked_address`. */
 data class WatchSource(
     val chain: String,
     val address: String,

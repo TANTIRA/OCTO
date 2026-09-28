@@ -17,7 +17,7 @@ data class ScreeningRuleRow(
 )
 
 /**
- * JDBC access to `mesta.screening_rule` (V20). Rules are versioned per tenant: [define] writes the
+ * JDBC access to `octo.screening_rule` (V20). Rules are versioned per tenant: [define] writes the
  * next version of a `rule_id`, and [activeRules] returns the newest active version of every rule —
  * the set a screen evaluates conjunctively.
  */
@@ -44,7 +44,7 @@ class JdbcScreeningRuleStore(
             val version =
                 connection
                     .prepareStatement(
-                        "select coalesce(max(version), 0) + 1 from mesta.screening_rule where tenant_id = ? and rule_id = ?",
+                        "select coalesce(max(version), 0) + 1 from octo.screening_rule where tenant_id = ? and rule_id = ?",
                     ).use { statement ->
                         statement.setObject(1, tenantId)
                         statement.setString(2, ruleId)
@@ -56,7 +56,7 @@ class JdbcScreeningRuleStore(
             connection
                 .prepareStatement(
                     """
-                    insert into mesta.screening_rule (tenant_id, rule_id, version, name, criteria, actor, correlation_id)
+                    insert into octo.screening_rule (tenant_id, rule_id, version, name, criteria, actor, correlation_id)
                     values (?, ?, ?, ?, ?::jsonb, ?, ?)
                     """.trimIndent(),
                 ).use { statement ->
@@ -92,7 +92,7 @@ class JdbcScreeningRuleStore(
             val latest =
                 connection
                     .prepareStatement(
-                        "select version, name, criteria::text, active from mesta.screening_rule where tenant_id = ? and rule_id = ? order by version desc limit 1",
+                        "select version, name, criteria::text, active from octo.screening_rule where tenant_id = ? and rule_id = ? order by version desc limit 1",
                     ).use { statement ->
                         statement.setObject(1, tenantId)
                         statement.setString(2, ruleId)
@@ -111,7 +111,7 @@ class JdbcScreeningRuleStore(
             connection
                 .prepareStatement(
                     """
-                    insert into mesta.screening_rule (tenant_id, rule_id, version, name, criteria, active, actor, correlation_id)
+                    insert into octo.screening_rule (tenant_id, rule_id, version, name, criteria, active, actor, correlation_id)
                     values (?, ?, ?, ?, ?::jsonb, false, ?, ?)
                     """.trimIndent(),
                 ).use { statement ->
@@ -145,7 +145,7 @@ class JdbcScreeningRuleStore(
                     select rule_id, version, name, criteria::text
                     from (
                         select distinct on (rule_id) rule_id, version, name, criteria, active
-                        from mesta.screening_rule
+                        from octo.screening_rule
                         where tenant_id = ?
                         order by rule_id, version desc
                     ) latest
@@ -178,7 +178,7 @@ class JdbcScreeningRuleStore(
     ) {
         connection
             .prepareStatement(
-                "select pg_advisory_xact_lock(hashtextextended('mesta.screening_rule:' || ?::text || ':' || ?::text, 0))",
+                "select pg_advisory_xact_lock(hashtextextended('octo.screening_rule:' || ?::text || ':' || ?::text, 0))",
             ).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setString(2, ruleId)

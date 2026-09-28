@@ -1,7 +1,7 @@
 package com.octo.dealsourcing
 
 /**
- * One tenant's screening criteria (`mesta.screening_rule.criteria`, V20). Every field is an allowed
+ * One tenant's screening criteria (`octo.screening_rule.criteria`, V20). Every field is an allowed
  * set; absent means unconstrained. The shape stays deliberately small — the same criteria govern the
  * deterministic evaluator today and bound whatever an AI screener may conclude later.
  */
