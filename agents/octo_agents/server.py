@@ -6,6 +6,7 @@ flag; /healthz is open for the compose healthcheck only.
 """
 
 from typing import Any
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -55,8 +56,29 @@ def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def _models(registry: ApprovedModelRegistry) -> dict[str, str]:
+    """Model ids for the run's lineage — resolved through the same registry the
+    clients use, so the recorded pair is the pair that actually ran."""
+    return {
+        "drafter": registry.resolve("drafter", confidential=True).model_id,
+        "judge": registry.resolve("judge", confidential=True).model_id,
+    }
+
+
+def _api(settings: Settings) -> OctoApiClient:
+    return OctoApiClient(
+        settings.octo_api_base_url,
+        settings.octo_agent_token,
+        timeout_s=settings.request_timeout_s,
+    )
+
+
 class ScreeningDdRequest(BaseModel):
     prospect_id: str
+    tenant_id: str
+    # Caller-supplied dedupe key — Kotlin mints one per trigger; absent here a
+    # direct caller gets a fresh run each post.
+    run_key: str | None = None
 
 
 @app.post("/v1/workflows/screening-dd")
@@ -71,22 +93,22 @@ def screening_dd(
             detail="screening-dd workflow is feature-flagged off",
         )
     registry = _registry(settings)
-    api = OctoApiClient(
-        settings.octo_api_base_url,
-        settings.octo_agent_token,
-        timeout_s=settings.request_timeout_s,
-    )
     result = run_screening_dd(
         agent_model=drafter_model(settings, registry),
         judge=_judge(settings, registry),
-        api=api,
+        api=_api(settings),
         prospect_id=body.prospect_id,
+        tenant_id=body.tenant_id,
+        run_key=body.run_key or str(uuid4()),
+        models=_models(registry),
     )
     return result.model_dump()
 
 
 class DueDiligenceRequest(BaseModel):
     prospect_id: str
+    tenant_id: str
+    run_key: str | None = None
 
 
 @app.post("/v1/workflows/due-diligence")
@@ -101,15 +123,13 @@ def due_diligence(
             detail="due-diligence workflow is feature-flagged off",
         )
     registry = _registry(settings)
-    api = OctoApiClient(
-        settings.octo_api_base_url,
-        settings.octo_agent_token,
-        timeout_s=settings.request_timeout_s,
-    )
     result = run_due_diligence(
         agent_model=drafter_model(settings, registry),
         judge=_judge(settings, registry),
-        api=api,
+        api=_api(settings),
         prospect_id=body.prospect_id,
+        tenant_id=body.tenant_id,
+        run_key=body.run_key or str(uuid4()),
+        models=_models(registry),
     )
     return result.model_dump()

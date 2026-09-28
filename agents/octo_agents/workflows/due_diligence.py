@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, ScoreQuestion
 from ..tools import read_tools
-from .screening_dd import extract_final_text, preflight_gate, score_events
+from .screening_dd import _record_run, extract_final_text, preflight_gate, score_events
 
 WORKSTREAMS = ("market", "financial", "legal", "operational")
 
@@ -145,77 +145,115 @@ def run_due_diligence(
     judge: JudgeClient,
     api: OctoApiClient,
     prospect_id: str,
+    tenant_id: str,
+    run_key: str,
+    models: dict[str, str],
 ) -> DdResult:
-    prospect_state = api.get_prospect(prospect_id)
-    raw_events = api.list_prospect_events(prospect_id)
-    events = raw_events if isinstance(raw_events, list) else []
-
-    # The screening record already passed, but a prospect can land in DD with a
-    # stale or gutted record — the same noul still gates the drafter spend.
-    preflight = preflight_gate(
-        judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
+    run_id, replayed = _record_run(
+        api,
+        tenant_id=tenant_id,
+        workflow="due-diligence",
+        run_key=run_key,
+        subject_type="prospect",
+        subject_id=prospect_id,
+        input={"prospect_id": prospect_id},
+        models=models,
     )
-    if not preflight.record_sufficient:
-        return DdResult(prospect_id=prospect_id, status="refused")
+    if replayed is not None:
+        return DdResult.model_validate(replayed)
 
-    admitted, _ = score_events(
-        judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
-    )
+    try:
+        prospect_state = api.get_prospect(prospect_id)
+        raw_events = api.list_prospect_events(prospect_id)
+        events = raw_events if isinstance(raw_events, list) else []
 
-    subagents = [
-        {
-            "name": f"dd-{ws}",
-            "description": f"{ws} due-diligence analyst — read-only",
-            "system_prompt": _WORKSTREAM_PROMPTS[ws],
-            "tools": read_tools(api),
-        }
-        for ws in WORKSTREAMS
-    ]
-    agent = create_deep_agent(
-        model=agent_model,
-        tools=read_tools(api),
-        system_prompt=ORCHESTRATOR_PROMPT,
-        subagents=subagents,
-    )
-    evidence = "\n".join(f"- {str(e)[:400]}" for e in admitted) or "- (no events on record)"
-    result = agent.invoke(
-        {
-            "messages": [
-                (
-                    "user",
-                    (
-                        f"Run due diligence on prospect {prospect_id}.\n\n"
-                        "Relevant record excerpts, already scored for this task:\n"
-                        f"{evidence}"
-                    ),
-                )
-            ]
-        }
-    )
-    dossier = extract_final_text(result)
-
-    bands, completeness, lineage = _band_workstreams(
-        judge, prospect_id=prospect_id, prospect_state=prospect_state, dossier=dossier
-    )
-
-    tasks = [
-        DdTask(
-            workstream=band.workstream,
-            task_id=(resp := api.open_dd_evidence(prospect_id, band.workstream, dossier[:2000])).get(
-                "taskId"
-            ),
-            opened=bool(resp.get("opened")),
+        # The screening record already passed, but a prospect can land in DD with a
+        # stale or gutted record — the same noul still gates the drafter spend.
+        preflight = preflight_gate(
+            judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
         )
-        for band in bands
-        if band.band in TASK_BANDS
-    ]
+        if not preflight.record_sufficient:
+            result = DdResult(prospect_id=prospect_id, status="refused")
+            api.finish_run(
+                run_id,
+                status="refused",
+                output=result.model_dump(),
+                verdict={"sufficient": {"noul": preflight.probability}},
+            )
+            return result
 
-    return DdResult(
-        prospect_id=prospect_id,
-        status="completed",
-        dossier=dossier,
-        bands=bands,
-        completeness=completeness,
-        tasks=tasks,
-        judge_lineage=lineage,
-    )
+        admitted, _ = score_events(
+            judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
+        )
+
+        subagents = [
+            {
+                "name": f"dd-{ws}",
+                "description": f"{ws} due-diligence analyst — read-only",
+                "system_prompt": _WORKSTREAM_PROMPTS[ws],
+                "tools": read_tools(api),
+            }
+            for ws in WORKSTREAMS
+        ]
+        agent = create_deep_agent(
+            model=agent_model,
+            tools=read_tools(api),
+            system_prompt=ORCHESTRATOR_PROMPT,
+            subagents=subagents,
+        )
+        evidence = "\n".join(f"- {str(e)[:400]}" for e in admitted) or "- (no events on record)"
+        result = agent.invoke(
+            {
+                "messages": [
+                    (
+                        "user",
+                        (
+                            f"Run due diligence on prospect {prospect_id}.\n\n"
+                            "Relevant record excerpts, already scored for this task:\n"
+                            f"{evidence}"
+                        ),
+                    )
+                ]
+            }
+        )
+        dossier = extract_final_text(result)
+
+        bands, completeness, lineage = _band_workstreams(
+            judge, prospect_id=prospect_id, prospect_state=prospect_state, dossier=dossier
+        )
+
+        tasks = [
+            DdTask(
+                workstream=band.workstream,
+                task_id=(
+                    resp := api.open_dd_evidence(prospect_id, band.workstream, dossier[:2000])
+                ).get("taskId"),
+                opened=bool(resp.get("opened")),
+            )
+            for band in bands
+            if band.band in TASK_BANDS
+        ]
+
+        result = DdResult(
+            prospect_id=prospect_id,
+            status="completed",
+            dossier=dossier,
+            bands=bands,
+            completeness=completeness,
+            tasks=tasks,
+            judge_lineage=lineage,
+        )
+        api.finish_run(
+            run_id,
+            status="completed",
+            output=result.model_dump(),
+            verdict={
+                **{b.workstream: {"choice": b.band} for b in bands},
+                "completeness": {"score": completeness},
+                "lineage": lineage,
+            },
+        )
+        return result
+    except Exception as e:
+        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        raise

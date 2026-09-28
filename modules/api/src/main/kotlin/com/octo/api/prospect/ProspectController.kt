@@ -742,7 +742,14 @@ class ProspectController(
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val result =
             try {
-                agents.run("screening-dd", mapOf("prospect_id" to id.toString()))
+                agents.run(
+                    "screening-dd",
+                    mapOf(
+                        "prospect_id" to id.toString(),
+                        "tenant_id" to current.prospect.tenantId.toString(),
+                        "run_key" to UUID.randomUUID().toString(),
+                    ),
+                )
             } catch (e: AgentsUnavailableException) {
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
             } catch (e: AgentsCallException) {
