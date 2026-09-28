@@ -42,6 +42,7 @@ service's only client and its only tool surface.
 | `OCTO_AGENTS_DD_ENABLED` | F3 parallel DD workstreams (default off) |
 | `OCTO_AGENTS_IC_MEMO_ENABLED` | F5 IC memo drafting (default off) |
 | `OCTO_AGENTS_LP_REPORT_ENABLED` | F8 LP report drafting (default off) |
+| `OCTO_AGENTS_BRAIN_ENABLED` | F7 company-brain NL query (default off) |
 | `MODEL_REGISTRY_PATH` | registry override, default `./models.yaml` |
 
 ## API
@@ -71,6 +72,12 @@ service's only client and its only tool surface.
   drafter runs with no tools and narrates only the job's inline facts; jev
   refuses drafts it cannot support, which errors the job. A `done` job is
   still sealed until `/release` approval. Flag: `OCTO_AGENTS_LP_REPORT_ENABLED`.
+
+- `POST /v1/workflows/company-brain` — `{tenant_id, question}` → F7: jev
+  pre-gates whether the platform's records could answer, the drafter answers
+  through read tools plus `list_pipeline(stage)`, and a second jev gate
+  refuses drafts it cannot support — the caller sees an honest note, never a
+  confident hallucination. Flag: `OCTO_AGENTS_BRAIN_ENABLED`.
 
 ## Evals
 

@@ -56,6 +56,9 @@ class OctoApiClient:
     def get_asset(self, asset_id: str) -> Any:
         return self._get(f"/api/v1/assets/{asset_id}")
 
+    def list_pipeline(self, tenant_id: str, stage: str, limit: int = 50) -> Any:
+        return self._get(f"/api/v1/prospects?tenantId={tenant_id}&stage={stage}&limit={limit}")
+
     def get_dataset(self, dataset_id: str, **params: Any) -> Any:
         query = "&".join(f"{k}={v}" for k, v in params.items())
         return self._get(f"/api/v1/data/{dataset_id}?{query}" if query else f"/api/v1/data/{dataset_id}")
