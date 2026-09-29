@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.2.21"
-springBoot = "3.5.7"
+springBoot = "4.1.1"
 springDepMgmt = "1.1.7"
 jackson = "2.22.2"
 jena = "6.1.0"
