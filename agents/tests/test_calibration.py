@@ -4,10 +4,11 @@ runs invert it and land in the disagreement queue plus eval cases."""
 
 from typing import Any
 
+from octo_agents.api_client import OctoApiClient
 from octo_agents.workflows.calibration import run_calibration
 
 
-class FakeApi:
+class FakeApi(OctoApiClient):
     def __init__(self, runs: list[dict[str, Any]]) -> None:
         self.runs = runs
         self.finished: dict[str, Any] = {}

@@ -10,13 +10,13 @@ from typing import Any
 import httpx
 import pytest
 
-from octo_agents.api_client import OctoApiError
+from octo_agents.api_client import OctoApiClient, OctoApiError
 from octo_agents.judge import JudgeClient
 from octo_agents.workflows import ic_memo
 from octo_agents.workflows.ic_memo import run_ic_memo
 
 
-class FakeApi:
+class FakeApi(OctoApiClient):
     def __init__(self, *, ic_status: int = 202, events: list[Any] | None = None) -> None:
         self.ic_status = ic_status
         self.events = events or []

@@ -9,12 +9,13 @@ from typing import Any
 import httpx
 import pytest
 
+from octo_agents.api_client import OctoApiClient
 from octo_agents.judge import JudgeClient
 from octo_agents.workflows import due_diligence
 from octo_agents.workflows.due_diligence import WORKSTREAMS, run_due_diligence
 
 
-class FakeApi:
+class FakeApi(OctoApiClient):
     def __init__(self, events: list[Any]) -> None:
         self.events = events
         self.evidence_requests: list[tuple[str, str]] = []

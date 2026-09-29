@@ -6,6 +6,7 @@ The request/response shapes mirror modules/control-panel's Kotlin judgment
 contract so both platforms read the same answers.
 """
 
+from collections.abc import Mapping
 from typing import Any, Literal
 
 import httpx
@@ -98,7 +99,7 @@ class JudgeClient:
     def decide(
         self,
         state: Any,
-        questions: dict[str, JudgmentQuestion],
+        questions: Mapping[str, JudgmentQuestion],
         *,
         session_id: str | None = None,
         user: str | None = None,
