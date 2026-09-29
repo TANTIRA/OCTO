@@ -113,9 +113,18 @@ class SecurityConfig {
             }
 
         // Local testing only: with AUTH_DEV_BYPASS=true every request runs as the fixed
-        // AUTH_DEV_SUBJECT identity — no issuer needed. Off by default; never set in a
-        // deployed environment.
+        // AUTH_DEV_SUBJECT identity — no issuer needed. Off by default; in a deployed
+        // environment it must never run, so the boot refuses the combination rather than
+        // trusting an env var audit (#270). A `prod`/`production` profile or a configured
+        // issuer are the deployment signals — either one with the flag set fails the context.
         if (env.getProperty("AUTH_DEV_BYPASS")?.toBoolean() == true) {
+            val prodProfile =
+                env.getProperty("SPRING_PROFILES_ACTIVE").orEmpty().split(',').any {
+                    it.trim().equals("prod", ignoreCase = true) || it.trim().equals("production", ignoreCase = true)
+                }
+            require(!prodProfile && env.getProperty("AUTH_JWKS_URL").isNullOrBlank()) {
+                "AUTH_DEV_BYPASS cannot run alongside SPRING_PROFILES_ACTIVE=prod or a configured AUTH_JWKS_URL"
+            }
             http.addFilterBefore(
                 DevSubjectAuthFilter(env.getProperty("AUTH_DEV_SUBJECT")),
                 UsernamePasswordAuthenticationFilter::class.java,

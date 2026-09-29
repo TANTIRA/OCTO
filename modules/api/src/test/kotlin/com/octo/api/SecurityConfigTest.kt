@@ -128,6 +128,23 @@ class SecurityConfigTest {
     }
 
     @Test
+    fun `the dev bypass refuses to boot alongside a prod profile or a configured issuer`() {
+        listOf(
+            listOf("AUTH_DEV_BYPASS=true", "SPRING_PROFILES_ACTIVE=prod"),
+            listOf("AUTH_DEV_BYPASS=true", "SPRING_PROFILES_ACTIVE=staging, production"),
+            listOf("AUTH_DEV_BYPASS=true", "AUTH_JWKS_URL=https://issuer.example.invalid/.well-known/jwks.json"),
+        ).forEach { overrides ->
+            contextRunner
+                .withPropertyValues(*overrides.toTypedArray())
+                .run { context -> assertThat(context.startupFailure).isNotNull() }
+        }
+        // the flag alone still boots for local dev
+        contextRunner
+            .withPropertyValues("AUTH_DEV_BYPASS=true")
+            .run { context -> assertThat(context.startupFailure).isNull() }
+    }
+
+    @Test
     fun `the dev filter stamps AUTH_DEV_SUBJECT, defaulting to the fixed all-zeros-plus-one UUID`() {
         val stamp =
             DevSubjectAuthFilter("dev-user-1").let { filter ->
