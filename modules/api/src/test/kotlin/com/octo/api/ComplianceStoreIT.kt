@@ -9,6 +9,10 @@ import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.evaluate
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.JdbcComplianceStore
+import com.octo.workflow.Task
+import com.octo.workflow.TaskKind
+import com.octo.workflow.persistence.JdbcTaskStore
+import com.octo.workflow.persistence.TaskProvenance
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
@@ -19,6 +23,7 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.math.BigDecimal
 import java.sql.SQLException
+import java.time.Instant
 import java.time.LocalDate
 import java.util.Currency
 import java.util.UUID
@@ -191,6 +196,33 @@ class ComplianceStoreIT {
                 TenantScope.All,
             )
         }.isInstanceOf(SQLException::class.java)
+    }
+
+    @Test
+    fun `a task opened on the record's transaction commits with its breach and rolls back when the breach is refused`() {
+        val tenantId = tenant()
+        val floor = ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2")))
+        val coverage = CoverageReport(asOf, asOf.plusYears(1), usd, "base", null, null, null, null, BigDecimal("1.1"))
+        val breach = evaluate(listOf(floor), ComplianceInputs("fund-2", asOf, coverage = coverage)).single()
+        val tasks = JdbcTaskStore(dataSource)
+
+        fun runnerTask() = Task(UUID.randomUUID(), TaskKind.REVIEW, "compliance-breach", "cov/fund-2/$asOf", "runner", Instant.now())
+
+        val kept = runnerTask()
+        store.record(tenantId, breach, kept.id, UUID.randomUUID(), TenantScope.All) { connection ->
+            tasks.create(connection, kept, TaskProvenance("it", UUID.randomUUID()))
+        }
+        assertThat(store.breachTask(tenantId, breach, TenantScope.All)).isEqualTo(kept.id)
+        assertThat(tasks.load(kept.id)).isNotNull()
+
+        // The losing runner of a race: compliance_breach_once refuses its evaluation, and its task must not outlive it (#341).
+        val lost = runnerTask()
+        assertThatThrownBy {
+            store.record(tenantId, breach, lost.id, UUID.randomUUID(), TenantScope.All) { connection ->
+                tasks.create(connection, lost, TaskProvenance("it", UUID.randomUUID()))
+            }
+        }.isInstanceOf(SQLException::class.java)
+        assertThat(tasks.load(lost.id)).isNull()
     }
 
     @Test

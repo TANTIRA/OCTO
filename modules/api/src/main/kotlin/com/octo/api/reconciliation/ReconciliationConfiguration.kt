@@ -8,6 +8,7 @@ import com.octo.workflow.persistence.JdbcTaskStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import java.sql.Connection
 import java.time.ZoneId
 import java.util.UUID
 import javax.sql.DataSource
@@ -39,14 +40,15 @@ class ReconciliationConfiguration {
                 taskId: UUID?,
                 correlationId: UUID,
                 scope: TenantScope,
-            ) = store.record(tenantId, runId, brk, taskId, correlationId, scope)
+                openTask: ((Connection) -> Unit)?,
+            ) = store.record(tenantId, runId, brk, taskId, correlationId, scope, openTask)
         }
     }
 
     @Bean
     fun jdbcBreakTaskOpener(dataSource: ObjectProvider<DataSource>): BreakTaskOpener {
         val tasks by lazy { JdbcTaskStore(dataSource.getObject()) }
-        return BreakTaskOpener { task, provenance -> tasks.create(task, provenance) }
+        return BreakTaskOpener { connection, task, provenance -> tasks.create(connection, task, provenance) }
     }
 
     @Bean

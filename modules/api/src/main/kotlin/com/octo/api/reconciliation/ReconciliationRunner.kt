@@ -10,14 +10,16 @@ import com.octo.recon.matching.reconcile
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import com.octo.workflow.persistence.TaskProvenance
+import java.sql.Connection
 import java.sql.SQLException
 import java.time.Instant
 import java.time.ZoneId
 import java.util.UUID
 
-/** Opens the evidence-request task a break needs; `JdbcTaskStore.create` behind it in production. */
+/** Opens the evidence-request task a break needs on the break's own transaction; `JdbcTaskStore.create` behind it in production. */
 fun interface BreakTaskOpener {
     fun open(
+        connection: Connection,
         task: Task,
         provenance: TaskProvenance,
     )
@@ -39,8 +41,9 @@ data class RunResult(
 /**
  * Runs one reconciliation (#107, #6 slice 9): the source records against the current ledger events of their source
  * systems, every break recorded, and exactly one `workflow_task` of kind `evidence-request` per break key across
- * runs. A break blocks nothing: the task's decision is its disposition. V15's index is the backstop when two
- * runners race on one break.
+ * runs. A break blocks nothing: the task's decision is its disposition. The task and the break that claims it
+ * commit in one transaction (#341); V15's index is the backstop when two runners race on one break, and the
+ * loser's rollback takes its task with it.
  */
 class ReconciliationRunner(
     private val store: ReconciliationStore,
@@ -68,12 +71,12 @@ class ReconciliationRunner(
                     return@map BreakOutcome(brk, existing, opened = false)
                 }
                 val task = Task(UUID.randomUUID(), TaskKind.EVIDENCE_REQUEST, "reconciliation-break", brk.key(), requestedBy, Instant.now())
-                tasks.open(task, TaskProvenance("api", correlationId))
                 try {
-                    store.record(tenantId, runId, brk, task.id, correlationId, scope)
+                    store.record(tenantId, runId, brk, task.id, correlationId, scope) { connection ->
+                        tasks.open(connection, task, TaskProvenance("api", correlationId))
+                    }
                     BreakOutcome(brk, task.id, opened = true)
                 } catch (e: SQLException) {
-                    // ponytail: the task opened for the losing runner stays open with no break; close it in a sweep if races turn out to be common.
                     val winner = store.existingTask(tenantId, brk, scope) ?: throw e
                     store.record(tenantId, runId, brk, null, correlationId, scope)
                     BreakOutcome(brk, winner, opened = false)

@@ -25,7 +25,7 @@ class ReconciliationRunnerTest {
     private val store =
         FakeReconciliationStore(listOf(kept, orphan, IborRecord(UUID.randomUUID(), "admin-b", "b-1", BigDecimal.ONE, usd, day)))
     private val opened = mutableListOf<Task>()
-    private val runner = ReconciliationRunner(store, BreakTaskOpener { task, _ -> opened += task })
+    private val runner = ReconciliationRunner(store, BreakTaskOpener { _, task, _ -> opened += task })
     private val tenantId = UUID.randomUUID()
 
     private fun source(
@@ -132,8 +132,9 @@ class ReconciliationRunnerTest {
                         }
                     }
                 },
-                BreakTaskOpener { task, _ -> opened += task },
+                BreakTaskOpener { _, task, _ -> opened += task },
             )
+        val openedBefore = opened.size
         val raced =
             racing.run(
                 tenantId,
@@ -147,5 +148,7 @@ class ReconciliationRunnerTest {
         assertThat(outcome.brk.kind).isEqualTo(BreakKind.MISSING_IN_IBOR)
         assertThat(outcome.taskId).isEqualTo(winner)
         assertThat(outcome.opened).isFalse()
+        // The losing insert rolled back with its task: nothing was left open for the break it lost (#341).
+        assertThat(opened).hasSize(openedBefore)
     }
 }
