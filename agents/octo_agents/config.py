@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     octo_agents_ic_memo_enabled: bool = False
     # LP report drafting (F8) — narrates a report job's inline facts, release-gated.
     octo_agents_lp_report_enabled: bool = False
+    # Company-brain NL query (F7) — judged answers over the pipeline records.
+    octo_agents_brain_enabled: bool = False
 
     request_timeout_s: float = 60.0
 

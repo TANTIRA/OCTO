@@ -17,6 +17,7 @@ from .chat import drafter_model
 from .config import Settings, get_settings
 from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
+from .workflows.company_brain import run_company_brain
 from .workflows.due_diligence import run_due_diligence
 from .workflows.ic_memo import run_ic_memo
 from .workflows.lp_report import run_lp_report
@@ -170,6 +171,36 @@ def lp_report(
         position_source_id=body.position_source_id,
         measures=body.measures,
         parameters=body.parameters,
+        models=_models(registry),
+    )
+    return result.model_dump()
+
+
+class BrainQueryRequest(BaseModel):
+    tenant_id: str
+    question: str
+    run_key: str | None = None
+
+
+@app.post("/v1/workflows/company-brain")
+def company_brain(
+    body: BrainQueryRequest,
+    _: None = Depends(require_caller),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    if not settings.octo_agents_brain_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="company-brain workflow is feature-flagged off",
+        )
+    registry = _registry(settings)
+    result = run_company_brain(
+        agent_model=drafter_model(settings, registry),
+        judge=_judge(settings, registry),
+        api=_api(settings),
+        tenant_id=body.tenant_id,
+        question=body.question,
+        run_key=body.run_key or str(uuid4()),
         models=_models(registry),
     )
     return result.model_dump()
