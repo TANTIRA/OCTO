@@ -38,6 +38,14 @@ WORKFLOWS = {
             "differently, omitted or invented?"
         ),
     },
+    "ddq_response": {
+        "question": "grounded",
+        "instructions": (
+            "Is every figure, date, policy and claim in the answers present "
+            "in the supplied firm facts — nothing invented or imported from "
+            "outside? An honest 'not covered' counts as grounded."
+        ),
+    },
 }
 
 

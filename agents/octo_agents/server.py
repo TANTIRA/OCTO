@@ -20,6 +20,7 @@ from .registry import ApprovedModelRegistry
 from .workflows.calibration import run_calibration
 from .workflows.company_brain import run_company_brain
 from .workflows.compliance_rationale import run_compliance_rationale
+from .workflows.ddq_response import run_ddq_response
 from .workflows.due_diligence import run_due_diligence
 from .workflows.equity_bridge import run_equity_bridge
 from .workflows.ic_memo import run_ic_memo
@@ -339,6 +340,40 @@ def ic_memo(
         api=_api(settings),
         prospect_id=body.prospect_id,
         tenant_id=body.tenant_id,
+        run_key=body.run_key or str(uuid4()),
+        models=_models(registry),
+    )
+    return result.model_dump()
+
+
+class DdqResponseRequest(BaseModel):
+    tenant_id: str
+    subject: str
+    questions: list[str] = []
+    facts: dict[str, Any] = {}
+    run_key: str | None = None
+
+
+@app.post("/v1/workflows/ddq-response")
+def ddq_response(
+    body: DdqResponseRequest,
+    _: None = Depends(require_caller),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    if not settings.octo_agents_ddq_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ddq-response workflow is feature-flagged off",
+        )
+    registry = _registry(settings)
+    result = run_ddq_response(
+        agent_model=drafter_model(settings, registry),
+        judge=_judge(settings, registry),
+        api=_api(settings),
+        tenant_id=body.tenant_id,
+        subject=body.subject,
+        questions=body.questions,
+        facts=body.facts,
         run_key=body.run_key or str(uuid4()),
         models=_models(registry),
     )
