@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     octo_agents_equity_bridge_enabled: bool = False
     # Calibration (F12) — verdict-vs-human-outcome analysis over the run spine.
     octo_agents_calibration_enabled: bool = False
+    # DDQ/RFP response drafting (F10) — sealed narrator over supplied firm facts.
+    octo_agents_ddq_enabled: bool = False
 
     request_timeout_s: float = 60.0
 
