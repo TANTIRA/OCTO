@@ -7,7 +7,7 @@ jena = "6.1.0"
 ktlint = "12.3.0"
 kover = "0.9.1"
 archunit = "1.4.1"
-neo4j-driver = "5.28.15"
+neo4j-driver = "6.3.0"
 testcontainers = "1.21.3"
 micrometer = "1.17.1"
 
