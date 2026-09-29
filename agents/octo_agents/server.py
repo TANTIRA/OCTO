@@ -25,6 +25,7 @@ from .workflows.due_diligence import run_due_diligence
 from .workflows.equity_bridge import run_equity_bridge
 from .workflows.ic_memo import run_ic_memo
 from .workflows.lp_report import run_lp_report
+from .workflows.operating_review import run_operating_review
 from .workflows.screening_dd import run_screening_dd
 
 app = FastAPI(title="octo-agents", version="0.1.0")
@@ -374,6 +375,40 @@ def ddq_response(
         subject=body.subject,
         questions=body.questions,
         facts=body.facts,
+        run_key=body.run_key or str(uuid4()),
+        models=_models(registry),
+    )
+    return result.model_dump()
+
+
+class OperatingReviewRequest(BaseModel):
+    tenant_id: str
+    company: str
+    levers: list[str] = []
+    metrics: dict[str, Any] = {}
+    run_key: str | None = None
+
+
+@app.post("/v1/workflows/operating-review")
+def operating_review(
+    body: OperatingReviewRequest,
+    _: None = Depends(require_caller),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    if not settings.octo_agents_operating_review_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="operating-review workflow is feature-flagged off",
+        )
+    registry = _registry(settings)
+    result = run_operating_review(
+        agent_model=drafter_model(settings, registry),
+        judge=_judge(settings, registry),
+        api=_api(settings),
+        tenant_id=body.tenant_id,
+        company=body.company,
+        levers=body.levers,
+        metrics=body.metrics,
         run_key=body.run_key or str(uuid4()),
         models=_models(registry),
     )

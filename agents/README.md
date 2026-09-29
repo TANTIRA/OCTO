@@ -47,6 +47,7 @@ service's only client and its only tool surface.
 | `OCTO_AGENTS_EQUITY_BRIDGE_ENABLED` | F6 equity-bridge quarterly analysis (default off) |
 | `OCTO_AGENTS_CALIBRATION_ENABLED` | F12 verdict-vs-outcome calibration (default off) |
 | `OCTO_AGENTS_DDQ_ENABLED` | F10 DDQ/RFP response drafting (default off) |
+| `OCTO_AGENTS_OPERATING_REVIEW_ENABLED` | F13 operating-partner review (default off) |
 | `MODEL_REGISTRY_PATH` | registry override, default `./models.yaml` |
 
 ## API
@@ -103,6 +104,16 @@ service's only client and its only tool surface.
   answered "Not covered in the provided materials", never fabricated. Jev
   gates grounding, coverage and tone; a refusal keeps the draft on
   `agent_run`. No LP identities enter the prompt. Flag: `OCTO_AGENTS_DDQ_ENABLED`.
+
+- `POST /v1/workflows/operating-review` — `{tenant_id, company, levers,
+  metrics}` → F13: the Operating Partner reviews a portfolio company's
+  operating trajectory. A sealed narrator over the supplied period metrics —
+  the drafter runs with no tools and, per declared value-creation lever,
+  states what the series shows and whether it is on/off track. Jev gates
+  grounding, lever coverage, and that it stays analytical rather than
+  prescriptive. Warm context (the fund's operating playbook) is allowed;
+  a refusal keeps the draft on `agent_run`. Flag:
+  `OCTO_AGENTS_OPERATING_REVIEW_ENABLED`.
 
 - `POST /v1/workflows/calibration` — `{tenant_id, limit}` → F12: joins each
   finished run's verdict against its `human_outcome` (recorded via the
