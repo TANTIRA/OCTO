@@ -58,6 +58,30 @@ Set in the Dokploy compose environment (never committed). Keys mirror
 | `supa-octo.mesta.click` | supabase kong :8000 | own compose project |
 | `neo4j-octo.mesta.click` | neo4j :7474 | Browser only — bolt stays private |
 
+## Neo4j Browser access
+
+The public Browser at `neo4j-octo.mesta.click` is served over HTTPS, so it only
+accepts encrypted connections (`bolt+s`/`neo4j+s`) — and bolt itself is private
+to `dokploy-network` with TLS disabled, so no remote connection can ever
+complete. To browse the deployed graph, tunnel bolt and use an HTTP-hosted
+Browser:
+
+```bash
+# Dokploy host — expose bolt on loopback only, once:
+docker run -d --name octo-bolt-bridge --network dokploy-network \
+  -p 127.0.0.1:7687:7687 --restart unless-stopped \
+  alpine/socat TCP-LISTEN:7687,fork,reuseaddr TCP:octo-neo4j-db:7687
+
+# Local — tunnel, then any HTTP Browser (e.g. a local neo4j's own):
+ssh -N -L 7687:localhost:7687 <dokploy-host>
+docker run -d --name octo-browser -p 7474:7474 neo4j:2025.12.1-community
+# http://localhost:7474 → bolt://localhost:7687
+```
+
+If remote HTTPS browsing becomes a real requirement, exposing bolt through a
+TLS-terminating Traefik TCP router is an ADR-level decision — it puts bolt on
+the public internet behind only neo4j auth, contra the privacy posture above.
+
 ## Rate limiting (Traefik, via Dokploy)
 
 No application-level rate limiting exists by design — the proxy owns it.

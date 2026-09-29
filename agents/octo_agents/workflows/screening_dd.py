@@ -281,9 +281,9 @@ def _record_run(
     subject_id: str,
     input: Any,
     models: dict[str, str],
-) -> tuple[str | None, Any | None]:
+) -> tuple[str, Any | None]:
     """Opens the agent_run row for this invocation. Returns (run_id, None) for a
-    fresh run, or (None, replayed_output) when run_key already closed — a retried
+    fresh run, or (run_id, replayed_output) when run_key already closed — a retried
     trigger reads its own result back instead of running twice."""
     recorded = api.record_run(
         tenant_id=tenant_id,
@@ -295,7 +295,7 @@ def _record_run(
         models=models,
     )
     if recorded.get("status") and recorded["status"] != "running" and recorded.get("output"):
-        return None, recorded["output"]
+        return recorded["id"], recorded["output"]
     return recorded["id"], None
 
 

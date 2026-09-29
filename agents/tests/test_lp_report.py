@@ -7,11 +7,12 @@ from typing import Any
 
 import httpx
 
+from octo_agents.api_client import OctoApiClient
 from octo_agents.judge import JudgeClient
 from octo_agents.workflows.lp_report import run_lp_report
 
 
-class FakeApi:
+class FakeApi(OctoApiClient):
     """Only the run ledger is touched — the workflow reads no tenant data."""
 
     def __init__(self) -> None:
