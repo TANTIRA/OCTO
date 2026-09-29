@@ -13,8 +13,12 @@ import httpx
 
 class OctoApiError(RuntimeError):
     def __init__(self, status_code: int, body: str) -> None:
-        super().__init__(f"octo api call failed with status {status_code}")
+        msg = f"octo api call failed with status {status_code}"
+        if body:
+            msg += f": {body}"
+        super().__init__(msg)
         self.status_code = status_code
+        self.body = body
 
 
 class OctoApiClient:

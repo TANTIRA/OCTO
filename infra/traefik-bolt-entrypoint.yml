@@ -1,0 +1,33 @@
+# Traefik static config additions (Bolt TLS entry point)
+# Append to /etc/dokploy/traefik/traefik.yml or equivalent Dokploy Traefik config
+
+# Define the entryPoint for TLS-encrypted Bolt traffic
+# This is a TCP (not HTTP) entryPoint, so HTTP middlewares don't apply
+
+entryPoints:
+  bolt:
+    address: ":6687"  # Public port for encrypted Bolt (custom port; adjust as needed)
+    transport:
+      lifeCycle:
+        graceTimeOut: 30s
+
+  # Existing HTTP/HTTPS entryPoints for web traffic remain unchanged
+  # web:
+  #   address: ":80"
+  # websecure:
+  #   address: ":443"
+
+# ACME (Let's Encrypt) for certificate auto-renewal
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: ops@example.com  # Update with real contact
+      storage: /var/lib/dokploy/traefik/acme.json
+      httpChallenge:
+        entryPoint: web  # Use HTTP-01 challenge on the standard HTTP port
+      # Alternative: dnsChallenge for *.bolt-octo.mesta.click (if using wildcard)
+      # dnsChallenge:
+      #   provider: digitalocean  # Or your DNS provider
+      #   delayBeforeCheck: 0
+      #   resolvers:
+      #     - 1.1.1.1:53
