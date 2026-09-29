@@ -21,7 +21,7 @@ import java.util.UUID
 class ComplianceRunnerTest {
     private val store = FakeComplianceStore()
     private val opened = mutableListOf<Task>()
-    private val runner = ComplianceRunner(store) { task, _ -> opened += task }
+    private val runner = ComplianceRunner(store) { _, task, _ -> opened += task }
     private val tenantId = UUID.randomUUID()
     private val usd = Currency.getInstance("USD")
     private val asOf = LocalDate.parse("2026-06-30")
@@ -118,11 +118,14 @@ class ComplianceRunnerTest {
                         }
                     }
                 },
-            ) { task, _ -> opened += task }
+            ) { _, task, _ -> opened += task }
+        val openedBefore = opened.size
         val outcome = racing.run(tenantId, inputs("1.0"), "runner", UUID.randomUUID()).single()
         assertThat(outcome.evaluation.result).isEqualTo(Result.BREACH)
         assertThat(outcome.taskId).isEqualTo(WINNER)
         assertThat(outcome.recorded).isFalse()
+        // The losing insert rolled back with its task: nothing was left open for the breach it lost (#341).
+        assertThat(opened).hasSize(openedBefore)
     }
 
     @Test

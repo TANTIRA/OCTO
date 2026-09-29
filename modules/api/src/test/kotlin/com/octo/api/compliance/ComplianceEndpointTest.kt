@@ -62,7 +62,7 @@ class ComplianceEndpointTest {
                 },
                 { it.isPrimary = true },
             ).withBean(ComplianceStore::class.java, Supplier { store }, { it.isPrimary = true })
-            .withBean(TaskOpener::class.java, Supplier { TaskOpener { task, _ -> opened += task } }, { it.isPrimary = true })
+            .withBean(TaskOpener::class.java, Supplier { TaskOpener { _, task, _ -> opened += task } }, { it.isPrimary = true })
             .withBean(AgentsClient::class.java, Supplier { agents }, { it.isPrimary = true })
             .withPropertyValues(
                 "octo.reports.poll=false",

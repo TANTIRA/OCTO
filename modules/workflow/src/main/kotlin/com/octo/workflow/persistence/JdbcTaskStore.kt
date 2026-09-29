@@ -35,6 +35,16 @@ class JdbcTaskStore(
         dataSource.connection.use { connection -> insertTask(connection, task, provenance) }
     }
 
+    /**
+     * Inserts [task] on the caller's [connection] and transaction, so the task commits or rolls back together with
+     * whatever row claims it — a break or evaluation that fails to record never leaves an orphan task (#341).
+     */
+    fun create(
+        connection: Connection,
+        task: Task,
+        provenance: TaskProvenance,
+    ) = insertTask(connection, task, provenance)
+
     /** The task's state after every stored event, or null when no task has that id. */
     fun load(taskId: UUID): TaskState? = dataSource.connection.use { connection -> replayLocked(connection, taskId) }
 

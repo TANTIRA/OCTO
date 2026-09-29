@@ -10,13 +10,15 @@ import com.octo.recon.compliance.persistence.EVALUATION_RULE_LIMIT
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import com.octo.workflow.persistence.TaskProvenance
+import java.sql.Connection
 import java.sql.SQLException
 import java.time.Instant
 import java.util.UUID
 
-/** Opens the review task a breach needs; `JdbcTaskStore.create` behind it in production. */
+/** Opens the review task a breach needs on the evaluation's own transaction; `JdbcTaskStore.create` behind it in production. */
 fun interface TaskOpener {
     fun open(
+        connection: Connection,
         task: Task,
         provenance: TaskProvenance,
     )
@@ -32,8 +34,9 @@ data class Outcome(
 /**
  * Runs a tenant's active rules over one subject (#106, #6 slice 8) and turns each breach into exactly one
  * `workflow_task` of kind `review` with subject `compliance-breach`. A breach blocks nothing: the task's
- * decision is the control. Re-running the same date finds the earlier task instead of opening another,
- * and V14's `compliance_breach_once` index is the backstop for two runners racing on one breach.
+ * decision is the control. Re-running the same date finds the earlier task instead of opening another.
+ * The task and the evaluation that claims it commit in one transaction (#341); V14's `compliance_breach_once`
+ * index is the backstop for two runners racing on one breach, and the loser's rollback takes its task with it.
  */
 class ComplianceRunner(
     private val store: ComplianceStore,
@@ -57,12 +60,12 @@ class ComplianceRunner(
             }
             store.breachTask(tenantId, evaluation, scope)?.let { return@map Outcome(evaluation, it, recorded = false) }
             val task = Task(UUID.randomUUID(), TaskKind.REVIEW, "compliance-breach", evaluation.key(), requestedBy, Instant.now())
-            tasks.open(task, TaskProvenance("api", correlationId))
             try {
-                store.record(tenantId, evaluation, task.id, correlationId, scope)
+                store.record(tenantId, evaluation, task.id, correlationId, scope) { connection ->
+                    tasks.open(connection, task, TaskProvenance("api", correlationId))
+                }
                 Outcome(evaluation, task.id, recorded = true)
             } catch (e: SQLException) {
-                // ponytail: the task opened for the losing runner stays open with no evaluation; close it in a sweep if races turn out to be common.
                 val winner = store.breachTask(tenantId, evaluation, scope) ?: throw e
                 Outcome(evaluation, winner, recorded = false)
             }

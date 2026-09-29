@@ -6,6 +6,7 @@ import com.octo.persistence.admits
 import com.octo.persistence.scoped
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.IborRecord
+import java.sql.Connection
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.util.Currency
@@ -32,7 +33,11 @@ interface ReconciliationStore {
         scope: TenantScope,
     ): UUID?
 
-    /** Records one finding of [runId]; a break with a task claims V15's one-task slot for its key. Returns the row id. */
+    /**
+     * Records one finding of [runId]; a break with a task claims V15's one-task slot for its key. [openTask] inserts
+     * that task on the same transaction first, so a record that fails (the one-task slot included) rolls the task
+     * back with it. Returns the row id.
+     */
     fun record(
         tenantId: UUID,
         runId: UUID,
@@ -40,6 +45,7 @@ interface ReconciliationStore {
         taskId: UUID?,
         correlationId: UUID,
         scope: TenantScope,
+        openTask: ((Connection) -> Unit)? = null,
     ): UUID
 }
 
@@ -135,6 +141,7 @@ class JdbcReconciliationStore(
         taskId: UUID?,
         correlationId: UUID,
         scope: TenantScope,
+        openTask: ((Connection) -> Unit)?,
     ): UUID {
         require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
         val sql =
@@ -144,6 +151,7 @@ class JdbcReconciliationStore(
             returning id
             """.trimIndent()
         return dataSource.scoped(scope) { connection ->
+            openTask?.invoke(connection)
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setObject(2, runId)

@@ -4,6 +4,10 @@ import com.octo.persistence.TenantScope
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.BreakKind
 import com.octo.recon.matching.persistence.JdbcReconciliationStore
+import com.octo.workflow.Task
+import com.octo.workflow.TaskKind
+import com.octo.workflow.persistence.JdbcTaskStore
+import com.octo.workflow.persistence.TaskProvenance
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
@@ -13,6 +17,7 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.sql.SQLException
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.UUID
@@ -148,6 +153,33 @@ class ReconciliationStoreIT {
         assertThatThrownBy {
             store.record(tenantId, UUID.randomUUID(), missing.copy(ledgerEventId = eventId), null, UUID.randomUUID(), TenantScope.All)
         }.isInstanceOf(SQLException::class.java) // missing-in-ibor may not carry an event
+    }
+
+    @Test
+    fun `a task opened on the record's transaction commits with its break and rolls back when the break is refused`() {
+        val tenantId = tenant()
+        val eventId = event("admin-y", "t-4", "-70", tenantId = tenantId)
+        val brk = Break(BreakKind.AMOUNT_MISMATCH, "admin-y", "t-4", eventId, mapOf("source" to "-69", "ibor" to "-70"))
+        val tasks = JdbcTaskStore(dataSource)
+
+        fun runnerTask() =
+            Task(UUID.randomUUID(), TaskKind.EVIDENCE_REQUEST, "reconciliation-break", "admin-y/t-4", "runner", Instant.now())
+
+        val kept = runnerTask()
+        store.record(tenantId, UUID.randomUUID(), brk, kept.id, UUID.randomUUID(), TenantScope.All) { connection ->
+            tasks.create(connection, kept, TaskProvenance("it", UUID.randomUUID()))
+        }
+        assertThat(store.existingTask(tenantId, brk, TenantScope.All)).isEqualTo(kept.id)
+        assertThat(tasks.load(kept.id)).isNotNull()
+
+        // The losing runner of a race: V15 refuses its break, and its task must not outlive the refusal (#341).
+        val lost = runnerTask()
+        assertThatThrownBy {
+            store.record(tenantId, UUID.randomUUID(), brk, lost.id, UUID.randomUUID(), TenantScope.All) { connection ->
+                tasks.create(connection, lost, TaskProvenance("it", UUID.randomUUID()))
+            }
+        }.isInstanceOf(SQLException::class.java)
+        assertThat(tasks.load(lost.id)).isNull()
     }
 
     private companion object {

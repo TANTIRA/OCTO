@@ -54,7 +54,7 @@ class ReconciliationEndpointTest {
                 },
                 { it.isPrimary = true },
             ).withBean(ReconciliationStore::class.java, Supplier { store }, { it.isPrimary = true })
-            .withBean(BreakTaskOpener::class.java, Supplier { BreakTaskOpener { task, _ -> opened += task } }, { it.isPrimary = true })
+            .withBean(BreakTaskOpener::class.java, Supplier { BreakTaskOpener { _, task, _ -> opened += task } }, { it.isPrimary = true })
             .withPropertyValues(
                 "octo.reports.poll=false",
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",

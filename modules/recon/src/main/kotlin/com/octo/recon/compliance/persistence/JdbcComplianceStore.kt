@@ -9,6 +9,7 @@ import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.Evaluation
 import java.math.BigDecimal
+import java.sql.Connection
 import java.util.Currency
 import java.util.UUID
 import javax.sql.DataSource
@@ -67,13 +68,18 @@ interface ComplianceStore {
         scope: TenantScope,
     ): UUID?
 
-    /** Records one evaluation; a breach carries the task it opened. Returns the row id. */
+    /**
+     * Records one evaluation; a breach carries the task it opened. [openTask] inserts that task on the same
+     * transaction first, so a record that fails (V14's `compliance_breach_once` included) rolls the task back
+     * with it. Returns the row id.
+     */
     fun record(
         tenantId: UUID,
         evaluation: Evaluation,
         taskId: UUID?,
         correlationId: UUID,
         scope: TenantScope,
+        openTask: ((Connection) -> Unit)? = null,
     ): UUID
 }
 
@@ -256,6 +262,7 @@ class JdbcComplianceStore(
         taskId: UUID?,
         correlationId: UUID,
         scope: TenantScope,
+        openTask: ((Connection) -> Unit)?,
     ): UUID {
         require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
         val sql =
@@ -266,6 +273,7 @@ class JdbcComplianceStore(
             returning id
             """.trimIndent()
         return dataSource.scoped(scope) { connection ->
+            openTask?.invoke(connection)
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setString(2, evaluation.rule.id)

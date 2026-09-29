@@ -1,9 +1,11 @@
 package com.octo.api.reconciliation
 
+import com.octo.api.FAKE_CONNECTION
 import com.octo.persistence.TenantScope
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.IborRecord
 import com.octo.recon.matching.persistence.ReconciliationStore
+import java.sql.Connection
 import java.sql.SQLException
 import java.time.ZoneId
 import java.util.UUID
@@ -41,8 +43,11 @@ class FakeReconciliationStore(
         taskId: UUID?,
         correlationId: UUID,
         scope: TenantScope,
+        openTask: ((Connection) -> Unit)?,
     ): UUID {
+        // A refused insert rolls the transaction back before the task commits, so the conflict is raised first.
         if (taskId != null && existingTask(tenantId, brk, scope) != null) throw SQLException("reconciliation_break_one_task", "23505")
+        openTask?.invoke(FAKE_CONNECTION)
         rows += Row(runId, brk, taskId)
         return UUID.randomUUID()
     }

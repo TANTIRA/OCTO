@@ -1,5 +1,6 @@
 package com.octo.api.compliance
 
+import com.octo.api.FAKE_CONNECTION
 import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceRule
@@ -7,6 +8,7 @@ import com.octo.recon.compliance.Evaluation
 import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
+import java.sql.Connection
 import java.sql.SQLException
 import java.util.UUID
 
@@ -66,12 +68,15 @@ class FakeComplianceStore : ComplianceStore {
         taskId: UUID?,
         correlationId: UUID,
         scope: TenantScope,
+        openTask: ((Connection) -> Unit)?,
     ): UUID {
+        // A refused insert rolls the transaction back before the task commits, so the conflict is raised first.
         if (evaluation.result == Result.BREACH &&
             breachTask(tenantId, evaluation, scope) != null
         ) {
             throw SQLException("compliance_breach_once", "23505")
         }
+        openTask?.invoke(FAKE_CONNECTION)
         return UUID.randomUUID().also { recorded += Triple(evaluation, taskId, it) }
     }
 

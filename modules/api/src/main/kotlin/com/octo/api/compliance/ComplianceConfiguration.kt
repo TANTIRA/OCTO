@@ -9,6 +9,7 @@ import com.octo.workflow.persistence.JdbcTaskStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import java.sql.Connection
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -53,14 +54,15 @@ class ComplianceConfiguration {
                 taskId: UUID?,
                 correlationId: UUID,
                 scope: TenantScope,
-            ) = store.record(tenantId, evaluation, taskId, correlationId, scope)
+                openTask: ((Connection) -> Unit)?,
+            ) = store.record(tenantId, evaluation, taskId, correlationId, scope, openTask)
         }
     }
 
     @Bean
     fun complianceTaskOpener(dataSource: ObjectProvider<DataSource>): TaskOpener {
         val store by lazy { JdbcTaskStore(dataSource.getObject()) }
-        return TaskOpener { task, provenance -> store.create(task, provenance) }
+        return TaskOpener { connection, task, provenance -> store.create(connection, task, provenance) }
     }
 
     @Bean
