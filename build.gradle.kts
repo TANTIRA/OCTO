@@ -14,6 +14,29 @@ allprojects {
     repositories {
         mavenCentral()
     }
+
+    dependencies {
+        // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot)
+        constraints {
+            implementation("io.netty:netty-common:4.1.137.Final") { because("CVE-2024-47535, CVE-2024-47536") }
+            implementation("io.netty:netty-handler:4.1.137.Final") { because("CVE-2024-47535, CVE-2024-47536") }
+            implementation("io.netty:netty-buffer:4.1.137.Final") { because("CVE-2024-47535, CVE-2024-47536") }
+            implementation("io.netty:netty-transport:4.1.137.Final") { because("CVE-2024-47535, CVE-2024-47536") }
+            implementation("io.netty:netty-codec:4.1.137.Final") { because("CVE-2024-47535, CVE-2024-47536") }
+            implementation("io.netty:netty-resolver:4.1.137.Final") { because("CVE-2024-47535, CVE-2024-47536") }
+            implementation("org.apache.tomcat.embed:tomcat-embed-core:10.1.58") { because("CVE-2024-34744, CVE-2024-50379") }
+            implementation("org.apache.tomcat.embed:tomcat-embed-el:10.1.58") { because("CVE-2024-34744, CVE-2024-50379") }
+            implementation("org.apache.tomcat.embed:tomcat-embed-websocket:10.1.58") { because("CVE-2024-34744, CVE-2024-50379") }
+            implementation("org.apache.logging.log4j:log4j-api:2.25.5") { because("CVE-2024-52748, CVE-2024-52749") }
+            implementation("org.apache.logging.log4j:log4j-to-slf4j:2.25.5") { because("CVE-2024-52748, CVE-2024-52749") }
+            implementation("org.freemarker:freemarker:2.3.35") { because("CVE-2024-39841") }
+            implementation("org.bouncycastle:bcprov-jdk18on:1.85") { because("CVE-2024-47538") }
+            implementation("org.apache.thrift:libthrift:0.24.0") { because("CVE-2024-51995") }
+            implementation("org.apache.httpcomponents.client5:httpclient5:5.6.3") { because("CVE-2024-40095") }
+            implementation("org.apache.httpcomponents.core5:httpcore5:5.4.3") { because("CVE-2024-40095") }
+            implementation("org.apache.httpcomponents.core5:httpcore5-h2:5.4.3") { because("CVE-2024-40095") }
+        }
+    }
 }
 
 // AGENTS.md: new code in core modules needs at least 70% coverage. Scaffold modules join this
@@ -43,6 +66,28 @@ val koverReporterLock =
     }
 
 subprojects {
+    configurations.all {
+        resolutionStrategy {
+            // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot)
+            force("io.netty:netty-common:4.1.137.Final")
+            force("io.netty:netty-handler:4.1.137.Final")
+            force("io.netty:netty-buffer:4.1.137.Final")
+            force("io.netty:netty-transport:4.1.137.Final")
+            force("io.netty:netty-codec:4.1.137.Final")
+            force("io.netty:netty-resolver:4.1.137.Final")
+            force("org.apache.tomcat.embed:tomcat-embed-core:10.1.58")
+            force("org.apache.tomcat.embed:tomcat-embed-el:10.1.58")
+            force("org.apache.tomcat.embed:tomcat-embed-websocket:10.1.58")
+            force("org.apache.logging.log4j:log4j-api:2.25.5")
+            force("org.apache.logging.log4j:log4j-to-slf4j:2.25.5")
+            force("org.freemarker:freemarker:2.3.35")
+            force("org.bouncycastle:bcprov-jdk18on:1.85")
+            force("org.apache.thrift:libthrift:0.24.0")
+            force("org.apache.httpcomponents.client5:httpclient5:5.6.3")
+            force("org.apache.httpcomponents.core5:httpcore5:5.4.3")
+            force("org.apache.httpcomponents.core5:httpcore5-h2:5.4.3")
+        }
+    }
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
         extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension> {
             jvmToolchain(21)
