@@ -39,14 +39,18 @@ class ReleaseEndpointTest {
     private val tenantId = UUID.randomUUID()
     private val jobs = FakeReportJobs()
     private val taskStates = mutableMapOf<UUID, TaskState>()
+    private var openBehavior: ((Task) -> TaskState)? = null
     private val tasks =
         object : ReleaseTasks {
-            override fun open(
+            override fun openUnlessOpen(
                 task: Task,
                 provenance: TaskProvenance,
-            ) {
-                taskStates[task.id] = opened(task)
-            }
+            ): TaskState =
+                openBehavior?.invoke(task)
+                    ?: taskStates.values.firstOrNull {
+                        it.task.subjectType == task.subjectType && it.task.subjectId == task.subjectId &&
+                            it.task.kind == task.kind && !it.status.terminal
+                    } ?: opened(task).also { taskStates[task.id] = it }
 
             override fun state(taskId: UUID) = taskStates[taskId]
         }
@@ -128,6 +132,26 @@ class ReleaseEndpointTest {
                 .andExpect(jsonPath("$.taskStatus").value("approved"))
                 .andExpect(jsonPath("$.result.tvpi").value(1.3))
                 .andExpect(jsonPath("$.artifactSha256").value("a".repeat(64)))
+        }
+    }
+
+    @Test
+    fun `a request losing the attach race reuses the winner's task and answers conflict`() {
+        run { mvc ->
+            val id = doneJob()
+            openBehavior = { task ->
+                // The winner deduped to the same subject, opened one task, and attached it between
+                // this request's open and its attach — the loser's update finds the slot taken.
+                opened(task).also {
+                    taskStates[task.id] = it
+                    jobs.attachApproval(id, task.id)
+                }
+            }
+            mvc
+                .perform(post("/api/v1/reports/$id/release").with(asUser(analyst)))
+                .andExpect(status().isConflict)
+            assertThat(taskStates).hasSize(1)
+            assertThat(jobs.load(id, TenantScope.All)!!.approvalTaskId).isNotNull()
         }
     }
 
