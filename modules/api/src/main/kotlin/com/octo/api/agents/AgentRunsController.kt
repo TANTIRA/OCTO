@@ -33,6 +33,7 @@ class AgentRunsController(
     private val runs: AgentRuns,
     private val tenants: TenantDirectory,
     private val json: ObjectMapper,
+    private val agents: AgentsClient,
 ) {
     private fun roleIn(
         userId: UUID,
@@ -160,6 +161,41 @@ class AgentRunsController(
         return ResponseEntity.ok(run.view(json))
     }
 
+    /**
+     * `POST /api/v1/agent-runs/calibration` — F12's feedback read: the sidecar joins verdict
+     * against `human_outcome` across this tenant's run spine and reports agreement plus
+     * eval-ready disagreement cases. Member-or-better — it reads history, and the analysis
+     * itself is a recorded `calibration` run. Same 503/502 sidecar contract as the other
+     * triggers.
+     */
+    @PostMapping("/api/v1/agent-runs/calibration")
+    fun calibrate(
+        @RequestBody body: CalibrationRequest,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<Any> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        val result =
+            try {
+                agents.run(
+                    "calibration",
+                    mapOf(
+                        "tenant_id" to body.tenantId.toString(),
+                        "run_key" to "calibration:${body.tenantId}:${UUID.randomUUID()}",
+                        "limit" to (body.limit ?: 200),
+                    ),
+                )
+            } catch (e: AgentsUnavailableException) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
+            } catch (e: AgentsCallException) {
+                return ResponseEntity
+                    .status(if (e.statusCode == 503) HttpStatus.SERVICE_UNAVAILABLE else HttpStatus.BAD_GATEWAY)
+                    .build()
+            }
+        return ResponseEntity.ok(result)
+    }
+
     data class RecordRequest(
         val tenantId: UUID,
         val workflow: String,
@@ -184,6 +220,11 @@ class AgentRunsController(
 
     data class OutcomeRequest(
         val outcome: Map<String, Any>,
+    )
+
+    data class CalibrationRequest(
+        val tenantId: UUID,
+        val limit: Int? = null,
     )
 
     companion object {

@@ -40,4 +40,7 @@ interface TenantSettings {
 object TenantSettingKeys {
     /** Per-tenant override of the request rate limit; absent means the env default. */
     const val RATE_LIMIT_PER_MINUTE = "rate_limit_per_minute"
+
+    /** Standing context the agent sidecar prepends to every drafter prompt (F11). */
+    const val AGENT_WARM_CONTEXT = "agents.warm_context"
 }
