@@ -27,7 +27,9 @@ class Settings(BaseSettings):
     octo_agents_token: str = ""
 
     # Approved-model registry (models.yaml) — versioned in this repo.
-    model_registry_path: str = str(Path(__file__).resolve().parent.parent / "models.yaml")
+    model_registry_path: str = str(
+        Path(__file__).resolve().parent.parent / "models.yaml"
+    )
 
     # First workflow gate: Investment Screening & DD, tasks-only per ADR-0005.
     octo_agents_screening_dd_enabled: bool = False
@@ -41,6 +43,8 @@ class Settings(BaseSettings):
     octo_agents_brain_enabled: bool = False
     # Compliance rationale (F9) — narrates engine outcomes, citation-gated.
     octo_agents_compliance_enabled: bool = False
+    # Equity-bridge quarterly analysis (F6) — narrates the computed bridge.
+    octo_agents_equity_bridge_enabled: bool = False
 
     request_timeout_s: float = 60.0
 

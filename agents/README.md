@@ -44,6 +44,7 @@ service's only client and its only tool surface.
 | `OCTO_AGENTS_LP_REPORT_ENABLED` | F8 LP report drafting (default off) |
 | `OCTO_AGENTS_BRAIN_ENABLED` | F7 company-brain NL query (default off) |
 | `OCTO_AGENTS_COMPLIANCE_ENABLED` | F9 compliance rationale (default off) |
+| `OCTO_AGENTS_EQUITY_BRIDGE_ENABLED` | F6 equity-bridge quarterly analysis (default off) |
 | `MODEL_REGISTRY_PATH` | registry override, default `./models.yaml` |
 
 ## API
@@ -85,6 +86,13 @@ service's only client and its only tool surface.
   tool-free drafter narrates the outcomes for an approver, and jev's citation
   gate verifies every rule id, threshold and measured value matches exactly —
   a mis-cited draft is refused. Flag: `OCTO_AGENTS_COMPLIANCE_ENABLED`.
+
+- `POST /v1/workflows/equity-bridge` — `{tenant_id, company, entry, exit,
+  effects, change, method, *_currency}` → F6: the Investment Analyst's
+  quarter-end equity-bridge. The platform computed the bridge
+  (`analytics/Bridge.kt`, §4.3); the tool-free drafter narrates entry, exit
+  and driver effects, and jev's citation gate verifies every figure matches —
+  a mis-cited analysis is refused. Flag: `OCTO_AGENTS_EQUITY_BRIDGE_ENABLED`.
 
 ## Evals
 
