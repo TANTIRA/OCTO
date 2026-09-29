@@ -57,6 +57,7 @@ Modular monolith: Kotlin on Java 21, Spring Boot 3, Gradle, Flyway, and self-hos
 
 ## Product documentation
 
+- [Whitepaper — the governed book of record, end to end](WHITEPAPER.md)
 - [System design — HLA, HLD, LLD, E2E architecture](docs/system-design.md)
 - [Platform architecture and end-to-end flow](docs/adr/0001-platform-architecture.md)
 - [Self-hosted Supabase architecture and operations](docs/adr/0002-self-hosted-supabase.md)
