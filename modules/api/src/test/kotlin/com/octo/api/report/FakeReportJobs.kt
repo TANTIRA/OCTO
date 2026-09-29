@@ -71,7 +71,9 @@ class FakeReportJobs : ReportJobs {
         taskId: UUID,
     ): ReportJob {
         val job = jobs.getValue(id)
-        check(job.status == JobStatus.DONE && job.approvalTaskId == null) { "one approval task, after done" }
+        if (job.status != JobStatus.DONE || job.approvalTaskId != null) {
+            throw NoSuchElementException("no open approval slot for report job $id")
+        }
         return job.copy(approvalTaskId = taskId).also { jobs[id] = it }
     }
 

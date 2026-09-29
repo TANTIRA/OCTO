@@ -26,10 +26,11 @@ import java.util.UUID
 
 /** The workflow tasks the release gate opens and reads; `JdbcTaskStore` behind it in production. */
 interface ReleaseTasks {
-    fun open(
+    /** The subject's already-open task of this kind, or [task] freshly opened — two racers never mint two. */
+    fun openUnlessOpen(
         task: Task,
         provenance: TaskProvenance,
-    )
+    ): TaskState
 
     fun state(taskId: UUID): TaskState?
 }
@@ -58,9 +59,16 @@ class ReleaseController(
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         if (job.status != JobStatus.DONE || job.approvalTaskId != null) return ResponseEntity.status(HttpStatus.CONFLICT).build()
         val task = Task(UUID.randomUUID(), TaskKind.APPROVAL, "report-job", id.toString(), jwt.subject, Instant.now())
-        tasks.open(task, TaskProvenance("api", job.request.correlationId))
-        val attached = jobs.attachApproval(id, task.id)
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(attached.release(tasks.state(task.id)))
+        // openUnlessOpen dedupes on the job subject, so a loser adopts the winner's task instead of
+        // orphaning one nobody can decide; its attach then finds the slot taken and is a 409.
+        val openedTask = tasks.openUnlessOpen(task, TaskProvenance("api", job.request.correlationId))
+        val attached =
+            try {
+                jobs.attachApproval(id, openedTask.task.id)
+            } catch (e: NoSuchElementException) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build()
+            }
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(attached.release(openedTask))
     }
 
     @GetMapping("/api/v1/reports/{id}/release")

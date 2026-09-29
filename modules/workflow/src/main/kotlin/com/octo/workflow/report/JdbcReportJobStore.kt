@@ -146,7 +146,9 @@ class JdbcReportJobStore(
         id: UUID,
         taskId: UUID,
     ): ReportJob =
-        transition(id, "approval_task_id = ?") {
+        // The slot is written only when empty: a request that loses the race updates zero rows
+        // instead of tripping V13's one-approval trigger as an error.
+        transition(id, "approval_task_id = ?", condition = " and approval_task_id is null") {
             it.setObject(1, taskId)
             it.setObject(2, id)
         }
@@ -155,16 +157,18 @@ class JdbcReportJobStore(
         id: UUID,
         assignment: String,
         claimToken: UUID? = null,
+        condition: String = "",
         bind: (java.sql.PreparedStatement) -> Unit,
     ): ReportJob =
         dataSource.scoped(TenantScope.All) { connection: Connection ->
-            val condition =
+            val claimCondition =
                 if (claimToken == null) {
                     ""
                 } else {
                     " and status = 'executing' and claim_token = ? and claimed_until > clock_timestamp()"
                 }
-            connection.prepareStatement("update octo.report_job set $assignment where id = ?$condition returning *").use { statement ->
+            val fullCondition = claimCondition + condition
+            connection.prepareStatement("update octo.report_job set $assignment where id = ?$fullCondition returning *").use { statement ->
                 bind(statement)
                 statement.executeQuery().use { rows ->
                     if (!rows.next()) throw NoSuchElementException("no current claim for report job $id")

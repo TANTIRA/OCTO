@@ -1,6 +1,10 @@
 package com.octo.api
 
 import com.octo.persistence.TenantScope
+import com.octo.workflow.Task
+import com.octo.workflow.TaskKind
+import com.octo.workflow.persistence.JdbcTaskStore
+import com.octo.workflow.persistence.TaskProvenance
 import com.octo.workflow.report.JdbcReportJobStore
 import com.octo.workflow.report.JobStatus
 import com.octo.workflow.report.ReportRequest
@@ -14,6 +18,7 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 
 /** `JdbcReportJobStore` against the real V13 schema: submit, claim in order, complete, fail, and the trigger's refusals. Skipped without Docker. */
@@ -81,6 +86,15 @@ class ReportJobStoreIT {
         assertThat(failed.status).isEqualTo(JobStatus.ERROR)
         assertThat(store.load(second.id, TenantScope.All)!!.error).isEqualTo("engine refused the series")
         assertThat(store.load(UUID.randomUUID(), TenantScope.All)).isNull()
+
+        // approval_task_id references workflow_task, so the task row must exist to attach
+        val approvalTask =
+            Task(UUID.randomUUID(), TaskKind.APPROVAL, "report-job", done.id.toString(), "analyst-1", Instant.now())
+        JdbcTaskStore(dataSource).create(approvalTask, TaskProvenance("api", UUID.randomUUID()))
+        val approved = store.attachApproval(done.id, approvalTask.id)
+        assertThat(approved.approvalTaskId).isEqualTo(approvalTask.id)
+        assertThatThrownBy { store.attachApproval(done.id, UUID.randomUUID()) }
+            .isInstanceOf(NoSuchElementException::class.java)
     }
 
     @Test

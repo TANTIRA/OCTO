@@ -75,10 +75,10 @@ class ReportConfiguration {
     fun jdbcReleaseTasks(dataSource: ObjectProvider<DataSource>): ReleaseTasks {
         val store by lazy { JdbcTaskStore(dataSource.getObject()) }
         return object : ReleaseTasks {
-            override fun open(
+            override fun openUnlessOpen(
                 task: Task,
                 provenance: TaskProvenance,
-            ) = store.create(task, provenance)
+            ) = store.openUnlessOpen(task, provenance)
 
             override fun state(taskId: UUID) = store.load(taskId)
         }
