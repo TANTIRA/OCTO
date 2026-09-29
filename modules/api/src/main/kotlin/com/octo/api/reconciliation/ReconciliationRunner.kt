@@ -4,6 +4,7 @@ import com.octo.persistence.TenantScope
 import com.octo.recon.matching.Break
 import com.octo.recon.matching.SourceRecord
 import com.octo.recon.matching.Tolerance
+import com.octo.recon.matching.persistence.RECONCILIATION_BATCH_LIMIT
 import com.octo.recon.matching.persistence.ReconciliationStore
 import com.octo.recon.matching.reconcile
 import com.octo.workflow.Task
@@ -53,6 +54,9 @@ class ReconciliationRunner(
         requestedBy: String,
         correlationId: UUID,
     ): RunResult {
+        require(source.isNotEmpty() && source.size <= RECONCILIATION_BATCH_LIMIT) {
+            "a reconciliation batch holds 1..$RECONCILIATION_BATCH_LIMIT records, got ${source.size}"
+        }
         val scope = TenantScope.Tenants(listOf(tenantId))
         val ibor = source.map { it.sourceSystem }.toSet().flatMap { store.iborRecords(tenantId, it, zone, scope) }
         val result = reconcile(source, ibor, tolerance)

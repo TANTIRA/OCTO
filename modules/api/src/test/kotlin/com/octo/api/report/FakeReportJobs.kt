@@ -25,6 +25,11 @@ class FakeReportJobs : ReportJobs {
         scope: TenantScope,
     ) = jobs[id]
 
+    override fun pendingCount(
+        tenantId: UUID,
+        scope: TenantScope,
+    ) = jobs.values.count { it.request.tenantId == tenantId && !it.status.terminal }
+
     override fun claimNext() =
         jobs.values.firstOrNull { it.status == JobStatus.NEW }?.let {
             move(it.id, JobStatus.EXECUTING) { job ->

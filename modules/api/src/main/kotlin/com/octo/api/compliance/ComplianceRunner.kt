@@ -6,6 +6,7 @@ import com.octo.recon.compliance.Evaluation
 import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.evaluate
 import com.octo.recon.compliance.persistence.ComplianceStore
+import com.octo.recon.compliance.persistence.EVALUATION_RULE_LIMIT
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import com.octo.workflow.persistence.TaskProvenance
@@ -45,7 +46,11 @@ class ComplianceRunner(
         correlationId: UUID,
     ): List<Outcome> {
         val scope = TenantScope.Tenants(listOf(tenantId))
-        return evaluate(store.activeRules(tenantId, scope), inputs).map { evaluation ->
+        val rules = store.activeRules(tenantId, scope)
+        check(rules.size <= EVALUATION_RULE_LIMIT) {
+            "tenant $tenantId has ${rules.size} active compliance rules; a run covers at most $EVALUATION_RULE_LIMIT"
+        }
+        return evaluate(rules, inputs).map { evaluation ->
             if (evaluation.result != Result.BREACH) {
                 store.record(tenantId, evaluation, null, correlationId, scope)
                 return@map Outcome(evaluation, null, recorded = true)

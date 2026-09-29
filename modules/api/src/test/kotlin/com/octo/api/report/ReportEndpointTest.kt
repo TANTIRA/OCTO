@@ -4,7 +4,11 @@ import com.octo.api.OctoApplication
 import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.persistence.TenantScope
+import com.octo.workflow.report.PENDING_REPORT_LIMIT
 import com.octo.workflow.report.ReportJobs
+import com.octo.workflow.report.ReportRequest
+import com.octo.workflow.report.ReportType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
@@ -97,6 +101,31 @@ class ReportEndpointTest {
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.status").value("done"))
                 .andExpect(jsonPath("$.result.tvpi").value(1.3))
+        }
+    }
+
+    @Test
+    fun `a full queue refuses submissions until a job finishes`() {
+        run { mvc ->
+            repeat(PENDING_REPORT_LIMIT) {
+                jobs.submit(
+                    ReportRequest(
+                        tenantId,
+                        ReportType.PERFORMANCE,
+                        "inline-series",
+                        "fund-1",
+                        listOf("tvpi"),
+                        "{}",
+                        "test",
+                        UUID.randomUUID(),
+                    ),
+                    TenantScope.All,
+                )
+            }
+            mvc.perform(post(analyst)).andExpect(status().isTooManyRequests)
+
+            jobs.claimNext()!!.let { jobs.complete(it.id, it.claimToken!!, "{}") }
+            mvc.perform(post(analyst)).andExpect(status().isAccepted)
         }
     }
 

@@ -12,6 +12,9 @@ import java.util.Currency
 import java.util.UUID
 import javax.sql.DataSource
 
+/** One reconciliation request may carry at most this many source records — the bound `IMPORT_BATCH_LIMIT` puts on a prospect import. */
+const val RECONCILIATION_BATCH_LIMIT = 500
+
 /** What the runner reads and writes. */
 interface ReconciliationStore {
     /** The current ledger events of one source system as [IborRecord]s, dated in [zone]. Superseded rows are excluded. */

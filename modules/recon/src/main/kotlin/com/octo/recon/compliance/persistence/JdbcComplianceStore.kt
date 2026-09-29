@@ -19,6 +19,9 @@ data class ComplianceProvenance(
     val correlationId: UUID,
 )
 
+/** One evaluation run covers at most this many of a tenant's active rules — beyond it the run would write an unbounded row set per call. */
+const val EVALUATION_RULE_LIMIT = 500
+
 /** What the runner and endpoints read and write. */
 interface ComplianceStore {
     /** The latest active version of every rule of the tenant. */

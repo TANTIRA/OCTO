@@ -39,6 +39,11 @@ class ReportConfiguration {
                 scope: TenantScope,
             ) = store.load(id, scope)
 
+            override fun pendingCount(
+                tenantId: UUID,
+                scope: TenantScope,
+            ) = store.pendingCount(tenantId, scope)
+
             override fun claimNext() = store.claimNext()
 
             override fun renew(

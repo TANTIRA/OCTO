@@ -5,9 +5,11 @@ import com.octo.recon.matching.BreakKind
 import com.octo.recon.matching.IborRecord
 import com.octo.recon.matching.SourceRecord
 import com.octo.recon.matching.Tolerance
+import com.octo.recon.matching.persistence.RECONCILIATION_BATCH_LIMIT
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -73,6 +75,23 @@ class ReconciliationRunnerTest {
         assertThat(opened).hasSize(3)
         assertThat(store.rows).hasSize(6)
         assertThat(store.rows.drop(3)).allMatch { it.taskId == null }
+    }
+
+    @Test
+    fun `a batch over the limit is refused before the ledger is even read`() {
+        assertThatThrownBy {
+            runner.run(
+                tenantId,
+                List(RECONCILIATION_BATCH_LIMIT + 1) { source("r-$it", "1") },
+                Tolerance.EXACT,
+                ZoneOffset.UTC,
+                "r",
+                UUID.randomUUID(),
+            )
+        }.isInstanceOf(IllegalArgumentException::class.java)
+        assertThat(store.rows).isEmpty()
+        assertThat(store.lookups).isEmpty()
+        assertThat(opened).isEmpty()
     }
 
     @Test

@@ -7,7 +7,11 @@ import com.octo.api.access.TenantRole
 import com.octo.api.agents.AgentsCallException
 import com.octo.api.agents.AgentsClient
 import com.octo.api.agents.AgentsUnavailableException
+import com.octo.persistence.TenantScope
+import com.octo.recon.compliance.ComplianceCheck
+import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
+import com.octo.recon.compliance.persistence.EVALUATION_RULE_LIMIT
 import com.octo.workflow.Task
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -24,6 +28,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import java.math.BigDecimal
 import java.util.UUID
 import java.util.function.Supplier
 
@@ -258,6 +263,46 @@ class ComplianceEndpointTest {
                         .content(evaluation)
                         .with(asUser(analyst)),
                 ).andExpect(status().isBadGateway)
+        }
+    }
+
+    @Test
+    fun `an oversized subject is a client error and a tenant over the rule limit is a conflict`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/compliance/evaluations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation.replace("\"fund-1\"", "\"${"x".repeat(301)}\""))
+                        .with(asUser(analyst)),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rationale")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation.replace("\"fund-1\"", "\"${"x".repeat(301)}\""))
+                        .with(asUser(analyst)),
+                ).andExpect(status().isBadRequest)
+
+            repeat(EVALUATION_RULE_LIMIT + 1) {
+                store.defineRule(
+                    tenantId,
+                    "rule-$it",
+                    "Rule $it",
+                    ComplianceCheck.ConcentrationLimit(BigDecimal("0.5")),
+                    null,
+                    ComplianceProvenance("officer", UUID.randomUUID()),
+                    TenantScope.All,
+                )
+            }
+            mvc
+                .perform(
+                    post("/api/v1/compliance/evaluations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation)
+                        .with(asUser(analyst)),
+                ).andExpect(status().isConflict)
+            assertThat(store.recorded).isEmpty()
         }
     }
 

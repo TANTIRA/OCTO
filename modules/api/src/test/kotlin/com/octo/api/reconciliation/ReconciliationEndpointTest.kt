@@ -5,6 +5,7 @@ import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.recon.matching.IborRecord
+import com.octo.recon.matching.persistence.RECONCILIATION_BATCH_LIMIT
 import com.octo.recon.matching.persistence.ReconciliationStore
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -110,6 +111,16 @@ class ReconciliationEndpointTest {
                     post("/api/v1/reconciliations").contentType(MediaType.APPLICATION_JSON).content(body(record("t-1", "-100"))),
                 ).andExpect(status().isForbidden)
             assertThat(store.rows).isEmpty()
+        }
+    }
+
+    @Test
+    fun `a batch over the record limit is refused`() {
+        run { mvc ->
+            val records = Array(RECONCILIATION_BATCH_LIMIT + 1) { record("r-$it", "1") }
+            mvc.perform(post(analyst, body(*records))).andExpect(status().isBadRequest)
+            assertThat(store.rows).isEmpty()
+            assertThat(opened).isEmpty()
         }
     }
 
