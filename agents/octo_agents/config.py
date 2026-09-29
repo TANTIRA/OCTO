@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     octo_agents_compliance_enabled: bool = False
     # Equity-bridge quarterly analysis (F6) — narrates the computed bridge.
     octo_agents_equity_bridge_enabled: bool = False
+    # Calibration (F12) — verdict-vs-human-outcome analysis over the run spine.
+    octo_agents_calibration_enabled: bool = False
 
     request_timeout_s: float = 60.0
 

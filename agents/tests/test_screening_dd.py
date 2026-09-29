@@ -33,6 +33,9 @@ class FakeApi:
         self.screening_requests.append(prospect_id)
         return {"verdict": "review"}
 
+    def get_agent_context(self, tenant_id: str) -> Any:
+        return {"warmContext": None}
+
     def record_run(self, **kwargs: Any) -> Any:
         return {"id": "run-1"}
 

@@ -29,6 +29,9 @@ class FakeApi:
         self.evidence_requests.append((prospect_id, workstream))
         return {"taskId": f"task-{workstream}", "opened": True}
 
+    def get_agent_context(self, tenant_id: str) -> Any:
+        return {"warmContext": None}
+
     def record_run(self, **kwargs: Any) -> Any:
         return {"id": "run-1"}
 
