@@ -16,7 +16,7 @@ Flow, same separation of duties as screening-dd:
 
 from typing import Any, Literal
 
-from deepagents import create_deep_agent
+from deepagents import SubAgent, create_deep_agent
 from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
@@ -188,7 +188,7 @@ def run_due_diligence(
         )
 
         context = warm_prompt(api, tenant_id, "")
-        subagents = [
+        subagents: list[SubAgent] = [
             {
                 "name": f"dd-{ws}",
                 "description": f"{ws} due-diligence analyst — read-only",
