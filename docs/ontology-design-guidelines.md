@@ -238,6 +238,7 @@ Derive questions from the firm's operating rhythm — what partners ask Monday m
 Each sequence moves broad → granular: establish the situation, trace contributing factors, assess impact.
 
 **Portfolio drill:**
+
 1. Which fund has the weakest Net IRR this quarter?
 2. Which sector drives that fund's underperformance?
 3. Which investments in that sector carry the remaining cost?
@@ -246,6 +247,7 @@ Each sequence moves broad → granular: establish the situation, trace contribut
 6. Which capital calls or exits are scheduled against them this quarter?
 
 **Deal pipeline drill:**
+
 1. How many inbound prospects arrived this month and from which sources?
 2. Which passed configured screening — and on which criteria?
 3. Of those, which stalled in due diligence and why (unanswered DDQ items)?
@@ -253,12 +255,14 @@ Each sequence moves broad → granular: establish the situation, trace contribut
 5. What evidence/citations support the surviving candidates' key claims?
 
 **LP/commitment drill:**
+
 1. Which LPs have the largest unfunded commitments?
 2. Which funds hold those commitments, and who manages them?
 3. What is the projected call schedule vs liquid coverage?
 4. Which distributions are pending, and what events do they trace to?
 
 **Provenance drill:**
+
 1. Pick any IC report figure — trace to the Ontology entity, ledger event, and source document.
 2. Which claims in last quarter's LP report came from AI extraction vs structured feeds?
 3. Which of those claims had confidence below threshold, and who approved them?
@@ -298,8 +302,6 @@ Run the same questions through the control-panel agent after the human drill —
 - Every Ontology SemVer change: run the question suite.
 - Quarterly: introduce unseen questions to test generalization, not memorized paths.
 - The question set is a regression suite for the Ontology — version it with the schema.
-
-## Pragmatism
 
 ## Pragmatism
 

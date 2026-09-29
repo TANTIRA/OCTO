@@ -21,6 +21,7 @@ OCTO addresses the absence of a centralized view, duplicated processes across te
 | AI data integration | Vendor-isolated adapters for CRMs, financial and market-data providers, third-party and open-source feeds; multimodal extraction from pitch decks, PDFs, and other documents; built-in validation, lineage, and governance |
 | Deal sourcing | Configurable inbound screening, standardized prospect pipeline, AI-assisted DDQs, and source-grounded Investment Committee reports with human review |
 | Reconciliation | Continuous validation of source systems against the IBOR; discrepancies surface as workflow tasks |
+| Onchain ingestion | Read-only adapters for Solana (Helius: RPC, webhooks, finality probe) and Arbitrum (EVM): tracked addresses, finalized-only token flows into `instrument_flow`, holdings snapshots for reconciliation |
 | Look-through | Recursive exposure aggregation across fund → deal → portfolio company hierarchies |
 | Modelling and analytics | Metrics engine (IRR, TVPI, MOIC, DPI) and low-code authoring for firm-specific metrics, ratios, forecasts, and valuation models |
 | Personalized outputs | Configurable tear sheets, portfolio-rebalancing analyses, IC memos, disclosure materials, and LP reports |
@@ -75,7 +76,18 @@ Modular monolith: Kotlin on Java 21, Spring Boot 3, Gradle, Flyway, and self-hos
 - [Reliability — SLOs, error budget, production readiness](docs/reliability.md)
 - [xStocks fit assessment — proposed instrument data source](docs/xstocks-fit-assessment.md)
 - [Arbitrum fit assessment — settlement network and onchain data source](docs/arbitrum-fit-assessment.md)
+- [Arbitrum ingestion design](docs/arbitrum-ingestion-design.md) and [megaplan](docs/arbitrum-megaplan.md)
+- [Helius fit assessment — Solana onchain data source](docs/helius-fit-assessment.md)
+- [Dune fit assessment — multi-chain analytics context](docs/dune-fit-assessment.md)
+- [Alpha Vantage fit assessment — market data](docs/alphavantage-fit-assessment.md)
 - [TradingView MCP fit assessment — market data, fundamentals, news, calendars](docs/tradingview-mcp-fit-assessment.md)
+- [System map](docs/system-map.md)
+
+### External references
+
+- [The Machine-Native Economy](docs/the-machine-native-economy.pdf) — BlackRock Digital Assets Research, Sept 2026: machine-native money needs machine-verifiable records
+- [US 10,872,067 — Creating data in a data store using a dynamic ontology](docs/Creating%20data%20in%20a%20data%20store%20using%20a%20dynamic%20ontology%20%281%29.pdf) — Palantir patent describing the canonical-ontology-plus-parser architecture Octo applies to the IBOR
+- [Concept-Centric Software Development](docs/Concept-Centric%20Software%20Development.pdf) — Wilczynski, Gregoire-Wright, Jackson: Palantir's experience report on governing shared concepts; motivates Octo's SemVer-versioned ontology and CTO-owned change path
 
 ## Governance
 
@@ -107,6 +119,7 @@ The web UI is a separate frontend concern (ADR-0001); `infra/docker-compose.yml`
 
 Backend scaffold in place — `./gradlew check` compiles all modules and runs tests.
 
-- Implemented as libraries: IBOR ledger and decision-staging migrations, the decision-model client, document classification and claim-support assessment, PE performance, Brinson attribution, return and risk measures, factor exposure, the value-creation bridge, and DCF valuation (`analytics`), path-sum look-through exposure (`lookthrough`), and the ontology validation gate. None of these is wired into the running application yet.
-- Not implemented: IBOR derivation, reconciliation, deal sourcing, and workflow.
+- Wired into the running application with Testcontainers coverage: Helius onchain ingestion (RPC, webhooks, finality probe), the EVM scan service, onchain staging → promotion → recon, and market-data sync (Alpha Vantage). SIWS wallet sign-in is live in the web UI.
+- Implemented as libraries, not yet wired into the running application: IBOR derivation, the decision-model client, document classification and claim-support assessment, the analytics suite (PE performance, Brinson attribution, return and risk measures, factor exposure, the value-creation bridge, DCF), path-sum look-through exposure, and the ontology validation gate.
+- Still open: the reconciliation triage loop, deal sourcing, and workflow.
 - The ADRs in `docs/adr/` are still Proposed.
