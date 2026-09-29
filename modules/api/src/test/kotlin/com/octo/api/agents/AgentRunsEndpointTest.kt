@@ -38,6 +38,10 @@ class AgentRunsEndpointTest {
     private val viewer = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val runs = FakeAgentRuns()
+    private var agentsBehavior: (Map<String, Any>) -> Map<String, Any> = {
+        mapOf("status" to "completed", "analyzed" to 0)
+    }
+    private val agents = AgentsClient { _, payload -> agentsBehavior(payload) }
 
     private val contextRunner =
         WebApplicationContextRunner()
@@ -57,6 +61,10 @@ class AgentRunsEndpointTest {
             ).withBean(
                 AgentRuns::class.java,
                 Supplier { runs },
+                { it.isPrimary = true },
+            ).withBean(
+                AgentsClient::class.java,
+                Supplier { agents },
                 { it.isPrimary = true },
             ).withPropertyValues(
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
@@ -185,6 +193,52 @@ class AgentRunsEndpointTest {
                                 """"subjectType":"prospect","subjectId":"p","input":{},"models":{}}""",
                         ).with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `calibration proxies to the sidecar member-scoped and maps its error contract`() {
+        run { mvc ->
+            var seenPayload: Map<String, Any>? = null
+            agentsBehavior = { payload ->
+                seenPayload = payload
+                mapOf("status" to "completed")
+            }
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs/calibration")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            assertThat(seenPayload?.get("tenant_id")).isEqualTo(tenantId.toString())
+            assertThat(seenPayload?.get("run_key").toString()).startsWith("calibration:")
+
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs/calibration")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId"}""")
+                        .with(jwt().jwt { it.subject(viewer.toString()) }),
+                ).andExpect(status().isNotFound)
+
+            agentsBehavior = { throw AgentsUnavailableException(java.io.IOException("down")) }
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs/calibration")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isServiceUnavailable)
+
+            agentsBehavior = { throw AgentsCallException(500, "sidecar broke") }
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs/calibration")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId":"$tenantId"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadGateway)
         }
     }
 

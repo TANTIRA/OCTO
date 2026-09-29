@@ -26,6 +26,9 @@ class FakeApi:
         self.pipeline_reads.append(stage)
         return [{"id": "p-1", "name": "PT Acme"}]
 
+    def get_agent_context(self, tenant_id: str) -> Any:
+        return {"warmContext": None}
+
     def record_run(self, **kwargs: Any) -> Any:
         return {"id": "run-1"}
 

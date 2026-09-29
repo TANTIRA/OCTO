@@ -22,6 +22,10 @@ class FakeApi:
         self.events = events or []
         self.ic_reviews: list[str] = []
         self.finished: dict[str, Any] = {}
+        self.warm_context: str | None = None
+
+    def get_agent_context(self, tenant_id: str) -> Any:
+        return {"warmContext": self.warm_context}
 
     def get_prospect(self, prospect_id: str) -> Any:
         return {"id": prospect_id, "stage": "ic-review", "name": "PT Acme"}
@@ -142,6 +146,32 @@ def test_failing_gate_submits_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.status == "completed"  # the run completed — the verdict refused the memo
     assert not result.ic_review_requested
     assert api.ic_reviews == []
+
+
+def test_warm_context_reaches_the_drafter_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+    api = FakeApi()
+    api.warm_context = "We are a healthcare-specialist fund; thesis excludes fintech."
+    captured: dict[str, Any] = {}
+
+    class FakeAgent:
+        def invoke(self, payload: dict) -> dict:
+            return {"messages": [SimpleNamespace(content="memo")]}
+
+    monkeypatch.setattr(
+        ic_memo,
+        "create_deep_agent",
+        lambda **kwargs: captured.update(kwargs) or FakeAgent(),
+    )
+    run_ic_memo(
+        agent_model=None,
+        judge=fake_judge(preflight=0.9, complete=0.9, evidence=4.0, thesis="aligned"),
+        api=api,
+        prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-warm",
+        models=MODELS,
+    )
+    assert "healthcare-specialist fund" in captured["system_prompt"]
 
 
 def test_preflight_refusal_spends_no_drafter(monkeypatch: pytest.MonkeyPatch) -> None:

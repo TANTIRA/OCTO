@@ -17,6 +17,7 @@ from .chat import drafter_model
 from .config import Settings, get_settings
 from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
+from .workflows.calibration import run_calibration
 from .workflows.company_brain import run_company_brain
 from .workflows.compliance_rationale import run_compliance_rationale
 from .workflows.due_diligence import run_due_diligence
@@ -204,6 +205,34 @@ def company_brain(
         question=body.question,
         run_key=body.run_key or str(uuid4()),
         models=_models(registry),
+    )
+    return result.model_dump()
+
+
+class CalibrationRequest(BaseModel):
+    tenant_id: str
+    run_key: str | None = None
+    limit: int = 200
+
+
+@app.post("/v1/workflows/calibration")
+def calibration(
+    body: CalibrationRequest,
+    _: None = Depends(require_caller),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    if not settings.octo_agents_calibration_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="calibration workflow is feature-flagged off",
+        )
+    # Deterministic analysis — no model is invoked, so lineage records none.
+    result = run_calibration(
+        api=_api(settings),
+        tenant_id=body.tenant_id,
+        run_key=body.run_key or str(uuid4()),
+        models={},
+        limit=body.limit,
     )
     return result.model_dump()
 

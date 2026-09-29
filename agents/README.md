@@ -45,6 +45,7 @@ service's only client and its only tool surface.
 | `OCTO_AGENTS_BRAIN_ENABLED` | F7 company-brain NL query (default off) |
 | `OCTO_AGENTS_COMPLIANCE_ENABLED` | F9 compliance rationale (default off) |
 | `OCTO_AGENTS_EQUITY_BRIDGE_ENABLED` | F6 equity-bridge quarterly analysis (default off) |
+| `OCTO_AGENTS_CALIBRATION_ENABLED` | F12 verdict-vs-outcome calibration (default off) |
 | `MODEL_REGISTRY_PATH` | registry override, default `./models.yaml` |
 
 ## API
@@ -93,6 +94,25 @@ service's only client and its only tool surface.
   (`analytics/Bridge.kt`, §4.3); the tool-free drafter narrates entry, exit
   and driver effects, and jev's citation gate verifies every figure matches —
   a mis-cited analysis is refused. Flag: `OCTO_AGENTS_EQUITY_BRIDGE_ENABLED`.
+
+- `POST /v1/workflows/calibration` — `{tenant_id, limit}` → F12: joins each
+  finished run's verdict against its `human_outcome` (recorded via the
+  platform's `POST /api/v1/agent-runs/{id}/outcome` — `decision` of
+  `accepted` agrees, `rejected`/`overridden` disagrees). Returns per-workflow
+  agreement, the disagreement queue, and eval-ready cases
+  (`expect_ship` = whether the artifact should have shipped). Deterministic —
+  no model calls. Flag: `OCTO_AGENTS_CALIBRATION_ENABLED`.
+
+## Warm context (F11)
+
+A tenant's standing brief — fund thesis, DD playbook, preferred tone — lives
+in `tenant_setting` under `agents.warm_context`, admin-written via
+`PUT /api/v1/admin/tenants/{id}/settings`. The investigative workflows
+(`screening-dd`, `due-diligence`, `ic-memo`, `company-brain`) fetch it through
+`GET /api/v1/agent-context` and prepend it to the drafter's system prompt. The
+sealed narrators (`lp-report`, `compliance-rationale`, `equity-bridge`) stay
+fact-scoped on purpose: their citation gates verify output against the
+supplied facts only, so outside text would read as unsupported.
 
 ## Evals
 
