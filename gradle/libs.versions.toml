@@ -1,21 +1,23 @@
 [versions]
 kotlin = "2.2.21"
-springBoot = "3.5.7"
+springBoot = "4.1.1"
 springDepMgmt = "1.1.7"
 jackson = "2.22.2"
-jena = "6.1.0"
+jena = "6.2.0"
 ktlint = "12.3.0"
-kover = "0.9.1"
+kover = "0.9.9"
 archunit = "1.4.1"
 neo4j-driver = "6.3.0"
 testcontainers = "1.21.3"
+neo4j-driver = "5.28.15"
+testcontainers = "1.21.4"
 micrometer = "1.17.1"
 
 [libraries]
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
 spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
-micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
+micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometer" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
