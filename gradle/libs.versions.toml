@@ -2,13 +2,14 @@
 kotlin = "2.2.21"
 springBoot = "3.5.7"
 springDepMgmt = "1.1.7"
-jackson = "2.19.2"
+jackson = "2.22.2"
 jena = "6.1.0"
 ktlint = "12.3.0"
 kover = "0.9.1"
 archunit = "1.4.1"
 neo4j-driver = "5.28.15"
 testcontainers = "1.21.3"
+micrometer = "1.17.1"
 
 [libraries]
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }

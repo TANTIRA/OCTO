@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    # Allow version upgrades for all dependencies
+    allow:
+      - dependency-type: "all"
+    # Labels to add to PRs
+    labels:
+      - "dependencies"
+      - "automerge"
