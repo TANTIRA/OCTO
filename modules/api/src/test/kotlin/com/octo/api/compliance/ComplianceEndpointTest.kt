@@ -120,6 +120,70 @@ class ComplianceEndpointTest {
     }
 
     @Test
+    fun `a rule version that is not the next one is a conflict, and omitting it works`() {
+        run { mvc ->
+            mvc
+                .perform(post("/api/v1/compliance/rules").contentType(MediaType.APPLICATION_JSON).content(rule()).with(asUser(approver)))
+                .andExpect(status().isCreated)
+            // the rule sits at version 1; a caller still holding 1 conflicts, a caller omitting it or guessing 2 wins
+            mvc
+                .perform(post("/api/v1/compliance/rules").contentType(MediaType.APPLICATION_JSON).content(rule()).with(asUser(approver)))
+                .andExpect(status().isConflict)
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rule().replace("\"version\": 1", "\"version\": 2"))
+                        .with(asUser(approver)),
+                ).andExpect(status().isCreated)
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rule("cov", """{"type": "coverage-floor", "minRatio": "1.2"}""").replace(", \"version\": 1", ""))
+                        .with(asUser(approver)),
+                ).andExpect(status().isCreated)
+                .andExpect(jsonPath("$.version").value(1))
+        }
+    }
+
+    @Test
+    fun `an approver retires a rule append-only — the tombstone hides it and an unknown rule is 404`() {
+        run { mvc ->
+            mvc
+                .perform(post("/api/v1/compliance/rules").contentType(MediaType.APPLICATION_JSON).content(rule()).with(asUser(approver)))
+                .andExpect(status().isCreated)
+
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules/conc/retire")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId": "$tenantId"}""")
+                        .with(asUser(analyst)),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules/conc/retire")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId": "$tenantId"}""")
+                        .with(asUser(approver)),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.version").value(2))
+            mvc
+                .perform(get("/api/v1/compliance/rules?tenantId=$tenantId").with(asUser(viewer)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.length()").value(0))
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules/nope/retire")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId": "$tenantId"}""")
+                        .with(asUser(approver)),
+                ).andExpect(status().isNotFound)
+        }
+    }
+
+    @Test
     fun `an analyst cannot define rules, a viewer cannot evaluate, a bad check is 400, and no token is 403`() {
         run { mvc ->
             mvc

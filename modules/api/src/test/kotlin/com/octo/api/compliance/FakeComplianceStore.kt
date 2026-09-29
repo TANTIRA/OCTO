@@ -1,6 +1,7 @@
 package com.octo.api.compliance
 
 import com.octo.persistence.TenantScope
+import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.Evaluation
 import com.octo.recon.compliance.Result
@@ -11,7 +12,8 @@ import java.util.UUID
 
 /** In-memory `ComplianceStore` with V14's one-breach-per-key rule, for the runner and endpoint tests. */
 class FakeComplianceStore : ComplianceStore {
-    val rules = mutableMapOf<UUID, MutableList<ComplianceRule>>()
+    /** (rule version row, still active) — a retire is another row, like the real store. */
+    val rules = mutableMapOf<UUID, MutableList<Pair<ComplianceRule, Boolean>>>()
     val recorded = mutableListOf<Triple<Evaluation, UUID?, UUID>>()
 
     override fun activeRules(
@@ -19,20 +21,37 @@ class FakeComplianceStore : ComplianceStore {
         scope: TenantScope,
     ) = rules[tenantId]
         .orEmpty()
-        .groupBy {
-            it.id
-        }.values
-        .map { versions -> versions.maxBy { it.version } }
+        .groupBy { it.first.id }
+        .values
+        .mapNotNull { versions -> versions.maxBy { it.first.version }.takeIf { it.second }?.first }
 
     override fun defineRule(
         tenantId: UUID,
-        rule: ComplianceRule,
+        ruleId: String,
+        name: String,
+        check: ComplianceCheck,
+        expectedVersion: Int?,
         provenance: ComplianceProvenance,
         scope: TenantScope,
-    ) {
+    ): ComplianceRule {
         val versions = rules.getOrPut(tenantId) { mutableListOf() }
-        if (versions.any { it.id == rule.id && it.version == rule.version }) throw SQLException("duplicate version", "23505")
-        versions += rule
+        val version = versions.filter { it.first.id == ruleId }.maxOfOrNull { it.first.version }?.plus(1) ?: 1
+        check(expectedVersion == null || expectedVersion == version) {
+            "compliance rule $ruleId is at version $version now, not ${expectedVersion ?: 0}"
+        }
+        return ComplianceRule(ruleId, version, name, check).also { versions += it to true }
+    }
+
+    override fun retire(
+        tenantId: UUID,
+        ruleId: String,
+        provenance: ComplianceProvenance,
+        scope: TenantScope,
+    ): ComplianceRule? {
+        val versions = rules[tenantId] ?: return null
+        val latest = versions.filter { it.first.id == ruleId }.maxByOrNull { it.first.version } ?: return null
+        if (!latest.second) return latest.first
+        return latest.first.copy(version = latest.first.version + 1).also { versions += it to false }
     }
 
     override fun breachTask(

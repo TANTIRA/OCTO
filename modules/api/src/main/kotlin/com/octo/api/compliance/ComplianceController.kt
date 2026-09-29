@@ -20,6 +20,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
@@ -48,12 +49,52 @@ class ComplianceController(
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role != TenantRole.APPROVER && role != TenantRole.ADMIN) return ResponseEntity.notFound().build()
+        val check =
+            runCatching { body.check.toCheck() }
+                .getOrElse { return ResponseEntity.badRequest().build() }
         val rule =
-            runCatching {
-                ComplianceRule(body.ruleId, body.version, body.name, body.check.toCheck())
-            }.getOrElse { return ResponseEntity.badRequest().build() }
-        store.defineRule(body.tenantId, rule, ComplianceProvenance(jwt.subject, UUID.randomUUID()), TenantScope.User(userId))
+            try {
+                store.defineRule(
+                    body.tenantId,
+                    body.ruleId,
+                    body.name,
+                    check,
+                    body.version,
+                    ComplianceProvenance(jwt.subject, UUID.randomUUID()),
+                    TenantScope.User(userId),
+                )
+            } catch (e: IllegalStateException) {
+                // A caller-supplied version that is not the next one is a write conflict, not a bad request.
+                return ResponseEntity.status(HttpStatus.CONFLICT).build()
+            } catch (e: IllegalArgumentException) {
+                return ResponseEntity.badRequest().build()
+            }
         return ResponseEntity.status(HttpStatus.CREATED).body(rule.view())
+    }
+
+    /**
+     * `POST /api/v1/compliance/rules/{ruleId}/retire` — takes a rule out of the active set the
+     * append-only way: a new version marked inactive (#266). The definition that governed past
+     * evaluations stays auditable, a later define re-activates the rule, and an unknown rule
+     * answers 404 like every other miss here.
+     */
+    @PostMapping("/api/v1/compliance/rules/{ruleId}/retire")
+    fun retireRule(
+        @PathVariable ruleId: String,
+        @RequestBody body: RetireBody,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<RuleView> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role != TenantRole.APPROVER && role != TenantRole.ADMIN) return ResponseEntity.notFound().build()
+        val rule =
+            store.retire(
+                body.tenantId,
+                ruleId,
+                ComplianceProvenance(jwt.subject, body.correlationId ?: UUID.randomUUID()),
+                TenantScope.User(userId),
+            ) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(rule.view())
     }
 
     @GetMapping("/api/v1/compliance/rules")
@@ -150,12 +191,21 @@ class ComplianceController(
             }
     }
 
+    /**
+     * `version` is an optimistic-concurrency hint: supplied it must equal the version the
+     * definition lands at (409 otherwise), omitted the server assigns the next one.
+     */
     data class RuleBody(
         val tenantId: UUID,
         @field:NotBlank val ruleId: String,
-        val version: Int,
+        val version: Int? = null,
         @field:NotBlank val name: String,
         @field:Valid val check: CheckBody,
+    )
+
+    data class RetireBody(
+        val tenantId: UUID,
+        val correlationId: UUID? = null,
     )
 
     data class RuleView(

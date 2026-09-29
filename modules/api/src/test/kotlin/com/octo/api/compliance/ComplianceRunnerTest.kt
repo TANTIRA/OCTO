@@ -5,7 +5,6 @@ import com.octo.lookthrough.ExposureReport
 import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceInputs
-import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.workflow.Task
@@ -38,19 +37,28 @@ class ComplianceRunnerTest {
     fun `a breach opens one review task, a pass and a not-evaluable record without one, and a re-run reuses the task`() {
         store.defineRule(
             tenantId,
-            ComplianceRule("conc", 1, "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.5"))),
+            "conc",
+            "Concentration",
+            ComplianceCheck.ConcentrationLimit(BigDecimal("0.5")),
+            null,
             provenance,
             TenantScope.All,
         )
         store.defineRule(
             tenantId,
-            ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))),
+            "cov",
+            "Coverage",
+            ComplianceCheck.CoverageFloor(BigDecimal("1.2")),
+            null,
             provenance,
             TenantScope.All,
         )
         store.defineRule(
             tenantId,
-            ComplianceRule("eur", 1, "EUR", ComplianceCheck.CurrencyExposureLimit(Currency.getInstance("EUR"), BigDecimal("0.4"))),
+            "eur",
+            "EUR",
+            ComplianceCheck.CurrencyExposureLimit(Currency.getInstance("EUR"), BigDecimal("0.4")),
+            null,
             provenance,
             TenantScope.All,
         )
@@ -85,7 +93,10 @@ class ComplianceRunnerTest {
 
         store.defineRule(
             tenantId,
-            ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))),
+            "cov",
+            "Coverage",
+            ComplianceCheck.CoverageFloor(BigDecimal("1.2")),
+            null,
             provenance,
             TenantScope.All,
         )

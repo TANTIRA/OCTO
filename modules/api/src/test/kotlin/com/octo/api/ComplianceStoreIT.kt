@@ -22,6 +22,8 @@ import java.sql.SQLException
 import java.time.LocalDate
 import java.util.Currency
 import java.util.UUID
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /** `JdbcComplianceStore` against the real V14 schema: rule definitions round-trip by version, evaluations record, breaches dedupe. Skipped without Docker. */
 @Testcontainers(disabledWithoutDocker = true)
@@ -70,40 +72,89 @@ class ComplianceStoreIT {
             }
         }
 
+    private fun define(
+        tenantId: UUID,
+        ruleId: String,
+        name: String,
+        check: ComplianceCheck,
+        expectedVersion: Int? = null,
+        scope: TenantScope = TenantScope.All,
+    ) = store.defineRule(tenantId, ruleId, name, check, expectedVersion, provenance, scope)
+
     @Test
     fun `every check round-trips through its json definition and only the latest active version is returned`() {
         val tenantId = tenant()
-        store.defineRule(
-            tenantId,
-            ComplianceRule("conc", 1, "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.25"))),
-            provenance,
-            TenantScope.All,
-        )
-        store.defineRule(
-            tenantId,
-            ComplianceRule("conc", 2, "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.30"))),
-            provenance,
-            TenantScope.All,
-        )
-        store.defineRule(
-            tenantId,
-            ComplianceRule("eur", 1, "EUR cap", ComplianceCheck.CurrencyExposureLimit(Currency.getInstance("EUR"), BigDecimal("0.4"))),
-            provenance,
-            TenantScope.All,
-        )
-        store.defineRule(
-            tenantId,
-            ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2"))),
-            provenance,
-            TenantScope.All,
-        )
+        define(tenantId, "conc", "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.25")))
+        define(tenantId, "conc", "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.30")))
+        define(tenantId, "eur", "EUR cap", ComplianceCheck.CurrencyExposureLimit(Currency.getInstance("EUR"), BigDecimal("0.4")))
+        define(tenantId, "cov", "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2")))
 
         val rules = store.activeRules(tenantId, TenantScope.All)
         assertThat(rules.map { it.id to it.version }).containsExactly("conc" to 2, "cov" to 1, "eur" to 1)
         assertThat((rules[0].check as ComplianceCheck.ConcentrationLimit).maxFraction).isEqualByComparingTo("0.30")
         assertThat((rules[2].check as ComplianceCheck.CurrencyExposureLimit).currency.currencyCode).isEqualTo("EUR")
         assertThat(store.activeRules(tenant(), TenantScope.All)).isEmpty()
-        assertThatThrownBy { store.defineRule(tenantId, rules[0], provenance, TenantScope.All) }.isInstanceOf(SQLException::class.java)
+    }
+
+    @Test
+    fun `the store allocates versions and a caller that predicts the wrong one is refused`() {
+        val tenantId = tenant()
+        assertThat(
+            define(tenantId, "conc", "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.25")), expectedVersion = 1).version,
+        ).isEqualTo(1)
+
+        // a second caller that read version 1 and proposes 2 wins; a stale guess of 1 is a conflict
+        assertThatThrownBy {
+            define(tenantId, "conc", "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.30")), expectedVersion = 1)
+        }.isInstanceOf(IllegalStateException::class.java)
+        assertThat(
+            define(tenantId, "conc", "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.30")), expectedVersion = 2).version,
+        ).isEqualTo(2)
+        assertThatThrownBy {
+            define(tenantId, "conc", "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.35")), expectedVersion = 5)
+        }.isInstanceOf(IllegalStateException::class.java)
+    }
+
+    @Test
+    fun `concurrent definitions serialize on the rule lock and never share a version`() {
+        val tenantId = tenant()
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            val versions =
+                (1..2)
+                    .map {
+                        pool.submit<Int> {
+                            define(
+                                tenantId,
+                                "conc",
+                                "Concentration",
+                                ComplianceCheck.ConcentrationLimit(BigDecimal("0.25")),
+                            ).version
+                        }
+                    }.map { it.get(30, TimeUnit.SECONDS) }
+            assertThat(versions).containsExactlyInAnyOrder(1, 2)
+        } finally {
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `a retired rule leaves the active set and a later define re-activates it`() {
+        val tenantId = tenant()
+        assertThat(store.retire(tenantId, "conc", provenance, TenantScope.All)).isNull()
+
+        define(tenantId, "conc", "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.25")))
+        define(tenantId, "cov", "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2")))
+
+        // the tombstone is a version like any other; the runner no longer sees the rule at all
+        assertThat(store.retire(tenantId, "conc", provenance, TenantScope.All)!!.version).isEqualTo(2)
+        assertThat(store.activeRules(tenantId, TenantScope.All).map { it.id }).containsExactly("cov")
+        // retiring an already-retired rule is idempotent — no extra tombstone rows
+        assertThat(store.retire(tenantId, "conc", provenance, TenantScope.All)!!.version).isEqualTo(2)
+        // a later version re-activates
+        assertThat(define(tenantId, "conc", "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.30"))).version)
+            .isEqualTo(3)
+        assertThat(store.activeRules(tenantId, TenantScope.All).map { it.id }).containsExactlyInAnyOrder("conc", "cov")
     }
 
     @Test
@@ -146,12 +197,7 @@ class ComplianceStoreIT {
     fun `a scope that does not admit the tenant sees nothing and refuses writes`() {
         val tenantId = tenant()
         val elsewhere = TenantScope.Tenants(listOf(UUID.randomUUID()))
-        store.defineRule(
-            tenantId,
-            ComplianceRule("conc", 1, "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.25"))),
-            provenance,
-            TenantScope.All,
-        )
+        define(tenantId, "conc", "Concentration", ComplianceCheck.ConcentrationLimit(BigDecimal("0.25")))
         val breach =
             evaluate(
                 listOf(ComplianceRule("cov", 1, "Coverage", ComplianceCheck.CoverageFloor(BigDecimal("1.2")))),
@@ -166,11 +212,16 @@ class ComplianceStoreIT {
         assertThatThrownBy {
             store.defineRule(
                 tenantId,
-                ComplianceRule("x", 1, "X", ComplianceCheck.CoverageFloor(BigDecimal("1.0"))),
+                "x",
+                "X",
+                ComplianceCheck.CoverageFloor(BigDecimal("1.0")),
+                null,
                 provenance,
                 elsewhere,
             )
         }.isInstanceOf(IllegalArgumentException::class.java)
+        assertThatThrownBy { store.retire(tenantId, "conc", provenance, elsewhere) }
+            .isInstanceOf(IllegalArgumentException::class.java)
         assertThatThrownBy { store.record(tenantId, breach, null, UUID.randomUUID(), elsewhere) }
             .isInstanceOf(IllegalArgumentException::class.java)
     }
