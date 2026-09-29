@@ -1,0 +1,62 @@
+# Example: Minimal docker-compose.yml for Neo4j with Bolt TLS exposure
+# This shows how to wire up the neo4j service to be routed by Traefik
+
+version: '3.8'
+
+networks:
+  dokploy-network:
+    external: true
+
+services:
+
+  neo4j:
+    image: neo4j:2025.12.1-community
+    container_name: octo-neo4j-db
+    restart: unless-stopped
+    
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
+      NEO4J_INITIAL_ADMIN_PASSWORD: ${NEO4J_PASSWORD}
+      # Disable TLS on the Bolt port — Traefik terminates TLS externally
+      NEO4J_BOLT_TLS_ENABLED: "false"
+      # Optional: logging, memory config
+      NEO4J_LOG_LEVEL: INFO
+      NEO4J_dbms_memory_heap_initial__size: "512m"
+      NEO4J_dbms_memory_heap_max__size: "1024m"
+    
+    volumes:
+      # Persist the graph database
+      - neo4j-data:/var/lib/neo4j/data
+      - neo4j-logs:/var/lib/neo4j/logs
+    
+    networks:
+      - dokploy-network
+    
+    ports:
+      # Bolt (internal, on dokploy-network only — not exposed to host)
+      # Traefik reaches it via container-to-container routing
+      - "7687:7687"
+      # Browser HTTP (optional; can also be exposed via Traefik)
+      - "7474:7474"
+    
+    healthcheck:
+      # Check that Bolt is listening
+      test: ["CMD", "cypher-shell", "-a", "bolt://localhost:7687", "-u", "neo4j", "-p", "${NEO4J_PASSWORD}", "RETURN 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          memory: 512M
+
+volumes:
+  neo4j-data:
+    driver: local
+  neo4j-logs:
+    driver: local

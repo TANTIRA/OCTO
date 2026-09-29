@@ -45,6 +45,23 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       DECISION_MODEL: ${DECISION_MODEL:-}
       DECISION_MODEL_ENDPOINT: ${DECISION_MODEL_ENDPOINT:-}
+      # Helius (Solana onchain ingestion) — conditional on HELIUS_RPC_URL
+      HELIUS_API_KEY: ${HELIUS_API_KEY:-}
+      HELIUS_RPC_URL: ${HELIUS_RPC_URL:-}
+      HELIUS_WALLET_API_URL: ${HELIUS_WALLET_API_URL:-}
+      HELIUS_NETWORK: ${HELIUS_NETWORK:-}
+      HELIUS_WEBHOOK_SECRET: ${HELIUS_WEBHOOK_SECRET:-}
+      # Alpha Vantage (market data ingestion) — conditional on ALPHA_VANTAGE_API_KEY
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+      ALPHA_VANTAGE_BASE_URL: ${ALPHA_VANTAGE_BASE_URL:-}
+      # Agents sidecar — conditional on OCTO_AGENTS_BASE_URL
+      OCTO_AGENTS_BASE_URL: ${OCTO_AGENTS_BASE_URL:-}
+      OCTO_AGENTS_TOKEN: ${OCTO_AGENTS_TOKEN:-}
+      # Platform admin provisioning — comma-separated JWT subjects
+      OCTO_PLATFORM_ADMINS: ${OCTO_PLATFORM_ADMINS:-}
+      # Redis quota counters — conditional on REDIS_HOST
+      REDIS_HOST: ${REDIS_HOST:-}
+      REDIS_PORT: ${REDIS_PORT:-}
     networks:
       - app
       - data
