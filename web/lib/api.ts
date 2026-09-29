@@ -22,3 +22,53 @@ export async function apiFetch(
   }
   return fetch(path, { ...init, headers });
 }
+
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+async function parse<T>(res: Response): Promise<T> {
+  if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`);
+  return (await res.json()) as T;
+}
+
+export async function getJson<T>(path: string): Promise<T> {
+  return parse<T>(await apiFetch(path));
+}
+
+export async function postJson<T>(path: string, body: unknown): Promise<T> {
+  return parse<T>(
+    await apiFetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+/** Shared render hint for tenant-scoped reads and gated writes. */
+export function messageFor(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 401) return "sign in required";
+    if (err.status === 403) return "no access to this resource";
+    if (err.status === 404) return "not found (or outside your tenants)";
+    if (err.status === 409) return "conflict — the resource is mid-transition";
+    if (err.status === 429) return "rate limited — retry shortly";
+    if (err.status === 503) return "the backing service is unavailable";
+    return `request failed (HTTP ${err.status})`;
+  }
+  return "could not reach the API";
+}
+
+/** The caller's tenant memberships drive every tenant-scoped picker in the app. */
+export type Tenant = { tenantId: string; slug: string; role: string };
+
+export async function myAccess(): Promise<Tenant[]> {
+  const body = await getJson<{ tenants: Tenant[] }>("/api/v1/me/access");
+  return body.tenants;
+}
