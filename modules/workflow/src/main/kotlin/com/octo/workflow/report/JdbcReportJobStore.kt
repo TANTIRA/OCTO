@@ -5,6 +5,7 @@ import com.octo.persistence.admits
 import com.octo.persistence.scoped
 import java.sql.Connection
 import java.sql.ResultSet
+import java.time.Duration
 import java.time.OffsetDateTime
 import java.util.UUID
 import javax.sql.DataSource
@@ -12,7 +13,12 @@ import javax.sql.DataSource
 /** JDBC access to `octo.report_job` (V13). Every transition is one statement; the trigger refuses anything out of order. */
 class JdbcReportJobStore(
     private val dataSource: DataSource,
+    private val lease: Duration = Duration.ofMinutes(5),
 ) : ReportJobs {
+    init {
+        require(!lease.isNegative && !lease.isZero) { "report lease must be positive" }
+    }
+
     override fun submit(
         request: ReportRequest,
         scope: TenantScope,
@@ -60,35 +66,61 @@ class JdbcReportJobStore(
         // skip locked: a job another runner holds in its claim transaction is passed over, never double-claimed.
         val sql =
             """
-            update octo.report_job set status = 'executing'
-            where id = (select id from octo.report_job where status = 'new' order by created_at limit 1 for update skip locked)
+            update octo.report_job
+            set status = 'executing', claim_token = gen_random_uuid(),
+                claimed_until = clock_timestamp() + (? * interval '1 millisecond')
+            where id = (select id from octo.report_job
+                        where status = 'new' or (status = 'executing' and claimed_until <= clock_timestamp())
+                        order by created_at limit 1 for update skip locked)
             returning *
             """.trimIndent()
         return dataSource.scoped(TenantScope.All) { connection ->
             connection.prepareStatement(sql).use { statement ->
+                statement.setLong(1, lease.toMillis())
                 statement.executeQuery().use { rows -> if (rows.next()) rows.toJob() else null }
             }
         }
     }
 
+    override fun renew(
+        id: UUID,
+        claimToken: UUID,
+    ): Boolean =
+        dataSource.scoped(TenantScope.All) { connection ->
+            connection
+                .prepareStatement(
+                    """update octo.report_job set claimed_until = clock_timestamp() + (? * interval '1 millisecond')
+                       where id = ? and claim_token = ? and status = 'executing' and claimed_until > clock_timestamp()""",
+                ).use { statement ->
+                    statement.setLong(1, lease.toMillis())
+                    statement.setObject(2, id)
+                    statement.setObject(3, claimToken)
+                    statement.executeUpdate() == 1
+                }
+        }
+
     override fun complete(
         id: UUID,
+        claimToken: UUID,
         result: String,
         artifactSha256: String?,
     ): ReportJob =
-        transition(id, "status = 'done', result = ?::jsonb, artifact_sha256 = ?") {
+        transition(id, "status = 'done', result = ?::jsonb, artifact_sha256 = ?, claim_token = null, claimed_until = null", claimToken) {
             it.setString(1, result)
             it.setString(2, artifactSha256)
             it.setObject(3, id)
+            it.setObject(4, claimToken)
         }
 
     override fun fail(
         id: UUID,
+        claimToken: UUID,
         error: String,
     ): ReportJob =
-        transition(id, "status = 'error', error = ?") {
+        transition(id, "status = 'error', error = ?, claim_token = null, claimed_until = null", claimToken) {
             it.setString(1, error)
             it.setObject(2, id)
+            it.setObject(3, claimToken)
         }
 
     override fun attachApproval(
@@ -103,13 +135,20 @@ class JdbcReportJobStore(
     private fun transition(
         id: UUID,
         assignment: String,
+        claimToken: UUID? = null,
         bind: (java.sql.PreparedStatement) -> Unit,
     ): ReportJob =
         dataSource.scoped(TenantScope.All) { connection: Connection ->
-            connection.prepareStatement("update octo.report_job set $assignment where id = ? returning *").use { statement ->
+            val condition =
+                if (claimToken == null) {
+                    ""
+                } else {
+                    " and status = 'executing' and claim_token = ? and claimed_until > clock_timestamp()"
+                }
+            connection.prepareStatement("update octo.report_job set $assignment where id = ?$condition returning *").use { statement ->
                 bind(statement)
                 statement.executeQuery().use { rows ->
-                    if (!rows.next()) throw NoSuchElementException("no report job $id")
+                    if (!rows.next()) throw NoSuchElementException("no current claim for report job $id")
                     rows.toJob()
                 }
             }
@@ -136,5 +175,7 @@ class JdbcReportJobStore(
             approvalTaskId = getObject("approval_task_id", UUID::class.java),
             createdAt = getObject("created_at", OffsetDateTime::class.java).toInstant(),
             updatedAt = getObject("updated_at", OffsetDateTime::class.java).toInstant(),
+            claimToken = getObject("claim_token", UUID::class.java),
+            claimedUntil = getObject("claimed_until", OffsetDateTime::class.java)?.toInstant(),
         )
 }

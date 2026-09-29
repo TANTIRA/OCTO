@@ -13,7 +13,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import java.sql.SQLException
+import java.time.Duration
 import java.util.UUID
 
 /** `JdbcReportJobStore` against the real V13 schema: submit, claim in order, complete, fail, and the trigger's refusals. Skipped without Docker. */
@@ -72,15 +72,37 @@ class ReportJobStoreIT {
         assertThat(claimed).allMatch { it.status == JobStatus.EXECUTING }
         assertThat(store.claimNext()).isNull()
 
-        val done = store.complete(first.id, """{"tvpi": 1.5}""", "a".repeat(64))
+        val done = store.complete(first.id, claimed.first { it.id == first.id }.claimToken!!, """{"tvpi": 1.5}""", "a".repeat(64))
         assertThat(done.status).isEqualTo(JobStatus.DONE)
         assertThat(done.result).contains("1.5")
         assertThat(done.artifactSha256).isEqualTo("a".repeat(64))
         assertThat(done.updatedAt).isAfterOrEqualTo(done.createdAt)
-        val failed = store.fail(second.id, "engine refused the series")
+        val failed = store.fail(second.id, claimed.first { it.id == second.id }.claimToken!!, "engine refused the series")
         assertThat(failed.status).isEqualTo(JobStatus.ERROR)
         assertThat(store.load(second.id, TenantScope.All)!!.error).isEqualTo("engine refused the series")
         assertThat(store.load(UUID.randomUUID(), TenantScope.All)).isNull()
+    }
+
+    @Test
+    fun `an expired claim is reclaimed and only the new claimant can finish`() {
+        generateSequence { store.claimNext() }.toList()
+        val job = store.submit(request(tenant()), TenantScope.All)
+        val initial = JdbcReportJobStore(dataSource, Duration.ofMillis(100)).claimNext()!!
+        assertThat(initial.id).isEqualTo(job.id)
+        assertThat(store.claimNext()).isNull()
+        Thread.sleep(250)
+        val reclaimed = store.claimNext()!!
+        assertThat(reclaimed.id).isEqualTo(job.id)
+        assertThat(reclaimed.claimToken).isNotEqualTo(initial.claimToken)
+        assertThat(store.renew(job.id, initial.claimToken!!)).isFalse()
+        assertThatThrownBy { store.complete(job.id, initial.claimToken!!, "{}") }
+            .isInstanceOf(NoSuchElementException::class.java)
+        assertThat(store.renew(job.id, reclaimed.claimToken!!)).isTrue()
+        val done = store.complete(job.id, reclaimed.claimToken!!, "{}")
+        assertThat(done.status).isEqualTo(JobStatus.DONE)
+        assertThat(done.claimToken).isNull()
+        assertThat(done.claimedUntil).isNull()
+        assertThat(store.claimNext()).isNull()
     }
 
     @Test
@@ -96,8 +118,10 @@ class ReportJobStoreIT {
     @Test
     fun `the trigger refuses a transition out of order and the store surfaces it`() {
         val job = store.submit(request(tenant()), TenantScope.All)
-        assertThatThrownBy { store.complete(job.id, "{}") }.isInstanceOf(SQLException::class.java) // still new
-        assertThatThrownBy { store.fail(UUID.randomUUID(), "x") }.isInstanceOf(NoSuchElementException::class.java)
+        assertThatThrownBy { store.complete(job.id, UUID.randomUUID(), "{}") }
+            .isInstanceOf(NoSuchElementException::class.java) // still new
+        assertThatThrownBy { store.fail(UUID.randomUUID(), UUID.randomUUID(), "x") }
+            .isInstanceOf(NoSuchElementException::class.java)
         assertThatThrownBy { request(job.request.tenantId).copy(measures = listOf(" ")) }.isInstanceOf(IllegalArgumentException::class.java)
     }
 

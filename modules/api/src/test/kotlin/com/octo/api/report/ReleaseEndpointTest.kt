@@ -94,8 +94,8 @@ class ReleaseEndpointTest {
                 ),
                 TenantScope.All,
             )
-        jobs.claimNext()
-        jobs.complete(job.id, """{"tvpi": 1.3}""", "a".repeat(64))
+        val claimed = jobs.claimNext()!!
+        jobs.complete(job.id, claimed.claimToken!!, """{"tvpi": 1.3}""", "a".repeat(64))
         return job.id
     }
 
