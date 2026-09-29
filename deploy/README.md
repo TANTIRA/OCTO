@@ -31,7 +31,6 @@ Set in the Dokploy compose environment (never committed). Keys mirror
 
 - `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_DB` → `DB_HOST`/`DB_PORT`/`DB_NAME` for the datasource.
 - `DB_USER=octo_app`, `DB_MIGRATION_USER=octo_migrate` — the least-privilege roles from `infra/init-db-roles.sql` (create/rename before first api boot; `octo_migrate` needs `CREATE` on the database for the `octo` schema + Flyway history).
-- `SUPABASE_INTERNAL_URL`, `SUPABASE_STORAGE_ENDPOINT` → internal Kong URLs.
 - `AUTH_ISSUER`, `AUTH_JWKS_URL`, `AUTH_PUBLIC_URL`, `API_PUBLIC_URL`.
   `AUTH_ISSUER` stays the *public* issuer string (it is matched against the
   token `iss` claim), but `AUTH_JWKS_URL` must be the **internal** Kong path —
@@ -45,7 +44,8 @@ Set in the Dokploy compose environment (never committed). Keys mirror
   the result into the standalone routes manifest, so a runtime env var can
   never reach it. Hardcoded `http://api:8080` in the compose `build.args`
   (compose-network service name, not a secret).
-- `NEO4J_URI` (default `bolt://octo-neo4j-db:7687`), `NEO4J_DATABASE`, `NEO4J_USER`, `NEO4J_PASSWORD`.
+- No `SUPABASE_*` or `NEO4J_*` on the api: nothing reads them (#340). The graph
+  writer (ADR-0004, #308) reintroduces the `NEO4J_*` variables it reads.
 - Optional vendor keys (`HELIUS_*`, `ALPHA_VANTAGE_*`, `ARBITRUM_*`, `OPENROUTER_*`, `DECISION_MODEL*`) are declared as **bare pass-throughs** in the compose `environment:` list — they reach the container only when set in the Dokploy env. Do not give them empty defaults: Spring's `@ConditionalOnProperty` treats a present-but-empty value as *configured* and the api crash-loops (`rpcBaseUrl must be https`).
 
 ## Live domains

@@ -28,20 +28,12 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_MIGRATION_USER: ${DB_MIGRATION_USER}
       DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD}
-      SUPABASE_URL: ${SUPABASE_INTERNAL_URL}
-      SUPABASE_STORAGE_ENDPOINT: ${SUPABASE_STORAGE_ENDPOINT}
-      # No SUPABASE_SERVICE_KEY: nothing consumes it, and the service key bypasses RLS, so
-      # holding it only widens the blast radius. A feature that needs storage adds the narrow
-      # credential it actually reads (user-JWT passthrough or a scoped key) in its own PR.
+      # No SUPABASE_* or NEO4J_* here: nothing in the api reads them (#340). The service key bypasses
+      # RLS, so holding it only widens the blast radius; a feature that needs storage or the graph adds
+      # the narrow credential it actually reads (user-JWT passthrough, scoped key, graph user) in its own PR.
       AUTH_ISSUER: ${AUTH_ISSUER}
       AUTH_JWKS_URL: ${AUTH_JWKS_URL}
       AUTH_AUDIENCE: ${AUTH_AUDIENCE:-authenticated}
-      # External neo4j service (octo-neo4j-db) — reachable because api and neo4j
-      # share dokploy-network. Bolt is never exposed through Traefik.
-      NEO4J_URI: ${NEO4J_URI:-bolt://octo-neo4j-db:7687}
-      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
-      NEO4J_USER: ${NEO4J_USER}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       DECISION_MODEL: ${DECISION_MODEL:-}
       DECISION_MODEL_ENDPOINT: ${DECISION_MODEL_ENDPOINT:-}
