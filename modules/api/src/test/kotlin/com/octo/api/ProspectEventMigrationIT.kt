@@ -132,11 +132,12 @@ class ProspectEventMigrationIT {
                     ).use { rows ->
                         rows.next()
                         val tenant = rows.getObject(1, UUID::class.java)
+                        val prospectSql =
+                            "insert into octo.prospect (id, tenant_id, name, source, registered_at, source_system, actor, correlation_id)" +
+                                " values (gen_random_uuid(), '$tenant', 'acme', 'manual', '$t0', 'test', 'test', gen_random_uuid()) returning id"
                         statement
-                            .executeQuery(
-                                "insert into octo.prospect (id, tenant_id, name, source, registered_at, source_system, actor, correlation_id) " +
-                                    "values (gen_random_uuid(), '$tenant', 'acme', 'manual', '$t0', 'test', 'test', gen_random_uuid()) returning id",
-                            ).use { created ->
+                            .executeQuery(prospectSql)
+                            .use { created ->
                                 created.next()
                                 created.getObject(1, UUID::class.java)
                             }
@@ -169,12 +170,13 @@ class ProspectEventMigrationIT {
         rationale: String? = null,
         taskId: UUID? = null,
     ) {
+        val sql =
+            "insert into octo.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, rationale, occurred_at, task_id," +
+                " correlation_id) values (?, ?, ?, ?, 'someone', ?, ?::timestamptz, ?, gen_random_uuid())"
         dataSource.connection.use { connection ->
             connection
-                .prepareStatement(
-                    "insert into octo.prospect_event (prospect_id, event_type, stage_from, stage_to, actor, rationale, occurred_at, task_id, correlation_id) " +
-                        "values (?, ?, ?, ?, 'someone', ?, ?::timestamptz, ?, gen_random_uuid())",
-                ).use { statement ->
+                .prepareStatement(sql)
+                .use { statement ->
                     statement.setObject(1, prospect)
                     statement.setString(2, type)
                     statement.setString(3, stageFrom)

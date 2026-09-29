@@ -74,12 +74,15 @@ class RowLevelSecurityIT {
                             "values ('$t', 'P', 'manual', now(), 'test', 'seeder', gen_random_uuid())",
                     )
                 }
-                // One event per prospect so indirect (subselect) policies are exercised.
+                // One event per prospect so indirect (subselect) policies are exercised. V36's
+                // transition trigger replays stage_from, so only still-sourced prospects get one —
+                // earlier tests' prospects already moved on.
                 s.execute(
                     "insert into octo.prospect_event " +
                         "(prospect_id, event_type, stage_from, stage_to, actor, occurred_at, correlation_id) " +
                         "select id, 'advanced', 'sourced', 'screening', 'seeder', now(), gen_random_uuid() " +
-                        "from octo.prospect",
+                        "from octo.prospect p " +
+                        "where not exists (select 1 from octo.prospect_event e where e.prospect_id = p.id)",
                 )
                 // member is active in tenant A; outsider is granted then revoked there.
                 s.execute(

@@ -27,12 +27,35 @@ interface ComplianceStore {
         scope: TenantScope,
     ): List<ComplianceRule>
 
+    /**
+     * Appends the next version of [ruleId] for the tenant — the server allocates it, so two
+     * definers can never collide on `(tenant, rule, version)`. A non-null [expectedVersion]
+     * must equal that next version; a mismatch throws [IllegalStateException] (the api maps
+     * it to 409). Returns the version actually written.
+     */
     fun defineRule(
         tenantId: UUID,
-        rule: ComplianceRule,
+        ruleId: String,
+        name: String,
+        check: ComplianceCheck,
+        expectedVersion: Int?,
         provenance: ComplianceProvenance,
         scope: TenantScope,
-    )
+    ): ComplianceRule
+
+    /**
+     * Appends an inactive version of [ruleId] — the append-only way a rule leaves the active
+     * set: the row is a new version like any other, so the definition that retired stays
+     * auditable and a later [defineRule] re-activates it. Returns the tombstone rule, the
+     * current version when the rule is already retired (idempotent), or null when the tenant
+     * holds no such rule.
+     */
+    fun retire(
+        tenantId: UUID,
+        ruleId: String,
+        provenance: ComplianceProvenance,
+        scope: TenantScope,
+    ): ComplianceRule?
 
     /** The task already opened for this breach on this date, if V14's `compliance_breach_once` already holds a row. */
     fun breachTask(
@@ -66,11 +89,18 @@ class JdbcComplianceStore(
         scope: TenantScope,
     ): List<ComplianceRule> {
         if (!scope.admits(tenantId)) return emptyList()
+        // distinct on picks the newest version of each rule_id first; filtering active afterwards
+        // is what lets a retire tombstone remove the rule instead of resurrecting its last version.
         val sql =
             """
-            select distinct on (rule_id) rule_id, version, name, definition::text
-            from octo.compliance_rule where tenant_id = ? and active
-            order by rule_id, version desc
+            select rule_id, version, name, definition::text
+            from (
+                select distinct on (rule_id) rule_id, version, name, definition, active
+                from octo.compliance_rule
+                where tenant_id = ?
+                order by rule_id, version desc
+            ) latest
+            where active
             """.trimIndent()
         return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->
@@ -90,29 +120,108 @@ class JdbcComplianceStore(
         }
     }
 
+    /**
+     * Appends version `max(version)+1` of [ruleId] for the tenant; older versions stay for audit.
+     * The `(tenant, rule)` advisory lock serializes two definers so a concurrent write can never
+     * race the version read into a unique-violation 500 — the `JdbcScreeningRuleStore` contract.
+     */
     override fun defineRule(
         tenantId: UUID,
-        rule: ComplianceRule,
+        ruleId: String,
+        name: String,
+        check: ComplianceCheck,
+        expectedVersion: Int?,
         provenance: ComplianceProvenance,
         scope: TenantScope,
-    ) {
+    ): ComplianceRule {
         require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
-        val sql =
-            """
-            insert into octo.compliance_rule (tenant_id, rule_id, version, name, definition, actor, correlation_id)
-            values (?, ?, ?, ?, ?::jsonb, ?, ?)
-            """.trimIndent()
-        dataSource.scoped(scope) { connection ->
-            connection.prepareStatement(sql).use { statement ->
-                statement.setObject(1, tenantId)
-                statement.setString(2, rule.id)
-                statement.setInt(3, rule.version)
-                statement.setString(4, rule.name)
-                statement.setString(5, json.writeValueAsString(definition(rule.check)))
-                statement.setString(6, provenance.actor)
-                statement.setObject(7, provenance.correlationId)
-                statement.executeUpdate()
+        return dataSource.scoped(scope) { connection ->
+            lockRule(connection, tenantId, ruleId)
+            val version =
+                connection
+                    .prepareStatement(
+                        "select coalesce(max(version), 0) + 1 from octo.compliance_rule where tenant_id = ? and rule_id = ?",
+                    ).use { statement ->
+                        statement.setObject(1, tenantId)
+                        statement.setString(2, ruleId)
+                        statement.executeQuery().use { rows ->
+                            rows.next()
+                            rows.getInt(1)
+                        }
+                    }
+            check(expectedVersion == null || expectedVersion == version) {
+                "compliance rule $ruleId is at version $version now, not ${expectedVersion ?: 0}"
             }
+            connection
+                .prepareStatement(
+                    """
+                    insert into octo.compliance_rule (tenant_id, rule_id, version, name, definition, actor, correlation_id)
+                    values (?, ?, ?, ?, ?::jsonb, ?, ?)
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setObject(1, tenantId)
+                    statement.setString(2, ruleId)
+                    statement.setInt(3, version)
+                    statement.setString(4, name)
+                    statement.setString(5, json.writeValueAsString(definition(check)))
+                    statement.setString(6, provenance.actor)
+                    statement.setObject(7, provenance.correlationId)
+                    statement.executeUpdate()
+                }
+            ComplianceRule(ruleId, version, name, check)
+        }
+    }
+
+    override fun retire(
+        tenantId: UUID,
+        ruleId: String,
+        provenance: ComplianceProvenance,
+        scope: TenantScope,
+    ): ComplianceRule? {
+        require(scope.admits(tenantId)) { "tenant $tenantId is outside the scoped tenants" }
+        return dataSource.scoped(scope) { connection ->
+            lockRule(connection, tenantId, ruleId)
+            val latest =
+                connection
+                    .prepareStatement(
+                        """
+                        select version, name, definition::text, active
+                        from octo.compliance_rule where tenant_id = ? and rule_id = ?
+                        order by version desc limit 1
+                        """.trimIndent(),
+                    ).use { statement ->
+                        statement.setObject(1, tenantId)
+                        statement.setString(2, ruleId)
+                        statement.executeQuery().use { rows ->
+                            if (!rows.next()) return@scoped null
+                            Latest(
+                                version = rows.getInt(1),
+                                name = rows.getString(2),
+                                definition = rows.getString(3),
+                                active = rows.getBoolean(4),
+                            )
+                        }
+                    }
+            val check = parseCheck(json.readTree(latest.definition))
+            if (!latest.active) return@scoped ComplianceRule(ruleId, latest.version, latest.name, check)
+            val version = latest.version + 1
+            connection
+                .prepareStatement(
+                    """
+                    insert into octo.compliance_rule (tenant_id, rule_id, version, name, definition, active, actor, correlation_id)
+                    values (?, ?, ?, ?, ?::jsonb, false, ?, ?)
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setObject(1, tenantId)
+                    statement.setString(2, ruleId)
+                    statement.setInt(3, version)
+                    statement.setString(4, latest.name)
+                    statement.setString(5, latest.definition)
+                    statement.setString(6, provenance.actor)
+                    statement.setObject(7, provenance.correlationId)
+                    statement.executeUpdate()
+                }
+            ComplianceRule(ruleId, version, latest.name, check)
         }
     }
 
@@ -171,6 +280,28 @@ class JdbcComplianceStore(
                 }
             }
         }
+    }
+
+    private class Latest(
+        val version: Int,
+        val name: String,
+        val definition: String,
+        val active: Boolean,
+    )
+
+    private fun lockRule(
+        connection: java.sql.Connection,
+        tenantId: UUID,
+        ruleId: String,
+    ) {
+        connection
+            .prepareStatement(
+                "select pg_advisory_xact_lock(hashtextextended('octo.compliance_rule:' || ?::text || ':' || ?::text, 0))",
+            ).use { statement ->
+                statement.setObject(1, tenantId)
+                statement.setString(2, ruleId)
+                statement.executeQuery().close()
+            }
     }
 
     private fun definition(check: ComplianceCheck): Map<String, String> =

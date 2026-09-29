@@ -1,7 +1,6 @@
 package com.octo.api.compliance
 
 import com.octo.persistence.TenantScope
-import com.octo.recon.compliance.ComplianceRule
 import com.octo.recon.compliance.Evaluation
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
@@ -27,10 +26,20 @@ class ComplianceConfiguration {
 
             override fun defineRule(
                 tenantId: UUID,
-                rule: ComplianceRule,
+                ruleId: String,
+                name: String,
+                check: com.octo.recon.compliance.ComplianceCheck,
+                expectedVersion: Int?,
                 provenance: ComplianceProvenance,
                 scope: TenantScope,
-            ) = store.defineRule(tenantId, rule, provenance, scope)
+            ) = store.defineRule(tenantId, ruleId, name, check, expectedVersion, provenance, scope)
+
+            override fun retire(
+                tenantId: UUID,
+                ruleId: String,
+                provenance: ComplianceProvenance,
+                scope: TenantScope,
+            ) = store.retire(tenantId, ruleId, provenance, scope)
 
             override fun breachTask(
                 tenantId: UUID,
