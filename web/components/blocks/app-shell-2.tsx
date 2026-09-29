@@ -19,6 +19,11 @@ import {
 import Dashboard4 from "@/components/blocks/dashboard-4";
 import DataTable3 from "@/components/blocks/data-table-3";
 import Kanban1 from "@/components/blocks/kanban-1";
+import PipelineBoard from "@/components/pipeline-board";
+import ReportQueue from "@/components/report-queue";
+import ReconPanel from "@/components/recon-panel";
+import CompliancePanel from "@/components/compliance-panel";
+import AgentRunsPanel from "@/components/agent-runs-panel";
 import SessionMenu from "@/components/session-menu";
 import { apiFetch } from "@/lib/api";
 
@@ -356,6 +361,49 @@ const AREAS: Area[] = [
         tone: "attention",
       },
     ],
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    icon: ChartPie,
+    current: "Queue",
+    title: "Reports",
+    action: "New report",
+    listTitle: "Queue",
+    listCount: "live",
+    groups: [
+      {
+        label: "Reports",
+        items: [
+          { label: "Queue" },
+          { label: "Performance" },
+          { label: "Exposure" },
+          { label: "GL export" },
+        ],
+      },
+    ],
+    rows: [],
+  },
+  {
+    id: "compliance",
+    label: "Compliance",
+    icon: Check,
+    current: "Rules",
+    title: "Compliance",
+    action: "Evaluate",
+    listTitle: "Rules",
+    listCount: "live",
+    groups: [
+      {
+        label: "Compliance",
+        items: [
+          { label: "Rules" },
+          { label: "Evaluations" },
+          { label: "Breaches" },
+        ],
+      },
+    ],
+    rows: [],
   },
   {
     id: "alerts",
@@ -1012,7 +1060,15 @@ export default function AppShell2() {
             ) : area.id === "assets" ? (
               <DataTable3 />
             ) : area.id === "deals" ? (
-              <Kanban1 />
+              <PipelineBoard />
+            ) : area.id === "reports" ? (
+              <ReportQueue />
+            ) : area.id === "recon" ? (
+              <ReconPanel />
+            ) : area.id === "compliance" ? (
+              <CompliancePanel />
+            ) : area.id === "alerts" ? (
+              <AgentRunsPanel />
             ) : (
             <motion.div
               key={area.id}
