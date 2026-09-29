@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     octo_agents_lp_report_enabled: bool = False
     # Company-brain NL query (F7) — judged answers over the pipeline records.
     octo_agents_brain_enabled: bool = False
+    # Compliance rationale (F9) — narrates engine outcomes, citation-gated.
+    octo_agents_compliance_enabled: bool = False
 
     request_timeout_s: float = 60.0
 

@@ -3,6 +3,9 @@ package com.octo.api.compliance
 import com.octo.analytics.CoverageReport
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.api.agents.AgentsCallException
+import com.octo.api.agents.AgentsClient
+import com.octo.api.agents.AgentsUnavailableException
 import com.octo.lookthrough.ExposureReport
 import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceCheck
@@ -35,6 +38,7 @@ class ComplianceController(
     private val store: ComplianceStore,
     private val runner: ComplianceRunner,
     private val tenants: TenantDirectory,
+    private val agents: AgentsClient,
 ) {
     @PostMapping("/api/v1/compliance/rules")
     fun defineRule(
@@ -70,43 +74,49 @@ class ComplianceController(
         val role =
             roleIn(userId(jwt) ?: return ResponseEntity.notFound().build(), body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
-        val inputs =
-            runCatching {
-                ComplianceInputs(
-                    subject = body.subject,
-                    asOf = body.asOf,
-                    exposure = body.exposure?.let { ExposureReport(body.subject, Currency.getInstance(it.currency), it.byAsset) },
-                    currencyExposure = body.currencyExposure?.mapKeys { Currency.getInstance(it.key) },
-                    coverage =
-                        body.coverage?.let {
-                            CoverageReport(
-                                body.asOf,
-                                body.asOf,
-                                Currency.getInstance(it.currency),
-                                it.scenario,
-                                null,
-                                null,
-                                null,
-                                null,
-                                it.ratio,
-                            )
-                        },
-                )
-            }.getOrElse { return ResponseEntity.badRequest().build() }
+        val inputs = body.inputs() ?: return ResponseEntity.badRequest().build()
         val outcomes = runner.run(body.tenantId, inputs, jwt.subject, UUID.randomUUID())
-        return ResponseEntity.ok(
-            outcomes.map {
-                OutcomeView(
-                    it.evaluation.rule.id,
-                    it.evaluation.rule.version,
-                    it.evaluation.result.wireValue,
-                    it.evaluation.measured,
-                    it.evaluation.explanation,
-                    it.taskId,
-                    it.recorded,
+        return ResponseEntity.ok(outcomes.map { it.view() })
+    }
+
+    /**
+     * `POST /api/v1/compliance/rationale` (F9) — same inputs as `/evaluations`: the deterministic
+     * engine runs (its breach task dedupe makes that safe), then the sidecar narrates the outcomes
+     * into an approver-readable rationale under the citation gate. The run lands on `agent_run`;
+     * `status` is `completed` only when jev verifies every cited figure. Same auth and sidecar
+     * error contract as the other agent triggers.
+     */
+    @PostMapping("/api/v1/compliance/rationale")
+    fun rationale(
+        @Valid @RequestBody body: EvaluationBody,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<Any> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        val inputs = body.inputs() ?: return ResponseEntity.badRequest().build()
+        val outcomes = runner.run(body.tenantId, inputs, jwt.subject, UUID.randomUUID())
+        val result =
+            try {
+                agents.run(
+                    "compliance-rationale",
+                    mapOf(
+                        "tenant_id" to body.tenantId.toString(),
+                        "subject" to body.subject,
+                        "as_of" to body.asOf.toString(),
+                        "outcomes" to outcomes.map { it.wire() },
+                        "run_key" to UUID.randomUUID().toString(),
+                    ),
                 )
-            },
-        )
+            } catch (e: AgentsUnavailableException) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
+            } catch (e: AgentsCallException) {
+                return ResponseEntity
+                    .status(
+                        if (e.statusCode == 503) HttpStatus.SERVICE_UNAVAILABLE else HttpStatus.BAD_GATEWAY,
+                    ).build()
+            }
+        return ResponseEntity.ok(result)
     }
 
     private fun roleIn(
@@ -173,7 +183,22 @@ class ComplianceController(
         val exposure: ExposureBody? = null,
         val currencyExposure: Map<String, BigDecimal>? = null,
         val coverage: CoverageBody? = null,
-    )
+    ) {
+        /** The engine's input shape; null when a field cannot parse (callers answer 400). */
+        fun inputs(): ComplianceInputs? =
+            runCatching {
+                ComplianceInputs(
+                    subject = subject,
+                    asOf = asOf,
+                    exposure = exposure?.let { ExposureReport(subject, Currency.getInstance(it.currency), it.byAsset) },
+                    currencyExposure = currencyExposure?.mapKeys { Currency.getInstance(it.key) },
+                    coverage =
+                        coverage?.let {
+                            CoverageReport(asOf, asOf, Currency.getInstance(it.currency), it.scenario, null, null, null, null, it.ratio)
+                        },
+                )
+            }.getOrNull()
+    }
 
     data class OutcomeView(
         val ruleId: String,
@@ -184,6 +209,29 @@ class ComplianceController(
         val taskId: UUID?,
         val recorded: Boolean,
     )
+
+    private fun Outcome.view() =
+        OutcomeView(
+            evaluation.rule.id,
+            evaluation.rule.version,
+            evaluation.result.wireValue,
+            evaluation.measured,
+            evaluation.explanation,
+            taskId,
+            recorded,
+        )
+
+    /** The shape the sidecar narrates — only what the engine produced, nothing more. */
+    private fun Outcome.wire() =
+        mapOf(
+            "rule_id" to evaluation.rule.id,
+            "version" to evaluation.rule.version.toString(),
+            "result" to evaluation.result.wireValue,
+            "measured" to evaluation.measured,
+            "explanation" to evaluation.explanation,
+            "task_id" to (taskId?.toString() ?: ""),
+            "recorded" to recorded.toString(),
+        )
 
     private fun ComplianceRule.view() =
         RuleView(

@@ -4,6 +4,9 @@ import com.octo.api.OctoApplication
 import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.api.agents.AgentsCallException
+import com.octo.api.agents.AgentsClient
+import com.octo.api.agents.AgentsUnavailableException
 import com.octo.recon.compliance.persistence.ComplianceStore
 import com.octo.workflow.Task
 import org.assertj.core.api.Assertions.assertThat
@@ -32,6 +35,10 @@ class ComplianceEndpointTest {
     private val tenantId = UUID.randomUUID()
     private val store = FakeComplianceStore()
     private val opened = mutableListOf<Task>()
+    private var agentsBehavior: (Map<String, Any>) -> Map<String, Any> = {
+        mapOf("status" to "completed", "rationale" to "the conc rule breached at 0.6 against 0.25")
+    }
+    private val agents = AgentsClient { _, payload -> agentsBehavior(payload) }
 
     private val contextRunner =
         WebApplicationContextRunner()
@@ -51,6 +58,7 @@ class ComplianceEndpointTest {
                 { it.isPrimary = true },
             ).withBean(ComplianceStore::class.java, Supplier { store }, { it.isPrimary = true })
             .withBean(TaskOpener::class.java, Supplier { TaskOpener { task, _ -> opened += task } }, { it.isPrimary = true })
+            .withBean(AgentsClient::class.java, Supplier { agents }, { it.isPrimary = true })
             .withPropertyValues(
                 "octo.reports.poll=false",
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
@@ -132,6 +140,60 @@ class ComplianceEndpointTest {
             mvc.perform(get("/api/v1/compliance/rules?tenantId=$tenantId")).andExpect(status().isForbidden)
             assertThat(store.rules).isEmpty()
             assertThat(opened).isEmpty()
+        }
+    }
+
+    @Test
+    fun `rationale hands engine outcomes to the sidecar, viewers and a down sidecar are denied`() {
+        run { mvc ->
+            mvc
+                .perform(post("/api/v1/compliance/rules").contentType(MediaType.APPLICATION_JSON).content(rule()).with(asUser(approver)))
+                .andExpect(status().isCreated)
+
+            var payload: Map<String, Any>? = null
+            agentsBehavior = {
+                payload = it
+                mapOf("status" to "completed", "rationale" to "the conc rule breached at 0.6 against 0.25")
+            }
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rationale")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation)
+                        .with(asUser(analyst)),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("completed"))
+                .andExpect(jsonPath("$.rationale").isNotEmpty)
+            @Suppress("UNCHECKED_CAST")
+            val outcomes = payload!!["outcomes"] as List<Map<String, Any>>
+            assertThat(outcomes.single()["result"]).isEqualTo("breach")
+            assertThat((outcomes.single()["measured"] as Map<*, *>)["fraction"]).isEqualTo("0.6")
+
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rationale")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation)
+                        .with(asUser(viewer)),
+                ).andExpect(status().isNotFound)
+
+            agentsBehavior = { throw AgentsUnavailableException(java.io.IOException("down")) }
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rationale")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation)
+                        .with(asUser(analyst)),
+                ).andExpect(status().isServiceUnavailable)
+
+            agentsBehavior = { throw AgentsCallException(500, "registry miss") }
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rationale")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation)
+                        .with(asUser(analyst)),
+                ).andExpect(status().isBadGateway)
         }
     }
 

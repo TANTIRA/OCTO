@@ -18,6 +18,7 @@ from .config import Settings, get_settings
 from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
 from .workflows.company_brain import run_company_brain
+from .workflows.compliance_rationale import run_compliance_rationale
 from .workflows.due_diligence import run_due_diligence
 from .workflows.ic_memo import run_ic_memo
 from .workflows.lp_report import run_lp_report
@@ -200,6 +201,40 @@ def company_brain(
         api=_api(settings),
         tenant_id=body.tenant_id,
         question=body.question,
+        run_key=body.run_key or str(uuid4()),
+        models=_models(registry),
+    )
+    return result.model_dump()
+
+
+class ComplianceRationaleRequest(BaseModel):
+    tenant_id: str
+    subject: str
+    as_of: str
+    outcomes: list[dict[str, Any]] = []
+    run_key: str | None = None
+
+
+@app.post("/v1/workflows/compliance-rationale")
+def compliance_rationale(
+    body: ComplianceRationaleRequest,
+    _: None = Depends(require_caller),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    if not settings.octo_agents_compliance_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="compliance-rationale workflow is feature-flagged off",
+        )
+    registry = _registry(settings)
+    result = run_compliance_rationale(
+        agent_model=drafter_model(settings, registry),
+        judge=_judge(settings, registry),
+        api=_api(settings),
+        tenant_id=body.tenant_id,
+        subject=body.subject,
+        as_of=body.as_of,
+        outcomes=body.outcomes,
         run_key=body.run_key or str(uuid4()),
         models=_models(registry),
     )
