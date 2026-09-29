@@ -11,8 +11,12 @@ import org.springframework.boot.availability.LivenessState
 import org.springframework.boot.availability.ReadinessState
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner
 import org.springframework.mock.env.MockEnvironment
+import org.springframework.mock.web.MockHttpServletRequest
+import org.springframework.mock.web.MockHttpServletResponse
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtClaimNames
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.test.web.servlet.MockMvc
@@ -106,6 +110,40 @@ class SecurityConfigTest {
             ).run { context ->
                 assertThat(context).getBeans(SecurityFilterChain::class.java).hasSize(2)
             }
+    }
+
+    @Test
+    fun `the dev bypass authenticates every request as one subject, and stays off without the flag`() {
+        contextRunner
+            .withPropertyValues("AUTH_DEV_BYPASS=true")
+            .run { context ->
+                val mvc: MockMvc =
+                    MockMvcBuilders
+                        .webAppContextSetup(context)
+                        .apply<DefaultMockMvcBuilder>(springSecurity())
+                        .build()
+                // authenticated only: without the bypass this endpoint answers 403 (see the test above)
+                mvc.perform(get("/actuator/prometheus")).andExpect(status().isOk)
+            }
+    }
+
+    @Test
+    fun `the dev filter stamps AUTH_DEV_SUBJECT, defaulting to the fixed all-zeros-plus-one UUID`() {
+        val stamp =
+            DevSubjectAuthFilter("dev-user-1").let { filter ->
+                var seen: String? = null
+                filter.doFilter(MockHttpServletRequest(), MockHttpServletResponse()) { _, _ ->
+                    seen = (SecurityContextHolder.getContext().authentication as JwtAuthenticationToken).token.subject
+                }
+                seen
+            }
+        assertThat(stamp).isEqualTo("dev-user-1")
+
+        var defaulted: String? = null
+        DevSubjectAuthFilter(null).doFilter(MockHttpServletRequest(), MockHttpServletResponse()) { _, _ ->
+            defaulted = (SecurityContextHolder.getContext().authentication as JwtAuthenticationToken).token.subject
+        }
+        assertThat(defaulted).isEqualTo("00000000-0000-0000-0000-000000000001")
     }
 
     private fun token(aud: Any) =
