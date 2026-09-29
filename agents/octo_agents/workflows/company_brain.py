@@ -24,6 +24,7 @@ from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
 from ..tools import read_tools
 from .screening_dd import _record_run, extract_final_text
+from .warm_context import warm_prompt
 
 BRAIN_PROMPT = """You are the OCTO company brain. Answer the analyst's question from the
 platform's records using the tools — prospect states and event histories,
@@ -184,7 +185,7 @@ def run_company_brain(
         agent = create_deep_agent(
             model=agent_model,
             tools=[*read_tools(api), _pipeline_tool(api, tenant_id)],
-            system_prompt=BRAIN_PROMPT,
+            system_prompt=warm_prompt(api, tenant_id, BRAIN_PROMPT),
         )
         invoked = agent.invoke({"messages": [("user", question)]})
         answer = extract_final_text(invoked)

@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from ..api_client import OctoApiClient
 from ..judge import JudgeClient, NoulQuestion
 from .screening_dd import _record_run
+from .warm_context import warm_prompt
 
 RATIONALE_PROMPT = """You are the OCTO compliance analyst. Turn the supplied rule
 evaluations into a rationale an approver can act on. For each outcome state
@@ -123,7 +124,7 @@ def run_compliance_rationale(
         # evidence base — a citation has nowhere else to come from.
         message = agent_model.invoke(
             [
-                SystemMessage(content=RATIONALE_PROMPT),
+                SystemMessage(content=warm_prompt(api, tenant_id, RATIONALE_PROMPT)),
                 HumanMessage(
                     content=(
                         f"Narrate the compliance outcomes for {subject} as of {as_of}:\n"

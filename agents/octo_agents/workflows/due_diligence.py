@@ -23,6 +23,7 @@ from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, ScoreQuestion
 from ..tools import read_tools
 from .screening_dd import _record_run, extract_final_text, preflight_gate, score_events
+from .warm_context import warm_prompt
 
 WORKSTREAMS = ("market", "financial", "legal", "operational")
 
@@ -186,11 +187,12 @@ def run_due_diligence(
             judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
         )
 
+        context = warm_prompt(api, tenant_id, "")
         subagents = [
             {
                 "name": f"dd-{ws}",
                 "description": f"{ws} due-diligence analyst — read-only",
-                "system_prompt": _WORKSTREAM_PROMPTS[ws],
+                "system_prompt": _WORKSTREAM_PROMPTS[ws] + context,
                 "tools": read_tools(api),
             }
             for ws in WORKSTREAMS
@@ -198,7 +200,7 @@ def run_due_diligence(
         agent = create_deep_agent(
             model=agent_model,
             tools=read_tools(api),
-            system_prompt=ORCHESTRATOR_PROMPT,
+            system_prompt=ORCHESTRATOR_PROMPT + context,
             subagents=subagents,
         )
         evidence = "\n".join(f"- {str(e)[:400]}" for e in admitted) or "- (no events on record)"

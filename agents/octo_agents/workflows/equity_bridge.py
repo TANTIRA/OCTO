@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
 from .screening_dd import _record_run
+from .warm_context import warm_prompt
 
 BRIDGE_PROMPT = """You are the OCTO investment analyst. Narrate the equity-value bridge
 between the entry and exit points of the company whose computed effects follow.
@@ -169,7 +170,7 @@ def run_equity_bridge(
         }
         message = agent_model.invoke(
             [
-                SystemMessage(content=BRIDGE_PROMPT),
+                SystemMessage(content=warm_prompt(api, tenant_id, BRIDGE_PROMPT)),
                 HumanMessage(
                     content=(
                         f"Narrate the equity bridge for {company}:\n"

@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
 from .screening_dd import _record_run
+from .warm_context import warm_prompt
 
 LP_PROMPT = """You are the OCTO investor-relations writer. Draft the quarterly LP letter
 for the fund whose facts follow. Every number, date and commitment you cite
@@ -149,7 +150,7 @@ def run_lp_report(
         # evidence base, so a boundary breach is impossible by construction.
         message = agent_model.invoke(
             [
-                SystemMessage(content=LP_PROMPT),
+                SystemMessage(content=warm_prompt(api, tenant_id, LP_PROMPT)),
                 HumanMessage(
                     content=(
                         "Draft the LP letter from these facts only:\n"

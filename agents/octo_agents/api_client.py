@@ -63,6 +63,24 @@ class OctoApiClient:
         query = "&".join(f"{k}={v}" for k, v in params.items())
         return self._get(f"/api/v1/data/{dataset_id}?{query}" if query else f"/api/v1/data/{dataset_id}")
 
+    def get_agent_context(self, tenant_id: str) -> Any:
+        return self._get(f"/api/v1/agent-context?tenantId={tenant_id}")
+
+    def list_agent_runs(
+        self,
+        tenant_id: str,
+        *,
+        limit: int = 200,
+        subject_type: str | None = None,
+        subject_id: str | None = None,
+    ) -> Any:
+        query = f"tenantId={tenant_id}&limit={limit}"
+        if subject_type:
+            query += f"&subjectType={subject_type}"
+        if subject_id:
+            query += f"&subjectId={subject_id}"
+        return self._get(f"/api/v1/agent-runs?{query}")
+
     # Mediated writes — these open platform workflows, they never write the
     # ledger and their output still passes the human approval gates.
     def request_screening(self, prospect_id: str) -> Any:

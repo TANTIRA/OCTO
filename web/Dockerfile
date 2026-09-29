@@ -19,8 +19,12 @@ COPY . .
 # is publishable by design (security lives server-side), so baking it in is safe.
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+# Optional wallet-adapter RPC endpoint — SIWS signs locally and never calls
+# it, so leaving it unset is fine (wallet-sign-in falls back to devnet).
+ARG NEXT_PUBLIC_SOLANA_RPC_URL=
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
+    NEXT_PUBLIC_SOLANA_RPC_URL=$NEXT_PUBLIC_SOLANA_RPC_URL
 # rewrites() results are serialized into the standalone build at `next build`
 # time — API_INTERNAL_URL must be a build arg, a runtime env never reaches it.
 ARG API_INTERNAL_URL=http://api:8080

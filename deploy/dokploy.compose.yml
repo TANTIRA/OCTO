@@ -140,6 +140,7 @@ services:
         # Baked into the client bundle by next build; publishable anon key.
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SOLANA_RPC_URL: ${NEXT_PUBLIC_SOLANA_RPC_URL:-}
         # Also baked at build: rewrites() reads it when next.config evaluates.
         API_INTERNAL_URL: http://api:8080
     image: ${WEB_IMAGE:-octo-web}:${WEB_IMAGE_TAG:-latest}

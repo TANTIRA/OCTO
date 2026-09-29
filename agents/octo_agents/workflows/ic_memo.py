@@ -22,6 +22,7 @@ from ..api_client import OctoApiClient, OctoApiError
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import read_tools
 from .screening_dd import _record_run, extract_final_text, preflight_gate, score_events
+from .warm_context import warm_prompt
 
 IC_MEMO_PROMPT = """You are the OCTO investment-committee analyst. Draft an IC memo for the
 prospect named in the task using only facts pulled through the tools — never
@@ -170,7 +171,7 @@ def run_ic_memo(
         agent = create_deep_agent(
             model=agent_model,
             tools=read_tools(api),
-            system_prompt=IC_MEMO_PROMPT,
+            system_prompt=warm_prompt(api, tenant_id, IC_MEMO_PROMPT),
         )
         evidence = "\n".join(f"- {str(e)[:400]}" for e in admitted) or "- (no events on record)"
         result = agent.invoke(

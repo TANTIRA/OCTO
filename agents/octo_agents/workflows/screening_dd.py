@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import read_tools
+from .warm_context import warm_prompt
 
 SCREENING_PROMPT = """You are the OCTO investment screening analyst. Draft a screening memo
 for the prospect named in the task using only facts you pulled through the
@@ -350,7 +351,7 @@ def run_screening_dd(
         agent = create_deep_agent(
             model=agent_model,
             tools=read_tools(api),
-            system_prompt=SCREENING_PROMPT,
+            system_prompt=warm_prompt(api, tenant_id, SCREENING_PROMPT),
         )
         evidence = "\n".join(f"- {_digest(e)}" for e in admitted) or "- (no events on record)"
         result = agent.invoke(
