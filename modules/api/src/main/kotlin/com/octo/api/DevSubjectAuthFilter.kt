@@ -18,7 +18,7 @@ import java.time.temporal.ChronoUnit
  * keeps its fail-closed posture.
  *
  * The subject is `AUTH_DEV_SUBJECT`, defaulting to the all-zeros-plus-one UUID below.
- * Tenant access still derives from `mesta.tenant_member_event`, so a bypassed caller
+ * Tenant access still derives from `octo.tenant_member_event`, so a bypassed caller
  * with no membership rows sees the same "no tenants" result an unknown JWT would.
  */
 class DevSubjectAuthFilter(
