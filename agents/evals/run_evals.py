@@ -46,6 +46,13 @@ WORKFLOWS = {
             "outside? An honest 'not covered' counts as grounded."
         ),
     },
+    "operating_review": {
+        "question": "grounded",
+        "instructions": (
+            "Is every figure and period cited in the review present in the "
+            "supplied metrics — nothing invented or imported from outside?"
+        ),
+    },
 }
 
 

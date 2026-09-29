@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     octo_agents_calibration_enabled: bool = False
     # DDQ/RFP response drafting (F10) — sealed narrator over supplied firm facts.
     octo_agents_ddq_enabled: bool = False
+    # Operating-partner review (F13) — sealed narrator over a company's metrics.
+    octo_agents_operating_review_enabled: bool = False
 
     request_timeout_s: float = 60.0
 
