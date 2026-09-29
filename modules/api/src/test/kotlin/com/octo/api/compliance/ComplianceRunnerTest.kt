@@ -7,9 +7,11 @@ import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceInputs
 import com.octo.recon.compliance.Result
 import com.octo.recon.compliance.persistence.ComplianceProvenance
+import com.octo.recon.compliance.persistence.EVALUATION_RULE_LIMIT
 import com.octo.workflow.Task
 import com.octo.workflow.TaskKind
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -121,6 +123,25 @@ class ComplianceRunnerTest {
         assertThat(outcome.evaluation.result).isEqualTo(Result.BREACH)
         assertThat(outcome.taskId).isEqualTo(WINNER)
         assertThat(outcome.recorded).isFalse()
+    }
+
+    @Test
+    fun `a tenant with more active rules than a run covers is refused before anything is recorded`() {
+        repeat(EVALUATION_RULE_LIMIT + 1) {
+            store.defineRule(
+                tenantId,
+                "rule-$it",
+                "Rule $it",
+                ComplianceCheck.ConcentrationLimit(BigDecimal("0.5")),
+                null,
+                provenance,
+                TenantScope.All,
+            )
+        }
+        assertThatThrownBy { runner.run(tenantId, inputs("1.5"), "runner", UUID.randomUUID()) }
+            .isInstanceOf(IllegalStateException::class.java)
+        assertThat(store.recorded).isEmpty()
+        assertThat(opened).isEmpty()
     }
 
     private companion object {

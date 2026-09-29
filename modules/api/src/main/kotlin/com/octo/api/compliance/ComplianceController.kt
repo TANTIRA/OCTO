@@ -30,6 +30,8 @@ import java.time.LocalDate
 import java.util.Currency
 import java.util.UUID
 
+private const val SUBJECT_LIMIT = 300
+
 /**
  * Post-trade compliance (#6 slice 8). Rules are governance, so defining one needs an `approver` or `admin`;
  * running an evaluation needs a working role; listing needs any role. Outside the tenant everything is 404.
@@ -116,7 +118,13 @@ class ComplianceController(
             roleIn(userId(jwt) ?: return ResponseEntity.notFound().build(), body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val inputs = body.inputs() ?: return ResponseEntity.badRequest().build()
-        val outcomes = runner.run(body.tenantId, inputs, jwt.subject, UUID.randomUUID())
+        val outcomes =
+            try {
+                runner.run(body.tenantId, inputs, jwt.subject, UUID.randomUUID())
+            } catch (e: IllegalStateException) {
+                // More active rules than a run can cover is the tenant's state, not the request's shape.
+                return ResponseEntity.status(HttpStatus.CONFLICT).build()
+            }
         return ResponseEntity.ok(outcomes.map { it.view() })
     }
 
@@ -136,7 +144,12 @@ class ComplianceController(
         val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val inputs = body.inputs() ?: return ResponseEntity.badRequest().build()
-        val outcomes = runner.run(body.tenantId, inputs, jwt.subject, UUID.randomUUID())
+        val outcomes =
+            try {
+                runner.run(body.tenantId, inputs, jwt.subject, UUID.randomUUID())
+            } catch (e: IllegalStateException) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build()
+            }
         val result =
             try {
                 agents.run(
@@ -234,9 +247,10 @@ class ComplianceController(
         val currencyExposure: Map<String, BigDecimal>? = null,
         val coverage: CoverageBody? = null,
     ) {
-        /** The engine's input shape; null when a field cannot parse (callers answer 400). */
+        /** The engine's input shape; null when a field cannot parse or the subject is oversized (callers answer 400). */
         fun inputs(): ComplianceInputs? =
             runCatching {
+                require(subject.length <= SUBJECT_LIMIT) { "subject is capped at $SUBJECT_LIMIT characters" }
                 ComplianceInputs(
                     subject = subject,
                     asOf = asOf,

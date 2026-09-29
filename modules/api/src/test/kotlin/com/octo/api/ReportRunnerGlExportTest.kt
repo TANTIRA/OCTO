@@ -65,6 +65,11 @@ class ReportRunnerGlExportTest {
             scope: TenantScope,
         ) = throw NotImplementedError()
 
+        override fun pendingCount(
+            tenantId: UUID,
+            scope: TenantScope,
+        ) = throw NotImplementedError()
+
         override fun claimNext() = throw NotImplementedError()
 
         override fun attachApproval(

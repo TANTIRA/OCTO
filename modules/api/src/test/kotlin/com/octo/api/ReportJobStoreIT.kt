@@ -106,6 +106,24 @@ class ReportJobStoreIT {
     }
 
     @Test
+    fun `pendingCount counts only the tenant's unfinished jobs`() {
+        val tenantId = tenant()
+        val scope = TenantScope.Tenants(listOf(tenantId))
+        assertThat(store.pendingCount(tenantId, scope)).isZero()
+
+        val job = store.submit(request(tenantId), TenantScope.All)
+        store.submit(request(tenant()), TenantScope.All) // another tenant does not count
+        assertThat(store.pendingCount(tenantId, scope)).isEqualTo(1)
+        assertThat(store.pendingCount(tenantId, TenantScope.Tenants(listOf(UUID.randomUUID())))).isZero()
+
+        // claimed counts as pending until it finishes
+        val claimed = generateSequence { store.claimNext() }.first { it.id == job.id }
+        assertThat(store.pendingCount(tenantId, scope)).isEqualTo(1)
+        store.complete(claimed.id, claimed.claimToken!!, "{}")
+        assertThat(store.pendingCount(tenantId, scope)).isZero()
+    }
+
+    @Test
     fun `a scope that does not admit the job's tenant hides it and refuses the write`() {
         val tenantId = tenant()
         val elsewhere = TenantScope.Tenants(listOf(UUID.randomUUID()))

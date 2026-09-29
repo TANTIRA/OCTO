@@ -62,6 +62,25 @@ class JdbcReportJobStore(
             }
         }
 
+    override fun pendingCount(
+        tenantId: UUID,
+        scope: TenantScope,
+    ): Int {
+        if (!scope.admits(tenantId)) return 0
+        return dataSource.scoped(scope) { connection ->
+            connection
+                .prepareStatement(
+                    "select count(*) from octo.report_job where tenant_id = ? and status in ('new', 'executing')",
+                ).use { statement ->
+                    statement.setObject(1, tenantId)
+                    statement.executeQuery().use { rows ->
+                        rows.next()
+                        rows.getInt(1)
+                    }
+                }
+        }
+    }
+
     override fun claimNext(): ReportJob? {
         // skip locked: a job another runner holds in its claim transaction is passed over, never double-claimed.
         val sql =

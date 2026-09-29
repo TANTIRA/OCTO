@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.persistence.TenantScope
+import com.octo.workflow.report.PENDING_REPORT_LIMIT
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
 import com.octo.workflow.report.ReportRequest
@@ -43,6 +44,11 @@ class ReportController(
         val access = tenants.tenantsOf(userId).firstOrNull { it.tenantId == body.tenantId }
         if (access == null || access.role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val type = ReportType.entries.firstOrNull { it.wireValue == body.type } ?: return ResponseEntity.badRequest().build()
+        val scope = TenantScope.User(userId)
+        if (jobs.pendingCount(body.tenantId, scope) >= PENDING_REPORT_LIMIT) {
+            // A full queue drains as the runner works through it; the caller retries later.
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build()
+        }
         val job =
             jobs.submit(
                 ReportRequest(
@@ -55,7 +61,7 @@ class ReportController(
                     requestedBy = jwt.subject,
                     correlationId = UUID.randomUUID(),
                 ),
-                TenantScope.User(userId),
+                scope,
             )
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(job.view())
     }

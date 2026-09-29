@@ -38,6 +38,9 @@ enum class JobStatus(
     }
 }
 
+/** A tenant's queue may hold at most this many `new`/`executing` jobs — beyond it `POST /api/v1/reports` answers 429. */
+const val PENDING_REPORT_LIMIT = 100
+
 /** What a caller submits (Marquee: type, positionSourceType, measures). [parameters] is jsonb object text the engine adapter reads. */
 data class ReportRequest(
     val tenantId: UUID,
@@ -82,6 +85,12 @@ interface ReportJobs {
         id: UUID,
         scope: TenantScope,
     ): ReportJob?
+
+    /** How many of the tenant's jobs sit in `new` or `executing` — the queue depth [PENDING_REPORT_LIMIT] bounds. */
+    fun pendingCount(
+        tenantId: UUID,
+        scope: TenantScope,
+    ): Int
 
     /** Moves the oldest `new` job to `executing` and returns it, or null when the queue is empty. Two runners never claim the same job. */
     fun claimNext(): ReportJob?
