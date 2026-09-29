@@ -20,6 +20,7 @@ from .registry import ApprovedModelRegistry
 from .workflows.company_brain import run_company_brain
 from .workflows.compliance_rationale import run_compliance_rationale
 from .workflows.due_diligence import run_due_diligence
+from .workflows.equity_bridge import run_equity_bridge
 from .workflows.ic_memo import run_ic_memo
 from .workflows.lp_report import run_lp_report
 from .workflows.screening_dd import run_screening_dd
@@ -235,6 +236,50 @@ def compliance_rationale(
         subject=body.subject,
         as_of=body.as_of,
         outcomes=body.outcomes,
+        run_key=body.run_key or str(uuid4()),
+        models=_models(registry),
+    )
+    return result.model_dump()
+
+
+class EquityBridgeRequest(BaseModel):
+    tenant_id: str
+    company: str
+    entry: dict[str, Any] = {}
+    exit: dict[str, Any] = {}
+    effects: dict[str, Any] = {}
+    change: str
+    method: str
+    local_currency: str
+    reporting_currency: str
+    run_key: str | None = None
+
+
+@app.post("/v1/workflows/equity-bridge")
+def equity_bridge(
+    body: EquityBridgeRequest,
+    _: None = Depends(require_caller),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    if not settings.octo_agents_equity_bridge_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="equity-bridge workflow is feature-flagged off",
+        )
+    registry = _registry(settings)
+    result = run_equity_bridge(
+        agent_model=drafter_model(settings, registry),
+        judge=_judge(settings, registry),
+        api=_api(settings),
+        tenant_id=body.tenant_id,
+        company=body.company,
+        entry=body.entry,
+        exit=body.exit,
+        effects=body.effects,
+        change=body.change,
+        method=body.method,
+        local_currency=body.local_currency,
+        reporting_currency=body.reporting_currency,
         run_key=body.run_key or str(uuid4()),
         models=_models(registry),
     )

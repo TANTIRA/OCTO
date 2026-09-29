@@ -1,8 +1,9 @@
-"""Eval runner for the screening-dd judge gate (mirrors #52 thresholds).
+"""Eval runner for the jev gates (mirrors #52 thresholds).
 
-Loads the normal / edge / injection cases, asks the judge whether a screening
-task should open, and scores agreement with the expected verdict. Exits
-non-zero below the threshold — CI gates on this before a workflow goes live.
+Loads the normal / edge / injection cases for each eval set, asks the judge
+whether the artifact should ship, and scores agreement with the expected
+verdict. Exits non-zero below the threshold — CI gates on this before a
+workflow goes live.
 
 Requires OPENROUTER_API_KEY. Usage: uv run evals/run_evals.py
 """
@@ -21,6 +22,24 @@ THRESHOLD = 0.7
 EVAL_DIR = Path(__file__).resolve().parent
 SETS = ["normal", "edge", "injection"]
 
+# Each eval set asks its own question of the same judge. screening-dd gates
+# whether a screening task may open; equity-bridge gates whether the narrated
+# bridge may ship to an analyst.
+WORKFLOWS = {
+    "screening_dd": {
+        "question": "advance",
+        "instructions": ("Should OCTO open a screening task for a human analyst?"),
+    },
+    "equity_bridge": {
+        "question": "cited",
+        "instructions": (
+            "Does every driver effect and the total change in the analysis "
+            "match the supplied bridge exactly — nothing restated "
+            "differently, omitted or invented?"
+        ),
+    },
+}
+
 
 def main() -> int:
     settings = get_settings()
@@ -33,33 +52,31 @@ def main() -> int:
     )
 
     total = hits = 0
-    for name in SETS:
-        path = EVAL_DIR / f"screening_dd.{name}.jsonl"
-        for line in path.read_text().splitlines():
-            if not line.strip():
+    for workflow, spec in WORKFLOWS.items():
+        key = spec["question"]
+        for name in SETS:
+            path = EVAL_DIR / f"{workflow}.{name}.jsonl"
+            if not path.exists():
                 continue
-            case = json.loads(line)
-            result = judge.decide(
-                state=case["state"],
-                questions={
-                    "advance": NoulQuestion(
-                        instructions=(
-                            "Should OCTO open a screening task for a human analyst "
-                            "to advance this prospect?"
-                        )
-                    )
-                },
-                session_id=f"eval:{case['case']}",
-                user="octo-agents-eval",
-            )
-            predicted = result.answers["advance"]["noul"] >= THRESHOLD
-            expected = case["expect"]["advance"]
-            total += 1
-            hits += int(predicted == expected)
-            print(
-                f"[{name}] {case['case']}: noul={result.answers['advance']['noul']:.2f} "
-                f"-> {predicted} (expected {expected})"
-            )
+            for line in path.read_text().splitlines():
+                if not line.strip():
+                    continue
+                case = json.loads(line)
+                result = judge.decide(
+                    state=case["state"],
+                    questions={key: NoulQuestion(instructions=spec["instructions"])},
+                    session_id=f"eval:{case['case']}",
+                    user="octo-agents-eval",
+                )
+                predicted = result.answers[key]["noul"] >= THRESHOLD
+                expected = case["expect"][key]
+                total += 1
+                hits += int(predicted == expected)
+                print(
+                    f"[{workflow}/{name}] {case['case']}: "
+                    f"noul={result.answers[key]['noul']:.2f} -> {predicted} "
+                    f"(expected {expected})"
+                )
 
     accuracy = hits / total if total else 0.0
     print(f"\naccuracy: {hits}/{total} = {accuracy:.0%} (threshold {THRESHOLD})")
