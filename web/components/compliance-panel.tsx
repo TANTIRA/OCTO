@@ -56,6 +56,20 @@ export default function CompliancePanel() {
   const [narrating, setNarrating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [asOf, setAsOf] = useState(() => new Date().toISOString().slice(0, 10));
+  // The evaluation subject and currency-exposure are operator inputs, not
+  // hardcoded — a live evaluation and its audit trail must carry real values
+  // (backlog #35). Exposure rows are "CCY = fraction of the portfolio".
+  const [subject, setSubject] = useState("");
+  const [exposure, setExposure] = useState<{ currency: string; fraction: string }[]>([
+    { currency: "USD", fraction: "1" },
+  ]);
+
+  const currencyExposure = (): Record<string, number> =>
+    Object.fromEntries(
+      exposure
+        .filter((r) => r.currency.trim() && r.fraction.trim())
+        .map((r) => [r.currency.toUpperCase(), Number(r.fraction)]),
+    );
 
   const loadRules = useCallback(async () => {
     if (!tenantId) return;
@@ -73,16 +87,16 @@ export default function CompliancePanel() {
   }, [tenantId]);
 
   const evaluate = async () => {
-    if (!tenantId || running) return;
+    if (!tenantId || running || !subject.trim()) return;
     setRunning(true);
     setError(null);
     setRationale(null);
     try {
       const list = await postJson<Outcome[]>("/api/v1/compliance/evaluations", {
         tenantId,
-        subject: "portfolio",
+        subject: subject.trim(),
         asOf,
-        currencyExposure: { USD: 1 },
+        currencyExposure: currencyExposure(),
       });
       setOutcomes(list);
     } catch (e) {
@@ -93,15 +107,15 @@ export default function CompliancePanel() {
   };
 
   const narrate = async () => {
-    if (!tenantId || narrating) return;
+    if (!tenantId || narrating || !subject.trim()) return;
     setNarrating(true);
     setError(null);
     try {
       const res = await postJson<RationaleResult>("/api/v1/compliance/rationale", {
         tenantId,
-        subject: "portfolio",
+        subject: subject.trim(),
         asOf,
-        currencyExposure: { USD: 1 },
+        currencyExposure: currencyExposure(),
       });
       setRationale(res);
     } catch (e) {
@@ -138,6 +152,13 @@ export default function CompliancePanel() {
       </header>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2 px-6 pb-3 sm:px-8">
+        <input
+          aria-label="Subject"
+          value={subject}
+          placeholder="Subject (e.g. fund-II)"
+          onChange={(e) => setSubject(e.target.value)}
+          className="h-8 w-44 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+        />
         <label htmlFor="asof" className="text-[13px] text-neutral-600 dark:text-neutral-400">
           As of
         </label>
@@ -148,9 +169,49 @@ export default function CompliancePanel() {
           onChange={(e) => setAsOf(e.target.value)}
           className="h-8 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
         />
+        {exposure.map((r, i) => (
+          <span key={i} className="inline-flex items-center gap-1">
+            <input
+              aria-label={`Exposure ${i + 1} currency`}
+              value={r.currency}
+              placeholder="CCY"
+              onChange={(e) =>
+                setExposure((p) => p.map((x, idx) => (idx === i ? { ...x, currency: e.target.value.toUpperCase() } : x)))
+              }
+              className="h-8 w-16 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+            />
+            <input
+              aria-label={`Exposure ${i + 1} fraction`}
+              type="number"
+              step="0.01"
+              value={r.fraction}
+              onChange={(e) =>
+                setExposure((p) => p.map((x, idx) => (idx === i ? { ...x, fraction: e.target.value } : x)))
+              }
+              className="h-8 w-20 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+            />
+            {exposure.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setExposure((p) => p.filter((_, idx) => idx !== i))}
+                aria-label={`Remove exposure ${i + 1}`}
+                className="text-[13px] text-neutral-400 hover:text-red-500"
+              >
+                ×
+              </button>
+            )}
+          </span>
+        ))}
         <button
           type="button"
-          disabled={running || !tenantId}
+          onClick={() => setExposure((p) => [...p, { currency: "", fraction: "" }])}
+          className="inline-flex h-8 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-neutral-100 px-2.5 text-[12px] font-medium text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+        >
+          + ccy
+        </button>
+        <button
+          type="button"
+          disabled={running || !tenantId || !subject.trim()}
           onClick={evaluate}
           className="inline-flex h-8 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-3 text-[13px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] disabled:opacity-50 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))]"
         >
