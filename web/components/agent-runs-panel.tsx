@@ -34,9 +34,11 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 export default function AgentRunsPanel() {
-  const { tenants, tenantId, setTenantId, error: tenantError } = useTenants();
+  const { tenants, tenantId, setTenantId, loading: tenantsLoading, error: tenantError } =
+    useTenants();
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -45,6 +47,7 @@ export default function AgentRunsPanel() {
     setError(null);
     try {
       setRuns(await getJson<Run[]>(`/api/v1/agent-runs?tenantId=${tenantId}&limit=50`));
+      setLoaded(true);
     } catch (e) {
       setError(messageFor(e));
     } finally {
@@ -122,9 +125,14 @@ export default function AgentRunsPanel() {
                 </span>
               </li>
             ))}
-            {runs.length === 0 && !loading && (
+            {runs.length === 0 && loaded && !loading && (
               <li className="px-4 py-10 text-center text-[13px] text-neutral-400 dark:text-neutral-600">
                 No agent runs yet — workflows appear here when triggered.
+              </li>
+            )}
+            {runs.length === 0 && (!loaded || tenantsLoading) && (
+              <li className="px-4 py-10 text-center text-[13px] text-neutral-400 dark:text-neutral-600">
+                Loading…
               </li>
             )}
           </ul>

@@ -40,6 +40,11 @@ const NEXT: Record<string, string> = {
   "due-diligence": "ic-review",
 };
 
+// ic-review is terminal for the forward path: advancing to `invested` needs an
+// approved IC approval task id, which lives in the approvals flow, not here.
+// The reachable terminal move from any non-terminal stage is `passed` — it
+// only needs a rationale, so the pipeline is no longer a dead end (#36).
+
 const STAGE_TONE: Record<string, string> = {
   sourced: "bg-neutral-300 dark:bg-neutral-600",
   screening: "bg-amber-500",
@@ -48,9 +53,11 @@ const STAGE_TONE: Record<string, string> = {
 };
 
 export default function PipelineBoard() {
-  const { tenants, tenantId, setTenantId, error: tenantError } = useTenants();
+  const { tenants, tenantId, setTenantId, loading: tenantsLoading, error: tenantError } =
+    useTenants();
   const [cols, setCols] = useState<Record<string, Prospect[]>>({});
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
@@ -71,6 +78,7 @@ export default function PipelineBoard() {
         }),
       );
       setCols(Object.fromEntries(results));
+      setLoaded(true);
     } catch (e) {
       setError(messageFor(e));
     } finally {
@@ -89,6 +97,23 @@ export default function PipelineBoard() {
     setNotice(null);
     try {
       await postJson(`/api/v1/prospects/${p.id}/transition`, { to });
+      await load();
+    } catch (e) {
+      setError(messageFor(e));
+    } finally {
+      setMoving(null);
+    }
+  };
+
+  const pass = async (p: Prospect) => {
+    if (moving) return;
+    const rationale = window.prompt(`Why is ${p.name} being passed?`)?.trim();
+    if (!rationale) return;
+    setMoving(p.id);
+    setNotice(null);
+    try {
+      await postJson(`/api/v1/prospects/${p.id}/transition`, { to: "passed", rationale });
+      setNotice(`${p.name} passed.`);
       await load();
     } catch (e) {
       setError(messageFor(e));
@@ -230,25 +255,40 @@ export default function PipelineBoard() {
                     <p className="mt-1 truncate text-[11px] text-neutral-500">
                       {[p.sector, p.region, p.source].filter(Boolean).join(" · ") || "—"}
                     </p>
-                    {NEXT[p.stage] && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {NEXT[p.stage] && (
+                        <button
+                          type="button"
+                          disabled={moving !== null}
+                          onClick={() => advance(p)}
+                          className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-neutral-100 px-2 text-[11px] font-medium text-neutral-700 hover:bg-neutral-200 disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                        >
+                          {moving === p.id ? (
+                            <Loader2 aria-hidden className="h-3 w-3 animate-spin motion-reduce:animate-none" />
+                          ) : (
+                            `Advance to ${STAGES.find((s) => s.id === NEXT[p.stage])?.name}`
+                          )}
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={moving !== null}
-                        onClick={() => advance(p)}
-                        className="mt-1.5 inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-neutral-100 px-2 text-[11px] font-medium text-neutral-700 hover:bg-neutral-200 disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                        onClick={() => pass(p)}
+                        className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] px-2 text-[11px] font-medium text-neutral-500 hover:bg-neutral-100 hover:text-red-600 disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-red-400"
                       >
-                        {moving === p.id ? (
-                          <Loader2 aria-hidden className="h-3 w-3 animate-spin motion-reduce:animate-none" />
-                        ) : (
-                          `Advance to ${STAGES.find((s) => s.id === NEXT[p.stage])?.name}`
-                        )}
+                        Pass
                       </button>
-                    )}
+                    </div>
                   </li>
                 ))}
-                {!loading && rows.length === 0 && (
+                {loaded && !loading && rows.length === 0 && (
                   <p className="px-2 py-6 text-center text-[12px] text-neutral-400 dark:text-neutral-600">
                     Nothing here yet
+                  </p>
+                )}
+                {(!loaded || tenantsLoading) && rows.length === 0 && (
+                  <p className="px-2 py-6 text-center text-[12px] text-neutral-400 dark:text-neutral-600">
+                    Loading…
                   </p>
                 )}
               </ul>
