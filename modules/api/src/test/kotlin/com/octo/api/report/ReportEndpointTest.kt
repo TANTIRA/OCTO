@@ -91,7 +91,7 @@ class ReportEndpointTest {
                     .request.requestedBy,
             ).isEqualTo(analyst.toString())
 
-            jobs.complete(jobs.claimNext()!!.id, """{"tvpi": 1.3}""")
+            jobs.claimNext()!!.let { jobs.complete(it.id, it.claimToken!!, """{"tvpi": 1.3}""") }
             mvc
                 .perform(get("/api/v1/reports/$id").with(jwt().jwt { it.subject(viewer.toString()) }))
                 .andExpect(status().isOk)

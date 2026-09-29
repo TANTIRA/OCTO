@@ -56,10 +56,10 @@ class ReportJobMigrationIT {
         val id = job()
         // new -> done skips executing
         assertThatThrownBy { set(id, "status = 'done', result = '{}'") }.isInstanceOf(SQLException::class.java)
-        set(id, "status = 'executing'")
+        claim(id)
         assertThatThrownBy { set(id, "status = 'done'") }.isInstanceOf(SQLException::class.java) // done needs a result
         assertThatThrownBy { set(id, "measures = '{tvpi}'") }.isInstanceOf(SQLException::class.java) // request is immutable
-        set(id, "status = 'done', result = '{\"tvpi\": 1.5}', artifact_sha256 = repeat('a', 64)")
+        set(id, "status = 'done', result = '{\"tvpi\": 1.5}', artifact_sha256 = repeat('a', 64), claim_token = null, claimed_until = null")
         assertThatThrownBy { set(id, "status = 'executing'") }.isInstanceOf(SQLException::class.java) // terminal
         assertThatThrownBy { set(id, "result = '{}'") }.isInstanceOf(SQLException::class.java) // done rows are frozen
         assertThatThrownBy { execute("delete from octo.report_job where id = '$id'") }.isInstanceOf(SQLException::class.java)
@@ -68,18 +68,18 @@ class ReportJobMigrationIT {
     @Test
     fun `an error needs a message, an artifact needs done, and an approval task comes once after done`() {
         val id = job()
-        set(id, "status = 'executing'")
+        claim(id)
         assertThatThrownBy { set(id, "status = 'error', error = ' '") }.isInstanceOf(SQLException::class.java)
         assertThatThrownBy { set(id, "artifact_sha256 = repeat('a', 64)") }.isInstanceOf(SQLException::class.java)
         val task = task()
         assertThatThrownBy { set(id, "approval_task_id = '$task'") }.isInstanceOf(SQLException::class.java) // not done yet
-        set(id, "status = 'error', error = 'engine refused the series'")
+        set(id, "status = 'error', error = 'engine refused the series', claim_token = null, claimed_until = null")
         assertThatThrownBy { job(type = "risk") }.isInstanceOf(SQLException::class.java)
         assertThatThrownBy { job(measures = "{tvpi,\"\"}") }.isInstanceOf(SQLException::class.java)
 
         val done = job()
-        set(done, "status = 'executing'")
-        set(done, "status = 'done', result = '{}'")
+        claim(done)
+        set(done, "status = 'done', result = '{}', claim_token = null, claimed_until = null")
         set(done, "approval_task_id = '$task'")
         assertThatThrownBy { set(done, "approval_task_id = '${task()}'") }.isInstanceOf(SQLException::class.java) // only one
     }
@@ -112,6 +112,9 @@ class ReportJobMigrationIT {
             values ('approval', 'report-job', 'r', 'analyst-1', 'test', gen_random_uuid()) returning id
             """.trimIndent(),
         )
+
+    private fun claim(id: UUID) =
+        set(id, "status = 'executing', claim_token = gen_random_uuid(), claimed_until = clock_timestamp() + interval '5 minutes'")
 
     private fun set(
         id: UUID,

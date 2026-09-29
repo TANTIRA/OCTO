@@ -41,16 +41,23 @@ class ReportConfiguration {
 
             override fun claimNext() = store.claimNext()
 
+            override fun renew(
+                id: UUID,
+                claimToken: UUID,
+            ) = store.renew(id, claimToken)
+
             override fun complete(
                 id: UUID,
+                claimToken: UUID,
                 result: String,
                 artifactSha256: String?,
-            ) = store.complete(id, result, artifactSha256)
+            ) = store.complete(id, claimToken, result, artifactSha256)
 
             override fun fail(
                 id: UUID,
+                claimToken: UUID,
                 error: String,
-            ): ReportJob = store.fail(id, error)
+            ): ReportJob = store.fail(id, claimToken, error)
 
             override fun attachApproval(
                 id: UUID,
