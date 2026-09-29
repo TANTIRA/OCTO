@@ -43,6 +43,7 @@ service's only client and its only tool surface.
 | `OCTO_AGENTS_IC_MEMO_ENABLED` | F5 IC memo drafting (default off) |
 | `OCTO_AGENTS_LP_REPORT_ENABLED` | F8 LP report drafting (default off) |
 | `OCTO_AGENTS_BRAIN_ENABLED` | F7 company-brain NL query (default off) |
+| `OCTO_AGENTS_COMPLIANCE_ENABLED` | F9 compliance rationale (default off) |
 | `MODEL_REGISTRY_PATH` | registry override, default `./models.yaml` |
 
 ## API
@@ -78,6 +79,12 @@ service's only client and its only tool surface.
   through read tools plus `list_pipeline(stage)`, and a second jev gate
   refuses drafts it cannot support — the caller sees an honest note, never a
   confident hallucination. Flag: `OCTO_AGENTS_BRAIN_ENABLED`.
+
+- `POST /v1/workflows/compliance-rationale` — `{tenant_id, subject, as_of,
+  outcomes}` → F9: the platform's engine has already evaluated the rules; the
+  tool-free drafter narrates the outcomes for an approver, and jev's citation
+  gate verifies every rule id, threshold and measured value matches exactly —
+  a mis-cited draft is refused. Flag: `OCTO_AGENTS_COMPLIANCE_ENABLED`.
 
 ## Evals
 
