@@ -25,3 +25,52 @@
     --color-rb-accent: var(--rb-accent);
     --color-rb-accent-fg: var(--rb-accent-fg);
 }
+/* Landing typography — fonts are loaded by next/font in app/layout.tsx. */
+@theme inline {
+    --font-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+    --font-editorial: var(--font-newsreader), Georgia, serif;
+    --font-figures: var(--font-geist-mono), ui-monospace, monospace;
+    --color-signal: oklch(64% 0.19 256);
+}
+
+/* Elements anime.js reveals start hidden only once script has flagged the
+   document; reduced-motion visitors get the final state with no motion. */
+html.anim [data-anim] {
+    opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+    html.anim [data-anim] {
+        opacity: 1;
+    }
+}
+
+/* Native exclusive accordion (<details name>) — hide the default marker. */
+.landing summary::-webkit-details-marker {
+    display: none;
+}
+.landing summary {
+    list-style: none;
+}
+
+/* Smooth open/close where ::details-content is supported; instant elsewhere. */
+@media (prefers-reduced-motion: no-preference) {
+    .landing {
+        interpolate-size: allow-keywords;
+    }
+    .landing details::details-content {
+        block-size: 0;
+        overflow: hidden;
+        transition:
+            block-size 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+            content-visibility 0.5s allow-discrete;
+    }
+    .landing details[open]::details-content {
+        block-size: auto;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html:has(.landing) {
+        scroll-behavior: smooth;
+    }
+}

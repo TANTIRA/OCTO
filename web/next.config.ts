@@ -43,8 +43,7 @@ const securityHeaders = [
       // unsafe-eval is dev-only, never in the production policy.
       `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      // cta-2's pointer trail loads Unsplash stills — allow that one origin.
-      "img-src 'self' data: blob: https://images.unsplash.com",
+      "img-src 'self' data: blob:",
       "font-src 'self'",
       `connect-src 'self'${connectOrigins ? ` ${connectOrigins}` : ""}`,
       "frame-ancestors 'none'",
