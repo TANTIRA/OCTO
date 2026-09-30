@@ -2,6 +2,7 @@ package com.octo.api.access
 
 import com.octo.api.access.persistence.AccessAdministration
 import com.octo.api.access.persistence.AccessProvenance
+import com.octo.api.access.persistence.TenantSettingKeys
 import com.octo.api.access.persistence.TenantSettings
 import com.octo.persistence.TenantScope
 import org.springframework.http.HttpStatus
@@ -126,6 +127,7 @@ class AdminTenantsController(
     /**
      * `PUT …/settings` — upsert one key. The value must be valid JSON text (`"300"`, `"true"`,
      * `"{…}"`); the store appends the audit row in the same transaction.
+     * Rate-limit overrides are platform-controlled; tenant admins cannot change their quota.
      */
     @PutMapping("/api/v1/admin/tenants/{tenantId}/settings")
     fun putSetting(
@@ -136,6 +138,9 @@ class AdminTenantsController(
         requireMemberAdmin(jwt, tenantId)
         if (body.key.isBlank()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "setting key must not be blank")
+        }
+        if (body.key == TenantSettingKeys.RATE_LIMIT_PER_MINUTE) {
+            requirePlatformAdmin(jwt)
         }
         try {
             settings.put(

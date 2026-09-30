@@ -242,6 +242,49 @@ class AgentRunsEndpointTest {
         }
     }
 
+    private fun MockMvc.recordSubject(
+        subjectId: String,
+        runKey: String,
+    ) = perform(
+        post("/api/v1/agent-runs")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(
+                """{"tenantId":"$tenantId","workflow":"screening-dd","runKey":"$runKey",""" +
+                    """"subjectType":"prospect","subjectId":"$subjectId","input":{},"models":{}}""",
+            ).with(jwt().jwt { it.subject(member.toString()) }),
+    )
+
+    @Test
+    fun `blank or oversized subjects are rejected without recording a run`() {
+        run { mvc ->
+            for ((index, subject) in listOf("", "   ", "x".repeat(201), "é".repeat(201)).withIndex()) {
+                mvc.recordSubject(subject, "invalid-$index").andExpect(status().isBadRequest)
+            }
+            assertThat(runs.list(tenantId, null, null, 200, TenantScope.User(member))).isEmpty()
+        }
+    }
+
+    @Test
+    fun `subjects within the length limit are stored unchanged`() {
+        run { mvc ->
+            val subjects = listOf("x", "x".repeat(200), "é".repeat(200), "company/acme/2026-09-30")
+            for ((index, subject) in subjects.withIndex()) {
+                mvc.recordSubject(subject, "valid-$index").andExpect(status().isCreated)
+                assertThat(runs.loadByKey(tenantId, "valid-$index", TenantScope.User(member))?.subjectId)
+                    .isEqualTo(subject)
+            }
+        }
+    }
+
+    @Test
+    fun `run keys still admit 200 characters and reject 201 without a write`() {
+        run { mvc ->
+            mvc.recordSubject("p-1", "k".repeat(200)).andExpect(status().isCreated)
+            mvc.recordSubject("p-1", "k".repeat(201)).andExpect(status().isBadRequest)
+            assertThat(runs.list(tenantId, null, null, 200, TenantScope.User(member))).hasSize(1)
+        }
+    }
+
     private class FakeAgentRuns : AgentRuns {
         private val rows = mutableMapOf<UUID, AgentRun>()
 

@@ -166,21 +166,21 @@ class AdminTenantsEndpointTest {
                 .perform(
                     put("/api/v1/admin/tenants/$tenantId/settings")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"key":"rate_limit_per_minute","value":"60"}""")
+                        .content("""{"key":"features.screening_dd","value":"true"}""")
                         .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.rate_limit_per_minute").value("60"))
+                .andExpect(jsonPath("$['features.screening_dd']").value("true"))
             mvc
                 .perform(
                     get("/api/v1/admin/tenants/$tenantId/settings")
                         .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.rate_limit_per_minute").value("60"))
+                .andExpect(jsonPath("$['features.screening_dd']").value("true"))
             mvc
                 .perform(
                     put("/api/v1/admin/tenants/$tenantId/settings")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"key":"rate_limit_per_minute","value":"10"}""")
+                        .content("""{"key":"features.screening_dd","value":"false"}""")
                         .with(jwt().jwt { it.subject(analyst.toString()) }),
                 ).andExpect(status().isForbidden)
             mvc
@@ -190,6 +190,78 @@ class AdminTenantsEndpointTest {
                         .content("""{"key":"  ","value":"10"}""")
                         .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
                 ).andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `tenant admins cannot create or overwrite their own rate limit`() {
+        run { mvc ->
+            fun attempt() =
+                mvc.perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"key":"rate_limit_per_minute","value":"100000"}""")
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isForbidden)
+
+            attempt()
+            assertThat(settings.rows).doesNotContainKey(tenantId to "rate_limit_per_minute")
+            settings.rows[tenantId to "rate_limit_per_minute"] = "60"
+            attempt()
+            assertThat(settings.rows[tenantId to "rate_limit_per_minute"]).isEqualTo("60")
+        }
+    }
+
+    @Test
+    fun `platform admins can set a tenant rate limit without tenant membership`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"key":"rate_limit_per_minute","value":"120"}""")
+                        .with(jwt().jwt { it.subject(platformAdmin.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.rate_limit_per_minute").value("120"))
+            assertThat(settings.rows[tenantId to "rate_limit_per_minute"]).isEqualTo("120")
+        }
+    }
+
+    @Test
+    fun `analysts outsiders and anonymous callers cannot write the rate limit`() {
+        run { mvc ->
+            settings.rows[tenantId to "rate_limit_per_minute"] = "60"
+            for (caller in listOf(analyst, UUID.randomUUID())) {
+                mvc
+                    .perform(
+                        put("/api/v1/admin/tenants/$tenantId/settings")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"key":"rate_limit_per_minute","value":"100000"}""")
+                            .with(jwt().jwt { it.subject(caller.toString()) }),
+                    ).andExpect(status().isForbidden)
+            }
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"key":"rate_limit_per_minute","value":"100000"}"""),
+                ).andExpect(status().isForbidden)
+            assertThat(settings.rows[tenantId to "rate_limit_per_minute"]).isEqualTo("60")
+        }
+    }
+
+    @Test
+    fun `tenant admins cannot change settings in another tenant`() {
+        val foreignTenant = UUID.randomUUID()
+        run { mvc ->
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$foreignTenant/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"key":"features.screening_dd","value":"true"}""")
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isForbidden)
+            assertThat(settings.rows).isEmpty()
         }
     }
 
