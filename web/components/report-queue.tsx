@@ -159,7 +159,7 @@ export default function ReportQueue() {
               <input
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                className="mt-0.5 h-8 w-20 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                className="mt-0.5 h-8 w-20 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
               />
             </label>
             <label className="flex flex-col text-[11px] text-neutral-500">
@@ -168,7 +168,7 @@ export default function ReportQueue() {
                 type="number"
                 value={nav}
                 onChange={(e) => setNav(e.target.value)}
-                className="mt-0.5 h-8 w-24 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                className="mt-0.5 h-8 w-24 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
               />
             </label>
             <label className="flex flex-col text-[11px] text-neutral-500">
@@ -177,7 +177,7 @@ export default function ReportQueue() {
                 type="date"
                 value={valuationDate}
                 onChange={(e) => setValuationDate(e.target.value)}
-                className="mt-0.5 h-8 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                className="mt-0.5 h-8 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
               />
             </label>
           </div>
@@ -196,7 +196,7 @@ export default function ReportQueue() {
                   onChange={(e) =>
                     setFlows((prev) => prev.map((x, idx) => (idx === i ? { ...x, date: e.target.value } : x)))
                   }
-                  className="h-8 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                  className="h-8 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
                 />
                 <input
                   type="number"
@@ -206,7 +206,7 @@ export default function ReportQueue() {
                   onChange={(e) =>
                     setFlows((prev) => prev.map((x, idx) => (idx === i ? { ...x, amount: e.target.value } : x)))
                   }
-                  className="h-8 w-28 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                  className="h-8 w-28 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
                 />
                 {flows.length > 1 && (
                   <button
