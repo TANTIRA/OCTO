@@ -5,6 +5,12 @@ plugins {
     alias(libs.plugins.spring.dep.mgmt)
 }
 
+dependencyManagement {
+    imports {
+        mavenBom("com.fasterxml.jackson:jackson-bom:2.22.3")
+    }
+}
+
 configurations.all {
     resolutionStrategy {
         // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot)
@@ -62,7 +68,10 @@ dependencies {
     implementation(libs.spring.boot.flyway)
     // Boot 4 defaults to Jackson 3 (tools.jackson); the app's beans and controllers autowire
     // com.fasterxml.jackson.databind.ObjectMapper — spring-boot-jackson2 restores it.
-    implementation(libs.spring.boot.jackson2)
+    implementation(libs.spring.boot.jackson2) {
+        // Exclude Spring's Jackson BOM (2.21.5) — we enforce 2.22.3 via constraints
+        exclude(group = "com.fasterxml.jackson", module = "jackson-bom")
+    }
     runtimeOnly(libs.postgresql)
 
     // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot BOM)
@@ -84,6 +93,11 @@ dependencies {
     implementation("org.apache.httpcomponents.client5:httpclient5:5.6.3") { version { strictly("5.6.3") } }
     implementation("org.apache.httpcomponents.core5:httpcore5:5.4.3") { version { strictly("5.4.3") } }
     implementation("org.apache.httpcomponents.core5:httpcore5-h2:5.4.3") { version { strictly("5.4.3") } }
+
+    // Enforce Jackson BOM 2.22.3 over Spring Boot's 2.21.5 for CVE fixes
+    constraints {
+        add("implementation", enforcedPlatform("com.fasterxml.jackson:jackson-bom:2.22.3"))
+    }
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.resttestclient)
