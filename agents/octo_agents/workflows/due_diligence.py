@@ -201,13 +201,13 @@ def run_due_diligence(
                 "name": f"dd-{ws}",
                 "description": f"{ws} due-diligence analyst — read-only",
                 "system_prompt": _WORKSTREAM_PROMPTS[ws] + context,
-                "tools": read_tools(api),
+                "tools": read_tools(api, tenant_id),
             }
             for ws in WORKSTREAMS
         ]
         agent = create_deep_agent(
             model=agent_model,
-            tools=read_tools(api),
+            tools=read_tools(api, tenant_id),
             system_prompt=ORCHESTRATOR_PROMPT + context,
             subagents=subagents,
         )

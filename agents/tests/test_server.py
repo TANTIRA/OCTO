@@ -10,10 +10,8 @@ from fastapi.testclient import TestClient
 from octo_agents import server
 from octo_agents.config import get_settings
 from octo_agents.server import app
-from octo_agents.workflows.screening_dd import (
-    RunKeyCollisionError,
-    SubjectNotInTenantError,
-)
+from octo_agents.tools import SubjectNotInTenantError
+from octo_agents.workflows.screening_dd import RunKeyCollisionError
 
 
 @pytest.fixture

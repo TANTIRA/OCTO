@@ -21,6 +21,7 @@ from .chat import drafter_model
 from .config import Settings, get_settings
 from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
+from .tools import SubjectNotInTenantError
 from .workflows.calibration import run_calibration
 from .workflows.company_brain import run_company_brain
 from .workflows.compliance_rationale import run_compliance_rationale
@@ -30,11 +31,7 @@ from .workflows.equity_bridge import run_equity_bridge
 from .workflows.ic_memo import run_ic_memo
 from .workflows.lp_report import run_lp_report
 from .workflows.operating_review import run_operating_review
-from .workflows.screening_dd import (
-    RunKeyCollisionError,
-    SubjectNotInTenantError,
-    run_screening_dd,
-)
+from .workflows.screening_dd import RunKeyCollisionError, run_screening_dd
 
 # No docs surface: the schema leaks the endpoint map to anyone who can reach
 # the port — /docs, /redoc and /openapi.json stay off (backlog #345).
