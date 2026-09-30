@@ -6,6 +6,8 @@ import com.octo.iborcore.InstrumentFlowType
 import com.octo.iborcore.InstrumentKey
 import com.octo.iborcore.PROMOTION_ACTOR
 import com.octo.iborcore.StagedTransfer
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.sql.ResultSet
 import java.sql.Timestamp
 import java.time.OffsetDateTime
@@ -16,12 +18,21 @@ import javax.sql.DataSource
  * JDBC implementation of [InstrumentFlowStore] against the V10 tables. Thin glue — exercised
  * end-to-end by `OnchainPromotionIT` in `:modules:api` and excluded from module coverage the
  * same way `JdbcIborReader` is.
+ *
+ * Never a bare `dataSource.connection` (#310, same failure as #309): `onchain_transfer` and
+ * `instrument_flow` derive their tenant through V30's `tracked_address` subselect, and with the
+ * `app.tenant_ids` GUC unset every policy denies — promotion would read nothing and every insert
+ * would 42501 under the runtime role. The promotion methods run under [TenantScope.All] exactly
+ * like `JdbcOnchainStagingStore`: promotion is a platform pass over every tenant's staged facts,
+ * and each flow's tenant is still derived from its wallet's `tracked_address` row, so a promoted
+ * flow is visible only to the tenant tracking that wallet. [flowsFor] is the
+ * derivation read, so it runs under the caller's scope, like `JdbcIborReader`.
  */
 class JdbcInstrumentFlowStore(
     private val dataSource: DataSource,
 ) : InstrumentFlowStore {
     override fun unpromotedTransfers(): List<StagedTransfer> =
-        dataSource.connection.use { c ->
+        dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
@@ -71,7 +82,7 @@ class JdbcInstrumentFlowStore(
         }
 
     override fun instrumentIds(): Map<InstrumentKey, UUID> =
-        dataSource.connection.use { c ->
+        dataSource.scoped(TenantScope.All) { c ->
             c.prepareStatement("select id, chain, mint_address from octo.instrument").use { s ->
                 s.executeQuery().use { r ->
                     buildMap {
@@ -84,7 +95,7 @@ class JdbcInstrumentFlowStore(
         }
 
     override fun flowIdForStaging(stagingRowId: UUID): UUID? =
-        dataSource.connection.use { c ->
+        dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
@@ -107,7 +118,7 @@ class JdbcInstrumentFlowStore(
         ingestionRunId: UUID,
         correlationId: UUID,
     ): Boolean =
-        dataSource.connection.use { c ->
+        dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
@@ -145,8 +156,9 @@ class JdbcInstrumentFlowStore(
     override fun flowsFor(
         chain: String,
         wallet: String,
+        scope: TenantScope,
     ): List<InstrumentFlow> =
-        dataSource.connection.use { c ->
+        dataSource.scoped(scope) { c ->
             c
                 .prepareStatement(
                     """
