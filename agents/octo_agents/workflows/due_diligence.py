@@ -167,6 +167,10 @@ def run_due_diligence(
         input={"prospect_id": prospect_id},
         models=models,
     )
+    # Declared outside the guard so a crash after some tasks opened still
+    # records them on the failed run (#330).
+    tasks: list[DdTask] = []
+    task_errors: list[str] = []
     try:
         if replayed is not None:
             return DdResult.model_validate(replayed)
@@ -240,9 +244,8 @@ def run_due_diligence(
         # Task opening is side-effectful — a throw must not strand the tasks
         # already minted. Per-band handling keeps the result truthful: a 409
         # (task already open) or any other API error is recorded instead of
-        # failing the whole run.
-        tasks: list[DdTask] = []
-        task_errors: list[str] = []
+        # failing the whole run; anything else fails the run with the tasks
+        # opened so far persisted on it.
         for band in bands:
             if band.band not in TASK_BANDS:
                 continue
@@ -296,5 +299,10 @@ def run_due_diligence(
         )
         return result
     except Exception as e:
-        finish_failed(api, run_id, e)
+        partial = (
+            {"tasks": [t.model_dump() for t in tasks], "task_errors": task_errors}
+            if tasks or task_errors
+            else None
+        )
+        finish_failed(api, run_id, e, output=partial)
         raise

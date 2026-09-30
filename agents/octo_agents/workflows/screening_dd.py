@@ -343,15 +343,21 @@ def _record_run(
     return recorded["id"], None
 
 
-def finish_failed(api: OctoApiClient, run_id: str, error: Exception) -> None:
+def finish_failed(
+    api: OctoApiClient, run_id: str, error: Exception, *, output: Any = None
+) -> None:
     """Mark a crashed run `failed` for F4's audit spine — without letting the
     bookkeeping call mask the original error (backlog #15). If `finish_run`
     itself throws (edge down, the very failure that crashed the run), the
     original exception still propagates from the caller's bare `raise`; this
     swallows and logs the secondary failure rather than replacing the real one.
+    `output` carries side effects that already landed before the crash (e.g.
+    tasks opened) so the failed run still records them (#330).
     """
     try:
-        api.finish_run(run_id, status="failed", error=str(error)[:2000])
+        api.finish_run(
+            run_id, status="failed", output=output, error=str(error)[:2000]
+        )
     except Exception as bookkeeping:  # noqa: BLE001 - must not mask `error`
         _log.warning(
             "finish_run(failed) for run %s could not land: %s", run_id, bookkeeping
@@ -446,15 +452,19 @@ def run_screening_dd(
 
         screening_response = None
         stage_note = None
+        screening_requested = False
         if verdict.proceed:
             try:
                 screening_response = api.request_screening(prospect_id)
+                screening_requested = True
             except OctoApiError as e:
                 if e.status_code != 409:
                     raise
-                # Task already open or the stage moved on — same degrade as
-                # ic_memo: the memo still lands as a judged draft.
-                stage_note = "screening task already open — memo left as judged draft"
+                # /screen answers 409 only when the prospect has left the
+                # screening stage (an open review task is reused, not a 409).
+                # Same degrade as ic_memo: the memo lands as a judged draft
+                # and the run records that nothing was requested.
+                stage_note = "prospect is not at screening — memo left as judged draft"
 
         result = ScreeningResult(
             prospect_id=prospect_id,
@@ -463,7 +473,7 @@ def run_screening_dd(
             preflight=preflight,
             retrieval=retrieval,
             verdict=verdict,
-            screening_requested=verdict.proceed,
+            screening_requested=screening_requested,
             screening_response=screening_response,
             stage_note=stage_note,
         )

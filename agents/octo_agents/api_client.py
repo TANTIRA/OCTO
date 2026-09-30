@@ -1,9 +1,9 @@
 """Kotlin api client — the sidecar's only tool surface (ADR-0005 tool boundary).
 
-Agents get read endpoints plus two mediated writes: request a screening (which
-opens a workflow task inside the platform) and draft a report (which passes the
-report approval gate). There is no direct database access, no ledger write and
-no approval path here by construction.
+Agents get read endpoints plus mediated writes that open workflow tasks inside
+the platform (screening, IC review, DD evidence) and record their own agent_run.
+There is no direct database access, no ledger write and no approval path here
+by construction.
 """
 
 from collections.abc import Mapping
@@ -102,26 +102,13 @@ class OctoApiClient:
             },
         )
 
-    def get_dataset(self, dataset_id: str, **params: Any) -> Any:
-        return self._get(f"/api/v1/data/{_q(dataset_id)}", params=params or None)
-
     def get_agent_context(self, tenant_id: str) -> Any:
         return self._get("/api/v1/agent-context", params={"tenantId": tenant_id})
 
-    def list_agent_runs(
-        self,
-        tenant_id: str,
-        *,
-        limit: int = 200,
-        subject_type: str | None = None,
-        subject_id: str | None = None,
-    ) -> Any:
-        params: dict[str, Any] = {"tenantId": tenant_id, "limit": limit}
-        if subject_type:
-            params["subjectType"] = subject_type
-        if subject_id:
-            params["subjectId"] = subject_id
-        return self._get("/api/v1/agent-runs", params=params)
+    def list_agent_runs(self, tenant_id: str, *, limit: int = 200) -> Any:
+        return self._get(
+            "/api/v1/agent-runs", params={"tenantId": tenant_id, "limit": limit}
+        )
 
     # Mediated writes — these open platform workflows, they never write the
     # ledger and their output still passes the human approval gates.
@@ -180,19 +167,4 @@ class OctoApiClient:
         return self._post(
             f"/api/v1/agent-runs/{_q(run_id)}/finish",
             {"status": status, "output": output, "verdict": verdict, "error": error},
-        )
-
-    def draft_report(
-        self,
-        report_type: str,
-        position_source_type: str,
-        measures: list[str],
-    ) -> Any:
-        return self._post(
-            "/api/v1/reports",
-            {
-                "type": report_type,
-                "positionSourceType": position_source_type,
-                "measures": measures,
-            },
         )

@@ -203,7 +203,9 @@ def test_screening_conflict_degrades_to_judged_draft(
     )
     assert result.status == "completed"
     assert result.screening_response is None
-    assert result.stage_note is not None
+    # A 409 means nothing was requested — same contract as ic_memo (#330).
+    assert result.screening_requested is False
+    assert result.stage_note is not None and "not at screening" in result.stage_note
     assert api.finished[0]["status"] == "completed"
 
 
