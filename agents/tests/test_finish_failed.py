@@ -28,6 +28,15 @@ def test_marks_failed_with_error_text() -> None:
     assert "boom" in api.finished["error"]
 
 
+def test_api_error_reason_reaches_the_run_record() -> None:
+    # #343: a failed API call records why, not just `status N`.
+    api = RecordingApi()
+    finish_failed(api, "run-1", OctoApiError(422, '{"error":"bad shape"}'))
+    assert api.finished is not None
+    assert "422" in api.finished["error"]
+    assert "bad shape" in api.finished["error"]
+
+
 def test_bookkeeping_failure_is_swallowed() -> None:
     # finish_run itself throwing (the very edge outage that crashed the run)
     # must not raise from finish_failed — the caller's bare `raise` re-surfaces

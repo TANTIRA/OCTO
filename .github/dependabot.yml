@@ -12,3 +12,13 @@ updates:
     labels:
       - "dependencies"
       - "automerge"
+    # The platform stays on the Spring Boot 3.5 / Jackson 2 line (commit 1dbca9bd): Boot 4 needs
+    # Tomcat 11 and Jackson 3, and reactor-netty needs Netty 4.1. Security patches within these
+    # lines still come through; the line jumps are a planned migration, not a bot bump.
+    ignore:
+      - dependency-name: "org.springframework.boot*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.apache.tomcat.embed:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "io.netty:*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]

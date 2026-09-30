@@ -1,6 +1,13 @@
 spring:
   application:
     name: octo
+  autoconfigure:
+    # SecurityConfig owns the only Redis factory (REDIS_HOST, short timeouts). Boot's would mint a
+    # localhost:6379 client when REDIS_HOST is unset, failing every quota call (#321); the
+    # repositories config goes with it (it needs Boot's redisTemplate, and the api has none).
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}
     username: ${DB_USER:octo}

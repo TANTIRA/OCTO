@@ -252,8 +252,10 @@ def run_due_diligence(
                 )
             except OctoApiError as e:
                 if e.status_code != 409:
+                    # Keep the platform's reason, not just the code (#343).
+                    reason = f": {e.body[:200]}" if e.body else ""
                     task_errors.append(
-                        f"{band.workstream}: HTTP {e.status_code}"
+                        f"{band.workstream}: HTTP {e.status_code}{reason}"
                     )
                 tasks.append(
                     DdTask(
