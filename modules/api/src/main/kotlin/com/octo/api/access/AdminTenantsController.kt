@@ -81,13 +81,8 @@ class AdminTenantsController(
         val state =
             try {
                 when (body.type) {
-                    "granted" -> {
-                        val role = roleOf(body.role)
-                        if (access.load(tenantId, userId) == null) {
-                            access.registerMember(tenantId, userId, now, provenance)
-                        }
-                        access.append(tenantId, userId, MembershipEvent.Granted(jwt.subject!!, now, role), provenance)
-                    }
+                    "granted" ->
+                        access.grant(tenantId, userId, MembershipEvent.Granted(jwt.subject!!, now, roleOf(body.role)), provenance)
                     "role-changed" ->
                         access.append(tenantId, userId, MembershipEvent.RoleChanged(jwt.subject!!, now, roleOf(body.role)), provenance)
                     "revoked" ->
