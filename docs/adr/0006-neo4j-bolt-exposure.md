@@ -11,7 +11,7 @@
 
 ## Context
 
-The Neo4j Browser served at `neo4j-octo.mesta.click` is public over HTTPS. Browser sessions
+The Neo4j Browser served at `neo4j-octo.mesta.click` was public over HTTPS (until #390). Browser sessions
 negotiate `bolt+s`/`neo4j+s`, but bolt itself is private to `dokploy-network` with TLS disabled
 (`NEO4J_BOLT_TLS_ENABLED: "false"`). No remote bolt connection can therefore complete, so
 browsing the deployed graph from a laptop needs an SSH tunnel plus a locally hosted HTTP
@@ -31,6 +31,11 @@ more of access.
 
 That reframes the question. Bolt-vs-tunnel was never the real security boundary here. The real
 exposure is a public Browser, and it is tracked separately — this ADR does not bless it.
+
+**Closed by #390.** The exposure was wider than a Browser tab: 7474 also serves Neo4j's HTTP query
+API, which needs no bolt connection at all, so the public domain was a password-only Cypher
+endpoint for any HTTP client. The domain is removed and 7474 is private like bolt; the tunnel
+below is the only remote path.
 
 ### The deciding factor
 
@@ -135,4 +140,5 @@ the route.
 - `deploy/README.md` ("Neo4j Browser access") — the operative recipe
 - `infra/README.md` — topology and privacy posture
 - [ADR-0004](0004-neo4j-graph-store.md) — graph store rationale
+- Issue #390 — public Browser and HTTP API on 7474, closed by removing the domain
 - `docs/backlog-tracker.md` — item 2 (closed by this ADR), item 22 (adjacent, open)

@@ -60,15 +60,15 @@ Set in the Dokploy compose environment (never committed). Keys mirror
 | `admin-octo.mesta.click` | web | `/` rewrites to `/admin` (ops surface) via `web/middleware.ts` |
 | `api-octo.mesta.click` | api :8080 | `/actuator/health`, `/actuator/health/readiness` public |
 | `supa-octo.mesta.click` | supabase kong :8000 | own compose project |
-| `neo4j-octo.mesta.click` | neo4j :7474 | Browser only — bolt stays private |
+
+Neo4j has no public domain (#390). Port 7474 serves the Browser *and* Neo4j's HTTP query API, so a
+public route there is a password-only Cypher endpoint, not a viewer. Do not assign one; like Studio,
+the graph store is reached only from the host.
 
 ## Neo4j Browser access
 
-The public Browser at `neo4j-octo.mesta.click` is served over HTTPS, so it only
-accepts encrypted connections (`bolt+s`/`neo4j+s`) — and bolt itself is private
-to `dokploy-network` with TLS disabled, so no remote connection can ever
-complete. To browse the deployed graph, tunnel bolt and use an HTTP-hosted
-Browser:
+Bolt is private to `dokploy-network` with TLS disabled, and 7474 has no public route. To browse
+the deployed graph, tunnel bolt and use a locally hosted Browser:
 
 ```bash
 # Dokploy host — expose bolt on loopback only, once:
