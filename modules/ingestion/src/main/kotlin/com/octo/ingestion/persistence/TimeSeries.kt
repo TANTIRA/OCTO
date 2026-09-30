@@ -35,6 +35,10 @@ data class ObservationProvenance(
  * [asOfTime] gives the point-in-time view §10.8 needs: only rows recorded on or before it count, and the
  * latest of them per series, field and effective date is the value in force. [since] keeps only rows
  * recorded after it, i.e. what changed. [fields] null means every field.
+ *
+ * [limit] bounds the read so a wide date range over a dense dataset cannot pull the whole table through
+ * one request; the default is the ceiling. When it truncates, the survivors are the first [limit] rows in
+ * the query's own order (series key, field, effective date), so paging by shrinking the date range stays exact.
  */
 data class TimeSeriesQuery(
     val datasetId: UUID,
@@ -43,10 +47,17 @@ data class TimeSeriesQuery(
     val fields: Set<String>? = null,
     val asOfTime: Instant? = null,
     val since: Instant? = null,
+    val limit: Int = MAX_OBSERVATIONS,
 ) {
     init {
         require(!endDate.isBefore(startDate)) { "endDate must not be before startDate" }
         require(fields == null || fields.isNotEmpty()) { "fields must name at least one field, or be null for all" }
+        require(limit in 1..MAX_OBSERVATIONS) { "limit must be between 1 and $MAX_OBSERVATIONS" }
+    }
+
+    companion object {
+        /** Ceiling on one read; callers that need more page by narrowing the date range. */
+        const val MAX_OBSERVATIONS = 10_000
     }
 }
 

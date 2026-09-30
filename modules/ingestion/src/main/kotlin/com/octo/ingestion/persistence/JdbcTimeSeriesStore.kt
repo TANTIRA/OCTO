@@ -79,6 +79,7 @@ class JdbcTimeSeriesStore(
             conditions += "field = any(?)"
             parameters.add(it.toTypedArray())
         }
+        parameters += query.limit
         val sql =
             """
             select distinct on (series_key, field, effective_date)
@@ -86,6 +87,7 @@ class JdbcTimeSeriesStore(
             from octo.timeseries_observation
             where ${conditions.joinToString(" and ")}
             order by series_key, field, effective_date, recorded_at desc
+            limit ?
             """.trimIndent()
         return dataSource.scoped(scope) { connection ->
             connection.prepareStatement(sql).use { statement ->

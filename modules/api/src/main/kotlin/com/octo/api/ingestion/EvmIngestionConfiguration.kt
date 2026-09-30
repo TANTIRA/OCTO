@@ -4,7 +4,6 @@ import com.octo.ingestion.onchain.CHAIN_ARBITRUM_ONE
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.evm.EvmBalanceCollector
 import com.octo.ingestion.onchain.evm.EvmConfig
-import com.octo.ingestion.onchain.evm.EvmEvidenceAdapter
 import com.octo.ingestion.onchain.evm.EvmRpcApi
 import com.octo.ingestion.onchain.evm.EvmRpcClient
 import com.octo.ingestion.onchain.evm.EvmScanService
@@ -56,13 +55,6 @@ class EvmIngestionConfiguration {
         store: OnchainStagingStore,
         config: EvmConfig,
     ) = EvmBalanceCollector(store, rpc, config)
-
-    @Bean
-    @ConditionalOnBean(EvmRpcApi::class)
-    fun evmEvidenceAdapter(
-        rpc: EvmRpcApi,
-        config: EvmConfig,
-    ) = EvmEvidenceAdapter(rpc, config)
 
     @Bean
     @ConditionalOnBean(EvmRpcApi::class)

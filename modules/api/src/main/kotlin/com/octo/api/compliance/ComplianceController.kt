@@ -33,6 +33,12 @@ import java.util.UUID
 private const val SUBJECT_LIMIT = 300
 
 /**
+ * Mirrors `compliance_rule_id_shape` in V14 so a malformed id is answered 400 at the edge.
+ * The CHECK constraint stays the authority; this only keeps its violation out of the 500 path.
+ */
+private val RULE_ID_SHAPE = Regex("^[a-z0-9][a-z0-9._-]{0,63}$")
+
+/**
  * Post-trade compliance (#6 slice 8). Rules are governance, so defining one needs an `approver` or `admin`;
  * running an evaluation needs a working role; listing needs any role. Outside the tenant everything is 404.
  */
@@ -51,6 +57,7 @@ class ComplianceController(
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role != TenantRole.APPROVER && role != TenantRole.ADMIN) return ResponseEntity.notFound().build()
+        if (!RULE_ID_SHAPE.matches(body.ruleId)) return ResponseEntity.badRequest().build()
         val check =
             runCatching { body.check.toCheck() }
                 .getOrElse { return ResponseEntity.badRequest().build() }
@@ -89,6 +96,7 @@ class ComplianceController(
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role != TenantRole.APPROVER && role != TenantRole.ADMIN) return ResponseEntity.notFound().build()
+        if (!RULE_ID_SHAPE.matches(ruleId)) return ResponseEntity.badRequest().build()
         val rule =
             store.retire(
                 body.tenantId,

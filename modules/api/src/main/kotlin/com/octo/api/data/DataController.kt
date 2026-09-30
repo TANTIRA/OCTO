@@ -18,9 +18,11 @@ import java.time.LocalDate
 import java.util.UUID
 
 /**
- * `GET /api/v1/data/{datasetId}?startDate&endDate&fields&asOfTime&since` (Marquee data service, #6 slice 6).
+ * `GET /api/v1/data/{datasetId}?startDate&endDate&fields&asOfTime&since&limit` (Marquee data service, #6 slice 6).
  * Tenant-scoped through [TenantDirectory]: any role in the dataset's tenant may read it; another tenant's
  * dataset and an unknown id are both 404 (default deny). `asOfTime` is the point-in-time view (§10.8).
+ * The read is bounded by `limit` (≤ [TimeSeriesQuery.MAX_OBSERVATIONS], default that ceiling) so a wide
+ * date range over a dense dataset can't pull an unbounded list through one request.
  */
 @RestController
 class DataController(
@@ -35,16 +37,18 @@ class DataController(
         @RequestParam(required = false) fields: Set<String>?,
         @RequestParam(required = false) asOfTime: Instant?,
         @RequestParam(required = false) since: Instant?,
+        @RequestParam(defaultValue = "${TimeSeriesQuery.MAX_OBSERVATIONS}") limit: Int,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<DataResponse> {
         if (endDate.isBefore(startDate)) return ResponseEntity.badRequest().build()
+        if (limit !in 1..TimeSeriesQuery.MAX_OBSERVATIONS) return ResponseEntity.badRequest().build()
         val userId = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull() ?: return ResponseEntity.notFound().build()
         val scope = TenantScope.User(userId)
         val tenantId = series.datasetTenant(datasetId, scope) ?: return ResponseEntity.notFound().build()
         if (tenants.tenantsOf(userId).none { it.tenantId == tenantId }) return ResponseEntity.notFound().build()
         val observations =
             series.query(
-                TimeSeriesQuery(datasetId, startDate, endDate, fields?.takeIf { it.isNotEmpty() }, asOfTime, since),
+                TimeSeriesQuery(datasetId, startDate, endDate, fields?.takeIf { it.isNotEmpty() }, asOfTime, since, limit),
                 scope,
             )
         return ResponseEntity.ok(

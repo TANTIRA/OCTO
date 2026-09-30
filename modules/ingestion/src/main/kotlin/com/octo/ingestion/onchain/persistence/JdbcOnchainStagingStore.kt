@@ -80,7 +80,6 @@ class JdbcOnchainStagingStore(
                             null
                         }
                     }
-                    s.executeQuery().use { r -> if (r.next()) r.getLong(1).takeIf { !r.wasNull() } else null }
                 }
         }
 
