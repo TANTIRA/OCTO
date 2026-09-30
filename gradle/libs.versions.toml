@@ -2,7 +2,7 @@
 kotlin = "2.4.20"
 springBoot = "4.1.1"
 springDepMgmt = "1.1.7"
-jackson = "2.22.2"
+jackson = "2.22.3"
 jena = "6.2.0"
 ktlint = "12.3.0"
 kover = "0.9.9"
