@@ -38,6 +38,7 @@ node_modules/
 
 # CodeQL static analysis output (regenerated per scan; see build.log inside dir)
 static_analysis_codeql_*/
+.codeql-lock
 
 # Agent sidecar (agents/)
 agents/.venv/
