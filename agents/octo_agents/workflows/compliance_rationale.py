@@ -70,8 +70,8 @@ def judge_rationale(
         session_id=f"compliance:{subject}",
         user="octo-agents",
     )
-    cited = result.answers["cited"]["noul"]
-    complete = result.answers["complete"]["noul"]
+    cited = result.require_noul("cited")
+    complete = result.require_noul("complete")
     return RationaleVerdict(
         ship=cited >= CITED_THRESHOLD and complete >= COMPLETE_THRESHOLD,
         cited_probability=cited,
@@ -106,10 +106,9 @@ def run_compliance_rationale(
         input={"subject": subject, "as_of": as_of, "outcomes": outcomes},
         models=models,
     )
-    if replayed is not None:
-        return RationaleResult.model_validate(replayed)
-
     try:
+        if replayed is not None:
+            return RationaleResult.model_validate(replayed)
         if not outcomes:
             result = RationaleResult(
                 subject=subject,

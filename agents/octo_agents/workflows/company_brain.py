@@ -61,10 +61,11 @@ def _pipeline_tool(api: OctoApiClient, tenant_id: str) -> Any:
     @tool
     def list_pipeline(stage: str) -> str:
         """List prospects standing at a pipeline stage — one of: sourced,
-        screening, due-diligence, ic-review, invested, passed."""
+        screening, due-diligence, ic-review, invested, passed. Returns at most
+        the first 200 at that stage (the api's page cap)."""
         if stage not in STAGES:
             return f"unknown stage {stage!r}; stages: {', '.join(STAGES)}"
-        return str(api.list_pipeline(tenant_id, stage))
+        return str(api.list_pipeline(tenant_id, stage, limit=200))
 
     return list_pipeline
 
@@ -97,7 +98,7 @@ def _answerable(
         session_id=f"brain:{tenant_id}",
         user="octo-agents",
     )
-    p = result.answers["answerable"]["noul"]
+    p = result.require_noul("answerable")
     return (
         p >= ANSWERABLE_THRESHOLD,
         p,
@@ -105,7 +106,7 @@ def _answerable(
             "model": result.model,
             "provider": result.provider,
             "request_id": result.id,
-            "lane": result.answers["lane"].get("choice"),
+            "lane": result.require_choice("lane"),
         },
     )
 
@@ -133,8 +134,8 @@ def judge_answer(
         session_id=f"brain-answer:{tenant_id}",
         user="octo-agents",
     )
-    answers_p = result.answers["answers"]["noul"]
-    supported_p = result.answers["supported"]["noul"]
+    answers_p = result.require_noul("answers")
+    supported_p = result.require_noul("supported")
     return BrainVerdict(
         ship=answers_p >= SUPPORTED_THRESHOLD and supported_p >= SUPPORTED_THRESHOLD,
         answers_probability=answers_p,
@@ -167,10 +168,9 @@ def run_company_brain(
         input={"question": question},
         models=models,
     )
-    if replayed is not None:
-        return BrainResult.model_validate(replayed)
-
     try:
+        if replayed is not None:
+            return BrainResult.model_validate(replayed)
         ok, probability, lineage = _answerable(
             judge, tenant_id=tenant_id, question=question
         )

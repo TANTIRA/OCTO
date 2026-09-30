@@ -3,7 +3,6 @@ unconfigured, 401 on a wrong token, and lets a valid token reach the
 workflow's own checks (feature flag) rather than failing at the edge."""
 
 from collections.abc import Iterator
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +13,9 @@ from octo_agents.server import app
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    # Default OCTO_API_BASE_URL is the internal compose hop — plaintext http
+    # needs the explicit opt-in the deployment sets (octo_agents/config.py).
+    monkeypatch.setenv("OCTO_AGENTS_INSECURE_HTTP", "true")
     get_settings.cache_clear()
     yield TestClient(app)
     get_settings.cache_clear()

@@ -86,6 +86,9 @@ services:
     environment:
       - OPENROUTER_API_KEY
       - OCTO_API_BASE_URL=http://api:8080
+      # Plaintext hop is confined to dokploy-network (TLS ends at Traefik) —
+      # the sidecar refuses http:// without this explicit opt-in (#345).
+      - OCTO_AGENTS_INSECURE_HTTP=true
       - OCTO_AGENT_TOKEN=${OCTO_AGENT_TOKEN}
       - OCTO_AGENTS_TOKEN=${OCTO_AGENTS_TOKEN}
       - OCTO_AGENTS_SCREENING_DD_ENABLED=${OCTO_AGENTS_SCREENING_DD_ENABLED:-false}

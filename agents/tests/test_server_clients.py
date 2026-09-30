@@ -10,11 +10,12 @@ from octo_agents.config import Settings
 
 
 def _settings(**over: object) -> Settings:
-    base = dict(
-        openrouter_api_key="k",
-        octo_agent_token="t",
-        octo_agents_token="in",
-    )
+    base: dict[str, object] = {
+        "openrouter_api_key": "k",
+        "octo_agent_token": "t",
+        "octo_agents_token": "in",
+        "octo_agents_insecure_http": True,
+    }
     base.update(over)
     return Settings(**base)  # type: ignore[arg-type]
 

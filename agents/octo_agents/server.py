@@ -6,13 +6,14 @@ flag; /healthz is open for the compose healthcheck only.
 """
 
 import hmac
+from datetime import date
 from functools import lru_cache
 from typing import Any
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .api_client import OctoApiClient
 from .chat import drafter_model
@@ -57,8 +58,17 @@ def require_caller(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
+# The registry parses models.yaml on construction — doing it per request added
+# a file read + YAML parse to every workflow call. Cache per path like the
+# client factories below: models.yaml is versioned in the repo, so a change
+# arrives with a redeploy anyway, and tests clear the cache explicitly.
+@lru_cache(maxsize=4)
+def _registry_at(path: str) -> ApprovedModelRegistry:
+    return ApprovedModelRegistry(path)
+
+
 def _registry(settings: Settings) -> ApprovedModelRegistry:
-    return ApprovedModelRegistry(settings.model_registry_path)
+    return _registry_at(settings.model_registry_path)
 
 
 # One client per (config) tuple, reused across requests — each wraps a long-
@@ -250,7 +260,9 @@ def company_brain(
 class CalibrationRequest(BaseModel):
     tenant_id: str
     run_key: str | None = None
-    limit: int = 200
+    # Matches the api's agent-runs page bound (limit in 1..200) — anything
+    # higher would 400 upstream anyway, so reject it here first.
+    limit: int = Field(default=200, ge=1, le=200)
 
 
 @app.post("/v1/workflows/calibration")
@@ -278,7 +290,9 @@ def calibration(
 class ComplianceRationaleRequest(BaseModel):
     tenant_id: str
     subject: str
-    as_of: str
+    # A real ISO date, not an opaque string — a malformed as_of used to crash
+    # the workflow deep inside the run instead of answering 422 at the edge.
+    as_of: date
     outcomes: list[dict[str, Any]] = []
     run_key: str | None = None
 
@@ -301,7 +315,7 @@ def compliance_rationale(
         api=_api(settings),
         tenant_id=body.tenant_id,
         subject=body.subject,
-        as_of=body.as_of,
+        as_of=body.as_of.isoformat(),
         outcomes=body.outcomes,
         run_key=body.run_key or str(uuid4()),
         models=_models(registry),

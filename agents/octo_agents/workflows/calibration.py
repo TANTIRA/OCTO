@@ -100,10 +100,10 @@ def run_calibration(
         input={"limit": limit},
         models=models,
     )
-    if replayed is not None:
-        return CalibrationResult.model_validate(replayed)
-
     try:
+        if replayed is not None:
+            return CalibrationResult.model_validate(replayed)
+
         rows = api.list_agent_runs(tenant_id, limit=limit)
         runs = [
             r

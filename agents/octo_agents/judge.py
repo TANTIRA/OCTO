@@ -15,17 +15,9 @@ from pydantic import BaseModel, Field
 from .retry import send_with_retry
 
 
-class NoulCriteria(BaseModel):
-    when_true: str | None = Field(default=None, alias="true")
-    when_false: str | None = Field(default=None, alias="false")
-
-    model_config = {"populate_by_name": True}
-
-
 class NoulQuestion(BaseModel):
     type: Literal["noul"] = "noul"
     instructions: str
-    criteria: NoulCriteria | None = None
 
 
 class ChoiceQuestion(BaseModel):
@@ -72,6 +64,25 @@ class JudgmentResult(BaseModel):
     usage: TokenUsage | None = None
     id: str | None = None
     provider: str | None = None
+
+    def require(self, key: str) -> Any:
+        """The answer for a declared question. A missing key is a contract
+        breach — a judge response that drops a question must fail the workflow
+        loudly, not silently shape a verdict out of a KeyError or a None."""
+        if key not in self.answers:
+            raise KeyError(
+                f"judge answer missing question {key!r} — got {sorted(self.answers)}"
+            )
+        return self.answers[key]
+
+    def require_noul(self, key: str) -> float:
+        return float(self.require(key)["noul"])
+
+    def require_choice(self, key: str) -> str | None:
+        return self.require(key).get("choice")
+
+    def require_score(self, key: str) -> float:
+        return float(self.require(key)["score"])
 
 
 class JudgmentRequestError(RuntimeError):

@@ -96,9 +96,9 @@ def judge_review(
         session_id=f"operating-review:{company}",
         user="octo-agents",
     )
-    grounded = result.answers["grounded"]["noul"]
-    coverage = result.answers["coverage"]["noul"]
-    stance = result.answers["stance"].get("choice")
+    grounded = result.require_noul("grounded")
+    coverage = result.require_noul("coverage")
+    stance = result.require_choice("stance")
     return ReviewVerdict(
         submit=(
             grounded >= GROUNDED_THRESHOLD
@@ -138,10 +138,9 @@ def run_operating_review(
         input={"company": company, "levers": levers, "metrics": metrics},
         models=models,
     )
-    if replayed is not None:
-        return ReviewResult.model_validate(replayed)
-
     try:
+        if replayed is not None:
+            return ReviewResult.model_validate(replayed)
         cleaned = [lever for lever in levers if str(lever).strip()]
         if not cleaned or not metrics:
             result = ReviewResult(
