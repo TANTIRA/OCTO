@@ -39,7 +39,11 @@ dependencies {
     implementation(project(":modules:recon"))
     implementation(project(":modules:workflow"))
 
-    implementation(libs.spring.boot.starter.web)
+    // Boot 4's web starter pulls Jackson 3 (tools.jackson); the app is Jackson 2 end-to-end —
+    // leave the Jackson 3 starter out and let spring-boot-jackson2 register the converters.
+    implementation(libs.spring.boot.starter.web) {
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-jackson")
+    }
     implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.actuator)
     // Prometheus scrape endpoint for docs/reliability.md; Apache-2.0, version from the Boot BOM.

@@ -167,6 +167,7 @@ class SecurityConfigTest {
         Jwt
             .withTokenValue("t")
             .header("alg", "ES256")
+            .subject("00000000-0000-0000-0000-000000000001")
             .claim(JwtClaimNames.AUD, aud)
             .expiresAt(Instant.now().plusSeconds(300))
             .build()
