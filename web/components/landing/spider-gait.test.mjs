@@ -144,3 +144,42 @@ test("fast crawls in every direction never starve a group (the scene's proportio
     }
   }
 });
+
+test("driven like the scene (spring after a leash, 60 and 144 fps) a planted foot overshoots reach by at most 12%", () => {
+  // octo-core-scene.ts: critically damped spring (w = 9) chasing a leash at
+  // up to 9.6 units/s from rest. The forced step waits for both neighbours to
+  // land, so a foot can drift past reach while the body accelerates; this pins
+  // that bound so a gait change can't quietly make it worse.
+  const u = 45;
+  let worst = 0;
+  for (const fps of [60, 144]) {
+    for (const reach of [1.34 * u, 1.5 * u]) {
+      for (let k = 0; k < 8; k++) {
+        const head = (k * Math.PI) / 4;
+        const gait = createSpiderGait({ legs: N });
+        const p = { x: 0, y: 0, vx: 0, vy: 0 };
+        const leash = { x: 0, y: 0 };
+        const dt = 1 / fps;
+        const at = (t) => Array.from({ length: N }, (_, i) => {
+          const a = 0.1 * t + (i * Math.PI * 2) / N;
+          return { x: p.x + 3 * u * Math.cos(a), y: p.y + 2.4 * u * Math.sin(a) };
+        });
+        gait.reset(at(0));
+        for (let f = 1; f <= fps * 3; f++) {
+          leash.x += Math.cos(head) * 9.6 * u * dt;
+          leash.y += Math.sin(head) * 9.6 * u * dt;
+          p.vx += (81 * (leash.x - p.x) - 18 * p.vx) * dt;
+          p.vy += (81 * (leash.y - p.y) - 18 * p.vy) * dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          const homes = at(f * dt);
+          const { feet } = gait.update(dt, { homes, velocity: { x: p.vx, y: p.vy }, stepDist: 0.6 * u, reach });
+          feet.forEach((ft, i) => {
+            if (ft.planted) worst = Math.max(worst, Math.hypot(ft.x - homes[i].x, ft.y - homes[i].y) / reach);
+          });
+        }
+      }
+    }
+  }
+  assert.ok(worst <= 1.12, `a planted foot sat ${worst.toFixed(3)}x reach from home`);
+});

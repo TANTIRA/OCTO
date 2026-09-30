@@ -58,21 +58,21 @@ whose content is OCTO's own model — classes and SHACL-bound properties from
 `ontology/octo-investment-*.ttl`, and the reified relations FundManagement, Commitment,
 FundInvestment and DealSubject.
 
-### Camera and finishing (Blender scene `OCTO_Landing`, `build/landing-renders/octo-landing.blend`)
+### Camera and finishing (Blender scene `OCTO_Landing`, `build/landing-renders/octo-landing-core.blend`)
 
-| Field | Hero setup C01 (`hero-arms.webp`, `hero-hub.webp`) |
+| Field | Hero dock poster (`renders/hero-core.webp`, from `mecha_build.py` + `mech_poster.py`) |
 | --- | --- |
 | Colour profile | Captured: sRGB display, AgX view transform |
 | Log profile | N/A — synthetic render, no log encoding |
-| Shutter / FPS | N/A — stills, motion blur off; the page animates at display rate |
+| Shutter / FPS | N/A — still, motion blur off; the live core animates at display rate |
 | ISO / EI | N/A — synthetic |
 | Aperture | N/A — depth of field off |
-| Focal length | Captured: orthographic, ortho scale 6.4 (1 unit = 100 SVG px) |
+| Focal length | Captured: 85 mm on a 36 mm sensor (horizontal fit), `CORE_Cam` |
 | Lens type | Simulated: ideal pinhole, no distortion |
-| Camera angle | Captured: overhead, z = 20, looking straight down |
+| Camera angle | Captured: high three-quarter, 80° elevation — the live scene's `POSTER_ELEV` matches it |
 | DoP | N/A |
 | Colour correction | Exposure 0, gamma 1 — no technical correction |
-| Colour grade | Captured: look "AgX – Medium High Contrast"; key 900 W white, rim 700 W blue, rim 300 W cool |
+| Colour grade | Captured: look "AgX – Medium High Contrast"; soft top key, cool rim from behind, low fill (see `mecha_build.py`); Cycles 160 samples, denoised, bloom in `MECH_Comp` |
 | Transitions | Mask draw → hub spring (see shotlist) |
 
 Render: Cycles, 128 samples, denoised, transparent film, 1200 px, exported to WebP in two layers

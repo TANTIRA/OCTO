@@ -19,8 +19,10 @@
 //   foot passes under its home mid-stance; capped at 0.55 * reach from home.
 // - Minimum-jerk travel and a lift bump flat at both ends: a foot leaves and
 //   meets the page with zero velocity, so contacts never pop.
-// - A foot never sits further than reach: past 0.9 * reach it is forced to
-//   step, and a neighbour still in swing is hurried down so (b) holds.
+// - A foot stays within reach: past 0.9 * reach it is forced to step, and a
+//   neighbour still in swing is hurried down so (b) holds. Accelerating from
+//   rest to full speed it can overshoot by up to ~10% before its turn comes
+//   (the forced step still waits for both neighbours to land).
 // Fixed 120 Hz substeps with a clamped accumulator: frame-rate independent,
 // and a resumed tab never fast-forwards.
 

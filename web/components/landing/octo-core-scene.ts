@@ -813,6 +813,7 @@ export function startOcto({ canvas, dock, model, field, onReady }: OctoOptions):
   let fpsCap = 60;
   let lastSy = window.scrollY;
   let sleeping = false;
+  let resized = false;
   const gait = createSpiderGait({ legs: 8 });
   const homes: THREE.Vector2[] = [];
   const leash = { x: 0, y: 0 };
@@ -831,8 +832,8 @@ export function startOcto({ canvas, dock, model, field, onReady }: OctoOptions):
     if (frames >= 120) {
       const was = dpr;
       if (slow > 30 && dpr > 1) {
-        ceil = dpr;
         dpr = Math.max(1, dpr - 0.25);
+        ceil = dpr; // never climb back to the level that hitched
         clean = 0;
       } else if (slow === 0 && ++clean >= 10 && dpr < ceil) {
         dpr = Math.min(ceil, dpr + 0.25);
@@ -894,16 +895,23 @@ export function startOcto({ canvas, dock, model, field, onReady }: OctoOptions):
     // outside the view is carried along the view's edge with its feet reset, so
     // a fast scroll on a long (phone) page still finds it crawling back in.
     // Nobody sees the carry; every visible frame is a real crawl.
-    let snap = first;
-    if (docked === 0) {
-      const m = 5 * unitT;
-      const cx = Math.min(vw + m, Math.max(-m, pose.x));
-      const cy = Math.min(sy + vh + m, Math.max(sy + navH - m, pose.y));
-      if (cx !== pose.x || cy !== pose.y) {
+    // While it docks (a jump back to the top) it goes straight to the dock
+    // instead, so the hero is never left empty while it crawls back up.
+    let snap = first || resized;
+    resized = false;
+    const m = 5 * unitT;
+    const cx = Math.min(vw + m, Math.max(-m, pose.x));
+    const cy = Math.min(sy + vh + m, Math.max(sy + navH - m, pose.y));
+    if (cx !== pose.x || cy !== pose.y) {
+      if (docked === 0) {
         pose.x = leash.x = cx;
         pose.y = leash.y = cy;
-        snap = true;
+      } else {
+        pose.x = leash.x = target.x;
+        pose.y = leash.y = target.y;
+        pose.vx = pose.vy = 0;
       }
+      snap = true;
     }
     const s = pose.s;
     const crawl = Math.hypot(pose.vx, pose.vy); // page px/s: how fast it crawls
@@ -953,9 +961,10 @@ export function startOcto({ canvas, dock, model, field, onReady }: OctoOptions):
     if (snap) gait.reset(homes);
     // The gait's reach is foot-to-home; the arm's is root-to-foot (1.5x its
     // length). Budget the gait so home + reach stays inside every arm's range
-    // (triangle inequality): a planted foot is then never clamped (no slip)
-    // and a swing never snaps out of a clamp (no jump), even while the body
-    // shrinks out of the dock.
+    // (triangle inequality): a planted foot is then not clamped (no slip) and
+    // a swing does not snap out of a clamp (no jump), even while the body
+    // shrinks out of the dock. The gait can overshoot its reach by up to ~10%
+    // while the body accelerates, which the arm's 1.5x length absorbs.
     let gaitReach = 1.5 * unitPx;
     for (const a of arms) {
       toPage(a.rest[0], v2);
@@ -1041,8 +1050,11 @@ export function startOcto({ canvas, dock, model, field, onReady }: OctoOptions):
     }
 
     renderer.render(scene, camera);
-    if (crawl > 5 || arms.some((a) => a.step >= 0) || first) lastActive = now;
-    if (now - lastActive > 4500 && !debug) {
+    // idle drift (the slow spin, the arms' sway) re-seats a foot now and then;
+    // that is not movement: sleep 4.5 s after the last crawl or scroll, on a
+    // frame where every foot is planted (WCAG 2.2.2)
+    if (crawl > 5 || first) lastActive = now;
+    if (now - lastActive > 4500 && !debug && !arms.some((a) => a.step >= 0)) {
       sleeping = true;
       renderer.setAnimationLoop(null);
     }
@@ -1090,7 +1102,9 @@ export function startOcto({ canvas, dock, model, field, onReady }: OctoOptions):
   canvas.addEventListener("webglcontextlost", onLost);
   canvas.addEventListener("webglcontextrestored", onRestored);
   const ro2 = new ResizeObserver(() => {
+    const was = ppu;
     layout();
+    if (ppu !== was) resized = true; // re-seat the feet at the new scale
     wake();
   });
   ro2.observe(canvas);
