@@ -94,9 +94,9 @@ def judge_ddq(
         session_id=f"ddq-response:{subject}",
         user="octo-agents",
     )
-    grounded = result.answers["grounded"]["noul"]
-    answered = result.answers["answered"]["noul"]
-    tone = result.answers["tone"].get("choice")
+    grounded = result.require_noul("grounded")
+    answered = result.require_noul("answered")
+    tone = result.require_choice("tone")
     return DdqVerdict(
         submit=(
             grounded >= GROUNDED_THRESHOLD
@@ -136,10 +136,9 @@ def run_ddq_response(
         input={"subject": subject, "questions": questions, "facts": facts},
         models=models,
     )
-    if replayed is not None:
-        return DdqResult.model_validate(replayed)
-
     try:
+        if replayed is not None:
+            return DdqResult.model_validate(replayed)
         cleaned = [q for q in questions if str(q).strip()]
         if not cleaned:
             result = DdqResult(

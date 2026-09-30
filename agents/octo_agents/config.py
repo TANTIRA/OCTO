@@ -6,7 +6,9 @@ ever arrive through env — never through request bodies or the tool surface.
 
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,8 +25,13 @@ class Settings(BaseSettings):
 
     # Kotlin api — the sidecar's only tool surface. The service principal JWT is
     # minted ops-side with a least-privilege role (tasks and drafts only).
+    # The default is the internal compose-network hop, which is plaintext by
+    # design (TLS terminates at Traefik) — but shipping a bearer token over
+    # http to a mispointed base URL must fail closed, so plaintext needs the
+    # explicit opt-in below (backlog #345).
     octo_api_base_url: str = "http://api:8080"
     octo_agent_token: str = ""
+    octo_agents_insecure_http: bool = False
 
     # Bearer token the Kotlin platform presents when it calls this sidecar.
     octo_agents_token: str = ""
@@ -56,6 +63,19 @@ class Settings(BaseSettings):
     octo_agents_operating_review_enabled: bool = False
 
     request_timeout_s: float = 60.0
+
+    @model_validator(mode="after")
+    def _plaintext_api_url_requires_opt_in(self) -> "Settings":
+        if (
+            urlparse(self.octo_api_base_url).scheme == "http"
+            and not self.octo_agents_insecure_http
+        ):
+            raise ValueError(
+                "octo_api_base_url is plaintext http — the api bearer token would "
+                "travel in cleartext. Set OCTO_AGENTS_INSECURE_HTTP=true only on "
+                "the internal compose network (TLS terminates at Traefik)."
+            )
+        return self
 
 
 @lru_cache

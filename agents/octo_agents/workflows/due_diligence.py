@@ -135,14 +135,14 @@ def _band_workstreams(
     bands = [
         WorkstreamBand(
             workstream=ws,
-            band=result.answers[ws]["choice"],
-            confidence=result.answers[ws].get("confidence", 0.0),
+            band=result.require(ws).get("choice"),
+            confidence=result.require(ws).get("confidence", 0.0),
         )
         for ws in WORKSTREAMS
     ]
     return (
         bands,
-        result.answers["completeness"]["score"],
+        result.require_score("completeness"),
         {"model": result.model, "provider": result.provider, "request_id": result.id},
     )
 
@@ -167,10 +167,10 @@ def run_due_diligence(
         input={"prospect_id": prospect_id},
         models=models,
     )
-    if replayed is not None:
-        return DdResult.model_validate(replayed)
-
     try:
+        if replayed is not None:
+            return DdResult.model_validate(replayed)
+
         prospect_state = api.get_prospect(prospect_id)
         raw_events = api.list_prospect_events(prospect_id)
         events = raw_events if isinstance(raw_events, list) else []
@@ -190,7 +190,7 @@ def run_due_diligence(
             )
             return result
 
-        admitted, _ = score_events(
+        admitted, retrieval = score_events(
             judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
         )
 
@@ -288,6 +288,7 @@ def run_due_diligence(
             verdict={
                 **{b.workstream: {"choice": b.band} for b in bands},
                 "completeness": {"score": completeness},
+                "retrieval": retrieval.model_dump(),
                 "lineage": lineage,
             },
         )

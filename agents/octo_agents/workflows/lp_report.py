@@ -87,9 +87,9 @@ def judge_letter(
         session_id=f"lp-report:{job_id}",
         user="octo-agents",
     )
-    complete = result.answers["complete"]["noul"]
-    supported = result.answers["supported"]["noul"]
-    tone = result.answers["tone"].get("choice")
+    complete = result.require_noul("complete")
+    supported = result.require_noul("supported")
+    tone = result.require_choice("tone")
     return LpVerdict(
         submit=(
             complete >= COMPLETE_THRESHOLD
@@ -136,10 +136,9 @@ def run_lp_report(
         },
         models=models,
     )
-    if replayed is not None:
-        return LpReportResult.model_validate(replayed)
-
     try:
+        if replayed is not None:
+            return LpReportResult.model_validate(replayed)
         facts = {
             "position_source": f"{position_source_type}:{position_source_id}",
             "measures": measures,

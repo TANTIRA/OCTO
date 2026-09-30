@@ -6,11 +6,19 @@ report approval gate). There is no direct database access, no ledger write and
 no approval path here by construction.
 """
 
+from collections.abc import Mapping
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
 from .retry import send_with_retry
+
+
+def _q(value: Any) -> str:
+    """Path-segment encoding — a caller-supplied id must never be able to break
+    out of its segment (../, ?) or smuggle extra path/query shape upstream."""
+    return quote(str(value), safe="")
 
 
 class OctoApiError(RuntimeError):
@@ -44,9 +52,9 @@ class OctoApiClient:
             timeout=timeout_s,
         )
 
-    def _get(self, path: str) -> Any:
+    def _get(self, path: str, params: Mapping[str, Any] | None = None) -> Any:
         r = send_with_retry(
-            lambda: self._client.get(path),
+            lambda: self._client.get(path, params=params),
             retries=self._retries,
             backoff_s=self._backoff_s,
         )
@@ -66,29 +74,39 @@ class OctoApiClient:
 
     # Reads — same JWT + RBAC surface a human service principal would use.
     def get_prospect(self, prospect_id: str) -> Any:
-        return self._get(f"/api/v1/prospects/{prospect_id}")
+        return self._get(f"/api/v1/prospects/{_q(prospect_id)}")
 
     def list_prospect_events(self, prospect_id: str) -> Any:
-        return self._get(f"/api/v1/prospects/{prospect_id}/events")
+        return self._get(f"/api/v1/prospects/{_q(prospect_id)}/events")
 
     def get_asset(self, asset_id: str) -> Any:
-        return self._get(f"/api/v1/assets/{asset_id}")
+        return self._get(f"/api/v1/assets/{_q(asset_id)}")
 
-    def list_pipeline(self, tenant_id: str, stage: str, limit: int = 50) -> Any:
+    def list_pipeline(
+        self,
+        tenant_id: str,
+        stage: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Any:
+        """One page of the stage's pipeline — the api caps a page and the caller
+        decides whether to walk `offset` further. A truncated page is an honest
+        page, not a complete list."""
         return self._get(
-            f"/api/v1/prospects?tenantId={tenant_id}&stage={stage}&limit={limit}"
+            "/api/v1/prospects",
+            params={
+                "tenantId": tenant_id,
+                "stage": stage,
+                "limit": limit,
+                "offset": offset,
+            },
         )
 
     def get_dataset(self, dataset_id: str, **params: Any) -> Any:
-        query = "&".join(f"{k}={v}" for k, v in params.items())
-        return self._get(
-            f"/api/v1/data/{dataset_id}?{query}"
-            if query
-            else f"/api/v1/data/{dataset_id}"
-        )
+        return self._get(f"/api/v1/data/{_q(dataset_id)}", params=params or None)
 
     def get_agent_context(self, tenant_id: str) -> Any:
-        return self._get(f"/api/v1/agent-context?tenantId={tenant_id}")
+        return self._get("/api/v1/agent-context", params={"tenantId": tenant_id})
 
     def list_agent_runs(
         self,
@@ -98,24 +116,24 @@ class OctoApiClient:
         subject_type: str | None = None,
         subject_id: str | None = None,
     ) -> Any:
-        query = f"tenantId={tenant_id}&limit={limit}"
+        params: dict[str, Any] = {"tenantId": tenant_id, "limit": limit}
         if subject_type:
-            query += f"&subjectType={subject_type}"
+            params["subjectType"] = subject_type
         if subject_id:
-            query += f"&subjectId={subject_id}"
-        return self._get(f"/api/v1/agent-runs?{query}")
+            params["subjectId"] = subject_id
+        return self._get("/api/v1/agent-runs", params=params)
 
     # Mediated writes — these open platform workflows, they never write the
     # ledger and their output still passes the human approval gates.
     def request_screening(self, prospect_id: str) -> Any:
-        return self._post(f"/api/v1/prospects/{prospect_id}/screen")
+        return self._post(f"/api/v1/prospects/{_q(prospect_id)}/screen")
 
     def request_ic_review(self, prospect_id: str) -> Any:
-        return self._post(f"/api/v1/prospects/{prospect_id}/ic-review")
+        return self._post(f"/api/v1/prospects/{_q(prospect_id)}/ic-review")
 
     def open_dd_evidence(self, prospect_id: str, workstream: str, summary: str) -> Any:
         return self._post(
-            f"/api/v1/prospects/{prospect_id}/dd-evidence",
+            f"/api/v1/prospects/{_q(prospect_id)}/dd-evidence",
             {"workstream": workstream, "summary": summary},
         )
 
@@ -160,7 +178,7 @@ class OctoApiClient:
         error: str | None = None,
     ) -> Any:
         return self._post(
-            f"/api/v1/agent-runs/{run_id}/finish",
+            f"/api/v1/agent-runs/{_q(run_id)}/finish",
             {"status": status, "output": output, "verdict": verdict, "error": error},
         )
 

@@ -143,11 +143,11 @@ def preflight_gate(
         session_id=f"screening-dd:preflight:{prospect_id}",
         user="octo-agents",
     )
-    probability = result.answers["sufficient"]["noul"]
+    probability = result.require_noul("sufficient")
     return PreflightVerdict(
         record_sufficient=probability >= PREFLIGHT_THRESHOLD,
         probability=probability,
-        gap_band=result.answers["gap"].get("choice"),
+        gap_band=result.require_choice("gap"),
         threshold=PREFLIGHT_THRESHOLD,
         judge_lineage={
             "model": result.model,
@@ -206,7 +206,7 @@ def score_events(
     )
 
     ranked = sorted(
-        ((i, result.answers[f"relevance_{i}"]["score"]) for i in range(len(scored))),
+        ((i, result.require_score(f"relevance_{i}")) for i in range(len(scored))),
         key=lambda pair: pair[1],
         reverse=True,
     )
@@ -272,8 +272,8 @@ def judge_memo(
         session_id=f"screening-dd:{prospect_id}",
         user="octo-agents",
     )
-    advance = verdict.answers["advance"]
-    rationale = verdict.answers["rationale"]
+    advance = verdict.require("advance")
+    rationale = verdict.require("rationale")
     return ScreeningVerdict(
         proceed=advance["noul"] >= PROCEED_THRESHOLD,
         proceed_probability=advance["noul"],
@@ -378,10 +378,13 @@ def run_screening_dd(
         input={"prospect_id": prospect_id},
         models=models,
     )
-    if replayed is not None:
-        return ScreeningResult.model_validate(replayed)
-
     try:
+        # Replay validation lives inside the guard: a stored output that no
+        # longer validates is a corrupt record — mark the run failed instead of
+        # serving it or crashing without bookkeeping.
+        if replayed is not None:
+            return ScreeningResult.model_validate(replayed)
+
         prospect_state = api.get_prospect(prospect_id)
         raw_events = api.list_prospect_events(prospect_id)
         events = raw_events if isinstance(raw_events, list) else []

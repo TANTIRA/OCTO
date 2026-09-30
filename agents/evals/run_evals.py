@@ -18,7 +18,13 @@ from octo_agents.config import get_settings
 from octo_agents.judge import JudgeClient, NoulQuestion
 from octo_agents.registry import ApprovedModelRegistry
 
-THRESHOLD = 0.7
+# Two different knobs shared one constant (backlog #345): the per-answer
+# decision cutoff mirrors the workflow gate (a noul at or above it predicts
+# "ship"), while the suite gate is the minimum agreement rate worth shipping —
+# they move independently (a stricter verdict bar does not mean a stricter
+# suite bar).
+PREDICT_THRESHOLD = 0.7
+MIN_ACCURACY = 0.7
 EVAL_DIR = Path(__file__).resolve().parent
 SETS = ["normal", "edge", "injection"]
 
@@ -83,7 +89,7 @@ def main() -> int:
                     session_id=f"eval:{case['case']}",
                     user="octo-agents-eval",
                 )
-                predicted = result.answers[key]["noul"] >= THRESHOLD
+                predicted = result.answers[key]["noul"] >= PREDICT_THRESHOLD
                 expected = case["expect"][key]
                 total += 1
                 hits += int(predicted == expected)
@@ -94,8 +100,11 @@ def main() -> int:
                 )
 
     accuracy = hits / total if total else 0.0
-    print(f"\naccuracy: {hits}/{total} = {accuracy:.0%} (threshold {THRESHOLD})")
-    return 0 if accuracy >= THRESHOLD else 1
+    print(
+        f"\naccuracy: {hits}/{total} = {accuracy:.0%} "
+        f"(predict >= {PREDICT_THRESHOLD}, suite >= {MIN_ACCURACY})"
+    )
+    return 0 if accuracy >= MIN_ACCURACY else 1
 
 
 if __name__ == "__main__":

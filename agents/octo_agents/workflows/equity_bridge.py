@@ -86,9 +86,9 @@ def judge_bridge(
         session_id=f"equity-bridge:{company}",
         user="octo-agents",
     )
-    cited = result.answers["cited"]["noul"]
-    complete = result.answers["complete"]["noul"]
-    register = result.answers["register"].get("choice")
+    cited = result.require_noul("cited")
+    complete = result.require_noul("complete")
+    register = result.require_choice("register")
     return BridgeVerdict(
         ship=(
             cited >= CITED_THRESHOLD
@@ -142,10 +142,9 @@ def run_equity_bridge(
         },
         models=models,
     )
-    if replayed is not None:
-        return BridgeResult.model_validate(replayed)
-
     try:
+        if replayed is not None:
+            return BridgeResult.model_validate(replayed)
         if not effects:
             result = BridgeResult(
                 company=company,

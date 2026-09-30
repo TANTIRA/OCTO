@@ -22,6 +22,7 @@ from ..api_client import OctoApiClient, OctoApiError
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import read_tools
 from .screening_dd import (
+    RetrievalVerdict,
     _record_run,
     extract_final_text,
     finish_failed,
@@ -62,6 +63,7 @@ class IcMemoResult(BaseModel):
     prospect_id: str
     status: Literal["completed", "refused"]
     memo: str = ""
+    retrieval: RetrievalVerdict | None = None
     verdict: MemoVerdict | None = None
     ic_review_requested: bool = False
     ic_review_task_id: str | None = None
@@ -115,9 +117,9 @@ def judge_memo_for_ic(
         session_id=f"ic-memo:{prospect_id}",
         user="octo-agents",
     )
-    complete = result.answers["complete"]["noul"]
-    thesis = result.answers["thesis"].get("choice")
-    evidence = result.answers["evidence"]["score"]
+    complete = result.require_noul("complete")
+    thesis = result.require_choice("thesis")
+    evidence = result.require_score("evidence")
     return MemoVerdict(
         submit=(
             complete >= COMPLETE_THRESHOLD
@@ -155,10 +157,10 @@ def run_ic_memo(
         input={"prospect_id": prospect_id},
         models=models,
     )
-    if replayed is not None:
-        return IcMemoResult.model_validate(replayed)
-
     try:
+        if replayed is not None:
+            return IcMemoResult.model_validate(replayed)
+
         prospect_state = api.get_prospect(prospect_id)
         raw_events = api.list_prospect_events(prospect_id)
         events = raw_events if isinstance(raw_events, list) else []
@@ -176,7 +178,9 @@ def run_ic_memo(
             )
             return result
 
-        admitted, _ = score_events(
+        # The retrieval verdict is part of the run's lineage — it records how
+        # much of the record jev let through, not just which chunks.
+        admitted, retrieval = score_events(
             judge, prospect_id=prospect_id, prospect_state=prospect_state, events=events
         )
 
@@ -217,9 +221,14 @@ def run_ic_memo(
 
         task_id = None
         stage_note = None
+        review_requested = False
         if verdict.submit:
             try:
                 review = api.request_ic_review(prospect_id)
+                # The request succeeded — the task opened even if the response
+                # carried no id (the platform's contract returns one today, but
+                # 'asked and accepted' must not read as 'not asked').
+                review_requested = True
                 task_id = review.get("taskId") or review.get("task_id")
             except OctoApiError as e:
                 if e.status_code == 409:
@@ -233,8 +242,9 @@ def run_ic_memo(
             prospect_id=prospect_id,
             status="completed",
             memo=memo,
+            retrieval=retrieval,
             verdict=verdict,
-            ic_review_requested=task_id is not None,
+            ic_review_requested=review_requested,
             ic_review_task_id=task_id,
             stage_note=stage_note,
         )
@@ -246,6 +256,7 @@ def run_ic_memo(
                 "complete": {"noul": verdict.complete_probability},
                 "thesis": {"choice": verdict.thesis_band},
                 "evidence": {"score": verdict.evidence_score},
+                "retrieval": retrieval.model_dump(),
                 "lineage": verdict.judge_lineage,
             },
         )
