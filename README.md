@@ -120,7 +120,12 @@ The web UI is a separate frontend concern (ADR-0001); `infra/docker-compose.yml`
 
 Backend scaffold in place — `./gradlew check` compiles all modules and runs tests.
 
-- Wired into the running application with Testcontainers coverage: Helius onchain ingestion (RPC, webhooks, finality probe), the EVM scan service, onchain staging → promotion → recon, and market-data sync (Alpha Vantage). SIWS wallet sign-in is live in the web UI.
-- Implemented as libraries, not yet wired into the running application: IBOR derivation, the decision-model client, document classification and claim-support assessment, the analytics suite (PE performance, Brinson attribution, return and risk measures, factor exposure, the value-creation bridge, DCF), path-sum look-through exposure, and the ontology validation gate.
-- Still open: the reconciliation triage loop, deal sourcing, and workflow.
-- ADRs in `docs/adr/`: 0006 accepted (Neo4j bolt stays tunnel-only), the rest still Proposed.
+- Wired into the running application (Kotlin paths covered by Testcontainers ITs):
+  - Ingestion: Helius onchain (RPC, webhooks, finality probe), the EVM scan service, onchain staging → promotion → recon, and market-data sync (Alpha Vantage).
+  - Operations API: tenancy and admin (`/api/v1/me`, `/api/v1/admin`), assets, prospects and screening rules (deal sourcing), reconciliations, compliance, reports with schedules and release (workflow), the company brain, and the anonymous contact form.
+  - Reports compute PE performance (`analytics`) and the GL journal (`ibor-core`). Compliance reads look-through exposure reports.
+  - Agents sidecar (ADR-0005): Python DeepAgents workflows, tested with pytest and evals — screening/DD, IC memo, LP report, company brain, compliance rationale, equity bridge, operating review, DDQ response, calibration. Each workflow is behind a flag that is off by default.
+  - SIWS wallet sign-in ships in the web UI. The deployed GoTrue still needs `GOTRUE_EXTERNAL_WEB3_SOLANA_ENABLED` (backlog item 1).
+- Implemented as libraries, not yet wired into the running application: IBOR position derivation (deal, commitment and token positions) and the IBOR reader, the Kotlin decision-model client and what uses it (document classification, claim-support assessment), the rest of the analytics suite (Brinson attribution, return and risk measures, factor exposure, the value-creation bridge, DCF), the path-sum look-through computation, and the ontology validation gate.
+- Still open: the reconciliation triage loop.
+- ADRs in `docs/adr/`: 0006 accepted (Neo4j bolt stays tunnel-only), 0003 superseded by 0004, the rest still Proposed.
