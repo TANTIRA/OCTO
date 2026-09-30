@@ -8,6 +8,10 @@ plugins {
 dependencyManagement {
     imports {
         mavenBom("com.fasterxml.jackson:jackson-bom:2.22.3")
+        // The catalog pins micrometer-core / registry-prometheus at 1.17.1, but Boot 3.5.16's BOM
+        // only reaches micrometer-commons. Left split, core 1.17.1 calls WarnThenDebugLogger.isEnabled()
+        // against commons 1.15.12 and every Spring context dies with NoSuchMethodError.
+        mavenBom("io.micrometer:micrometer-bom:${libs.versions.micrometer.get()}")
     }
     // Advisory floors the Spring Boot 3.5.16 BOM still sits below. These must live here, not in
     // resolutionStrategy.force(): io.spring.dependency-management registers its BOM pinning as a
