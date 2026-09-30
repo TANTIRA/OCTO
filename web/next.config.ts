@@ -1,17 +1,24 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 
-// The only cross-origin destination the browser is allowed to reach: the
-// Supabase auth/API gateway. Baked at build time because NEXT_PUBLIC_* is.
-const supabaseOrigin = (() => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+// The only cross-origin destinations the browser is allowed to reach: the
+// Supabase auth/API gateway and the Solana RPC endpoint. Baked at build time
+// because NEXT_PUBLIC_* is.
+const originOf = (url: string | undefined) => {
   if (!url) return null;
   try {
     return new URL(url).origin;
   } catch {
     return null;
   }
-})();
+};
+const supabaseOrigin = originOf(process.env.NEXT_PUBLIC_SUPABASE_URL);
+// wallet-sign-in falls back to clusterApiUrl("devnet") when the env is unset —
+// mirror that so connect-src covers whatever endpoint the bundle bakes in.
+const rpcOrigin = originOf(
+  process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.devnet.solana.com",
+);
+const connectOrigins = [...new Set([supabaseOrigin, rpcOrigin].filter(Boolean))].join(" ");
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -36,9 +43,10 @@ const securityHeaders = [
       // unsafe-eval is dev-only, never in the production policy.
       `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
+      // cta-2's pointer trail loads Unsplash stills — allow that one origin.
+      "img-src 'self' data: blob: https://images.unsplash.com",
       "font-src 'self'",
-      `connect-src 'self'${supabaseOrigin ? ` ${supabaseOrigin}` : ""}`,
+      `connect-src 'self'${connectOrigins ? ` ${connectOrigins}` : ""}`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
     ].join("; "),
