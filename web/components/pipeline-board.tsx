@@ -287,6 +287,7 @@ export default function PipelineBoard() {
                           onChange={(e) => setRationale(e.target.value)}
                           onKeyDown={(e) => e.key === "Escape" && setPassing(null)}
                           placeholder="Why pass? Recorded on the audit trail."
+                          className="h-7 w-full rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[12px] text-neutral-900 placeholder:text-neutral-400 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
                           className="h-7 w-full rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[12px] text-neutral-900 placeholder:text-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                         />
                         <div className="flex gap-1.5">
