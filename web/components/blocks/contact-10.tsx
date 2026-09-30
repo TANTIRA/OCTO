@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import { ChevronDown } from "lucide-react";
+import { useState, type FormEvent } from "react";
 
 const benefits = [
   {
@@ -32,6 +33,42 @@ const labelClass = "mb-2 block text-sm font-medium text-neutral-300";
 
 export default function Contact10() {
   const reduce = useReducedMotion();
+  const [status, setStatus] = useState<"idle" | "pending" | "sent" | "error">(
+    "idle",
+  );
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const text = (key: string) => String(data.get(key) ?? "");
+    setStatus("pending");
+    try {
+      const res = await fetch("/api/v1/contact", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: text("email"),
+          firstName: text("firstName"),
+          lastName: text("lastName"),
+          firm: text("firm"),
+          role: text("role"),
+          aumBand: text("aumBand"),
+          phone: text("phone") || undefined,
+          message: text("message") || undefined,
+          website: text("website") || undefined,
+        }),
+      });
+      if (res.ok) {
+        setStatus("sent");
+        form.reset();
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
+  }
 
   const container: Variants = {
     hidden: {},
@@ -100,7 +137,7 @@ export default function Contact10() {
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           className="rounded-3xl border border-neutral-800 bg-neutral-950 p-6 shadow-2xl shadow-neutral-900/15 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-black/40 sm:p-8 lg:p-10"
-          onSubmit={(e) => e.preventDefault()}
+          onSubmit={onSubmit}
         >
           <div className="grid gap-5">
             <div>
@@ -109,6 +146,7 @@ export default function Contact10() {
               </label>
               <input
                 id="c10-email"
+                name="email"
                 type="email"
                 autoComplete="email"
                 placeholder="you@fund.com"
@@ -124,6 +162,7 @@ export default function Contact10() {
                 </label>
                 <input
                   id="c10-first"
+                  name="firstName"
                   type="text"
                   autoComplete="given-name"
                   placeholder="Jane"
@@ -137,6 +176,7 @@ export default function Contact10() {
                 </label>
                 <input
                   id="c10-last"
+                  name="lastName"
                   type="text"
                   autoComplete="family-name"
                   placeholder="Doe"
@@ -152,6 +192,7 @@ export default function Contact10() {
               </label>
               <input
                 id="c10-company"
+                name="firm"
                 type="text"
                 autoComplete="organization"
                 placeholder="Acme Capital"
@@ -167,6 +208,7 @@ export default function Contact10() {
                 </label>
                 <input
                   id="c10-title"
+                  name="role"
                   type="text"
                   autoComplete="organization-title"
                   placeholder="Partner, COO, Head of Ops"
@@ -181,6 +223,7 @@ export default function Contact10() {
                 <div className="relative">
                   <select
                     id="c10-size"
+                    name="aumBand"
                     defaultValue=""
                     required
                     className={`${fieldClass} cursor-pointer appearance-none pr-10 invalid:text-neutral-500`}
@@ -204,6 +247,7 @@ export default function Contact10() {
               </label>
               <input
                 id="c10-phone"
+                name="phone"
                 type="tel"
                 autoComplete="tel"
                 placeholder="+1 555 000 1234"
@@ -217,6 +261,7 @@ export default function Contact10() {
               </label>
               <textarea
                 id="c10-message"
+                name="message"
                 rows={5}
                 placeholder="Tell us about your fund structure, current stack, or timeline."
                 className={`${fieldClass} resize-none`}
@@ -224,18 +269,42 @@ export default function Contact10() {
             </div>
           </div>
 
+          {/* Honeypot — hidden from humans; bots that fill it get a silent 202. */}
+          <div className="hidden" aria-hidden="true">
+            <label htmlFor="c10-website">Website</label>
+            <input
+              id="c10-website"
+              name="website"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+            />
+          </div>
+
           <p className="mt-5 text-xs leading-relaxed text-neutral-500">
             We only use your details to contact you about our products and
             services.
           </p>
 
+          {status === "sent" && (
+            <p role="status" className="mt-4 text-sm text-emerald-400">
+              Thanks — a specialist will reach out shortly.
+            </p>
+          )}
+          {status === "error" && (
+            <p role="alert" className="mt-4 text-sm text-red-400">
+              Something went wrong sending that. Please try again.
+            </p>
+          )}
+
           <motion.button
             type="submit"
-            whileHover={reduce ? undefined : { y: -1 }}
-            whileTap={{ scale: 0.99 }}
-            className="mt-6 w-full cursor-pointer rounded-full bg-white px-6 py-3.5 text-sm font-medium text-black transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 dark:focus-visible:ring-offset-neutral-900"
+            disabled={status === "pending"}
+            whileHover={reduce || status === "pending" ? undefined : { y: -1 }}
+            whileTap={status === "pending" ? undefined : { scale: 0.99 }}
+            className="mt-6 w-full cursor-pointer rounded-full bg-white px-6 py-3.5 text-sm font-medium text-black transition-colors hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 disabled:cursor-wait disabled:opacity-60 dark:focus-visible:ring-offset-neutral-900"
           >
-            Submit
+            {status === "pending" ? "Sending…" : "Submit"}
           </motion.button>
         </motion.form>
       </div>
