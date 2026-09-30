@@ -7,6 +7,7 @@ import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
 import com.octo.ingestion.onchain.OnchainWebhookService
 import com.octo.ingestion.onchain.TokenContract
+import com.octo.ingestion.onchain.TransactionFetcher
 import com.octo.ingestion.onchain.WatchSource
 import com.octo.ingestion.onchain.persistence.JdbcOnchainStagingStore
 import org.springframework.beans.factory.ObjectProvider
@@ -97,9 +98,31 @@ class OnchainIngestionConfiguration {
             error("webhook deliveries need HELIUS_RPC_URL/HELIUS_API_KEY for finality verification")
         }
 
+    /**
+     * Helius-backed transaction fetcher — the webhook honesty gate's other half (#316): staged
+     * facts come from this canonical copy, never from the delivered payload's own content.
+     */
+    @Bean
+    @ConditionalOnProperty("HELIUS_RPC_URL")
+    fun heliusTransactionFetcher(env: Environment): TransactionFetcher =
+        TransactionFetcher.helius(
+            rpcBaseUrl = env.getRequiredProperty("HELIUS_RPC_URL"),
+            apiKey = env.getRequiredProperty("HELIUS_API_KEY"),
+            devnet = env.getProperty("HELIUS_NETWORK").equals("devnet", ignoreCase = true),
+        )
+
+    /** Fail-closed stand-in mirroring [unverifiedFinalityProbe] when no RPC is configured. */
+    @Bean
+    @ConditionalOnMissingBean(TransactionFetcher::class)
+    fun unverifiedTransactionFetcher(): TransactionFetcher =
+        TransactionFetcher {
+            error("webhook deliveries need HELIUS_RPC_URL/HELIUS_API_KEY to fetch canonical transaction content")
+        }
+
     @Bean
     fun onchainWebhookService(
         store: OnchainStagingStore,
         finality: FinalityProbe,
-    ) = OnchainWebhookService(store, finality)
+        transactions: TransactionFetcher,
+    ) = OnchainWebhookService(store, finality, transactions)
 }

@@ -1,5 +1,6 @@
 package com.octo.ingestion.onchain
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.math.BigInteger
 import java.util.UUID
@@ -123,9 +124,26 @@ class OnchainWebhookServiceTest {
     private val mapper = ObjectMapper()
     private val store = FakeWebhookStore()
     private var finalized: Set<String>? = null
-    private val service = OnchainWebhookService(store, FinalityProbe { finalized ?: it.toSet() })
 
-    private fun ingest(json: String) = service.ingest(mapper.readTree(json), UUID.randomUUID(), UUID.randomUUID())
+    /** Signature -> the chain's "own copy". Auto-filled from each delivery unless a test overrides it first. */
+    private val canonical = mutableMapOf<String, JsonNode>()
+    private val service =
+        OnchainWebhookService(store, FinalityProbe { finalized ?: it.toSet() }, TransactionFetcher { canonical[it] })
+
+    private fun ingest(json: String): Int {
+        val tree = mapper.readTree(json)
+        if (tree.isArray) {
+            tree.forEach { tx ->
+                tx
+                    .path("transaction")
+                    .path("signatures")
+                    .path(0)
+                    .asText(null)
+                    ?.let { sig -> canonical.putIfAbsent(sig, tx) }
+            }
+        }
+        return service.ingest(tree, UUID.randomUUID(), UUID.randomUUID())
+    }
 
     @Test
     fun `a delivery for a watched wallet stages its normalized legs`() {
@@ -214,6 +232,30 @@ class OnchainWebhookServiceTest {
                 .replace("\"signatures\": [\"$WH_SIG\"]", "\"signatures\": []")
 
         assertEquals(0, ingest(unsigned))
+        assertTrue(store.inserted.isEmpty())
+    }
+
+    @Test
+    fun `a forged delivery payload is ignored in favor of the chain's own copy of the signature`() {
+        store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
+        // The chain's own copy of WH_SIG shows no transfer to the watched wallet at all.
+        canonical[WH_SIG] = mapper.readTree(delivery(listOf(WH_OTHER), pre = listOf(5_000), post = listOf(4_000)))[0]
+        // A malicious/compromised sender pairs that real, finalized signature with a fabricated
+        // payload claiming a large transfer into the watched wallet.
+        val forged = delivery(listOf(WH_WALLET, WH_OTHER), pre = listOf(1_000, 5_000), post = listOf(2_000_000_000, 4_000))
+
+        assertEquals(0, ingest(forged))
+        assertTrue(store.inserted.isEmpty())
+    }
+
+    @Test
+    fun `a finalized signature that cannot be fetched stages nothing`() {
+        store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
+        val json = delivery(listOf(WH_WALLET), pre = listOf(1_000), post = listOf(2_000))
+        // Call the service directly, bypassing ingest()'s auto-fill, so the fetcher returns null for WH_SIG.
+        val written = service.ingest(mapper.readTree(json), UUID.randomUUID(), UUID.randomUUID())
+
+        assertEquals(0, written)
         assertTrue(store.inserted.isEmpty())
     }
 }
