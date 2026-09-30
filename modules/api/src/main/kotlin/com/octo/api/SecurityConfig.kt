@@ -162,6 +162,14 @@ class SecurityConfig {
 
         val jwksUri = env.getProperty("AUTH_JWKS_URL")?.takeIf(String::isNotBlank)
         if (jwksUri != null) {
+            // A configured JWKS with issuer/audience left blank used to authenticate any token
+            // the JWKS could verify — expiry and a non-blank subject, nothing tying it to this
+            // deployment's issuer or intended audience (#319). Fail closed at boot instead of
+            // silently skipping those checks, same posture as the AUTH_DEV_BYPASS guard above.
+            require(!env.getProperty("AUTH_ISSUER").isNullOrBlank() && !env.getProperty("AUTH_AUDIENCE").isNullOrBlank()) {
+                "AUTH_JWKS_URL is configured but AUTH_ISSUER and/or AUTH_AUDIENCE are blank — both are required " +
+                    "once a JWKS is set, otherwise issuer/audience validation is silently skipped"
+            }
             // Supabase GoTrue signs ES256 (JWT_KEYS/JWT_JWKS keypair); the
             // builder defaults to expecting RS256, so the algorithm must be
             // declared or every token is rejected as "another algorithm
