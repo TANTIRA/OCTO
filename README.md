@@ -86,9 +86,9 @@ Modular monolith: Kotlin on Java 21, Spring Boot 3, Gradle, Flyway, and self-hos
 
 ### External references
 
-- [The Machine-Native Economy](docs/the-machine-native-economy.pdf) — BlackRock Digital Assets Research, Sept 2026: machine-native money needs machine-verifiable records
-- [US 10,872,067 — Creating data in a data store using a dynamic ontology](docs/Creating%20data%20in%20a%20data%20store%20using%20a%20dynamic%20ontology%20%281%29.pdf) — Palantir patent describing the canonical-ontology-plus-parser architecture Octo applies to the IBOR
-- [Concept-Centric Software Development](docs/Concept-Centric%20Software%20Development.pdf) — Wilczynski, Gregoire-Wright, Jackson: Palantir's experience report on governing shared concepts; motivates Octo's SemVer-versioned ontology and CTO-owned change path
+- *The Machine-Native Economy* — BlackRock Digital Assets Research, Sept 2026: machine-native money needs machine-verifiable records
+- [US 10,872,067 — Creating data in a data store using a dynamic ontology](https://patents.google.com/patent/US10872067B2/en) — Palantir patent describing the canonical-ontology-plus-parser architecture Octo applies to the IBOR
+- *Concept-Centric Software Development* — Wilczynski, Gregoire-Wright, Jackson: Palantir's experience report on governing shared concepts; motivates Octo's SemVer-versioned ontology and CTO-owned change path
 
 ## Governance
 
