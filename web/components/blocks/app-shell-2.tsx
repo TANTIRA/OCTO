@@ -105,12 +105,6 @@ type Area = {
   rows: Row[];
 };
 
-const WORKSPACES = [
-  { name: "OCTO Flagship Fund II", members: "All vehicles" },
-  { name: "OCTO Opportunities I", members: "Co-invest" },
-  { name: "Antero SPV", members: "Single deal" },
-];
-
 const AREAS: Area[] = [
   {
     id: "overview",
@@ -476,8 +470,10 @@ const AREAS: Area[] = [
 
 function WorkspaceSwitcher({
   workspaces,
+  loadFailed,
 }: {
   workspaces: { name: string; members: string }[];
+  loadFailed: boolean;
 }) {
   const [workspace, setWorkspace] = useState(workspaces[0]?.name ?? "");
   const [open, setOpen] = useState(false);
@@ -561,6 +557,27 @@ function WorkspaceSwitcher({
 
   const active = workspaces.find((item) => item.name === workspace);
 
+  // An empty list is honest state, not a menu — never offer fabricated names.
+  if (workspaces.length === 0) {
+    return (
+      <div
+        className={cx(
+          "flex h-11 w-full items-center gap-2 rounded-[var(--rb-r-lg,10px)] bg-neutral-100 px-2 text-left dark:bg-neutral-800",
+          transition,
+        )}
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
+            {loadFailed ? "Vehicles unavailable" : "No vehicles"}
+          </span>
+          <span className="block truncate text-xs text-neutral-500 dark:text-neutral-500">
+            {loadFailed ? "couldn't reach the API" : "none assigned to you"}
+          </span>
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div ref={rootRef} className="relative">
       <button
@@ -635,18 +652,6 @@ function WorkspaceSwitcher({
             </button>
           ))}
 
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => close(true)}
-            className={cx(
-              "mt-1 flex h-8 w-full cursor-pointer items-center rounded-[var(--rb-r-lg,10px)] px-2 text-left text-[13px] text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 active:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100 dark:active:bg-neutral-700",
-              transition,
-              focusInset,
-            )}
-          >
-            Add vehicle
-          </button>
         </div>
       )}
     </div>
@@ -657,11 +662,13 @@ function NavigationFrame({
   areaId,
   onSelectArea,
   workspaces,
+  loadFailed,
   onClose,
 }: {
   areaId: string;
   onSelectArea: (id: string) => void;
   workspaces: { name: string; members: string }[];
+  loadFailed: boolean;
   onClose?: () => void;
 }) {
   const [tipFor, setTipFor] = useState<string | null>(null);
@@ -792,7 +799,7 @@ function NavigationFrame({
 
       <div className="flex w-64 min-w-0 flex-col bg-neutral-50 dark:bg-neutral-900">
         <div className="shrink-0 px-2 pb-1 pt-2">
-          <WorkspaceSwitcher workspaces={workspaces} />
+          <WorkspaceSwitcher workspaces={workspaces} loadFailed={loadFailed} />
         </div>
 
         <div className="relative min-h-0 flex-1">
@@ -877,7 +884,10 @@ export default function AppShell2() {
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerShown, setDrawerShown] = useState(false);
-  const [workspaces, setWorkspaces] = useState(WORKSPACES);
+  const [workspaces, setWorkspaces] = useState<
+    { name: string; members: string }[]
+  >([]);
+  const [workspacesLoadFailed, setWorkspacesLoadFailed] = useState(false);
   const content = useScrollFade<HTMLElement>();
   const shouldFocusRef = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -907,22 +917,26 @@ export default function AppShell2() {
 
   // First real API read: the caller's tenants drive the vehicle switcher.
   // The proxy (next.config.ts) forwards to the API with the session JWT;
-  // on any failure the seeded workspace list stays — a shell that can't
-  // reach the API still renders.
+  // on failure the switcher shows an explicit unavailable state — never a
+  // fabricated list.
   useEffect(() => {
     let cancelled = false;
     apiFetch("/api/v1/me/access")
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((body) => {
-        if (cancelled || !body?.tenants?.length) return;
+        if (cancelled) return;
         setWorkspaces(
-          body.tenants.map((t: { slug: string; role: string }) => ({
-            name: t.slug,
-            members: t.role,
-          })),
+          ((body?.tenants ?? []) as { slug: string; role: string }[]).map(
+            (t) => ({ name: t.slug, members: t.role }),
+          ),
         );
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setWorkspacesLoadFailed(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -998,6 +1012,7 @@ export default function AppShell2() {
           areaId={areaId}
           onSelectArea={selectArea}
           workspaces={workspaces}
+          loadFailed={workspacesLoadFailed}
         />
       </aside>
 
@@ -1177,6 +1192,7 @@ export default function AppShell2() {
               areaId={areaId}
               onSelectArea={selectArea}
               workspaces={workspaces}
+              loadFailed={workspacesLoadFailed}
               onClose={closeDrawer}
             />
           </div>
