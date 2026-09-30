@@ -71,7 +71,7 @@ export default function Footer12() {
             <div>
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-base font-semibold text-neutral-900">
-                  M
+                  O
                 </span>
                 <span className="text-sm font-medium text-neutral-400">
                   The Ledger Dispatch

@@ -122,7 +122,20 @@ export function Features4({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="lg:col-span-4 flex flex-col justify-between gap-4">
+          <div
+            role="tablist"
+            aria-orientation="vertical"
+            aria-label="Platform capabilities"
+            onKeyDown={(e) => {
+              const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+              if (!step) return;
+              e.preventDefault();
+              const next = (activeTab + step + tabs.length) % tabs.length;
+              handleTabClick(next);
+              document.getElementById(`feature-tab-${next}`)?.focus();
+            }}
+            className="lg:col-span-4 flex flex-col justify-between gap-4"
+          >
             {tabs.map((tab, index) => {
               const Icon = tab.icon;
               const isActive = activeTab === index;
@@ -130,6 +143,12 @@ export function Features4({
               return (
                 <motion.button
                   key={index}
+                  type="button"
+                  role="tab"
+                  id={`feature-tab-${index}`}
+                  aria-selected={isActive}
+                  aria-controls="feature-panel"
+                  tabIndex={isActive ? 0 : -1}
                   initial={{ opacity: 0, x: -20 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
@@ -182,6 +201,9 @@ export function Features4({
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
+                id="feature-panel"
+                role="tabpanel"
+                aria-labelledby={`feature-tab-${activeTab}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}

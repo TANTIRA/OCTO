@@ -215,6 +215,7 @@ export default function PipelineBoard() {
                 <div className="mb-1 rounded-[var(--rb-r-lg,10px)] border border-neutral-200/70 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900">
                   <input
                     autoFocus
+                    aria-label="Prospect name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onKeyDown={(e) => {

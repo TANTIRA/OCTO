@@ -1,11 +1,10 @@
 "use client";
 
-import { ArrowRight, ArrowUp } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 
 export function Hero15() {
-  const [query, setQuery] = useState("");
   const [isButtonHovered, setIsButtonHovered] = useState(false);
 
   return (
@@ -73,31 +72,6 @@ export function Hero15() {
                 <ArrowRight className="w-4 h-4" />
               </motion.span>
             </motion.a>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.7 }}
-            className="mt-10 sm:mt-20 w-full max-w-2xl"
-          >
-            <div className="flex items-center bg-neutral-200/60 dark:bg-neutral-800 rounded-full p-2.5">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Ask across your book of record..."
-                className="flex-1 bg-transparent text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-500 text-sm sm:text-base focus:outline-none border-0 min-w-0 px-4 sm:px-5 py-3"
-              />
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                aria-label="Submit query"
-                className="cursor-pointer shrink-0 w-12 h-12 rounded-full bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors duration-200 flex items-center justify-center"
-              >
-                <ArrowUp className="w-5 h-5 text-white dark:text-neutral-900" />
-              </motion.button>
-            </div>
           </motion.div>
 
           <motion.p
