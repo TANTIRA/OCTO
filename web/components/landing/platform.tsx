@@ -4,7 +4,7 @@ import { Reveal } from "./motion";
 const PRODUCTS = [
   {
     name: "Investment Book of Record",
-    body: "Every commitment, transaction, cash flow, and valuation in one ledger. Positions and cash are calculated from it — nobody types them in by hand.",
+    body: "Positions are calculated, never typed.",
     specs: [
       ["History", "Nothing overwritten"],
       ["Corrections", "Logged with a reason"],
@@ -13,7 +13,7 @@ const PRODUCTS = [
   },
   {
     name: "Look-through & Analytics",
-    body: "See exposure and performance through every fund and holding layer — numbers you can stand behind in front of an LP.",
+    body: "See through every fund layer.",
     specs: [
       ["Returns", "IRR · TVPI · MOIC · DPI"],
       ["Attribution", "What drove returns"],
@@ -22,7 +22,7 @@ const PRODUCTS = [
   },
   {
     name: "AI you can audit",
-    body: "AI sorts documents, checks claims against their sources, and drafts screening calls — and every answer records the model and request behind it.",
+    body: "Every answer shows its work.",
     specs: [
       ["Every answer", "Traced to its model"],
       ["Big decisions", "Need a human sign-off"],
@@ -31,7 +31,7 @@ const PRODUCTS = [
   },
   {
     name: "From first look to LP report",
-    body: "Screen deals your way, run diligence, and produce IC and LP reports — all from the same numbers, every time.",
+    body: "Same numbers, deal to report.",
     specs: [
       ["Screening", "Your criteria"],
       ["Approvals", "Built into workflows"],
@@ -43,15 +43,13 @@ const PRODUCTS = [
 export function Platform() {
   return (
     <section id="platform" className="scroll-mt-16 bg-white px-4 pb-24 text-black sm:px-6 sm:pb-32 lg:px-8">
-      <Reveal className="mx-auto max-w-[1320px]">
+      <Reveal className="relative z-40 mx-auto max-w-[1320px]">
         <div className="grid gap-6 border-t border-black/15 pt-16 lg:grid-cols-2 lg:items-end">
           <h2 data-anim className="font-display text-4xl font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl">
             One record for every number your firm reports.
           </h2>
           <p data-anim className="max-w-lg font-editorial text-xl leading-relaxed text-neutral-600 lg:justify-self-end">
-            Four tools built on one shared record — so your deal team, back
-            office, and LPs always see the same figure, without the quarterly
-            reconciliation.
+            No more quarterly reconciliation.
           </p>
         </div>
 

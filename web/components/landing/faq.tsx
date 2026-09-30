@@ -8,7 +8,7 @@ const FAQ = [
   },
   {
     q: "Where does OCTO run?",
-    a: "On your own infrastructure. The ledger (PostgreSQL) and the ontology (Neo4j) are self-hosted, so client, position, and LP records stay inside your walls, and your core data doesn't depend on any outside service. The one outside call is to AI models — and confidential data only goes to ones that keep nothing.",
+    a: "On your own infrastructure. The ledger and the ontology are self-hosted, so client, position, and LP records stay inside your walls, and your core data doesn't depend on any outside service. The one outside call is to AI models — and confidential data only goes to ones that keep nothing.",
   },
   {
     q: "If nothing is ever overwritten, how do I fix a mistake?",
@@ -27,7 +27,7 @@ const FAQ = [
 export function Faq() {
   return (
     <section id="faq" className="scroll-mt-16 bg-neutral-100 px-4 py-24 text-black sm:px-6 sm:py-32 lg:px-8">
-      <Reveal className="mx-auto grid max-w-[1320px] gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
+      <Reveal className="relative z-40 mx-auto grid max-w-[1320px] gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
         <h2 data-anim className="font-display text-4xl font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl">
           Straight answers.
         </h2>

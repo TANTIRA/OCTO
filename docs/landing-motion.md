@@ -50,27 +50,29 @@ an exact period and every tween ends inside it, so first and last states match.
 | [ondo.finance](https://ondo.finance/) | Black/white section rhythm, tight grotesk headlines, serif lead copy, pill buttons, odometer stats, numbered list | Copy, products, figures, testimonials, imagery | Reference only |
 | Palantir "3A-Ontology" diagram ([SVG](https://images.ctfassets.net/xrfr7uokpv1b/5QZ3Ot5MxlxI41R5uoIuEa/5c52b77ca76db2305d6dfcc9669a8b75/3A-Ontology__1_.svg)) | Hairline schematic strokes, objects drawn as small tables, labelled links between objects, dashed connectors to the ontology | The 3×3 composition, the Properties/Functions/Actions/Automations taxonomy, the icon, the lavender panel | Reference only; third-party asset |
 | Palantir "Personas" illustration ([PNG](https://www.palantir.com/assets/xrfr7uokpv1b/4TF81x78iYQqD1IwhIBdt5/cc9f3506607bd520d73d624538445843/Personas.png?quality=70&width=1600)) | Flat line-art sheet, tinted header bars on each group, square icon tiles, bundled parallel cables, a solid black "Ontology" node | The inverted-T team layout, persona avatars, team names, the mint accent | Reference only; third-party asset |
+| Vadim Sadovski, "OCTOPUS – NASA mech" (Behance) | Rendering fidelity and detail density: hard-surface panels, wear, cables, lights, drive hardware | Every signature element (wedge hull, 2×2 visor lights, ribbon tentacles, claws, antennas, NASA marks, poster type). A 1:1 copy was requested and declined: it is the artist's copyrighted design | Reference only; third-party asset. The images live in gitignored `build/references` and never ship |
+| [palantir.com](https://www.palantir.com/) hero | One centred headline alone on black; the copy blurs and lifts away as the page scrolls | Copy, type, video | Reference only |
 
 Composition differs from both references on purpose: a vertical flow (sources → ontology → decisions)
 whose content is OCTO's own model — classes and SHACL-bound properties from
 `ontology/octo-investment-*.ttl`, and the reified relations FundManagement, Commitment,
 FundInvestment and DealSubject.
 
-### Camera and finishing (Blender scene `OCTO_Landing`, `build/landing-renders/octo-landing.blend`)
+### Camera and finishing (Blender scene `OCTO_Landing`, `build/landing-renders/octo-landing-core.blend`)
 
-| Field | Hero setup C01 (`hero-arms.webp`, `hero-hub.webp`) |
+| Field | Hero dock poster (`renders/hero-core.webp`, from `mecha_build.py` + `mech_poster.py`) |
 | --- | --- |
 | Colour profile | Captured: sRGB display, AgX view transform |
 | Log profile | N/A — synthetic render, no log encoding |
-| Shutter / FPS | N/A — stills, motion blur off; the page animates at display rate |
+| Shutter / FPS | N/A — still, motion blur off; the live core animates at display rate |
 | ISO / EI | N/A — synthetic |
 | Aperture | N/A — depth of field off |
-| Focal length | Captured: orthographic, ortho scale 6.4 (1 unit = 100 SVG px) |
+| Focal length | Captured: 85 mm on a 36 mm sensor (horizontal fit), `CORE_Cam` |
 | Lens type | Simulated: ideal pinhole, no distortion |
-| Camera angle | Captured: overhead, z = 20, looking straight down |
+| Camera angle | Captured: high three-quarter, 80° elevation — the live scene's `POSTER_ELEV` matches it |
 | DoP | N/A |
 | Colour correction | Exposure 0, gamma 1 — no technical correction |
-| Colour grade | Captured: look "AgX – Medium High Contrast"; key 900 W white, rim 700 W blue, rim 300 W cool |
+| Colour grade | Captured: look "AgX – Medium High Contrast"; soft top key, cool rim from behind, low fill (see `mecha_build.py`); Cycles 160 samples, denoised, bloom in `MECH_Comp` |
 | Transitions | Mask draw → hub spring (see shotlist) |
 
 Render: Cycles, 128 samples, denoised, transparent film, 1200 px, exported to WebP in two layers
@@ -185,3 +187,53 @@ Known limitations:
   browser has one timeline, and a re-split can only reset words to their final, visible positions.
 - The other sections (stats, platform, security, FAQ, contact) still share one lift-in reveal per
   element. They are outside this brief and the next candidates for a pass.
+
+## Live ledger core — the octo crawls the page (supersedes the SVG hero convergence)
+
+The hero graphic is now a real-time 3D object. `OctoCore` (`web/components/landing/octo-core.tsx`)
+mounts a fixed, transparent, `pointer-events: none` canvas (z-30, between each section's background
+and its content at z-40, under the nav at z-50) and lazy-loads `octo-core-scene.ts` (three.js) on
+idle. The hero keeps a Cycles poster of the same pose in `[data-octo-dock]` for first paint; the
+canvas fades in once it has drawn a frame and the poster's reveal has finished. Reduced motion (at
+load or switched on later), no WebGL, a failed load or a lost context all leave the poster.
+
+**The page is the wall.** Each arm tip grips a point of the page (stored as `x, y + scrollY`), so a
+gripping tip moves exactly with the content under it. `spider-gait.ts` (pure, tested:
+`node --test web/components/landing/spider-gait.test.mjs`) decides when a foot lifts and where it
+lands: an alternating tetrapod on the ring of arms, Cruse's coordination rules (never two
+neighbours in swing, at most four), duty factor 0.75 → 0.5 with speed, Raibert placement, and
+minimum-jerk swings that meet the page at zero speed. When it runs, each leg steps once per group
+turn, and a leg that has to step holds its neighbours down, so neither group can starve the other. The scene clamps a grip to 1.5× arm length,
+dresses every arm each frame from the Blender parts (`Kit_*`) along a FABRIK-constrained verlet chain,
+and runs data packets from each gripping tip into the core.
+
+**Pace.** It only ever crawls. A leash walks the body towards its choreographed spot no faster
+than the legs can carry it (6 model units/s); across copy, far behind or out of view the gait
+hurries, up to 1.6x (the gait keeps every planted foot within reach up to ~10 units/s), but the
+octo never leaves the wall. Out of sight it is carried along the edge of the view with its feet
+reset, so after a fast scroll or an anchor jump, even on a long phone page, it crawls back in from
+just outside the view. Nobody sees the carry.
+
+**Never on the copy.** Every run of text and every opaque card (`main article, form, [role=img]`) is a
+keep-out box, measured at layout (sticky copy once per frame). Each frame the scene scores spots
+around its choreographed one (copy covered, distance from the path, staying on screen below the
+nav, and at least half the body in view) and takes the cheapest. On a phone, where copy spans
+the width, it peeks in from the margin. Resting spots (`STOPS`) are empty page: beside the stats heading, the
+right margin by the product cards, under the ontology list, the lower half of the security intro,
+under the FAQ heading, under the contact steps, and beside the footer wordmark.
+
+**Budget.** Body ≤ 80k triangles, `octo-core.glb` ≤ 2.5 MB with no Draco/meshopt (the CSP has no
+`wasm-unsafe-eval`; textures load through `<img>` because `connect-src` has no `blob:`). DPR ≤ 1.5
+(lite 1.25), adaptive in 2 s windows; 60 fps cap on phones; sleeps after 4.5 s without movement
+(WCAG 2.2.2) and wakes on scroll. Measured (M5, Metal, wheel scrolling,
+`build/landing-motion/core-crawl.mjs`): octo CPU p50 1.2 ms on desktop and 3.2 ms on a phone with
+4× CPU throttle; frame p95 16.8 ms at 60 Hz on both; foot slip p95 0 px; every resting spot on
+screen at 1440, 1200 and 390 px.
+
+**Pipeline.** Model and poster are built in Blender from `build/landing-renders/` (gitignored):
+`LOD = 0.5; mecha_build.py; mech_glb.py` → `web/public/models/octo-core.glb`, and
+`LOD = 1.0; mecha_build.py; mech_poster.py` → `web/public/renders/hero-core.webp`. The arm rest pose
+in `mecha_build.py` (`rest_line`, `gripping_line`) mirrors `restPose`/`reach` in
+`octo-core-scene.ts` constant for constant, so the poster and the first live frame agree. Probes:
+`build/landing-motion/core-crawl.mjs` (slip, gait, CPU) with `?octo-debug`.
+

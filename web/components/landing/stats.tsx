@@ -9,7 +9,7 @@ const STATS = [
   { value: "100%", label: "of positions and cash derived from the transaction ledger" },
   { value: "0", label: "in-place edits — corrections supersede, never overwrite" },
   // owl:Class count in ontology/octo-investment-owl.ttl
-  { value: "45", label: "ontology classes, OWL + SHACL, versioned in Git" },
+  { value: "45", label: "ontology classes, one shared model" },
 ];
 
 const DIGITS = Array.from({ length: 20 }, (_, i) => i % 10);
@@ -57,8 +57,8 @@ export function Stats() {
   });
 
   return (
-    <section ref={root} className="bg-white px-4 py-24 text-black sm:px-6 sm:py-32 lg:px-8">
-      <div className="mx-auto max-w-[1320px]">
+    <section id="stats" ref={root} className="bg-white px-4 py-24 text-black sm:px-6 sm:py-32 lg:px-8">
+      <div className="relative z-40 mx-auto max-w-[1320px]">
         <h2
           data-anim
           className="max-w-3xl font-display text-4xl font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl"
