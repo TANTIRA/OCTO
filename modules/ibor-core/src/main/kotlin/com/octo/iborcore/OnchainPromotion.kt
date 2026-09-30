@@ -1,5 +1,6 @@
 package com.octo.iborcore
 
+import com.octo.persistence.TenantScope
 import java.math.BigInteger
 import java.time.Instant
 import java.util.UUID
@@ -67,10 +68,14 @@ interface InstrumentFlowStore {
         correlationId: UUID,
     ): Boolean
 
-    /** Every flow for one wallet on one chain, `recorded_at` order — what derivation consumes. */
+    /**
+     * Every flow for one wallet on one chain visible to [scope], `recorded_at` order — what
+     * derivation consumes. A wallet another tenant tracks reads as no flows, never as a leak.
+     */
     fun flowsFor(
         chain: String,
         wallet: String,
+        scope: TenantScope,
     ): List<InstrumentFlow>
 }
 

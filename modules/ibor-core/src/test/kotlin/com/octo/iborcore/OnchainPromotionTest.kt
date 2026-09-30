@@ -1,5 +1,6 @@
 package com.octo.iborcore
 
+import com.octo.persistence.TenantScope
 import java.math.BigInteger
 import java.time.Instant
 import java.util.UUID
@@ -46,6 +47,7 @@ private class FakeStore : InstrumentFlowStore {
     override fun flowsFor(
         chain: String,
         wallet: String,
+        scope: TenantScope,
     ) = flows.filter { it.chain == chain && it.wallet == wallet }
 }
 
@@ -93,7 +95,7 @@ class OnchainPromotionTest {
         assertEquals(InstrumentFlowType.TRANSFER_IN, inFlow.flowType)
         assertEquals(Instant.parse("2025-01-10T00:00:00Z"), inFlow.occurredAt)
         assertEquals(now, inFlow.recordedAt)
-        assertEquals(BigInteger("70"), tokenPositions(store.flowsFor("solana", WALLET), now).single().netRaw)
+        assertEquals(BigInteger("70"), tokenPositions(store.flowsFor("solana", WALLET, TenantScope.All), now).single().netRaw)
     }
 
     @Test
