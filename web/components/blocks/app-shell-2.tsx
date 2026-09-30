@@ -43,25 +43,9 @@ const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
 const TOOLTIP_DELAY_MS = 400;
 const TOOLTIP_GRACE_MS = 300;
 
-type Tone = "neutral" | "attention" | "critical";
-
-const DOT: Record<Tone, string> = {
-  neutral: "bg-neutral-300 dark:bg-neutral-600",
-  attention: "bg-amber-500",
-  critical: "bg-red-500",
-};
-
-type Row = {
-  name: string;
-  detail: string;
-  meta: string;
-  status: string;
-  tone: Tone;
-};
-
 type Group = {
   label: string;
-  items: { label: string; count?: string }[];
+  items: { label: string }[];
 };
 
 type Area = {
@@ -71,9 +55,6 @@ type Area = {
   current: string;
   groups: Group[];
   title: string;
-  listTitle: string;
-  listCount: string;
-  rows: Row[];
 };
 
 const AREAS: Area[] = [
@@ -83,8 +64,6 @@ const AREAS: Area[] = [
     icon: LayoutDashboard,
     current: "Fund overview",
     title: "Portfolio overview",
-    listTitle: "Fund overview",
-    listCount: "3 funds",
     groups: [
       {
         label: "Overview",
@@ -104,7 +83,6 @@ const AREAS: Area[] = [
         ],
       },
     ],
-    rows: [],
   },
   {
     id: "assets",
@@ -112,8 +90,6 @@ const AREAS: Area[] = [
     icon: Landmark,
     current: "All assets",
     title: "Assets",
-    listTitle: "Asset register",
-    listCount: "0",
     groups: [
       {
         label: "Assets",
@@ -135,7 +111,6 @@ const AREAS: Area[] = [
         ],
       },
     ],
-    rows: [],
   },
   {
     id: "positions",
@@ -143,8 +118,6 @@ const AREAS: Area[] = [
     icon: ChartPie,
     current: "All positions",
     title: "Positions",
-    listTitle: "Open positions",
-    listCount: "0",
     groups: [
       {
         label: "Positions",
@@ -166,7 +139,6 @@ const AREAS: Area[] = [
         ],
       },
     ],
-    rows: [],
   },
   {
     id: "deals",
@@ -174,17 +146,15 @@ const AREAS: Area[] = [
     icon: Kanban,
     current: "Pipeline",
     title: "Deal pipeline",
-    listTitle: "Pipeline",
-    listCount: "23",
     groups: [
       {
         label: "Deals",
         items: [
-          { label: "Pipeline", count: "23" },
-          { label: "Sourced", count: "9" },
-          { label: "Screening", count: "6" },
-          { label: "Due diligence", count: "5" },
-          { label: "IC review", count: "3" },
+          { label: "Pipeline" },
+          { label: "Sourced" },
+          { label: "Screening" },
+          { label: "Due diligence" },
+          { label: "IC review" },
           { label: "Closed" },
         ],
       },
@@ -198,7 +168,6 @@ const AREAS: Area[] = [
         ],
       },
     ],
-    rows: [],
   },
   {
     id: "recon",
@@ -206,13 +175,11 @@ const AREAS: Area[] = [
     icon: GitCompareArrows,
     current: "Open breaks",
     title: "Reconciliation",
-    listTitle: "Open breaks",
-    listCount: "7",
     groups: [
       {
         label: "Recon",
         items: [
-          { label: "Open breaks", count: "7" },
+          { label: "Open breaks" },
           { label: "Resolved" },
           { label: "Runs" },
           { label: "Rules" },
@@ -227,43 +194,6 @@ const AREAS: Area[] = [
         ],
       },
     ],
-    rows: [
-      {
-        name: "Cash break — USD operating",
-        detail: "Custodian vs IBOR · run #412",
-        meta: "$184k",
-        status: "Open",
-        tone: "critical",
-      },
-      {
-        name: "Position qty mismatch",
-        detail: "PT Barito Renewables · admin vs ledger",
-        meta: "12,400 sh",
-        status: "Open",
-        tone: "attention",
-      },
-      {
-        name: "Unsettled capital call",
-        detail: "Solus Energy Partners · due 12 Sep",
-        meta: "$2.0m",
-        status: "Open",
-        tone: "attention",
-      },
-      {
-        name: "FX revaluation drift",
-        detail: "IDR/USD · mark source variance",
-        meta: "0.4%",
-        status: "Review",
-        tone: "neutral",
-      },
-      {
-        name: "Missing trade confirm",
-        detail: "Aruna Payments follow-on",
-        meta: "-",
-        status: "Open",
-        tone: "attention",
-      },
-    ],
   },
   {
     id: "reports",
@@ -271,8 +201,6 @@ const AREAS: Area[] = [
     icon: ChartPie,
     current: "Queue",
     title: "Reports",
-    listTitle: "Queue",
-    listCount: "live",
     groups: [
       {
         label: "Reports",
@@ -284,7 +212,6 @@ const AREAS: Area[] = [
         ],
       },
     ],
-    rows: [],
   },
   {
     id: "compliance",
@@ -292,8 +219,6 @@ const AREAS: Area[] = [
     icon: Check,
     current: "Rules",
     title: "Compliance",
-    listTitle: "Rules",
-    listCount: "live",
     groups: [
       {
         label: "Compliance",
@@ -304,7 +229,6 @@ const AREAS: Area[] = [
         ],
       },
     ],
-    rows: [],
   },
   {
     id: "alerts",
@@ -312,13 +236,11 @@ const AREAS: Area[] = [
     icon: Bell,
     current: "Active alerts",
     title: "Alerts & agents",
-    listTitle: "Active alerts",
-    listCount: "11",
     groups: [
       {
         label: "Alerts",
         items: [
-          { label: "Active", count: "11" },
+          { label: "Active" },
           { label: "Snoozed" },
           { label: "Resolved" },
           { label: "Rules" },
@@ -330,45 +252,8 @@ const AREAS: Area[] = [
           { label: "News matching" },
           { label: "NL query" },
           { label: "Email drafts" },
-          { label: "Approval queue", count: "2" },
+          { label: "Approval queue" },
         ],
-      },
-    ],
-    rows: [
-      {
-        name: "Covenant breach — Helios Data Centers",
-        detail: "DSCR below 1.2x threshold · rule #18",
-        meta: "2h ago",
-        status: "Critical",
-        tone: "critical",
-      },
-      {
-        name: "Valuation stale — Solus Energy",
-        detail: "No mark in 45 days · rule #7",
-        meta: "6h ago",
-        status: "Warning",
-        tone: "attention",
-      },
-      {
-        name: "News match — Meridian Health",
-        detail: "Regulatory filing detected · agent: news",
-        meta: "1d ago",
-        status: "Info",
-        tone: "neutral",
-      },
-      {
-        name: "IC memo draft ready",
-        detail: "Kirana Consumer add-on · agent: DDQ",
-        meta: "1d ago",
-        status: "Awaiting approval",
-        tone: "attention",
-      },
-      {
-        name: "LP report generated",
-        detail: "Q3 pack · Flagship Fund II",
-        meta: "2d ago",
-        status: "Done",
-        tone: "neutral",
       },
     ],
   },
@@ -1076,70 +961,7 @@ export default function AppShell2() {
               <CompliancePanel />
             ) : area.id === "alerts" ? (
               <AgentRunsPanel />
-            ) : (
-            <motion.div
-              key={area.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, ease: EASE_OUT }}
-              className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900"
-            >
-              <div className="flex h-12 items-center gap-3 bg-neutral-50 px-4 dark:bg-neutral-800/40">
-                <h2 className="min-w-0 flex-1 truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
-                  {area.listTitle}
-                </h2>
-                <span className="shrink-0 text-xs tabular-nums text-neutral-500 dark:text-neutral-500">
-                  {area.listCount}
-                </span>
-              </div>
-
-              <ul className="divide-y divide-neutral-100 dark:divide-neutral-800/70">
-                {area.rows.map((row) => (
-                  <li key={row.name}>
-                    <button
-                      type="button"
-                      className={cx(
-                        "flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left hover:bg-neutral-50 active:bg-neutral-100 dark:hover:bg-neutral-800/50 dark:active:bg-neutral-800",
-                        transition,
-                        focusInset,
-                      )}
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
-                          {row.name}
-                        </span>
-                        <span className="mt-0.5 block truncate text-xs text-neutral-500 dark:text-neutral-500">
-                          {row.detail}
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 flex-col items-end">
-                        <span
-                          className={cx(
-                            "block text-[13px] tabular-nums",
-                            row.meta === "-"
-                              ? "text-neutral-400 dark:text-neutral-600"
-                              : "text-neutral-900 dark:text-neutral-100",
-                          )}
-                        >
-                          {row.meta}
-                        </span>
-                        <span className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-500">
-                          <span
-                            aria-hidden="true"
-                            className={cx(
-                              "h-1.5 w-1.5 shrink-0 rounded-full",
-                              DOT[row.tone],
-                            )}
-                          />
-                          {row.status}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-            )}
+            ) : null}
           </main>
           <div
             aria-hidden="true"
