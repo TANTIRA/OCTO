@@ -6,6 +6,7 @@ import com.octo.api.access.persistence.AccessProvenance
 import com.octo.api.access.persistence.TenantSettings
 import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
+import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -75,10 +76,11 @@ class AdminTenantsEndpointTest {
     private fun MockMvc.provision(
         caller: UUID,
         slug: String = "new-firm",
+        firstAdmin: UUID = UUID.randomUUID(),
     ) = perform(
         post("/api/v1/admin/tenants")
             .contentType(MediaType.APPLICATION_JSON)
-            .content("""{"slug":"$slug","displayName":"New Firm","firstAdminUserId":"${UUID.randomUUID()}"}""")
+            .content("""{"slug":"$slug","displayName":"New Firm","firstAdminUserId":"$firstAdmin"}""")
             .with(jwt().jwt { it.subject(caller.toString()) }),
     )
 
@@ -119,6 +121,22 @@ class AdminTenantsEndpointTest {
                         .content("""{"slug":"t-c","displayName":"C","firstAdminUserId":"${UUID.randomUUID()}"}"""),
                 ).andExpect(status().isForbidden)
             assertThat(access.provisioned).isEmpty()
+        }
+    }
+
+    @Test
+    fun `nobody grants their own access — self-grant at provision or member event is 409, not 500`() {
+        run { mvc ->
+            mvc
+                .provision(platformAdmin, firstAdmin = platformAdmin)
+                .andExpect(status().isConflict)
+                .andExpect(status().reason(containsString("segregation of duties")))
+            assertThat(access.provisioned).isEmpty()
+            mvc
+                .memberEvent(platformAdmin, user = platformAdmin, body = """{"type":"granted","role":"admin"}""")
+                .andExpect(status().isConflict)
+                .andExpect(status().reason(containsString("segregation of duties")))
+            assertThat(access.events).isEmpty()
         }
     }
 
@@ -306,29 +324,23 @@ class AdminTenantsEndpointTest {
             grantor: String,
             registeredAt: Instant,
             provenance: AccessProvenance,
-        ): MembershipState {
-            provisioned += tenant
-            return MembershipState(tenant.id, adminUserId, MembershipStatus.ACTIVE, TenantRole.ADMIN, registeredAt)
-        }
+        ): MembershipState =
+            // Same validation as JdbcAccessStore.provisionTenant; a refused grant provisions nothing.
+            registered(tenant.id, adminUserId, registeredAt)
+                .next(MembershipEvent.Granted(grantor, registeredAt, TenantRole.ADMIN))
+                .also { provisioned += tenant }
 
-        override fun registerMember(
+        /** Like the real store: a rejected grant registers nothing. */
+        override fun grant(
             tenantId: UUID,
             userId: UUID,
-            registeredAt: Instant,
+            event: MembershipEvent.Granted,
             provenance: AccessProvenance,
-        ) {
+        ): MembershipState {
+            nextError?.let { throw it }
             registered = true
+            return append(tenantId, userId, event, provenance)
         }
-
-        override fun load(
-            tenantId: UUID,
-            userId: UUID,
-        ): MembershipState? =
-            if (registered) {
-                MembershipState(tenantId, userId, MembershipStatus.NONE, null, Instant.EPOCH)
-            } else {
-                null
-            }
 
         override fun append(
             tenantId: UUID,
@@ -336,22 +348,9 @@ class AdminTenantsEndpointTest {
             event: MembershipEvent,
             provenance: AccessProvenance,
         ): MembershipState {
-            if (!registered) throw NoSuchElementException("no member")
+            val before = load(tenantId, userId) ?: throw NoSuchElementException("no member")
             nextError?.let { throw it }
-            events += event
-            val role =
-                when (event) {
-                    is MembershipEvent.Granted -> event.role
-                    is MembershipEvent.RoleChanged -> event.role
-                    is MembershipEvent.Revoked -> null
-                }
-            return MembershipState(
-                tenantId,
-                userId,
-                if (event is MembershipEvent.Revoked) MembershipStatus.REVOKED else MembershipStatus.ACTIVE,
-                role,
-                event.at,
-            )
+            return before.next(event).also { events += event }
         }
     }
 }

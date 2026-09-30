@@ -55,6 +55,10 @@ class AdminTenantsController(
                     registeredAt = Instant.now(),
                     provenance = AccessProvenance(SOURCE, UUID.randomUUID()),
                 )
+            } catch (e: IllegalArgumentException) {
+                // The state machine refused the first grant (e.g. a platform admin naming themselves).
+                // The whole provision rolled back; it's the caller's request, not a server fault.
+                throw ResponseStatusException(HttpStatus.CONFLICT, e.message, e)
             } catch (e: SQLException) {
                 throw translate(e)
             }
@@ -81,13 +85,8 @@ class AdminTenantsController(
         val state =
             try {
                 when (body.type) {
-                    "granted" -> {
-                        val role = roleOf(body.role)
-                        if (access.load(tenantId, userId) == null) {
-                            access.registerMember(tenantId, userId, now, provenance)
-                        }
-                        access.append(tenantId, userId, MembershipEvent.Granted(jwt.subject!!, now, role), provenance)
-                    }
+                    "granted" ->
+                        access.grant(tenantId, userId, MembershipEvent.Granted(jwt.subject!!, now, roleOf(body.role)), provenance)
                     "role-changed" ->
                         access.append(tenantId, userId, MembershipEvent.RoleChanged(jwt.subject!!, now, roleOf(body.role)), provenance)
                     "revoked" ->
