@@ -13,8 +13,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="", extra="ignore")
 
-    # OpenRouter — the only model provider (ADR-0005 data path).
-    openrouter_api_key: str
+    # OpenRouter — the only model provider (ADR-0005 data path). Optional at
+    # construction so the app boots and flag-off / model-free endpoints answer;
+    # the endpoints that need it return 503 when it is blank (not a 500 on every
+    # call, backlog #324).
+    openrouter_api_key: str = ""
     openrouter_decisions_endpoint: str = "https://openrouter.ai/api/alpha/decisions"
     openrouter_chat_endpoint: str = "https://openrouter.ai/api/v1"
 

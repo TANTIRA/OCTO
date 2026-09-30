@@ -5,6 +5,7 @@ requires the shared bearer (OCTO_AGENTS_TOKEN) plus its per-workflow feature
 flag; /healthz is open for the compose healthcheck only.
 """
 
+from functools import lru_cache
 from typing import Any
 from uuid import uuid4
 
@@ -49,13 +50,32 @@ def _registry(settings: Settings) -> ApprovedModelRegistry:
     return ApprovedModelRegistry(settings.model_registry_path)
 
 
+# One client per (config) tuple, reused across requests — each wraps a long-
+# lived httpx.Client, so building fresh per call leaked connections and file
+# descriptors under sustained traffic (backlog #325). lru_cache keys on the
+# hashable config, so a config change (tests, rotation) yields a new client.
+@lru_cache(maxsize=8)
+def _judge_client(endpoint: str, api_key: str, model: str, timeout: float) -> JudgeClient:
+    return JudgeClient(endpoint=endpoint, api_key=api_key, model=model, timeout_s=timeout)
+
+
+@lru_cache(maxsize=8)
+def _api_client(base_url: str, token: str, timeout: float) -> OctoApiClient:
+    return OctoApiClient(base_url, token, timeout_s=timeout)
+
+
 def _judge(settings: Settings, registry: ApprovedModelRegistry) -> JudgeClient:
+    if not settings.openrouter_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OPENROUTER_API_KEY is not configured",
+        )
     model = registry.resolve("judge", confidential=True)
-    return JudgeClient(
-        endpoint=settings.openrouter_decisions_endpoint,
-        api_key=settings.openrouter_api_key,
-        model=model.model_id,
-        timeout_s=settings.request_timeout_s,
+    return _judge_client(
+        settings.openrouter_decisions_endpoint,
+        settings.openrouter_api_key,
+        model.model_id,
+        settings.request_timeout_s,
     )
 
 
@@ -74,10 +94,15 @@ def _models(registry: ApprovedModelRegistry) -> dict[str, str]:
 
 
 def _api(settings: Settings) -> OctoApiClient:
-    return OctoApiClient(
+    if not settings.octo_agent_token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OCTO_AGENT_TOKEN is not configured",
+        )
+    return _api_client(
         settings.octo_api_base_url,
         settings.octo_agent_token,
-        timeout_s=settings.request_timeout_s,
+        settings.request_timeout_s,
     )
 
 

@@ -44,7 +44,7 @@ class AgentRunsController(
             .firstOrNull { it.tenantId == tenantId }
             ?.role
 
-    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
+    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
 
     @PostMapping("/api/v1/agent-runs")
     fun record(
@@ -71,7 +71,7 @@ class AgentRunsController(
                         runKey = body.runKey,
                         subjectType = body.subjectType,
                         subjectId = body.subjectId,
-                        actor = jwt.subject,
+                        actor = jwt.subject!!,
                         input = json.writeValueAsString(body.input),
                         models = json.writeValueAsString(body.models),
                         thresholds = body.thresholds?.let { json.writeValueAsString(it) },
@@ -126,7 +126,7 @@ class AgentRunsController(
         val role = roleIn(userId, run.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val landed =
-            runs.recordOutcome(id, json.writeValueAsString(mapOf("decided_by" to jwt.subject) + body.outcome), scope)
+            runs.recordOutcome(id, json.writeValueAsString(mapOf("decided_by" to jwt.subject!!) + body.outcome), scope)
         return if (landed) {
             ResponseEntity.ok(runs.load(id, scope)!!.view(json))
         } else {

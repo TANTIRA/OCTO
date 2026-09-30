@@ -15,12 +15,17 @@ from .registry import ApprovedModelRegistry
 _ZDR_PROVIDER = {"zdr": True, "allow_fallbacks": False}
 
 
-def drafter_model(settings: Settings, registry: ApprovedModelRegistry) -> ChatOpenRouter:
+def drafter_model(
+    settings: Settings, registry: ApprovedModelRegistry
+) -> ChatOpenRouter:
     model = registry.resolve("drafter", confidential=True)
     return ChatOpenRouter(
         model=model.model_id,
         temperature=0,
         max_retries=2,
+        # The retrying client must also bound each attempt, or a hung upstream
+        # holds the run open for the full deepagent budget (backlog #326).
+        request_timeout=settings.request_timeout_s,
         openrouter_api_key=settings.openrouter_api_key,
         openrouter_api_base=settings.openrouter_chat_endpoint,
         openrouter_provider=_ZDR_PROVIDER,

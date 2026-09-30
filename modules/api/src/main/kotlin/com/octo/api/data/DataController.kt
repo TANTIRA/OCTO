@@ -38,7 +38,7 @@ class DataController(
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<DataResponse> {
         if (endDate.isBefore(startDate)) return ResponseEntity.badRequest().build()
-        val userId = runCatching { UUID.fromString(jwt.subject) }.getOrNull() ?: return ResponseEntity.notFound().build()
+        val userId = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull() ?: return ResponseEntity.notFound().build()
         val scope = TenantScope.User(userId)
         val tenantId = series.datasetTenant(datasetId, scope) ?: return ResponseEntity.notFound().build()
         if (tenants.tenantsOf(userId).none { it.tenantId == tenantId }) return ResponseEntity.notFound().build()

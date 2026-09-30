@@ -22,9 +22,9 @@ class MeController(
     fun access(
         @AuthenticationPrincipal jwt: Jwt,
     ): AccessResponse {
-        val userId = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
+        val userId = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
         return AccessResponse(
-            userId = jwt.subject,
+            userId = jwt.subject!!,
             tenants =
                 userId
                     ?.let(tenants::tenantsOf)

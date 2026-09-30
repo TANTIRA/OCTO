@@ -61,14 +61,14 @@ class RateLimitFilter(
             return
         }
 
-        val userId = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
+        val userId = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
         val tenants = userId?.let { safeTenants(it) } ?: emptyList()
         val tenant = selectTenant(request, tenants)
         val key =
             if (tenant != null) {
                 "octo:rl:t:${tenant.tenantId}:${minute()}"
             } else {
-                "octo:rl:u:${jwt.subject}:${minute()}"
+                "octo:rl:u:${jwt.subject!!}:${minute()}"
             }
         val limit = tenant?.let { limitFor(it.tenantId) } ?: defaultLimit
 

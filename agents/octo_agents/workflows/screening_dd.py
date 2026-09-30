@@ -286,6 +286,18 @@ def judge_memo(
     )
 
 
+class RunKeyCollisionError(RuntimeError):
+    """A run_key resolved to an existing run on a different subject. Returning
+    that run's output would hand back the wrong prospect's memo, so the replay
+    is refused instead (backlog #318)."""
+
+    def __init__(self, run_key: str, expected: str, found: str) -> None:
+        super().__init__(
+            f"run_key {run_key!r} already bound to {found}, not {expected} — refusing replay"
+        )
+        self.run_key = run_key
+
+
 def _record_run(
     api: OctoApiClient,
     *,
@@ -299,7 +311,14 @@ def _record_run(
 ) -> tuple[str, Any | None]:
     """Opens the agent_run row for this invocation. Returns (run_id, None) for a
     fresh run, or (run_id, replayed_output) when run_key already closed — a retried
-    trigger reads its own result back instead of running twice."""
+    trigger reads its own result back instead of running twice.
+
+    The platform dedupes run_key within a tenant. Before trusting a replayed
+    row, this verifies its recorded subject matches the one requested: a
+    caller-minted run_key that collides with a different subject must not read
+    back the wrong subject's output (backlog #318). A fresh CREATE returns only
+    an id, so the check applies only to a dedupe replay (which echoes the row).
+    """
     recorded = api.record_run(
         tenant_id=tenant_id,
         workflow=workflow,
@@ -314,6 +333,16 @@ def _record_run(
         and recorded["status"] != "running"
         and recorded.get("output")
     ):
+    # A dedupe replay echoes the stored row (subjectType/subjectId present); a
+    # fresh insert returns only {"id"}. Guard the replay against a subject
+    # mismatch either way — cached output or an in-flight run under the key.
+    replay_subject_type = recorded.get("subjectType")
+    if replay_subject_type is not None:
+        found = f"{replay_subject_type}/{recorded.get('subjectId')}"
+        expected = f"{subject_type}/{subject_id}"
+        if found != expected:
+            raise RunKeyCollisionError(run_key, expected, found)
+    if recorded.get("status") and recorded["status"] != "running" and recorded.get("output"):
         return recorded["id"], recorded["output"]
     return recorded["id"], None
 
