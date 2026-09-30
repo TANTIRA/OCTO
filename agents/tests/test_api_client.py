@@ -79,3 +79,39 @@ def test_transient_5xx_retries_then_succeeds() -> None:
 
     assert make_client(handler).get_agent_context("t-1") == {"ok": True}
     assert calls == 2
+
+
+def test_post_retries_only_when_server_dedupes() -> None:
+    """#326 — a 503 on a workflow-opening POST may mean the task already
+    opened, so it surfaces on the first try; record_run carries a run_key the
+    api replays, so it is safe to resend."""
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        return httpx.Response(
+            503 if paths.count(request.url.path) == 1 else 200, json={}
+        )
+
+    api = OctoApiClient(
+        "http://api.test:8080",
+        "tok",
+        backoff_s=0,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    with pytest.raises(OctoApiError):
+        api.request_screening("p-1")
+    api.record_run(
+        tenant_id="t",
+        workflow="w",
+        run_key="k",
+        subject_type="s",
+        subject_id="i",
+        input={},
+        models={},
+    )
+    assert paths == [
+        "/api/v1/prospects/p-1/screen",
+        "/api/v1/agent-runs",
+        "/api/v1/agent-runs",
+    ]
