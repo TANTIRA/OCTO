@@ -59,15 +59,15 @@ export function Contact() {
       <Reveal className="mx-auto grid max-w-[1320px] gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
         <div>
           <h2 data-anim className="font-display text-5xl font-semibold leading-[0.98] tracking-[-0.045em] sm:text-7xl">
-            Turn positions into conviction.
+            See your numbers in one place.
           </h2>
           <p data-anim className="mt-6 max-w-md font-editorial text-xl leading-relaxed text-white/65">
-            Talk to a specialist about consolidating your funds, deals, and
-            reporting onto one governed book of record — deployed inside your
-            own perimeter.
+            Talk to a specialist about bringing your funds, deals, and
+            reporting onto one shared record — running on your own
+            infrastructure.
           </p>
           <ol data-anim className="mt-12 max-w-md space-y-4 text-sm text-white/70">
-            {["A working session on your fund structure and sources", "A walkthrough of the IBOR, screening, and LP reporting", "A pilot scope with a practical rollout path"].map(
+            {["A working session on your fund structure and data sources", "A walkthrough of the ledger, screening, and LP reporting", "A pilot plan with a realistic rollout"].map(
               (step, i) => (
                 <li key={step} className="flex gap-4 border-t border-white/10 pt-4">
                   <span className="font-figures text-white/40">0{i + 1}</span>

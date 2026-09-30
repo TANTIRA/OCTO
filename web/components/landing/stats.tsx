@@ -1,7 +1,7 @@
 "use client";
 
 import { animate, onScroll, stagger } from "animejs";
-import { EASE, revealOnScroll, useAnime } from "./motion";
+import { revealOnScroll, spring, useAnime } from "./motion";
 
 // Every figure is a design invariant or a count from the repo — not marketing.
 const STATS = [
@@ -50,9 +50,8 @@ export function Stats() {
     const digits = el.querySelectorAll<HTMLElement>(".digit");
     animate(digits, {
       translateY: (t: unknown) => ["0%", restingY(Number((t as HTMLElement).dataset.digit))],
-      duration: 2200,
       delay: stagger(110),
-      ease: EASE,
+      ease: spring.long(),
       autoplay: onScroll({ target: digits[0], enter: "90% start" }),
     });
   });

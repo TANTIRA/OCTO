@@ -3,7 +3,7 @@
 import { animate, onScroll, splitText, stagger, utils } from "animejs";
 import Image from "next/image";
 import wordmark from "@/public/mesta-wordmark-white.png";
-import { EASE, useAnime } from "./motion";
+import { spring, useAnime } from "./motion";
 
 const COLUMNS = [
   {
@@ -40,9 +40,8 @@ export function Footer() {
     utils.set(giant, { opacity: 1 });
     animate(chars, {
       translateY: ["105%", "0%"],
-      duration: 1400,
       delay: stagger(70),
-      ease: EASE,
+      ease: spring.standard(),
       autoplay: onScroll({ target: giant, enter: "95% start" }),
     });
   });
