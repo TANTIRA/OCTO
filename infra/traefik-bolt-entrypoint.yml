@@ -1,9 +1,15 @@
-# Traefik static config additions (Bolt TLS entry point)
-# Append to /etc/dokploy/traefik/traefik.yml or equivalent Dokploy Traefik config
+# Traefik static config additions (Bolt TLS entryPoint) — OPTION B, NOT APPLIED.
+#
+# STATUS: not deployed. ADR-0006 accepted Option A (bolt stays tunnel-only); no bolt entryPoint
+# exists on the host. Retained as the design record for Option B. Do not merge into the live
+# Traefik static config without revisiting the ADR.
+#
+# MERGE, DON'T REPLACE: this is a fragment. Merge `entryPoints.bolt` and
+# `certificatesResolvers.letsencrypt` into /etc/dokploy/traefik/traefik.yml (or the Dokploy
+# static Traefik config), preserving the existing web/websecure entryPoints.
 
-# Define the entryPoint for TLS-encrypted Bolt traffic
-# This is a TCP (not HTTP) entryPoint, so HTTP middlewares don't apply
-
+# Define the entryPoint for TLS-encrypted Bolt traffic.
+# This is a TCP (not HTTP) entryPoint, so HTTP middlewares do not apply.
 entryPoints:
   bolt:
     address: ":6687"  # Public port for encrypted Bolt (custom port; adjust as needed)
@@ -17,17 +23,23 @@ entryPoints:
   # websecure:
   #   address: ":443"
 
-# ACME (Let's Encrypt) for certificate auto-renewal
+# ACME (Let's Encrypt) for certificate auto-renewal.
+#
+# Why DNS-01 and not HTTP-01: this certificate is consumed by a TCP router. Traefik cannot
+# satisfy an HTTP-01 challenge for a TCP router — the challenge handler lives on an HTTP
+# router, and there is no HTTP service here to host it. HTTP-01 was the previous value in this
+# file and could never have issued. DNS-01 is the correct challenge and needs no inbound port,
+# which suits a bolt-only service on a nonstandard port.
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: ops@example.com  # Update with real contact
+      email: ops@example.com  # REPLACE with a real contact before use
       storage: /var/lib/dokploy/traefik/acme.json
-      httpChallenge:
-        entryPoint: web  # Use HTTP-01 challenge on the standard HTTP port
-      # Alternative: dnsChallenge for *.bolt-octo.mesta.click (if using wildcard)
-      # dnsChallenge:
-      #   provider: digitalocean  # Or your DNS provider
-      #   delayBeforeCheck: 0
-      #   resolvers:
-      #     - 1.1.1.1:53
+      dnsChallenge:
+        provider: digitalocean
+        # Update to the provider that actually holds the mesta.click zone, and supply its
+        # credentials via Traefik's environment secrets (DO_AUTH_TOKEN, etc.). A wildcard cert
+        # for *.bolt-octo.mesta.click needs the same challenge; it does not relax this.
+        delayBeforeCheck: 0
+        resolvers:
+          - 1.1.1.1:53

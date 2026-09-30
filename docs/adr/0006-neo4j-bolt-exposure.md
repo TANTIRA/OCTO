@@ -3,7 +3,8 @@
 - Status: Accepted (Option A — tunnel-only)
 - Date: 2026-09-30
 - Risk tier: T2 (persistence, tenancy, infrastructure)
-- Decision owner: @EliteSlacker (decision) / @Aldroun (exec)
+- Decision owner: repo owner (@rade-nugroho). Issue #300 nominated @EliteSlacker (decision) /
+  @Aldroun (exec); decided by the repo owner.
 - Issue: #300
 - Depends on: [ADR-0004](0004-neo4j-graph-store.md)
 - Related: `infra/README.md`, `deploy/README.md` ("Neo4j Browser access")
@@ -72,11 +73,25 @@ not materialized. Cost was low to defer and the posture is easier to tighten now
 
 `infra/traefik-bolt-tcp-router.yml`, `infra/traefik-bolt-entrypoint.yml`,
 `infra/setup-bolt-tls.sh`, `infra/verify-bolt-tls.sh`, and `infra/BOLT-TLS-ROUTER.md` are
-retained as the Option B design record but are **not deployment-ready and must not be applied
-as-is**. Two defects, both verified on review: the TCP router sets `certResolver` and `domains`
-in the same `tls` block, which Traefik rejects; and the ACME resolver uses `httpChallenge` on the
-`web` entryPoint, which cannot issue for a TCP-only entryPoint (DNS-01 is required). If Option B
-is ever revived, fix these first.
+retained as the Option B design record. They are **not applied to any host**, and both YAML
+fragments have been corrected since the decision — three defects were found on review, all of
+which would have broken the deploy:
+
+1. The TCP router set `certResolver` and `domains` in the same `tls` block; the two are mutually
+   exclusive and Traefik rejects the router. The alternative is now commented out instead of
+   co-present.
+2. The ACME resolver used `httpChallenge`, which Traefik cannot satisfy for a TCP router — the
+   challenge handler belongs to an HTTP router and there is no HTTP service on that entryPoint.
+   Now `dnsChallenge`.
+3. The proposal offered a `basicAuth` middleware as an extra auth layer. **Traefik has no
+   password-auth middleware for TCP routers** — `tcp.middlewares` is limited to `inFlightConn`,
+   `ipAllowList`, and `ipWhiteList`. The comment now says so, and suggests `ipAllowList` instead.
+
+Defect 3 strengthens this ADR's reasoning: had Option B shipped, the Neo4j password would have
+been the *only* authentication in front of the graph store, with no rate limiting (bolt has no
+HTTP middleware to rate-limit through) and no allowlist unless one was added by hand. If Option B
+is ever revived, fix the credentials and challenge first, and add the allowlist before exposing
+the route.
 
 ## Consequences
 
@@ -99,7 +114,8 @@ is ever revived, fix these first.
 ### Neutralized risks
 
 - Option B would have added a public database protocol guarded by one shared credential, with no
-  IP allowlist and no rate limiting — a credential-stuffing surface on the graph store.
+  IP allowlist, no rate limiting and no proxy-layer authentication available — a
+  credential-stuffing surface on the graph store.
 - Option B would have made Traefik a new single point of failure for database access; a TLS
   termination fault would take graph tooling down alongside the app.
 

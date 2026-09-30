@@ -1,37 +1,60 @@
-# Traefik dynamic config for TLS-terminating TCP router (Bolt)
-# Place this in /etc/dokploy/traefik/dynamic/ on the Dokploy host
-# or configure via Dokploy's static Traefik config if using provider: file
+# Traefik dynamic config for a TLS-terminating TCP router (Bolt) — OPTION B, NOT APPLIED.
+#
+# STATUS: not deployed. ADR-0006 accepted Option A (bolt stays tunnel-only). This file is
+# retained as the design record for Option B and is fixed but unverified — it has never been
+# loaded by a Traefik instance. Do not apply it without re-reading
+# docs/adr/0006-neo4j-bolt-exposure.md and confirming the decision has been revisited.
+#
+# Place in /etc/dokploy/traefik/dynamic/ on the Dokploy host (provider: file), or apply via the
+# Dokploy static Traefik config. Requires the `bolt` entryPoint and a `letsencrypt` resolver
+# defined in the static config — see traefik-bolt-entrypoint.yml.
+#
+# The router's entryPoint is TLS-only: add `tls.passthrough: false` (the default) and note that
+# clients MUST use bolt+s / neo4j+s. Plain `bolt://` will not negotiate.
 
 tcp:
   routers:
     bolt-tls-router:
       # Route public bolt+s connections to the internal Neo4j service
       entryPoints:
-        - bolt  # Must be defined in Traefik static config (see below)
+        - bolt
       service: bolt-service
       tls:
-        certResolver: letsencrypt  # Use Traefik's ACME resolver
-        # OR use a static cert (if Let's Encrypt not available):
-        # domains:
-        #   - main: bolt-octo.mesta.click
-        domains:
-          - main: bolt-octo.mesta.click  # Primary domain for the certificate
-            # sans:
-            #   - "*.bolt-octo.mesta.click"
-  
+        # ACME-issued certificate. `domains:` and `certResolver:` are mutually exclusive in a
+        # single tls block — Traefik rejects the router if both are set. Use one or the other.
+        certResolver: letsencrypt
+
+        # To use a static/bundled certificate instead of ACME, replace the line above with:
+        #   domains:
+        #     - main: bolt-octo.mesta.click
+        #       sans:
+        #         - "*.bolt-octo.mesta.click"
+
   services:
     bolt-service:
       # Forward TLS-decrypted traffic to the internal Neo4j Bolt port
       loadBalancer:
         servers:
-          - address: octo-neo4j-db:7687  # Internal docker service name
+          # Internal docker service name on dokploy-network. Bolt is plaintext on that network,
+          # which is safe only while the network is private — this router is the sole thing
+          # making it externally reachable, so it is a single point of failure for graph access.
+          - address: octo-neo4j-db:7687
         # terminationDelay allows graceful shutdown of existing connections (seconds)
         terminationDelay: 30
 
-  # Optional: TCP middleware for auth or logging
+  # Optional TCP middleware.
+  #
+  # NOTE: there is NO password-auth middleware for TCP routers. Traefik's tcp.middlewares are
+  # only inFlightConn, ipAllowList and ipWhiteList — `basicAuth` is HTTP-only and a TCP router
+  # cannot load it. So if this router is ever applied, the Neo4j password is the ONLY
+  # authentication in front of the graph store. An ipAllowList below narrows who can connect,
+  # which is the only lever available at the proxy layer.
+  #
   # middlewares:
-  #   bolt-auth:
-  #     basicAuth:
-  #       users:
-  #         - "neo4j:$2y$05$..."  # bcrypt hash; use htpasswd to generate
-  #         # Apply with: routers.bolt-tls-router.middlewares: ["bolt-auth@file"]
+  #   bolt-ip-allowlist:
+  #     ipAllowList:
+  #       ipStrategy:
+  #         depth: 0
+  #       ipAllowList:
+  #         - 203.0.113.0/24   # ops VPN egress range
+  #   # Apply with: routers.bolt-tls-router.middlewares: ["bolt-ip-allowlist@file"]
