@@ -9,20 +9,20 @@ dependencyManagement {
     imports {
         mavenBom("com.fasterxml.jackson:jackson-bom:2.22.3")
     }
-}
-
-configurations.all {
-    resolutionStrategy {
-        // Advisory floors the Spring Boot 3.5.16 BOM still sits below. Not every alert is a
-        // dependency this module really has — the Boot Gradle plugin and the Kotlin plugin carry
-        // their own copies on the buildscript classpath, which these cannot reach.
+    // Advisory floors the Spring Boot 3.5.16 BOM still sits below. These must live here, not in
+    // resolutionStrategy.force(): io.spring.dependency-management registers its BOM pinning as a
+    // resolutionStrategy.eachDependency action in afterEvaluate, and Gradle applies eachDependency
+    // after force() — so a force() for a BOM-managed module is silently discarded.
+    dependencies {
+        val netty = libs.versions.netty.get()
         listOf("netty-common", "netty-handler", "netty-buffer", "netty-transport", "netty-codec", "netty-resolver")
-            .forEach { force("io.netty:$it:4.1.138.Final") }
+            .forEach { dependency("io.netty:$it:$netty") }
+        val tomcat = libs.versions.tomcat.get()
         listOf("tomcat-embed-core", "tomcat-embed-el", "tomcat-embed-websocket")
-            .forEach { force("org.apache.tomcat.embed:$it:10.1.60") }
-        listOf("log4j-api", "log4j-to-slf4j").forEach { force("org.apache.logging.log4j:$it:2.25.5") }
-        force("io.opentelemetry:opentelemetry-api:1.62.0")
-        force("org.apache.commons:commons-lang3:3.20.0")
+            .forEach { dependency("org.apache.tomcat.embed:$it:$tomcat") }
+        val log4j = libs.versions.log4j.get()
+        listOf("log4j-api", "log4j-to-slf4j").forEach { dependency("org.apache.logging.log4j:$it:$log4j") }
+        dependency("org.apache.commons:commons-lang3:3.20.0")
     }
 }
 

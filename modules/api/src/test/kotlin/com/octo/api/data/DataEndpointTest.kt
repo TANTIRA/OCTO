@@ -112,6 +112,43 @@ class DataEndpointTest {
     }
 
     @Test
+    fun `the read is bounded, and a limit outside the range is 400`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    get("/api/v1/data/$datasetId?$window&limit=25").with(
+                        jwt().jwt {
+                            it.subject(member.toString())
+                        },
+                    ),
+                ).andExpect(status().isOk)
+            assert(lastQuery!!.limit == 25) { lastQuery!! }
+
+            // Absent limit defaults to the ceiling rather than reading unbounded.
+            mvc
+                .perform(
+                    get("/api/v1/data/$datasetId?$window").with(
+                        jwt().jwt {
+                            it.subject(member.toString())
+                        },
+                    ),
+                ).andExpect(status().isOk)
+            assert(lastQuery!!.limit == TimeSeriesQuery.MAX_OBSERVATIONS) { lastQuery!! }
+
+            for (bad in listOf(0, -1, TimeSeriesQuery.MAX_OBSERVATIONS + 1)) {
+                mvc
+                    .perform(
+                        get("/api/v1/data/$datasetId?$window&limit=$bad").with(
+                            jwt().jwt {
+                                it.subject(member.toString())
+                            },
+                        ),
+                    ).andExpect(status().isBadRequest)
+            }
+        }
+    }
+
+    @Test
     fun `a non-member, an unknown dataset and a reversed window are refused`() {
         run { mvc ->
             mvc

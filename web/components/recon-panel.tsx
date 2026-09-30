@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, X } from "lucide-react";
 import { getJson, messageFor, postJson } from "@/lib/api";
 import { TenantPicker, useTenants } from "@/lib/use-tenants";
 
@@ -56,6 +56,10 @@ export default function ReconPanel() {
 
   const update = (i: number, patch: Partial<RecordRow>) =>
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+
+  // Rows are local input state, not persisted records, so removal is pure state.
+  // The last row stays: an empty form has nothing to submit and no way to come back.
+  const remove = (i: number) => setRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== i)));
 
   const submit = useCallback(async () => {
     if (!tenantId || running) return;
@@ -123,6 +127,17 @@ export default function ReconPanel() {
                 className="h-8 w-28 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
               />
             ))}
+            {rows.length > 1 && (
+              <button
+                type="button"
+                aria-label="Remove row"
+                title="Remove row"
+                onClick={() => remove(i)}
+                className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-sm,6px)] text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+              >
+                <X aria-hidden className="h-4 w-4" />
+              </button>
+            )}
           </div>
         ))}
         <div className="flex gap-2">
@@ -135,7 +150,12 @@ export default function ReconPanel() {
           </button>
           <button
             type="button"
-            disabled={running || !tenantId || rows.some((r) => !r.externalId || !r.amount)}
+            disabled={
+              running ||
+              !tenantId ||
+              rows.length === 0 ||
+              rows.some((r) => !r.externalId || !r.amount)
+            }
             onClick={submit}
             className="inline-flex h-8 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-3 text-[13px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] disabled:opacity-50 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))]"
           >

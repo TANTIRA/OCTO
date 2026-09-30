@@ -197,12 +197,13 @@ class AdminTenantsEndpointTest {
     fun `tenant admins cannot create or overwrite their own rate limit`() {
         run { mvc ->
             fun attempt() =
-                mvc.perform(
-                    put("/api/v1/admin/tenants/$tenantId/settings")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"key":"rate_limit_per_minute","value":"100000"}""")
-                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
-                ).andExpect(status().isForbidden)
+                mvc
+                    .perform(
+                        put("/api/v1/admin/tenants/$tenantId/settings")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"key":"rate_limit_per_minute","value":"100000"}""")
+                            .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                    ).andExpect(status().isForbidden)
 
             attempt()
             assertThat(settings.rows).doesNotContainKey(tenantId to "rate_limit_per_minute")
