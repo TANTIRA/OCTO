@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, Scale } from "lucide-react";
 import PanelHeader from "@/components/panel-header";
 import { getJson, messageFor, postJson } from "@/lib/api";
@@ -52,7 +52,7 @@ export default function CompliancePanel() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [rationale, setRationale] = useState<RationaleResult | null>(null);
-  const [loadingRules, setLoadingRules] = useState(false);
+  const [loadingRules, setLoadingRules] = useState(true);
   const [running, setRunning] = useState(false);
   const [narrating, setNarrating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +86,10 @@ export default function CompliancePanel() {
       setLoadingRules(false);
     }
   }, [tenantId]);
+
+  useEffect(() => {
+    loadRules();
+  }, [loadRules]);
 
   const evaluate = async () => {
     if (!tenantId || running || !subject.trim()) return;
@@ -236,9 +240,9 @@ export default function CompliancePanel() {
                 </span>
               </li>
             ))}
-            {rules.length === 0 && !loadingRules && (
+            {rules.length === 0 && !error && (
               <li className="px-4 py-10 text-center text-[13px] text-neutral-400 dark:text-neutral-600">
-                No active rules — load them with the refresh button.
+                {loadingRules ? "Loading…" : "No active rules in this workspace."}
               </li>
             )}
           </ul>
