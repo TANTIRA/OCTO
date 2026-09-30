@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Company-brain query surface (F7). The question posts to
@@ -22,7 +22,7 @@ type BrainResult = {
 };
 
 export default function BrainPanel() {
-  const { tenants, tenantId, setTenantId, error: tenantError } = useTenants();
+  const { tenantId } = useTenants();
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<BrainResult | null>(null);
@@ -65,10 +65,6 @@ export default function BrainPanel() {
         </p>
       </header>
 
-      {tenants.length > 1 && (
-        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
-      )}
-
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-neutral-500">Question</span>
         <textarea
@@ -89,9 +85,9 @@ export default function BrainPanel() {
         {pending ? "thinking…" : "Ask"}
       </button>
 
-      {(tenantError || error) && (
+      {error && (
         <p role="alert" className="text-sm text-red-600">
-          {tenantError ?? error}
+          {error}
         </p>
       )}
 
