@@ -328,6 +328,11 @@ def _record_run(
         input=input,
         models=models,
     )
+    if (
+        recorded.get("status")
+        and recorded["status"] != "running"
+        and recorded.get("output")
+    ):
     # A dedupe replay echoes the stored row (subjectType/subjectId present); a
     # fresh insert returns only {"id"}. Guard the replay against a subject
     # mismatch either way — cached output or an in-flight run under the key.
