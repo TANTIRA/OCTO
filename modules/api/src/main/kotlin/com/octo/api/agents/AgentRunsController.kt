@@ -56,7 +56,8 @@ class AgentRunsController(
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         if (!body.workflow.matches(Regex("[a-z][a-z0-9-]{0,62}")) ||
             !body.subjectType.matches(Regex("[a-z][a-z0-9_-]{0,62}")) ||
-            body.runKey.isBlank() || body.subjectId.isBlank() || body.runKey.length > 200
+            body.runKey.isBlank() || body.subjectId.isBlank() ||
+            body.runKey.length > 200 || body.subjectId.length > 200
         ) {
             return ResponseEntity.badRequest().build()
         }
