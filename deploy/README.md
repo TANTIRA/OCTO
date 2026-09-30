@@ -29,7 +29,7 @@ retire the mirror.
 Set in the Dokploy compose environment (never committed). Keys mirror
 `infra/docker-compose.yml`; see `infra/.env.example` for the full contract.
 
-- `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_DB` → `DB_HOST`/`DB_PORT`/`DB_NAME` for the datasource.
+- `POSTGRES_HOST` / `POSTGRES_DB` → `DB_HOST`/`DB_NAME` for the datasource. `DB_PORT` is hardcoded `5432` — the Postgres peer is on the compose network, so the port never varies; no `POSTGRES_PORT` key exists.
 - `DB_USER=octo_app`, `DB_MIGRATION_USER=octo_migrate` — the least-privilege roles from `infra/init-db-roles.sql` (create/rename before first api boot; `octo_migrate` needs `CREATE` on the database for the `octo` schema + Flyway history).
 - `AUTH_ISSUER`, `AUTH_JWKS_URL`, `AUTH_PUBLIC_URL`, `API_PUBLIC_URL`.
   `AUTH_ISSUER` stays the *public* issuer string (it is matched against the
@@ -82,9 +82,14 @@ If remote HTTPS browsing becomes a real requirement, exposing bolt through a
 TLS-terminating Traefik TCP router is an ADR-level decision — it puts bolt on
 the public internet behind only neo4j auth, contra the privacy posture above.
 
-## Rate limiting (Traefik, via Dokploy)
+## Rate limiting
 
-No application-level rate limiting exists by design — the proxy owns it.
+Two layers exist. The api carries a Redis-backed per-tenant limiter
+(`RateLimitFilter`, `OCTO_RATE_LIMIT_PER_MINUTE`, default 240/min) that counts
+authenticated JWT traffic; anonymous callers skip it, so any anonymously
+reachable path (webhooks, contact forms) needs the **edge** limiter below as
+the primary control.
+
 Dokploy's Traefik accepts per-router middlewares on each domain entry; the
 middleware itself is declared once as a file-provider dynamic config on the
 Dokploy host (default: `/etc/dokploy/traefik/dynamic/`):
@@ -151,6 +156,29 @@ curl -sf -o /dev/null -w '%{http_code}\n' https://admin-octo.mesta.click
 
 Flyway runs at api boot as `octo_migrate`; check
 `octo.flyway_schema_history` (`installed_by`) if a migration looks stale.
+
+Migrations are applied at api start, inside the boot window — plain
+`CREATE INDEX` statements (e.g. `V38__fk_covering_indexes.sql`) take `SHARE`
+locks that block writes on the target tables while they build. On a large
+table that stalls the api's own boot healthcheck window; schedule releases
+carrying index migrations for a low-traffic window.
+
+## Backups
+
+No in-repo automation backs up the database — Dokploy-level/volume snapshots
+of the `octo-supabase-db` service are the only recovery path today.
+`deploy/backup.sh` is a manual `pg_dump` wrapper for ad-hoc archives:
+
+```bash
+PGPASSWORD=… POSTGRES_HOST=octo-supabase-db ./deploy/backup.sh
+# writes backups/octo-<db>-<utc-timestamp>.dump.gz, prunes files older than KEEP_DAYS
+```
+
+Restore with `gunzip -c <archive> | psql -h <host> -U octo -d <db>`. Point
+`POSTGRES_HOST` at a host that reaches Postgres — inside Dokploy, run it on
+the host with `docker exec` against the supabase db container, or via the
+bolt-bridge pattern above. A scheduled runner (cron/systemd on the VPS) is a
+deliberate follow-up, not part of this compose.
 
 ## Rollback
 
