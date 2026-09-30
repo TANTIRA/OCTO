@@ -2,7 +2,7 @@
 
 How OCTO measures whether it is working for its users, and what happens when it is not. Owner: Platform, with the api module's CODEOWNERS. Reviewed quarterly and after every SEV-1. Issue #73 started it.
 
-Nothing here is measured yet: the api exposes no metrics a scraper can read (see the readiness review). The SLOs below are the targets the observability baseline is built to measure, set from the user journeys in [user-workflows.md](user-workflows.md), not from history.
+Nothing here is measured against a target yet: the OTEL collector scrapes the api's metrics and receives its traces (#306), but no backend stores them — the default exporter only logs (see the readiness review). The SLOs below are the targets the observability baseline is built to measure, set from the user journeys in [user-workflows.md](user-workflows.md), not from history.
 
 ## 1. Service level indicators and objectives
 
@@ -34,7 +34,7 @@ Product and engineering agree this table before an outage, not during one.
 
 ## 3. Alerts
 
-Multi-window burn-rate alerts on the availability and durability SLIs, once Prometheus scrapes the api:
+Multi-window burn-rate alerts on the availability and durability SLIs, once the collector exports to a backend that can evaluate them:
 
 | Window | Burn rate (99.9% SLO) | Severity | Runbook |
 | --- | --- | --- | --- |
@@ -54,10 +54,11 @@ State of `main` on 2026-09-27. ✅ passes, ⚠️ acceptable for now, ❌ must f
 | --- | --- | --- | --- |
 | Probes | liveness and readiness separated | ❌ → ✅ after the baseline PR | `management.endpoint.health.probes.enabled`, DB in the readiness group |
 | Probes | health says what failed | ❌ → ✅ | `show-details: when_authorized`: probes see a status, operators see components |
-| Metrics | a scraper can read request and JVM metrics | ❌ → ✅ | Prometheus registry on `/actuator/prometheus`, authenticated |
+| Metrics | a scraper can read request and JVM metrics | ✅ | `/actuator/prometheus` needs a JWT on the public port; anonymous only on the internal, unrouted `OCTO_METRICS_PORT` (8081) connector (#338, `MetricsPortTest`) |
 | Tracing | a request can be followed across logs and database rows | ❌ → ✅ | `CorrelationIdFilter`: one id per request in the MDC, the response, and every `correlation_id` column |
 | Logs | machine-readable, no free-text personal data | ❌ → ✅ | ECS-format JSON on the console; the governance rule against logging tokens and personal data still applies to what code puts in a message |
-| Config | every env var the compose file passes is read by something | ✅ | `OTEL_EXPORTER_OTLP_ENDPOINT` was passed and read by nothing; dropped until a collector exists (backlog item 8 adds the exporter with it) |
+| Config | every env var the compose file passes is read by something | ✅ | `OTEL_EXPORTER_OTLP_ENDPOINT` is back (#306): compose maps it onto `MANAGEMENT_OTLP_TRACING_ENDPOINT`, which Boot's OTLP span exporter reads |
+| Telemetry | metrics and traces leave the process | ⚠️ | `otel-collector` (pinned core image) scrapes `api:8081/actuator/prometheus` and receives OTLP traces; exporter defaults to `debug` (logs only) until `OTELCOL_EXPORT=otlphttp` points at a backend |
 | Build | the image the compose file pulls is built from this repo | ✅ | `Dockerfile` (#76): wrapper-built boot jar on a JRE, non-root |
 | Runtime | JVM heap sized to the container | ✅ | `MaxRAMPercentage=75.0` and exit-on-OOM in the image (#76) |
 | Runtime | compose healthcheck uses readiness | ✅ | `/actuator/health/readiness` (#76); `ReadinessIT` shows it drops when the database is lost |
@@ -74,10 +75,10 @@ State of `main` on 2026-09-27. ✅ passes, ⚠️ acceptable for now, ❌ must f
 2. ~~Observability baseline~~ — probes, Prometheus, correlation ids, and structured logs all ship (§4).
 3. ~~Dockerfile and image build~~ — done in #76.
 4. ~~Backup and restore runbook~~ — `docs/restore-runbook.md`; the rehearsed restore half is still open.
-5. ~~Compose follow-ups~~ — healthcheck on readiness and `MaxRAMPercentage` in #76; the OTEL variable is dropped until a collector exists.
+5. ~~Compose follow-ups~~ — healthcheck on readiness and `MaxRAMPercentage` in #76; the OTEL variable returns with the collector (#306).
 6. **Migration rollback rehearsal** for V5–V7 on staging, as AGENTS.md requires for T2.
 7. **Timeouts on outbound calls.** `JdkHttpTransport` has a 30-second request timeout; the decision-model call sits on the ingestion path, so a slow vendor becomes a slow ingest. Add a circuit breaker once the call is on a user-facing path.
-8. **Burn-rate alerts** in the collector once metrics flow.
+8. **Burn-rate alerts.** ~~OTEL collector~~ ships (#306) and metrics flow into it; next is a backend behind `OTELCOL_EXPORT=otlphttp` that stores them and evaluates §3.
 
 ## 6. What this document does not cover
 

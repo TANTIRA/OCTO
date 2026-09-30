@@ -9,6 +9,7 @@ import com.octo.ingestion.onchain.OnchainTransfer
 import com.octo.ingestion.onchain.TransferDirection
 import com.octo.ingestion.onchain.TransferKind
 import com.octo.ingestion.onchain.persistence.JdbcOnchainStagingStore
+import com.octo.persistence.TenantScope
 import com.octo.recon.ObservedBalance
 import com.octo.recon.reconcileOnchain
 import org.assertj.core.api.Assertions.assertThat
@@ -60,7 +61,7 @@ class OnchainReconIT {
 
         val report =
             reconcileOnchain(
-                positions = tokenPositions(flowStore.flowsFor("solana", wallet), Instant.now()),
+                positions = tokenPositions(flowStore.flowsFor("solana", wallet, TenantScope.All), Instant.now()),
                 snapshots = staging.latestSnapshots("solana", wallet).map(::toObserved),
                 instruments = instruments,
             )
@@ -77,7 +78,7 @@ class OnchainReconIT {
 
         val report =
             reconcileOnchain(
-                positions = tokenPositions(flowStore.flowsFor("solana", wallet), Instant.now()),
+                positions = tokenPositions(flowStore.flowsFor("solana", wallet, TenantScope.All), Instant.now()),
                 snapshots = staging.latestSnapshots("solana", wallet).map(::toObserved),
                 instruments = instruments,
             )
@@ -112,7 +113,7 @@ class OnchainReconIT {
 
         val report =
             reconcileOnchain(
-                positions = tokenPositions(flowStore.flowsFor("solana", wallet), Instant.now()),
+                positions = tokenPositions(flowStore.flowsFor("solana", wallet, TenantScope.All), Instant.now()),
                 snapshots = staging.latestSnapshots("solana", wallet).map(::toObserved),
                 instruments = instruments,
             )
@@ -120,13 +121,13 @@ class OnchainReconIT {
         assertThat(report.clean).isTrue()
         assertThat(
             flowStore
-                .flowsFor("solana", wallet)
+                .flowsFor("solana", wallet, TenantScope.All)
                 .single()
                 .flowType.wireValue,
         ).isEqualTo("staking-reward")
         assertThat(
             flowStore
-                .flowsFor("solana", wallet)
+                .flowsFor("solana", wallet, TenantScope.All)
                 .single()
                 .flowType.wireValue,
         ).isEqualTo("staking-reward")

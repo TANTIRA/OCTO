@@ -66,5 +66,10 @@ docker build -t "$REGISTRY_URL/octo-api:$API_IMAGE_TAG" .
 ## Guardrails
 
 - Never commit `.env` or secrets — `.env.example` is names only.
-- Images pinned by digest/tag; no `latest`.
+- Images we own or run are pinned (#322): third-party images and Dockerfile bases carry `version@sha256:digest`
+  (`Dockerfile`, `web/Dockerfile`, `agents/Dockerfile`, `deploy/dokploy.compose.yml`, the neo4j example), and
+  the app images take `*_IMAGE_TAG` with no default — compose refuses to render without one, so `latest` never
+  sneaks in. `infra/supabase/vendor/` is upstream's compose, kept verbatim for `update.sh`; its core services
+  are version-tagged, but optional overlays we do not deploy (`caddy`, `s3`, `rustfs`) float upstream.
+- The agents image installs from the committed `uv.lock` (`uv sync --frozen --no-dev`), never from pyproject ranges.
 - Changes to this directory are T2 — DevOps + Security review.

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --test lib/*.test.mjs components/landing/*.test.mjs"
   },
   "dependencies": {
     "@solana/wallet-adapter-base": "^0.9.28",

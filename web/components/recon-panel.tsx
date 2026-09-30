@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Loader2, X } from "lucide-react";
+import PanelHeader from "@/components/panel-header";
+import { messageFor, postJson } from "@/lib/api";
 import { Loader2, RefreshCw, X } from "lucide-react";
 import { getJson, messageFor, postJson } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Reconciliation, live: `POST /api/v1/reconciliations` runs the match against
@@ -47,7 +50,7 @@ const emptyRow = (): RecordRow => ({
 });
 
 export default function ReconPanel() {
-  const { tenants, tenantId, setTenantId, error: tenantError } = useTenants();
+  const { tenantId } = useTenants();
   const [rows, setRows] = useState<RecordRow[]>([emptyRow()]);
   const [run, setRun] = useState<Run | null>(null);
   const [running, setRunning] = useState(false);
@@ -91,6 +94,12 @@ export default function ReconPanel() {
   }, [rows, running, tenantId]);
 
   return (
+    <div>
+      <PanelHeader
+        description="Source records vs the IBOR. Breaks open review tasks automatically."
+        error={error}
+        notice={notice}
+      />
     <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
       <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
         <div className="min-w-0 flex-1">
@@ -101,10 +110,9 @@ export default function ReconPanel() {
             Source records vs the IBOR. Breaks open review tasks automatically.
           </p>
         </div>
-        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
       </header>
 
-      <div className="shrink-0 space-y-2 px-6 pb-3 sm:px-8">
+      <div className="space-y-2 pb-4">
         {rows.map((r, i) => (
           <div key={i} className="flex flex-wrap items-center gap-2">
             {(
@@ -164,11 +172,6 @@ export default function ReconPanel() {
         </div>
       </div>
 
-      {tenantError && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {tenantError}
-        </p>
-      )}
       {error && (
         <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
           {error}
@@ -179,7 +182,7 @@ export default function ReconPanel() {
       )}
 
       {run && (
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 sm:px-8">
+        <div>
           <div className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900">
             <div className="flex h-12 items-center gap-3 bg-neutral-50 px-4 dark:bg-neutral-800/40">
               <h3 className="min-w-0 flex-1 truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">

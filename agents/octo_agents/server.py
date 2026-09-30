@@ -6,12 +6,16 @@ flag; /healthz is open for the compose healthcheck only.
 """
 
 import hmac
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from datetime import date
 from functools import lru_cache
-from typing import Any
+from threading import Lock
+from typing import Any, TypeVar
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
@@ -20,6 +24,7 @@ from .chat import drafter_model
 from .config import Settings, get_settings
 from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
+from .tools import SubjectNotInTenantError
 from .workflows.calibration import run_calibration
 from .workflows.company_brain import run_company_brain
 from .workflows.compliance_rationale import run_compliance_rationale
@@ -29,7 +34,14 @@ from .workflows.equity_bridge import run_equity_bridge
 from .workflows.ic_memo import run_ic_memo
 from .workflows.lp_report import run_lp_report
 from .workflows.operating_review import run_operating_review
-from .workflows.screening_dd import run_screening_dd
+from .workflows.screening_dd import RunKeyCollisionError, run_screening_dd
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    yield
+    close_clients()
+
 
 # No docs surface: the schema leaks the endpoint map to anyone who can reach
 # the port — /docs, /redoc and /openapi.json stay off (backlog #345).
@@ -39,8 +51,22 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
+    lifespan=_lifespan,
 )
 _bearer = HTTPBearer(auto_error=False)
+
+
+# Tenant/subject binding (#318): a subject outside the body's tenant answers 404
+# like the platform does (nothing leaks about which tenant owns it), and a
+# run_key replay bound to another request answers 409 instead of its output.
+@app.exception_handler(SubjectNotInTenantError)
+def _subject_not_in_tenant(_: Request, exc: SubjectNotInTenantError) -> JSONResponse:
+    return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": str(exc)})
+
+
+@app.exception_handler(RunKeyCollisionError)
+def _run_key_collision(_: Request, exc: RunKeyCollisionError) -> JSONResponse:
+    return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"detail": str(exc)})
 
 
 def require_caller(
@@ -52,8 +78,10 @@ def require_caller(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="OCTO_AGENTS_TOKEN is not configured",
         )
+    # Bytes, not str: compare_digest raises TypeError on non-ASCII str, which
+    # turned a garbage header into a 500 instead of a 401.
     if credentials is None or not hmac.compare_digest(
-        credentials.credentials, settings.octo_agents_token
+        credentials.credentials.encode(), settings.octo_agents_token.encode()
     ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
@@ -71,18 +99,48 @@ def _registry(settings: Settings) -> ApprovedModelRegistry:
     return _registry_at(settings.model_registry_path)
 
 
-# One client per (config) tuple, reused across requests — each wraps a long-
-# lived httpx.Client, so building fresh per call leaked connections and file
-# descriptors under sustained traffic (backlog #325). lru_cache keys on the
-# hashable config, so a config change (tests, rotation) yields a new client.
-@lru_cache(maxsize=8)
-def _judge_client(endpoint: str, api_key: str, model: str, timeout: float) -> JudgeClient:
-    return JudgeClient(endpoint=endpoint, api_key=api_key, model=model, timeout_s=timeout)
+# One client per (kind, config) tuple, shared for the app's lifetime — each
+# wraps a long-lived httpx.Client, so building fresh per call leaked
+# connections and file descriptors under sustained traffic (backlog #325).
+# The credentials are the sidecar's own service config, never the caller's
+# bearer, so sharing one client shares a pool, not someone else's identity.
+# A config change yields a new key; every client is closed on shutdown.
+_clients: dict[tuple[Any, ...], JudgeClient | OctoApiClient] = {}
+_clients_lock = Lock()
+_C = TypeVar("_C", JudgeClient, OctoApiClient)
 
 
-@lru_cache(maxsize=8)
+def _shared(key: tuple[Any, ...], build: Callable[[], _C]) -> _C:
+    with _clients_lock:  # sync endpoints run on a threadpool
+        client = _clients.get(key)
+        if client is None:
+            client = _clients[key] = build()
+        return client  # type: ignore[return-value]
+
+
+def close_clients() -> None:
+    with _clients_lock:
+        for client in _clients.values():
+            client.close()
+        _clients.clear()
+
+
+def _judge_client(
+    endpoint: str, api_key: str, model: str, timeout: float
+) -> JudgeClient:
+    return _shared(
+        ("judge", endpoint, api_key, model, timeout),
+        lambda: JudgeClient(
+            endpoint=endpoint, api_key=api_key, model=model, timeout_s=timeout
+        ),
+    )
+
+
 def _api_client(base_url: str, token: str, timeout: float) -> OctoApiClient:
-    return OctoApiClient(base_url, token, timeout_s=timeout)
+    return _shared(
+        ("api", base_url, token, timeout),
+        lambda: OctoApiClient(base_url, token, timeout_s=timeout),
+    )
 
 
 def _judge(settings: Settings, registry: ApprovedModelRegistry) -> JudgeClient:

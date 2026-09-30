@@ -29,7 +29,7 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | 2 | Neo4j Browser remote access — keep tunnel-only path or expose bolt through a TLS-terminating Traefik TCP router (public bolt behind neo4j auth; contra the "bolt stays private" posture) | `deploy/README.md` ("Neo4j Browser access"), ADR-level | @EliteSlacker (decision) / @Aldroun (exec) | decided — Option A (tunnel-only), [ADR-0006](adr/0006-neo4j-bolt-exposure.md) |
 | 3 | Rehearsed restore — procedure exists, drill pending | `docs/restore-runbook.md`, reliability §4 | @Aldroun | open |
 | 4 | Migration rollback rehearsal for V5–V7 on staging (T2 requirement) | `docs/reliability.md` §5, `AGENTS.md` | @Aldroun | open |
-| 5 | Burn-rate alerts once metrics reach the collector; OTEL exporter env was dropped until a collector exists | `docs/reliability.md` §4–5 | @Aldroun | blocked on #8 |
+| 5 | Burn-rate alerts — metrics now reach the collector (#306); needs an alerting backend behind `OTELCOL_EXPORT=otlphttp` | `docs/reliability.md` §3–5 | @Aldroun | open |
 
 ## Reliability backlog (docs/reliability.md §5)
 
@@ -37,7 +37,7 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | --- | --- | --- | --- |
 | 6 | Restore CI — GitHub billing blocker; nothing merges green today. Blocks verification of everything below | @daemon-blockint-tech (billing/admin) | blocked |
 | 7 | Circuit breaker on the decision-model call (`JdkHttpTransport` 30 s) once it sits on a user-facing path | @Fatihmaull | open |
-| 8 | OTEL collector — prerequisite for item 5 | @Aldroun | open |
+| 8 | OTEL collector — prerequisite for item 5 | @Aldroun | done — `otel-collector` in `deploy/dokploy.compose.yml` (#306) |
 
 ## ADR acceptance criteria still open
 
@@ -67,7 +67,6 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | --- | --- | --- | --- |
 | 21 | JWT issuer/audience validation skipped when `AUTH_ISSUER`/`AUTH_AUDIENCE` blank — any JWKS-signed token (incl. publishable anon key) authenticates; fail-open on misconfig. | `modules/api/.../SecurityConfig.kt:177-194` | @EliteSlacker |
 | 22 | Bearer tokens, JWKS root of trust, shared secrets traverse `dokploy-network` plaintext HTTP (`OCTO_AGENTS_BASE_URL`, `OCTO_API_BASE_URL`, `API_INTERNAL_URL`, `NEO4J_URI`, JWKS URL). | `deploy/dokploy.compose.yml`, `deploy/README.md:38` | @EliteSlacker + @Aldroun |
-| 23 | Rate limiting optional + fails open: absent without `REDIS_HOST` (degraded compose never sets it), Redis error → admit, unauthenticated traffic + webhook chain never counted; public surface depends on a manual Traefik middleware. | `modules/api/.../RateLimitFilter.kt`, `infra/docker-compose.yml` | @Aldroun |
 | 24 | Floating tags/bases contradict the pinning guardrail: `*:_IMAGE_TAG:-latest`, `redis:7-alpine`, `eclipse-temurin:21-jdk/jre`, `node:22-alpine`×3, `python:3.12-slim`; image ignores `agents/uv.lock` (`pip install .` on `>=` ranges). | `deploy/dokploy.compose.yml`, `Dockerfile`, `web/Dockerfile`, `agents/Dockerfile` | @Aldroun |
 | 25 | Agent sidecar runs as root — no `USER` in `agents/Dockerfile`. | `agents/Dockerfile:1-16` | @Aldroun |
 | 26 | "503 when unconfigured" broken: missing `openrouter_api_key` → `ValidationError` → 500 on every endpoint incl. flag-off and calibration; empty `octo_agent_token` → `ValueError` → 500 in `_api()`. | `agents/octo_agents/config.py:17,24`, `server.py:35,74-79` | @fikriaf |
@@ -88,7 +87,6 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | 41 | `infra/docker-compose.yml` degraded variant: no redis/agents services, never forwards `HELIUS_*`/`ARBITRUM_*`/`ALPHA_VANTAGE_*`/`OCTO_AGENTS_*`/`OCTO_PLATFORM_ADMINS` it documents — those features silently can't run. | `infra/docker-compose.yml:19-88` vs `infra/.env.example:60-79` | @Aldroun |
 | 43 | Non-atomic task-open + record: `ReconciliationRunner`/`ComplianceRunner` commit task then record in a second txn — failure between them leaves an orphan evidence-request/review task. | `ReconciliationRunner.kt:65-80`, `ComplianceRunner.kt:58-68` | @Fatihmaull |
 | 44 | Tenant admins can raise their own rate limit (`PUT /admin/tenants/.../settings` writes any key incl. `rate_limit_per_minute`); any member can forge arbitrary `agent_run` audit rows (`subjectId` uncapped). | `AdminTenantsController.kt:130-153`, `AgentRunsController.kt:49-86` | @EliteSlacker |
-| 45 | OctoApiError discards response body — bookkeeping logs `status N` with no reason; EVM runner logs `e.message` (RPC URLs can embed credentials). | `api_client.py:14-47`, `EvmSyncRunner.kt:72` | @fikriaf + @EliteSlacker |
 
 ## Gap audit — low (verified, summarized)
 

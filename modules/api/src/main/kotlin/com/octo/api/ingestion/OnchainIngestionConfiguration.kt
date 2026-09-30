@@ -1,5 +1,9 @@
 package com.octo.api.ingestion
 
+import com.octo.iborcore.InstrumentFlow
+import com.octo.iborcore.InstrumentFlowPromoter
+import com.octo.iborcore.InstrumentFlowStore
+import com.octo.iborcore.persistence.JdbcInstrumentFlowStore
 import com.octo.ingestion.onchain.FinalityProbe
 import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
@@ -10,6 +14,8 @@ import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.TransactionFetcher
 import com.octo.ingestion.onchain.WatchSource
 import com.octo.ingestion.onchain.persistence.JdbcOnchainStagingStore
+import com.octo.persistence.TenantScope
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -125,4 +131,42 @@ class OnchainIngestionConfiguration {
         finality: FinalityProbe,
         transactions: TransactionFetcher,
     ) = OnchainWebhookService(store, finality, transactions)
+
+    /** The token-ledger store, lazy like [onchainStagingStore] so datasource-less contexts still boot. */
+    @Bean
+    @ConditionalOnMissingBean(InstrumentFlowStore::class)
+    fun instrumentFlowStore(dataSource: ObjectProvider<DataSource>): InstrumentFlowStore {
+        val delegate by lazy { JdbcInstrumentFlowStore(dataSource.getObject()) }
+        return object : InstrumentFlowStore {
+            override fun unpromotedTransfers() = delegate.unpromotedTransfers()
+
+            override fun instrumentIds() = delegate.instrumentIds()
+
+            override fun flowIdForStaging(stagingRowId: UUID) = delegate.flowIdForStaging(stagingRowId)
+
+            override fun insertFlow(
+                flow: InstrumentFlow,
+                sourceSystem: String,
+                ingestionRunId: UUID,
+                correlationId: UUID,
+            ) = delegate.insertFlow(flow, sourceSystem, ingestionRunId, correlationId)
+
+            override fun flowsFor(
+                chain: String,
+                wallet: String,
+                scope: TenantScope,
+            ) = delegate.flowsFor(chain, wallet, scope)
+        }
+    }
+
+    @Bean
+    fun instrumentFlowPromoter(store: InstrumentFlowStore) = InstrumentFlowPromoter(store)
+
+    /** Staging → `instrument_flow` promotion (#310); runs unless `octo.onchain.promotion.enabled` is false. */
+    @Bean
+    @ConditionalOnProperty("octo.onchain.promotion.enabled", havingValue = "true", matchIfMissing = true)
+    fun onchainPromotionRunner(
+        promoter: InstrumentFlowPromoter,
+        meters: ObjectProvider<MeterRegistry>,
+    ) = OnchainPromotionRunner(promoter, meters.getIfAvailable())
 }

@@ -49,6 +49,10 @@ dependencies {
     implementation(libs.spring.boot.starter.actuator)
     // Prometheus scrape endpoint for docs/reliability.md; Apache-2.0, version from the Boot BOM.
     runtimeOnly(libs.micrometer.prometheus)
+    // Traces to the OTEL collector (#306). Export is on only when MANAGEMENT_OTLP_TRACING_ENDPOINT is set
+    // (deploy/dokploy.compose.yml derives it from OTEL_EXPORTER_OTLP_ENDPOINT); Apache-2.0.
+    implementation(libs.micrometer.tracing.otel)
+    runtimeOnly(libs.opentelemetry.exporter.otlp)
     implementation(libs.micrometer.core)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.security)

@@ -28,6 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useScrollFade } from "@/lib/use-scroll-fade";
+import { usePlatformAdmin } from "@/lib/use-tenants";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
@@ -115,14 +116,6 @@ const COMMANDS: Command[] = [
     icon: Brain,
   },
   {
-    id: "do-position",
-    group: "Actions",
-    title: "Record a transaction",
-    detail: "Post a ledger event to the IBOR",
-    shortcut: "T",
-    icon: FileText,
-  },
-  {
     id: "do-prospect",
     group: "Actions",
     title: "Add a prospect",
@@ -134,25 +127,17 @@ const COMMANDS: Command[] = [
     id: "do-recon",
     group: "Actions",
     title: "Run reconciliation",
-    detail: "Custodian vs IBOR, latest feeds",
+    detail: "Match source records against the IBOR",
     shortcut: "R",
     icon: GitCompareArrows,
   },
   {
     id: "do-report",
     group: "Actions",
-    title: "Generate LP report",
-    detail: "Quarterly pack for a fund",
+    title: "Queue a performance report",
+    detail: "DPI, TVPI and IRR over a cash-flow series",
     shortcut: "L",
     icon: FileText,
-  },
-  {
-    id: "do-alert-rule",
-    group: "Actions",
-    title: "New alert rule",
-    detail: "Threshold or agent-triggered alert",
-    shortcut: "E",
-    icon: Bell,
   },
 ];
 
@@ -169,17 +154,15 @@ const AREA_BY_COMMAND: Record<string, string> = {
   "go-reports": "reports",
   "go-compliance": "compliance",
   "go-alerts": "alerts",
-  "do-position": "positions",
   "do-prospect": "deals",
   "do-recon": "recon",
   "do-report": "reports",
-  "do-alert-rule": "alerts",
+  "go-brain": "brain",
 };
 
 // Commands that leave the shell entirely (route-level navigation).
 const PATH_BY_COMMAND: Record<string, string> = {
   "go-ops": "/admin",
-  "go-brain": "/brain",
 };
 
 const EXIT_MS = 140;
@@ -219,9 +202,16 @@ export default function CommandMenu1() {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const listboxId = `${uid}-listbox`;
+  // The ops console is platform-admin only (#312) — hidden until the API says so.
+  const platformAdmin = usePlatformAdmin();
   const filtered = useMemo(
-    () => COMMANDS.filter((command) => matches(command, query)),
-    [query],
+    () =>
+      COMMANDS.filter(
+        (command) =>
+          (command.id !== "go-ops" || platformAdmin === true) &&
+          matches(command, query),
+      ),
+    [query, platformAdmin],
   );
   const activeCommand = filtered[activeIndex];
   const activeId = activeCommand ? `${uid}-${activeCommand.id}` : undefined;

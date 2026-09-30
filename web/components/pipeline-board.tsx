@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, RefreshCw, UserPlus } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
+import PanelHeader from "@/components/panel-header";
 import { getJson, messageFor, postJson } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Deal pipeline, live: `GET /api/v1/prospects?tenantId&stage` per column
@@ -53,8 +54,7 @@ const STAGE_TONE: Record<string, string> = {
 };
 
 export default function PipelineBoard() {
-  const { tenants, tenantId, setTenantId, loading: tenantsLoading, error: tenantError } =
-    useTenants();
+  const { tenantId } = useTenants();
   const [cols, setCols] = useState<Record<string, Prospect[]>>({});
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -63,6 +63,9 @@ export default function PipelineBoard() {
   const [moving, setMoving] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   const [name, setName] = useState("");
+  // The card being passed, and the rationale the state machine requires.
+  const [passing, setPassing] = useState<string | null>(null);
+  const [rationale, setRationale] = useState("");
 
   const load = useCallback(async () => {
     if (!tenantId) return;
@@ -106,13 +109,13 @@ export default function PipelineBoard() {
   };
 
   const pass = async (p: Prospect) => {
-    if (moving) return;
-    const rationale = window.prompt(`Why is ${p.name} being passed?`)?.trim();
-    if (!rationale) return;
+    const why = rationale.trim();
+    if (moving || !why) return;
     setMoving(p.id);
     setNotice(null);
     try {
-      await postJson(`/api/v1/prospects/${p.id}/transition`, { to: "passed", rationale });
+      await postJson(`/api/v1/prospects/${p.id}/transition`, { to: "passed", rationale: why });
+      setPassing(null);
       setNotice(`${p.name} passed.`);
       await load();
     } catch (e) {
@@ -124,7 +127,8 @@ export default function PipelineBoard() {
 
   const register = async () => {
     const trimmed = name.trim();
-    if (!trimmed || !tenantId) return;
+    if (!trimmed || !tenantId || moving) return;
+    setMoving("register");
     setNotice(null);
     try {
       await postJson("/api/v1/prospects", {
@@ -138,10 +142,27 @@ export default function PipelineBoard() {
       await load();
     } catch (e) {
       setError(messageFor(e));
+    } finally {
+      setMoving(null);
     }
   };
 
   return (
+    // Fixed-height board with per-column scroll only when all four columns sit
+    // side by side; stacked columns take their natural height and the page scrolls.
+    <div className="flex flex-col xl:h-full xl:min-h-[560px]">
+      <PanelHeader
+        description="Live from the prospect ledger. Advance moves through the state machine; the server rejects illegal jumps."
+        onRefresh={load}
+        refreshing={loading}
+        refreshLabel="Refresh pipeline"
+        error={error}
+        notice={notice}
+      />
+
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:min-h-0 xl:flex-1 xl:grid-cols-4">
+
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:min-h-0 xl:flex-1 xl:grid-cols-4">
     <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
       <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
         <div className="min-w-0 flex-1">
@@ -153,7 +174,6 @@ export default function PipelineBoard() {
             machine; the server rejects illegal jumps.
           </p>
         </div>
-        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
         <button
           type="button"
           onClick={load}
@@ -167,11 +187,6 @@ export default function PipelineBoard() {
         </button>
       </header>
 
-      {tenantError && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {tenantError}
-        </p>
-      )}
       {error && (
         <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
           {error}
@@ -228,7 +243,8 @@ export default function PipelineBoard() {
                   <button
                     type="button"
                     onClick={register}
-                    className="mt-1 inline-flex h-7 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-2.5 text-[12px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))]"
+                    disabled={!name.trim() || moving !== null}
+                    className="mt-1 inline-flex h-7 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-2.5 text-[12px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] disabled:cursor-default disabled:opacity-50 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))]"
                   >
                     Register
                   </button>
@@ -256,30 +272,74 @@ export default function PipelineBoard() {
                     <p className="mt-1 truncate text-[11px] text-neutral-500">
                       {[p.sector, p.region, p.source].filter(Boolean).join(" · ") || "—"}
                     </p>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {NEXT[p.stage] && (
+                    {passing === p.id ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          pass(p);
+                        }}
+                        className="mt-1.5 space-y-1.5"
+                      >
+                        <input
+                          autoFocus
+                          aria-label={`Reason for passing ${p.name}`}
+                          value={rationale}
+                          onChange={(e) => setRationale(e.target.value)}
+                          onKeyDown={(e) => e.key === "Escape" && setPassing(null)}
+                          placeholder="Why pass? Recorded on the audit trail."
+                          className="h-7 w-full rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[12px] text-neutral-900 placeholder:text-neutral-400 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+                          className="h-7 w-full rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[12px] text-neutral-900 placeholder:text-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                        />
+                        <div className="flex gap-1.5">
+                          <button
+                            type="submit"
+                            disabled={!rationale.trim() || moving !== null}
+                            className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-red-600 px-2 text-[11px] font-medium text-white hover:bg-red-700 disabled:cursor-default disabled:opacity-50"
+                          >
+                            {moving === p.id ? (
+                              <Loader2 aria-hidden className="h-3 w-3 animate-spin motion-reduce:animate-none" />
+                            ) : (
+                              "Confirm pass"
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPassing(null)}
+                            className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] px-2 text-[11px] font-medium text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {NEXT[p.stage] && (
+                          <button
+                            type="button"
+                            disabled={moving !== null}
+                            onClick={() => advance(p)}
+                            className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-neutral-100 px-2 text-[11px] font-medium text-neutral-700 hover:bg-neutral-200 disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                          >
+                            {moving === p.id ? (
+                              <Loader2 aria-hidden className="h-3 w-3 animate-spin motion-reduce:animate-none" />
+                            ) : (
+                              `Advance to ${STAGES.find((s) => s.id === NEXT[p.stage])?.name}`
+                            )}
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={moving !== null}
-                          onClick={() => advance(p)}
-                          className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-neutral-100 px-2 text-[11px] font-medium text-neutral-700 hover:bg-neutral-200 disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                          onClick={() => {
+                            setRationale("");
+                            setPassing(p.id);
+                          }}
+                          className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] px-2 text-[11px] font-medium text-neutral-500 hover:bg-neutral-100 hover:text-red-600 disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-red-400"
                         >
-                          {moving === p.id ? (
-                            <Loader2 aria-hidden className="h-3 w-3 animate-spin motion-reduce:animate-none" />
-                          ) : (
-                            `Advance to ${STAGES.find((s) => s.id === NEXT[p.stage])?.name}`
-                          )}
+                          Pass
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        disabled={moving !== null}
-                        onClick={() => pass(p)}
-                        className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] px-2 text-[11px] font-medium text-neutral-500 hover:bg-neutral-100 hover:text-red-600 disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-red-400"
-                      >
-                        Pass
-                      </button>
-                    </div>
+                      </div>
+                    )}
                   </li>
                 ))}
                 {loaded && !loading && rows.length === 0 && (
@@ -287,7 +347,7 @@ export default function PipelineBoard() {
                     Nothing here yet
                   </p>
                 )}
-                {(!loaded || tenantsLoading) && rows.length === 0 && (
+                {!loaded && !error && rows.length === 0 && (
                   <p className="px-2 py-6 text-center text-[12px] text-neutral-400 dark:text-neutral-600">
                     Loading…
                   </p>

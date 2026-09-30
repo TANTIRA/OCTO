@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import PanelHeader from "@/components/panel-header";
 import { getJson, messageFor } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Agent runs, live: `GET /api/v1/agent-runs?tenantId` lists the audit spine
@@ -34,8 +34,7 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 export default function AgentRunsPanel() {
-  const { tenants, tenantId, setTenantId, loading: tenantsLoading, error: tenantError } =
-    useTenants();
+  const { tenantId } = useTenants();
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -60,6 +59,14 @@ export default function AgentRunsPanel() {
   }, [load]);
 
   return (
+    <div>
+      <PanelHeader
+        description="Every agent workflow run, with its models and judge verdict — the audit spine, read-only."
+        onRefresh={load}
+        refreshing={loading}
+        refreshLabel="Refresh runs"
+        error={error}
+      />
     <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
       <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
         <div className="min-w-0 flex-1">
@@ -71,7 +78,6 @@ export default function AgentRunsPanel() {
             audit spine, read-only.
           </p>
         </div>
-        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
         <button
           type="button"
           onClick={load}
@@ -85,18 +91,13 @@ export default function AgentRunsPanel() {
         </button>
       </header>
 
-      {tenantError && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {tenantError}
-        </p>
-      )}
       {error && (
         <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
           {error}
         </p>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 sm:px-8">
+      <div>
         <div className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex h-12 items-center gap-3 bg-neutral-50 px-4 dark:bg-neutral-800/40">
             <h3 className="min-w-0 flex-1 truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
@@ -130,7 +131,7 @@ export default function AgentRunsPanel() {
                 No agent runs yet — workflows appear here when triggered.
               </li>
             )}
-            {runs.length === 0 && (!loaded || tenantsLoading) && (
+            {runs.length === 0 && !loaded && !error && (
               <li className="px-4 py-10 text-center text-[13px] text-neutral-400 dark:text-neutral-600">
                 Loading…
               </li>

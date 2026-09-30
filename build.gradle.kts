@@ -24,9 +24,19 @@ buildscript {
         // buildpack packaging). No httpclient5 reaches the application runtime classpath.
         resolutionStrategy.force(
             "org.apache.httpcomponents.client5:httpclient5:5.6.3",
+            "org.apache.httpcomponents.core5:httpcore5:5.4.4",
+            "org.apache.httpcomponents.core5:httpcore5-h2:5.4.4",
+            "org.apache.httpcomponents.client5:httpclient5:5.6.4",
             "org.apache.httpcomponents.core5:httpcore5:5.4.3",
             "org.apache.httpcomponents.core5:httpcore5-h2:5.4.3",
         )
+    }
+    // Dependabot #108 / #109: spring-boot-buildpack-platform 3.5.16 pulls jackson-databind 2.21.4
+    // onto the build classpath (GHSA-cxp5-3px4-pw24, GHSA-wv8q-qhhj-9h54; fixed in 2.21.7). The
+    // BOM lifts databind, core and module-parameter-names together, staying on the 2.21 line the
+    // plugin was built against. Build-time only; the app runtime is on 2.22.3 via modules/api.
+    dependencies {
+        classpath(platform("com.fasterxml.jackson:jackson-bom:2.21.7"))
     }
 }
 

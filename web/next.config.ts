@@ -69,10 +69,11 @@ const nextConfig: NextConfig = {
     const api = process.env.API_INTERNAL_URL ?? "http://localhost:8080";
     return [
       { source: "/api/:path*", destination: `${api}/api/:path*` },
-      // /admin probes actuator same-origin so the internal API base URL
-      // stays server-side. Actuator health is permitAll in SecurityConfig —
-      // this exposes nothing the API doesn't already serve publicly.
-      { source: "/ops-api/actuator/:path*", destination: `${api}/actuator/:path*` },
+      // /admin probes actuator health same-origin so the internal API base
+      // URL stays server-side. Health is permitAll in SecurityConfig and
+      // public on the api domain; the rewrite is scoped to it so the web
+      // origin never proxies metrics/prometheus (#312).
+      { source: "/ops-api/actuator/health/:path*", destination: `${api}/actuator/health/:path*` },
     ];
   },
 };

@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { Loader2, RefreshCw, Scale } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Loader2, Scale } from "lucide-react";
+import PanelHeader from "@/components/panel-header";
 import { getJson, messageFor, postJson } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Post-trade compliance, live: `GET /api/v1/compliance/rules` lists the
@@ -47,11 +48,11 @@ const RESULT_DOT: Record<string, string> = {
 };
 
 export default function CompliancePanel() {
-  const { tenants, tenantId, setTenantId, error: tenantError } = useTenants();
+  const { tenantId } = useTenants();
   const [rules, setRules] = useState<Rule[]>([]);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [rationale, setRationale] = useState<RationaleResult | null>(null);
-  const [loadingRules, setLoadingRules] = useState(false);
+  const [loadingRules, setLoadingRules] = useState(true);
   const [running, setRunning] = useState(false);
   const [narrating, setNarrating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +62,7 @@ export default function CompliancePanel() {
   // (backlog #35). Exposure rows are "CCY = fraction of the portfolio".
   const [subject, setSubject] = useState("");
   const [exposure, setExposure] = useState<{ currency: string; fraction: string }[]>([
-    { currency: "USD", fraction: "1" },
+    { currency: "", fraction: "" },
   ]);
 
   const currencyExposure = (): Record<string, number> =>
@@ -85,6 +86,10 @@ export default function CompliancePanel() {
       setLoadingRules(false);
     }
   }, [tenantId]);
+
+  useEffect(() => {
+    loadRules();
+  }, [loadRules]);
 
   const evaluate = async () => {
     if (!tenantId || running || !subject.trim()) return;
@@ -126,6 +131,14 @@ export default function CompliancePanel() {
   };
 
   return (
+    <div>
+      <PanelHeader
+        description="Rules evaluate server-side; breaches open review tasks. Narration is AI-drafted and citation-gated."
+        onRefresh={loadRules}
+        refreshing={loadingRules}
+        refreshLabel="Reload rules"
+        error={error}
+      />
     <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
       <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
         <div className="min-w-0 flex-1">
@@ -137,7 +150,6 @@ export default function CompliancePanel() {
             is AI-drafted and citation-gated.
           </p>
         </div>
-        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
         <button
           type="button"
           onClick={loadRules}
@@ -151,7 +163,7 @@ export default function CompliancePanel() {
         </button>
       </header>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 px-6 pb-3 sm:px-8">
+      <div className="flex flex-wrap items-center gap-2 pb-4">
         <input
           aria-label="Subject"
           value={subject}
@@ -184,6 +196,7 @@ export default function CompliancePanel() {
               aria-label={`Exposure ${i + 1} fraction`}
               type="number"
               step="0.01"
+              placeholder="Share"
               value={r.fraction}
               onChange={(e) =>
                 setExposure((p) => p.map((x, idx) => (idx === i ? { ...x, fraction: e.target.value } : x)))
@@ -230,11 +243,7 @@ export default function CompliancePanel() {
         )}
       </div>
 
-      {tenantError && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {tenantError}
-        </p>
-      )}
+      <div className="space-y-4">
       {error && (
         <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
           {error}
@@ -262,9 +271,9 @@ export default function CompliancePanel() {
                 </span>
               </li>
             ))}
-            {rules.length === 0 && !loadingRules && (
+            {rules.length === 0 && !error && (
               <li className="px-4 py-10 text-center text-[13px] text-neutral-400 dark:text-neutral-600">
-                No active rules — load them with the refresh button.
+                {loadingRules ? "Loading…" : "No active rules in this workspace."}
               </li>
             )}
           </ul>

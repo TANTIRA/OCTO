@@ -8,6 +8,7 @@ import com.octo.ingestion.onchain.OnchainTransfer
 import com.octo.ingestion.onchain.TransferDirection
 import com.octo.ingestion.onchain.TransferKind
 import com.octo.ingestion.onchain.persistence.JdbcOnchainStagingStore
+import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.flywaydb.core.Flyway
 import org.junit.jupiter.api.Test
@@ -22,7 +23,9 @@ import java.util.UUID
 /**
  * End-to-end coverage of staging -> instrument_flow promotion over the real V10 schema:
  * finalized rows promote under their staging identity, unknown mints quarantine, replays
- * no-op, and a staged correction supersedes the flow its original produced.
+ * no-op, and a staged correction supersedes the flow its original produced. The container
+ * login owns the objects and bypasses RLS, so the tenant test re-runs promotion as a
+ * non-superuser role the V30 policies actually bind (same probe as `EntityScopingIT`).
  */
 @Testcontainers(disabledWithoutDocker = true)
 class OnchainPromotionIT {
@@ -56,7 +59,7 @@ class OnchainPromotionIT {
         val report = promoter.promote()
 
         assertThat(report.promoted).isEqualTo(2)
-        val flows = store.flowsFor("solana", wallet)
+        val flows = store.flowsFor("solana", wallet, TenantScope.All)
         assertThat(flows.map { it.flowType }).containsExactlyInAnyOrder(InstrumentFlowType.TRANSFER_IN, InstrumentFlowType.TRANSFER_OUT)
         assertThat(flows.all { it.instrumentId == nativeInstrumentId() }).isTrue()
         val position = tokenPositions(flows, Instant.now()).single()
@@ -78,7 +81,7 @@ class OnchainPromotionIT {
         val second = promoter.promote()
 
         assertThat(second.promoted).isEqualTo(1)
-        assertThat(store.flowsFor("solana", wallet).single().instrumentId).isEqualTo(mintInstrumentId(mint))
+        assertThat(store.flowsFor("solana", wallet, TenantScope.All).single().instrumentId).isEqualTo(mintInstrumentId(mint))
     }
 
     @Test
@@ -88,7 +91,7 @@ class OnchainPromotionIT {
 
         assertThat(promoter.promote().promoted).isEqualTo(1)
         assertThat(promoter.promote().promoted).isZero()
-        assertThat(store.flowsFor("solana", wallet)).hasSize(1)
+        assertThat(store.flowsFor("solana", wallet, TenantScope.All)).hasSize(1)
     }
 
     @Test
@@ -103,13 +106,60 @@ class OnchainPromotionIT {
 
         assertThat(report.promoted).isEqualTo(2)
         assertThat(report.deferred).isEmpty()
-        val flows = store.flowsFor("solana", wallet)
+        val flows = store.flowsFor("solana", wallet, TenantScope.All)
         val originalFlow = flows.first { it.externalId == original.externalId }
         val correctionFlow = flows.first { it.externalId.endsWith(":fix") }
         assertThat(correctionFlow.supersedesId).isEqualTo(originalFlow.id)
         assertThat(correctionFlow.rationale).isEqualTo("restated amount")
         val position = tokenPositions(flows, Instant.now()).single()
         assertThat(position.netRaw).isEqualByComparingTo(BigInteger("150"))
+    }
+
+    @Test
+    fun `promotion runs under V30 RLS and each tenant reads only its own wallet's flows`() {
+        val tenantA = UUID.randomUUID()
+        val tenantB = UUID.randomUUID()
+        val walletA = addr()
+        val walletB = addr()
+        dataSource().connection.use { c ->
+            c.createStatement().use { s ->
+                s.execute(
+                    "do \$\$ begin if exists (select 1 from pg_roles where rolname = 'promotion_probe') then " +
+                        "drop owned by promotion_probe cascade; drop role promotion_probe; end if; end \$\$",
+                )
+                s.execute("create role promotion_probe login password 'promotion_probe'")
+                s.execute("grant usage on schema octo to promotion_probe")
+                s.execute(
+                    "grant select, insert on octo.onchain_transfer, octo.instrument, octo.instrument_flow, " +
+                        "octo.tracked_address to promotion_probe",
+                )
+                s.execute(
+                    "insert into octo.tenant (id, slug, display_name, source_system, correlation_id) values " +
+                        "('$tenantA', 't-${tenantA.toString().take(8)}', 'A', 'test', gen_random_uuid()), " +
+                        "('$tenantB', 't-${tenantB.toString().take(8)}', 'B', 'test', gen_random_uuid())",
+                )
+                s.execute(
+                    "insert into octo.tracked_address (chain, address, tenant_id, source_system, correlation_id) values " +
+                        "('solana', '$walletA', '$tenantA', 'test', gen_random_uuid()), " +
+                        "('solana', '$walletB', '$tenantB', 'test', gen_random_uuid())",
+                )
+            }
+        }
+        stage(
+            transfer(walletA, "sig-ta", "solana:sig-ta:$walletA:bal:0", 10),
+            transfer(walletB, "sig-tb", "solana:sig-tb:$walletB:bal:0", 20),
+        )
+        val runtime = JdbcInstrumentFlowStore(DriverManagerDataSource(postgres.jdbcUrl, "promotion_probe", "promotion_probe"))
+
+        // A bare connection here saw no staging rows and failed every insert with 42501.
+        InstrumentFlowPromoter(runtime).promote()
+
+        val a = TenantScope.Tenants(listOf(tenantA))
+        val b = TenantScope.Tenants(listOf(tenantB))
+        assertThat(runtime.flowsFor("solana", walletA, a).map { it.amountRaw }).containsExactly(BigInteger.TEN)
+        assertThat(runtime.flowsFor("solana", walletB, a)).describedAs("tenant B's flows are invisible to A").isEmpty()
+        assertThat(runtime.flowsFor("solana", walletB, b).map { it.amountRaw }).containsExactly(BigInteger("20"))
+        assertThat(InstrumentFlowPromoter(runtime).promote().promoted).describedAs("replay under RLS is a no-op").isZero()
     }
 
     private fun dataSource() =

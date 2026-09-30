@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -25,8 +24,10 @@ import java.util.function.Supplier
 
 /**
  * `RateLimitFilter` end to end against a real Redis: a tenant's quota is shared by every member,
- * a multi-tenant caller's `X-Tenant-Id` is honored only inside their membership, the public health
- * surface stays free, and a dead Redis admits rather than outages. Skipped without Docker.
+ * a multi-tenant caller's `X-Tenant-Id` is honored only inside their membership, and the public
+ * health surface stays free. Redis is wired the way deployments wire it — `REDIS_HOST`/`REDIS_PORT`.
+ * The no-Redis and dead-Redis paths are covered without Docker in [RateLimitFallbackTest].
+ * Skipped without Docker.
  */
 @Testcontainers(disabledWithoutDocker = true)
 class RateLimitFilterIT {
@@ -35,7 +36,6 @@ class RateLimitFilterIT {
     private val solo = UUID.randomUUID() // member of tenantA only
     private val colleague = UUID.randomUUID() // also member of tenantA — shares solo's counter
     private val multi = UUID.randomUUID() // member of tenantA and tenantB
-    private val stranger = UUID.randomUUID() // no memberships — per-user quota
 
     private val directory =
         TenantDirectory { id ->
@@ -79,9 +79,6 @@ class RateLimitFilterIT {
     ) = WebApplicationContextRunner()
         .withUserConfiguration(OctoApplication::class.java)
         .withBean(
-            LettuceConnectionFactory::class.java,
-            Supplier { LettuceConnectionFactory(host, port) },
-        ).withBean(
             TenantDirectory::class.java,
             Supplier { directory },
             { it.isPrimary = true },
@@ -94,6 +91,8 @@ class RateLimitFilterIT {
                 "${DataSourceAutoConfiguration::class.qualifiedName}," +
                 "${FlywayAutoConfiguration::class.qualifiedName}",
             "octo.rate-limit.default-per-minute=2",
+            "REDIS_HOST=$host",
+            "REDIS_PORT=$port",
         )
 
     private fun run(
@@ -143,18 +142,6 @@ class RateLimitFilterIT {
             mvc
                 .perform(get(url).header(RateLimitFilter.TENANT_HEADER, UUID.randomUUID().toString()).with(asUser(multi)))
                 .andExpect(status().isTooManyRequests)
-        }
-    }
-
-    @Test
-    fun `a dead rate-limit store fails open — auth still applies, quota does not`() {
-        // Nothing listens on this port: every INCR throws and the filter must admit.
-        run("127.0.0.1", 1) { mvc ->
-            repeat(4) {
-                mvc.perform(get("/api/v1/me/access").with(asUser(solo))).andExpect(status().isOk)
-            }
-            // A membership-less caller is still admitted — limiting is a guard, not the gate.
-            mvc.perform(get("/api/v1/me/access").with(asUser(stranger))).andExpect(status().isOk)
         }
     }
 

@@ -14,10 +14,10 @@ netty = "4.1.138.Final"
 tomcat = "10.1.60"
 log4j = "2.26.1"
 freemarker = "2.3.35"
-bouncycastle = "1.85"
+bouncycastle = "1.86"
 thrift = "0.24.0"
 postgresql = "42.7.13"
-slf4j = "2.0.17"
+slf4j = "2.0.20"
 
 [libraries]
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
@@ -25,6 +25,9 @@ spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-star
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometer" }
 micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
+# OTLP trace export to the collector (#306); versions from the Spring Boot BOM.
+micrometer-tracing-otel = { module = "io.micrometer:micrometer-tracing-bridge-otel" }
+opentelemetry-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }

@@ -57,9 +57,16 @@ Set in the Dokploy compose environment (never committed). Keys mirror
 | Domain | Service | Notes |
 | --- | --- | --- |
 | `octo.mesta.click` | web | landing + `/app` shell + `/login` |
-| `admin-octo.mesta.click` | web | `/` rewrites to `/admin` (ops surface) via `web/middleware.ts` |
+| `admin-octo.mesta.click` | web | `/` rewrites to `/admin` (ops surface) via `web/middleware.ts`; platform admins only (see below) |
 | `api-octo.mesta.click` | api :8080 | `/actuator/health`, `/actuator/health/readiness` public |
 | `supa-octo.mesta.click` | supabase kong :8000 | own compose project |
+
+`/admin` (either domain) sends visitors without a session to `/login` and shows signed-in users the
+404 page unless their Supabase user id is listed in the api's `OCTO_PLATFORM_ADMINS` — the same
+list that gates `/api/v1/admin/*`, read via `platformAdmin` on `/api/v1/me/access` (#312). Unset
+admits nobody, so name the operators there before relying on the console. The web origin proxies
+only `/actuator/health/**` (as `/ops-api/...`); when the api itself is down the console cannot
+verify access, so probe `api-octo.mesta.click/actuator/health` directly.
 
 Neo4j has no public domain (#390). Port 7474 serves the Browser *and* Neo4j's HTTP query API, so a
 public route there is a password-only Cypher endpoint, not a viewer. Do not assign one; like Studio,
@@ -78,7 +85,7 @@ docker run -d --name octo-bolt-bridge --network dokploy-network \
 
 # Local — tunnel, then any HTTP Browser (e.g. a local neo4j's own):
 ssh -N -L 7687:localhost:7687 <dokploy-host>
-docker run -d --name octo-browser -p 7474:7474 neo4j:2025.12.1-community
+docker run -d --name octo-browser -p 7474:7474 neo4j:2025.12.1-community@sha256:c64d8750884c95ae57441a103d64d08fdaf55265acc3af687aa8ec25aa77d0c3
 # http://localhost:7474 → bolt://localhost:7687
 ```
 
@@ -90,11 +97,22 @@ loopback and no bolt entryPoint is configured on the host.
 
 ## Rate limiting
 
-Two layers exist. The api carries a Redis-backed per-tenant limiter
-(`RateLimitFilter`, `OCTO_RATE_LIMIT_PER_MINUTE`, default 240/min) that counts
-authenticated JWT traffic; anonymous callers skip it, so any anonymously
-reachable path (webhooks, contact forms) needs the **edge** limiter below as
-the primary control.
+The api enforces its own limits; the Traefik middleware below is defense in
+depth, not a precondition (#321). In-app, always on:
+
+- **Per tenant** (`RateLimitFilter`): authenticated JWT traffic,
+  `OCTO_RATE_LIMIT_PER_MINUTE` (default 120/min, per-tenant override via the
+  `rate_limit_per_minute` tenant setting).
+- **Per client IP** (`ClientIpRateLimitFilter`, ahead of authentication on the
+  JWT and webhook chains): 30 failed authentications/min (401, or 403 for an
+  unauthenticated caller) before every request from that IP answers 429, and
+  10/min on the anonymous `POST /api/v1/contact`. The IP is the rightmost
+  `X-Forwarded-For` entry — the peer Traefik appended, not a client-chosen value.
+
+Counters live in Redis when `REDIS_HOST` is set (the `redis` service below), so
+replicas share one quota. Without Redis, or while it is failing, the api keeps
+enforcing with in-process counters — per instance, never fail-open — and logs
+one warning per 30s of outage.
 
 Dokploy's Traefik accepts per-router middlewares on each domain entry; the
 middleware itself is declared once as a file-provider dynamic config on the
@@ -111,7 +129,7 @@ http:
         burst: 200          # short spikes above average
         sourceCriterion:
           ipStrategy:
-            depth: 1        # X-Forwarded-For leftmost — Traefik fronts the api
+            depth: 1        # X-Forwarded-For rightmost — the peer Traefik appended
 ```
 
 Attach it in Dokploy → project → **Domains** → each domain's middleware field:
@@ -120,9 +138,42 @@ unauthenticated attack surface); `octo.mesta.click`/`admin-octo.mesta.click`
 can share the same middleware. The webhook route gets the same limit — its
 shared-secret check is cheap, and bursts there are also just retries.
 
-Tune `average`/`burst` against real traffic once Prometheus scrapes
-`http.server.requests`; start conservative, watch for false 429s on import
+Tune `average`/`burst` against the `http_server_requests_seconds` metrics the
+collector scrapes (below); start conservative, watch for false 429s on import
 batches (`IMPORT_BATCH_LIMIT`-sized bursts are legitimate).
+
+## Metrics scrape port (#338)
+
+On the public port (`8080`, the only port Traefik routes) actuator is unchanged:
+`/actuator/health/**` and `/actuator/info` are anonymous, `/actuator/metrics` and
+`/actuator/prometheus` need a bearer JWT. A scraper has no user, so the api opens
+a second connector on `OCTO_METRICS_PORT` (default `8081`) that answers anonymous
+`GET /actuator/prometheus` and denies every other path (`MetricsPortConfig`).
+
+- Never publish `8081` (`ports:`) or give it a Dokploy domain — it has no auth by
+  design. Only containers on the stack's networks reach it.
+- The request is matched by the socket's local port, not by a header, so traffic
+  arriving through Traefik on `8080` cannot claim to be a scrape.
+- Check from the host: `docker exec <api-container> curl -fsS localhost:8081/actuator/prometheus | head`.
+
+## OTEL collector (#306)
+
+`otel-collector` runs the pinned core `otel/opentelemetry-collector` image with the config in
+`deploy/otel/` (bind-mounted from the cloned repo). It scrapes `api:8081/actuator/prometheus` every
+30s and receives OTLP on `:4317`/`:4318` — the api sends traces there through
+`MANAGEMENT_OTLP_TRACING_ENDPOINT`, derived from `OTEL_EXPORTER_OTLP_ENDPOINT` (default
+`http://otel-collector:4318`; Boot samples 10% of requests). Internal only: default network, no
+host ports, no domain.
+
+| Env | Default | Effect |
+| --- | --- | --- |
+| `OTELCOL_EXPORT` | `debug` | Exporter overlay `deploy/otel/export-<name>.yaml`. `debug` logs a summary per batch and sends nothing off-host |
+| `OTELCOL_OTLP_ENDPOINT` | — | Required when `OTELCOL_EXPORT=otlphttp`: backend base URL (`/v1/traces`, `/v1/metrics` are appended). Unset → the collector refuses to start |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4318` | Where the api sends traces |
+
+A backend that needs an auth header, or lives on `dokploy-network`, gets its own overlay (and the
+network) in the PR that provisions it. Check it runs: `docker logs <otel-collector>` shows
+`ResourceMetrics`/`ResourceSpans` summaries every batch under the debug overlay.
 
 ## Gotchas (all learned the hard way)
 
