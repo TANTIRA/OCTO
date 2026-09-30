@@ -88,7 +88,6 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | 41 | `infra/docker-compose.yml` degraded variant: no redis/agents services, never forwards `HELIUS_*`/`ARBITRUM_*`/`ALPHA_VANTAGE_*`/`OCTO_AGENTS_*`/`OCTO_PLATFORM_ADMINS` it documents — those features silently can't run. | `infra/docker-compose.yml:19-88` vs `infra/.env.example:60-79` | @Aldroun |
 | 43 | Non-atomic task-open + record: `ReconciliationRunner`/`ComplianceRunner` commit task then record in a second txn — failure between them leaves an orphan evidence-request/review task. | `ReconciliationRunner.kt:65-80`, `ComplianceRunner.kt:58-68` | @Fatihmaull |
 | 44 | Tenant admins can raise their own rate limit (`PUT /admin/tenants/.../settings` writes any key incl. `rate_limit_per_minute`); any member can forge arbitrary `agent_run` audit rows (`subjectId` uncapped). | `AdminTenantsController.kt:130-153`, `AgentRunsController.kt:49-86` | @EliteSlacker |
-| 45 | OctoApiError discards response body — bookkeeping logs `status N` with no reason; EVM runner logs `e.message` (RPC URLs can embed credentials). | `api_client.py:14-47`, `EvmSyncRunner.kt:72` | @fikriaf + @EliteSlacker |
 
 ## Gap audit — low (verified, summarized)
 
