@@ -72,7 +72,7 @@ def test_request_shape_matches_kotlin_contract() -> None:
     body = captured["body"]
     assert captured["auth"] == "Bearer k"
     assert body["model"] == "typesafe/jev-1.13"
-    assert body["provider"] == {"allow_fallbacks": False}
+    assert body["provider"] == {"zdr": True, "allow_fallbacks": False}
     assert body["session_id"] == "s-1"
     assert body["user"] == "octo-agents"
     assert body["questions"]["advance"]["type"] == "noul"

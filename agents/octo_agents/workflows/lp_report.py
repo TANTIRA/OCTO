@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
-from .screening_dd import _record_run
+from .screening_dd import _record_run, finish_failed
 
 LP_PROMPT = """You are the OCTO investor-relations writer. Draft the quarterly LP letter
 for the fund whose facts follow. Every number, date and commitment you cite
@@ -158,7 +158,11 @@ def run_lp_report(
                 ),
             ]
         )
-        memo = message.content if isinstance(message.content, str) else str(message.content)
+        memo = (
+            message.content
+            if isinstance(message.content, str)
+            else str(message.content)
+        )
 
         verdict = judge_letter(judge, job_id=job_id, facts=facts, memo=memo)
         result = LpReportResult(
@@ -181,5 +185,5 @@ def run_lp_report(
         )
         return result
     except Exception as e:
-        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        finish_failed(api, run_id, e)
         raise

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
-from .screening_dd import _record_run
+from .screening_dd import _record_run, finish_failed
 
 DDQ_PROMPT = """You are the OCTO fundraising analyst answering a limited partner's
 due-diligence questionnaire. Answer each numbered question using only the firm
@@ -195,5 +195,5 @@ def run_ddq_response(
         )
         return result
     except Exception as e:
-        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        finish_failed(api, run_id, e)
         raise
