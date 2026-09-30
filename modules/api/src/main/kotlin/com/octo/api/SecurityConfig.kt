@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
 import org.springframework.core.env.Environment
+import org.springframework.http.HttpMethod
 import org.springframework.data.redis.connection.RedisConnectionFactory
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.StringRedisTemplate
@@ -111,6 +112,12 @@ class SecurityConfig {
                     .dispatcherTypeMatchers(DispatcherType.ERROR)
                     .permitAll()
                     .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
+                    .permitAll()
+                    // The landing-page lead form is the one anonymous business write (#315).
+                    // Method-scoped so the path's future read surface still requires auth;
+                    // abuse is bounded by validation, a honeypot, and the per-IP window in
+                    // RateLimitFilter plus the Traefik edge limiter.
+                    .requestMatchers(HttpMethod.POST, "/api/v1/contact")
                     .permitAll()
                     .anyRequest()
                     .authenticated()

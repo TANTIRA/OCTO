@@ -55,8 +55,25 @@ class RateLimitFilter(
     ) {
         val jwt = SecurityContextHolder.getContext().authentication?.principal as? Jwt
         if (jwt == null) {
-            // Public surface (actuator health/info, the deny-by-default fallthrough) stays free —
-            // there is no tenant to charge and probes must not be quota'd.
+            // Public surface stays free except the one anonymous business write — a lead-form
+            // post has no tenant to charge, so it counts against a per-IP window instead. The
+            // Traefik edge limiter (deploy/README) is still the primary control; this is the
+            // in-app backstop for when the edge is not tuned. Probes (actuator) stay unquota'd.
+            if (request.method == "POST" && request.requestURI == CONTACT_PATH) {
+                try {
+                    val key = "octo:rl:ip:${clientIp(request)}:${minute()}"
+                    val count = redis.opsForValue().increment(key) ?: 0L
+                    if (count == 1L) {
+                        redis.expire(key, Duration.ofSeconds(KEY_TTL_SECONDS))
+                    }
+                    if (count > CONTACT_IP_LIMIT_PER_MINUTE) {
+                        reject(response)
+                        return
+                    }
+                } catch (e: DataAccessException) {
+                    log.warn("rate-limit store unavailable — admitting request without quota", e)
+                }
+            }
             chain.doFilter(request, response)
             return
         }
@@ -133,8 +150,19 @@ class RateLimitFilter(
 
     private fun minute(): Long = Instant.now().epochSecond / SECONDS_PER_MINUTE
 
+    /** XFF leftmost — Traefik fronts the api, so `remoteAddr` alone would quota the proxy. */
+    private fun clientIp(request: HttpServletRequest): String =
+        request
+            .getHeader("X-Forwarded-For")
+            ?.substringBefore(',')
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: request.remoteAddr
+
     companion object {
         const val TENANT_HEADER = "X-Tenant-Id"
+        private const val CONTACT_PATH = "/api/v1/contact"
+        private const val CONTACT_IP_LIMIT_PER_MINUTE = 10
         private const val SECONDS_PER_MINUTE = 60L
         private const val KEY_TTL_SECONDS = 90L
         private const val LIMIT_CACHE_TTL_SECONDS = 30L
