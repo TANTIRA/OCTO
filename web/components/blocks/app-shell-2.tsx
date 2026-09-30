@@ -16,9 +16,9 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { useScrollFade } from "@/lib/use-scroll-fade";
 import Dashboard4 from "@/components/blocks/dashboard-4";
 import DataTable3 from "@/components/blocks/data-table-3";
-import Kanban1 from "@/components/blocks/kanban-1";
 import PipelineBoard from "@/components/pipeline-board";
 import ReportQueue from "@/components/report-queue";
 import ReconPanel from "@/components/recon-panel";
@@ -29,33 +29,6 @@ import { apiFetch } from "@/lib/api";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
-
-function useScrollFade<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  const [edges, setEdges] = useState({ start: false, end: false });
-
-  const update = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const { scrollTop, scrollHeight, clientHeight } = el;
-    setEdges({
-      start: scrollTop > 1,
-      end: Math.ceil(scrollTop + clientHeight) < scrollHeight - 1,
-    });
-  }, []);
-
-  useEffect(() => {
-    update();
-    const el = ref.current;
-    const view = el?.ownerDocument.defaultView;
-    if (!el || !view?.ResizeObserver) return;
-    const observer = new view.ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [update]);
-
-  return { ref, edges, onScroll: update };
-}
 
 const focus =
   "focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))]";
@@ -661,6 +634,7 @@ const KEY_DESTINATIONS: Record<string, string> = {
   "g c": "compliance",
   "g l": "alerts",
   "g x": "/admin",
+  "g b": "/brain",
   t: "positions",
   n: "deals",
   r: "recon",

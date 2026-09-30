@@ -24,6 +24,4 @@
 @theme inline {
     --color-rb-accent: var(--rb-accent);
     --color-rb-accent-fg: var(--rb-accent-fg);
-    --color-rb-accent: var(----rb-accent);
-    --color-rb-accent-fg: var(----rb-accent-fg);
 }

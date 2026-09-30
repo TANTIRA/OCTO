@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { ArrowRight, Github, Linkedin } from "lucide-react";
+import { ArrowRight, Github } from "lucide-react";
 
 const focusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-white dark:focus-visible:ring-offset-neutral-950";
@@ -15,21 +15,13 @@ const LINKS: Record<string, string> = {
   "API reference": "https://api-octo.mesta.click",
   Ontology: "#faq",
   Status: "https://admin-octo.mesta.click",
-  About: "#",
-  Careers: "#",
-  Customers: "#",
   Contact: "#contact",
-  Privacy: "#",
-  Terms: "#",
-  Security: "#",
-  Cookies: "#",
 };
 
 const navGroups = [
   { title: "Platform", links: ["Book of Record", "Deal Flow", "Analytics", "Changelog"] },
   { title: "Build", links: ["Docs", "API reference", "Ontology", "Status"] },
-  { title: "Company", links: ["About", "Careers", "Customers", "Contact"] },
-  { title: "Legal", links: ["Privacy", "Terms", "Security", "Cookies"] },
+  { title: "Company", links: ["Contact"] },
 ];
 
 const dispatches = ["Weekly signal", "Release radar", "Methodology memo"];
@@ -92,27 +84,13 @@ export default function Footer12() {
                 Release notes, methodology updates, and the numbers that moved.
                 One email, every other Friday.
               </p>
-              <form
-                className="mt-8 flex w-full max-w-md flex-col gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2 transition-colors duration-200 focus-within:border-white/30 sm:flex-row sm:items-center sm:rounded-full sm:p-1.5 sm:pl-5"
-                onSubmit={(e) => e.preventDefault()}
+              <a
+                href="#contact"
+                className="mt-8 inline-flex w-fit cursor-pointer items-center justify-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition-colors duration-200 hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
               >
-                <label htmlFor="footer-12-email" className="sr-only">
-                  Work email
-                </label>
-                <input
-                  id="footer-12-email"
-                  type="email"
-                  placeholder="work@email.com"
-                  className="min-w-0 flex-1 rounded-xl bg-transparent px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus-visible:outline-none sm:px-0 sm:py-0"
-                />
-                <button
-                  type="submit"
-                  className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition-colors duration-200 hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900 sm:rounded-full"
-                >
-                  Subscribe
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </form>
+                Get the dispatch
+                <ArrowRight className="h-4 w-4" />
+              </a>
               <div className="mt-5 flex flex-wrap gap-2">
                 {dispatches.map((chip) => (
                   <span
@@ -205,27 +183,11 @@ export default function Footer12() {
           </p>
           <div className="flex items-center gap-1">
             <a
-              href="#"
-              aria-label="X profile"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-colors duration-200 hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 dark:text-neutral-500 dark:hover:bg-neutral-900 dark:hover:text-white dark:focus-visible:ring-white"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-            </a>
-            <a
-              href="#"
+              href="https://github.com/TANTIRA"
               aria-label="GitHub"
               className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-colors duration-200 hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 dark:text-neutral-500 dark:hover:bg-neutral-900 dark:hover:text-white dark:focus-visible:ring-white"
             >
               <Github className="h-[18px] w-[18px]" />
-            </a>
-            <a
-              href="#"
-              aria-label="LinkedIn"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-colors duration-200 hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 dark:text-neutral-500 dark:hover:bg-neutral-900 dark:hover:text-white dark:focus-visible:ring-white"
-            >
-              <Linkedin className="h-[18px] w-[18px]" />
             </a>
           </div>
         </motion.div>
