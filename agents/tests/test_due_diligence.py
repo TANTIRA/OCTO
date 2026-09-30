@@ -203,7 +203,7 @@ def test_task_open_failure_is_bounded_and_recorded(
     by_ws = {t.workstream: t for t in result.tasks}
     assert by_ws["market"].opened
     assert not by_ws["financial"].opened
-    assert result.task_errors == ["financial: HTTP 500"]
+    assert result.task_errors == ["financial: HTTP 500: server error"]
 
 
 def test_preflight_refusal_runs_no_subagents_and_opens_nothing(

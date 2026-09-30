@@ -69,7 +69,9 @@ class EvmSyncRunner(
             }
         } catch (e: Exception) {
             pollErrors?.increment()
-            log.warn("evm onchain poll failed: {}", e.message)
+            // Never the raw message or the throwable: RPC URLs commonly carry the provider key in
+            // the path or query (EvmConfig), and a bad-URL IllegalArgumentException quotes it whole.
+            log.warn("evm onchain poll failed: {}: {}", e.javaClass.simpleName, redactUrls(e.message))
         }
     }
 
@@ -77,4 +79,13 @@ class EvmSyncRunner(
         meters: MeterRegistry?,
         name: String,
     ): Counter? = meters?.let { Counter.builder(name).register(it) }
+
+    internal companion object {
+        // scheme :// [userinfo@] host[:port] then the rest of the URL (path, query, fragment).
+        private val URL = Regex("""([a-zA-Z][a-zA-Z0-9+.-]*)://(?:[^\s@/?#]*@)?([^\s/?#"'<>]+)[^\s"'<>]*""")
+
+        /** Every URL in [text] cut to scheme://host[:port] — userinfo, path and query keys never survive. */
+        fun redactUrls(text: String?): String =
+            text?.replace(URL) { "${it.groupValues[1]}://${it.groupValues[2]}/<redacted>" } ?: "(no message)"
+    }
 }
