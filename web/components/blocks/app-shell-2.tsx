@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
 import {
   Bell,
   Brain,
@@ -39,233 +38,26 @@ const focusInset =
 const transition =
   "transition-[background-color,border-color,color] duration-150 ease-out";
 
-const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
-
 const TOOLTIP_DELAY_MS = 400;
 const TOOLTIP_GRACE_MS = 300;
-
-type Group = {
-  label: string;
-  items: { label: string }[];
-};
 
 type Area = {
   id: string;
   label: string;
   icon: LucideIcon;
-  current: string;
-  groups: Group[];
   title: string;
 };
 
 const AREAS: Area[] = [
-  {
-    id: "overview",
-    label: "Overview",
-    icon: LayoutDashboard,
-    current: "Fund overview",
-    title: "Portfolio overview",
-    groups: [
-      {
-        label: "Overview",
-        items: [
-          { label: "Fund overview" },
-          { label: "NAV summary" },
-          { label: "Exposure" },
-          { label: "Cash & projections" },
-        ],
-      },
-      {
-        label: "Saved views",
-        items: [
-          { label: "Quarterly pack" },
-          { label: "IC briefing" },
-          { label: "LP report draft" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "assets",
-    label: "Assets",
-    icon: Landmark,
-    current: "All assets",
-    title: "Assets",
-    groups: [
-      {
-        label: "Assets",
-        items: [
-          { label: "All assets" },
-          { label: "Portfolio companies" },
-          { label: "Fund interests" },
-          { label: "Listed equity" },
-          { label: "Private credit" },
-          { label: "Digital assets" },
-        ],
-      },
-      {
-        label: "Reference",
-        items: [
-          { label: "Instrument master" },
-          { label: "Issuers" },
-          { label: "Identifiers" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "positions",
-    label: "Positions",
-    icon: ChartPie,
-    current: "All positions",
-    title: "Positions",
-    groups: [
-      {
-        label: "Positions",
-        items: [
-          { label: "All positions" },
-          { label: "By fund" },
-          { label: "By strategy" },
-          { label: "By geography" },
-          { label: "By sector" },
-        ],
-      },
-      {
-        label: "Saved views",
-        items: [
-          { label: "Top 10 by NAV" },
-          { label: "Underwater" },
-          { label: "Recent writes" },
-          { label: "Look-through" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "deals",
-    label: "Deals",
-    icon: Kanban,
-    current: "Pipeline",
-    title: "Deal pipeline",
-    groups: [
-      {
-        label: "Deals",
-        items: [
-          { label: "Pipeline" },
-          { label: "Sourced" },
-          { label: "Screening" },
-          { label: "Due diligence" },
-          { label: "IC review" },
-          { label: "Closed" },
-        ],
-      },
-      {
-        label: "Saved views",
-        items: [
-          { label: "My deals" },
-          { label: "Aging > 60d" },
-          { label: "This quarter" },
-          { label: "Passed" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "recon",
-    label: "Recon",
-    icon: GitCompareArrows,
-    current: "Open breaks",
-    title: "Reconciliation",
-    groups: [
-      {
-        label: "Recon",
-        items: [
-          { label: "Open breaks" },
-          { label: "Resolved" },
-          { label: "Runs" },
-          { label: "Rules" },
-        ],
-      },
-      {
-        label: "Sources",
-        items: [
-          { label: "Custodian feeds" },
-          { label: "Fund admin" },
-          { label: "Broker statements" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "reports",
-    label: "Reports",
-    icon: ChartPie,
-    current: "Queue",
-    title: "Reports",
-    groups: [
-      {
-        label: "Reports",
-        items: [
-          { label: "Queue" },
-          { label: "Performance" },
-          { label: "Exposure" },
-          { label: "GL export" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "compliance",
-    label: "Compliance",
-    icon: Check,
-    current: "Rules",
-    title: "Compliance",
-    groups: [
-      {
-        label: "Compliance",
-        items: [
-          { label: "Rules" },
-          { label: "Evaluations" },
-          { label: "Breaches" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "alerts",
-    label: "Alerts",
-    icon: Bell,
-    current: "Active alerts",
-    title: "Alerts & agents",
-    groups: [
-      {
-        label: "Alerts",
-        items: [
-          { label: "Active" },
-          { label: "Snoozed" },
-          { label: "Resolved" },
-          { label: "Rules" },
-        ],
-      },
-      {
-        label: "Agents",
-        items: [
-          { label: "News matching" },
-          { label: "NL query" },
-          { label: "Email drafts" },
-          { label: "Approval queue" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "brain",
-    label: "Company brain",
-    icon: Brain,
-    current: "Ask",
-    title: "Company brain",
-    groups: [{ label: "Brain", items: [{ label: "Ask" }] }],
-  },
+  { id: "overview", label: "Overview", icon: LayoutDashboard, title: "Portfolio overview" },
+  { id: "assets", label: "Assets", icon: Landmark, title: "Assets" },
+  { id: "positions", label: "Positions", icon: ChartPie, title: "Positions" },
+  { id: "deals", label: "Deals", icon: Kanban, title: "Deal pipeline" },
+  { id: "recon", label: "Recon", icon: GitCompareArrows, title: "Reconciliation" },
+  { id: "reports", label: "Reports", icon: ChartPie, title: "Reports" },
+  { id: "compliance", label: "Compliance", icon: Check, title: "Compliance" },
+  { id: "alerts", label: "Alerts", icon: Bell, title: "Alerts & agents" },
+  { id: "brain", label: "Company brain", icon: Brain, title: "Company brain" },
 ];
 
 function WorkspaceSwitcher() {
@@ -514,7 +306,6 @@ function NavigationFrame({
 }) {
   const [tipFor, setTipFor] = useState<string | null>(null);
   const [tipShown, setTipShown] = useState(false);
-  const nav = useScrollFade<HTMLElement>();
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const frameRef = useRef<number | undefined>(undefined);
   const openRef = useRef(false);
@@ -522,10 +313,6 @@ function NavigationFrame({
   const graceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
-  const reduceMotion = useReducedMotion();
-
-  const area = AREAS.find((item) => item.id === areaId) ?? AREAS[0];
-
   const showTip = (id: string) => {
     clearTimeout(timerRef.current);
     cancelAnimationFrame(frameRef.current ?? 0);
@@ -642,72 +429,6 @@ function NavigationFrame({
         <div className="shrink-0 px-2 pb-1 pt-2">
           <WorkspaceSwitcher />
         </div>
-
-        <div className="relative min-h-0 flex-1">
-          <nav
-            ref={nav.ref}
-            onScroll={nav.onScroll}
-            aria-label={area.label}
-            className="h-full overflow-y-auto px-2 pb-3"
-          >
-            <motion.div
-              key={area.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, ease: EASE_OUT }}
-              className="space-y-4"
-            >
-              {area.groups
-                .map((group) => ({
-                  ...group,
-                  // Only the live surface is a real destination — fabricated
-                  // saved views/filters and their counts are not rendered.
-                  items: group.items.filter((i) => i.label === area.current),
-                }))
-                .filter((group) => group.items.length > 0)
-                .map((group) => (
-                  <div key={group.label}>
-                    <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
-                      {group.label}
-                    </p>
-                    <ul className="space-y-0.5">
-                      {group.items.map((item) => (
-                        <li key={item.label}>
-                          <a
-                            href={`#${area.id}`}
-                            aria-current="page"
-                            className={cx(
-                              "flex h-8 cursor-pointer items-center gap-2 rounded-[var(--rb-r-md,8px)] bg-neutral-100 px-3 text-[13px] font-medium text-neutral-900 active:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:active:bg-neutral-700",
-                              transition,
-                              focus,
-                            )}
-                          >
-                            <span className="min-w-0 flex-1 truncate">
-                              {item.label}
-                            </span>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-            </motion.div>
-          </nav>
-          <div
-            aria-hidden="true"
-            className={cx(
-              "pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-neutral-50 to-transparent transition-opacity duration-200 ease-out dark:from-neutral-900",
-              nav.edges.start ? "opacity-100" : "opacity-0",
-            )}
-          />
-          <div
-            aria-hidden="true"
-            className={cx(
-              "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-neutral-50 to-transparent transition-opacity duration-200 ease-out dark:from-neutral-900",
-              nav.edges.end ? "opacity-100" : "opacity-0",
-            )}
-          />
-        </div>
       </div>
     </>
   );
@@ -733,7 +454,6 @@ export default function AppShell2() {
   const shouldFocusRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion();
 
   const area = AREAS.find((item) => item.id === areaId) ?? AREAS[0];
 
