@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { useScrollFade } from "@/lib/use-scroll-fade";
 import Dashboard4 from "@/components/blocks/dashboard-4";
-import DataTable3 from "@/components/blocks/data-table-3";
 import PipelineBoard from "@/components/pipeline-board";
 import ReportQueue from "@/components/report-queue";
 import ReconPanel from "@/components/recon-panel";
@@ -114,17 +113,17 @@ const AREAS: Area[] = [
     current: "All assets",
     title: "Assets",
     listTitle: "Asset register",
-    listCount: "148",
+    listCount: "0",
     groups: [
       {
         label: "Assets",
         items: [
-          { label: "All assets", count: "148" },
-          { label: "Portfolio companies", count: "32" },
-          { label: "Fund interests", count: "24" },
-          { label: "Listed equity", count: "58" },
-          { label: "Private credit", count: "19" },
-          { label: "Digital assets", count: "15" },
+          { label: "All assets" },
+          { label: "Portfolio companies" },
+          { label: "Fund interests" },
+          { label: "Listed equity" },
+          { label: "Private credit" },
+          { label: "Digital assets" },
         ],
       },
       {
@@ -145,12 +144,12 @@ const AREAS: Area[] = [
     current: "All positions",
     title: "Positions",
     listTitle: "Open positions",
-    listCount: "87",
+    listCount: "0",
     groups: [
       {
         label: "Positions",
         items: [
-          { label: "All positions", count: "87" },
+          { label: "All positions" },
           { label: "By fund" },
           { label: "By strategy" },
           { label: "By geography" },
@@ -167,64 +166,7 @@ const AREAS: Area[] = [
         ],
       },
     ],
-    rows: [
-      {
-        name: "Meridian Health Group",
-        detail: "Fund II · Buyout · Healthcare · ID",
-        meta: "$42.1m",
-        status: "Mark current",
-        tone: "neutral",
-      },
-      {
-        name: "Cipta Logistics",
-        detail: "Fund II · Growth · Logistics · ID",
-        meta: "$28.4m",
-        status: "Mark current",
-        tone: "neutral",
-      },
-      {
-        name: "Solus Energy Partners",
-        detail: "Opportunities I · Private credit · SG",
-        meta: "$18.7m",
-        status: "Valuation stale",
-        tone: "attention",
-      },
-      {
-        name: "Aruna Payments",
-        detail: "Co-Invest SPV · Fintech · SG",
-        meta: "$12.3m",
-        status: "Mark current",
-        tone: "neutral",
-      },
-      {
-        name: "PT Barito Renewables",
-        detail: "Fund II · Listed equity · Energy · ID",
-        meta: "$9.8m",
-        status: "Mark current",
-        tone: "neutral",
-      },
-      {
-        name: "Helios Data Centers",
-        detail: "Opportunities I · Infra · MY",
-        meta: "$31.5m",
-        status: "Covenant breach",
-        tone: "critical",
-      },
-      {
-        name: "Kirana Consumer Brands",
-        detail: "Fund II · Buyout · Consumer · ID",
-        meta: "$22.9m",
-        status: "Mark current",
-        tone: "neutral",
-      },
-      {
-        name: "Anchor Re Holdings",
-        detail: "Fund I · Insurance · BM",
-        meta: "$15.2m",
-        status: "Exiting",
-        tone: "attention",
-      },
-    ],
+    rows: [],
   },
   {
     id: "deals",
@@ -624,6 +566,25 @@ function WorkspaceSwitcher({
 
 // Chords the command menu advertises (g + key → area) and bare action keys.
 // Destinations mirror the menu's command map: an area hash or a route path.
+/**
+ * Honest placeholder for an area the API doesn't serve yet — no fabricated
+ * rows, counts, or saved-view stand-ins (#314).
+ */
+function UnwiredPanel({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="flex h-full items-center justify-center p-6">
+      <div className="max-w-md rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white px-6 py-10 text-center dark:border-neutral-800 dark:bg-neutral-900">
+        <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+          {title}
+        </h2>
+        <p className="mt-2 text-[13px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+          {detail}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 const KEY_DESTINATIONS: Record<string, string> = {
   "g o": "overview",
   "g p": "positions",
@@ -1096,7 +1057,15 @@ export default function AppShell2() {
             {area.id === "overview" ? (
               <Dashboard4 />
             ) : area.id === "assets" ? (
-              <DataTable3 />
+              <UnwiredPanel
+                title="Asset register"
+                detail="The API serves a single asset by id (GET /api/v1/assets/{id}) — no list endpoint exists yet, so there are no rows to show."
+              />
+            ) : area.id === "positions" ? (
+              <UnwiredPanel
+                title="Positions"
+                detail="Positions derive from the transaction ledger, but no read endpoint serves this surface yet. The overview shows live pipeline and agent activity in the meantime."
+              />
             ) : area.id === "deals" ? (
               <PipelineBoard />
             ) : area.id === "reports" ? (
