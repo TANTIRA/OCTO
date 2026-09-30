@@ -31,16 +31,18 @@ const polar = (r: number, deg: number) => {
   return [round(C + r * Math.cos(a)), round(C + r * Math.sin(a))] as const;
 };
 
-// Each arm curls a quarter-turn on its way in, like a tentacle.
+// Each arm curls a quarter-turn on its way in, like a tentacle. Keep these in
+// sync with the Blender scene behind /renders/hero-octo.webp (same curves,
+// 1 unit = 100px, orthographic top-down) so the overlay rides the tubes.
 const ARMS = SOURCES.map((label, i) => {
   const deg = i * 45 - 67.5;
   const [sx, sy] = polar(210, deg);
   const [qx, qy] = polar(150, deg + 38);
-  const [ex, ey] = polar(74, deg + 20);
+  const [ex, ey] = polar(40, deg + 10);
   const [lx, ly] = polar(232, deg);
   const cos = Math.cos((deg * Math.PI) / 180);
   const anchor: "start" | "end" | "middle" = cos > 0.3 ? "start" : cos < -0.3 ? "end" : "middle";
-  return { label, d: `M${sx} ${sy} Q${qx} ${qy} ${ex} ${ey}`, sx, sy, lx, ly, anchor };
+  return { label, d: `M${sx} ${sy} Q${qx} ${qy} ${ex} ${ey}`, lx, ly, anchor };
 });
 
 export function Hero() {
@@ -59,6 +61,7 @@ export function Hero() {
       .add(words, { translateY: ["110%", "0%"], delay: stagger(60) }, 200)
       .add(".hero-copy", { opacity: [0, 1], translateY: [20, 0], delay: stagger(120) }, 700)
       .add(".hero-graph", { opacity: [0, 1], duration: 600 }, 400)
+      .add(".octo-render", { opacity: [0, 1], scale: [0.92, 1], duration: 1800 }, 400)
       .add(arms, { draw: ["0 0", "0 1"], duration: 1600, delay: stagger(90) }, 400)
       .add(".source", { opacity: [0, 1], scale: [0.6, 1], delay: stagger(90) }, 900);
 
@@ -145,21 +148,34 @@ export function Hero() {
             aria-label="Eight source systems — CRM, fund admin, custodians, market data, documents, onchain, cap tables, and spreadsheets — converging into one investment book of record."
             className="h-auto w-full"
           >
+            <defs>
+              <mask id="outside-hub" maskUnits="userSpaceOnUse" x="0" y="0" width="640" height="640">
+                <rect width="640" height="640" fill="white" />
+                <circle cx={C} cy={C} r="60" fill="black" />
+              </mask>
+            </defs>
+            {/* Cycles render of the octo — see comment on ARMS. */}
+            <image
+              href="/renders/hero-octo.webp"
+              width="640"
+              height="640"
+              className="octo-render origin-center [transform-box:fill-box]"
+            />
             {ARMS.map((a) => (
               <path
                 key={a.label}
                 className="arm"
                 d={a.d}
                 fill="none"
-                stroke="white"
-                strokeOpacity="0.28"
-                strokeWidth="1.25"
+                stroke="oklch(72% 0.17 256)"
+                strokeOpacity="0.7"
+                strokeWidth="1"
                 strokeLinecap="round"
+                mask="url(#outside-hub)"
               />
             ))}
             {ARMS.map((a) => (
               <g key={a.label} className="source origin-center [transform-box:fill-box]">
-                <circle cx={a.sx} cy={a.sy} r="4.5" fill="black" stroke="white" strokeOpacity="0.7" />
                 <text
                   x={a.lx}
                   y={a.ly}
@@ -171,9 +187,11 @@ export function Hero() {
                 </text>
               </g>
             ))}
-            {ARMS.map((a) => (
-              <circle key={a.label} className="packet fill-signal" r="3.5" opacity="0" />
-            ))}
+            <g mask="url(#outside-hub)">
+              {ARMS.map((a) => (
+                <circle key={a.label} className="packet fill-signal" r="3.5" opacity="0" />
+              ))}
+            </g>
 
             <circle className="core-pulse origin-center [transform-box:fill-box]" cx={C} cy={C} r="62" fill="none" stroke="oklch(64% 0.19 256)" />
             <circle
@@ -186,7 +204,6 @@ export function Hero() {
               strokeOpacity="0.2"
               strokeDasharray="2 7"
             />
-            <circle cx={C} cy={C} r="62" fill="white" />
             <text x={C} y={C - 6} textAnchor="middle" className="fill-black font-display text-[22px] font-semibold tracking-tight">
               IBOR
             </text>
