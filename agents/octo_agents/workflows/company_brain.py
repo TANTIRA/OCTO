@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
 from ..tools import read_tools
-from .screening_dd import _record_run, extract_final_text
+from .screening_dd import _record_run, extract_final_text, finish_failed
 from .warm_context import warm_prompt
 
 BRAIN_PROMPT = """You are the OCTO company brain. Answer the analyst's question from the
@@ -98,12 +98,16 @@ def _answerable(
         user="octo-agents",
     )
     p = result.answers["answerable"]["noul"]
-    return p >= ANSWERABLE_THRESHOLD, p, {
-        "model": result.model,
-        "provider": result.provider,
-        "request_id": result.id,
-        "lane": result.answers["lane"].get("choice"),
-    }
+    return (
+        p >= ANSWERABLE_THRESHOLD,
+        p,
+        {
+            "model": result.model,
+            "provider": result.provider,
+            "request_id": result.id,
+            "lane": result.answers["lane"].get("choice"),
+        },
+    )
 
 
 def judge_answer(
@@ -167,7 +171,9 @@ def run_company_brain(
         return BrainResult.model_validate(replayed)
 
     try:
-        ok, probability, lineage = _answerable(judge, tenant_id=tenant_id, question=question)
+        ok, probability, lineage = _answerable(
+            judge, tenant_id=tenant_id, question=question
+        )
         if not ok:
             result = BrainResult(
                 tenant_id=tenant_id,
@@ -190,13 +196,17 @@ def run_company_brain(
         invoked = agent.invoke({"messages": [("user", question)]})
         answer = extract_final_text(invoked)
 
-        verdict = judge_answer(judge, tenant_id=tenant_id, question=question, answer=answer)
+        verdict = judge_answer(
+            judge, tenant_id=tenant_id, question=question, answer=answer
+        )
         result = BrainResult(
             tenant_id=tenant_id,
             status="completed" if verdict.ship else "refused",
             answer=answer,
             verdict=verdict,
-            note=None if verdict.ship else "the jev gate could not support the draft answer",
+            note=None
+            if verdict.ship
+            else "the jev gate could not support the draft answer",
         )
         api.finish_run(
             run_id,
@@ -210,5 +220,5 @@ def run_company_brain(
         )
         return result
     except Exception as e:
-        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        finish_failed(api, run_id, e)
         raise

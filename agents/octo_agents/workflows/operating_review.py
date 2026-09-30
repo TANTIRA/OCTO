@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
-from .screening_dd import _record_run
+from .screening_dd import _record_run, finish_failed
 from .warm_context import warm_prompt
 
 REVIEW_PROMPT = """You are the OCTO operating partner reviewing a portfolio company's
@@ -199,5 +199,5 @@ def run_operating_review(
         )
         return result
     except Exception as e:
-        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        finish_failed(api, run_id, e)
         raise

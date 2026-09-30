@@ -18,6 +18,7 @@ A record the pre-flight refuses exits at step 2 with status=refused: no drafter
 call, no write, and the refusal verdict is still recorded for F4's audit spine.
 """
 
+import logging
 from typing import Any, Literal
 
 from deepagents import create_deep_agent
@@ -27,6 +28,8 @@ from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import read_tools
 from .warm_context import warm_prompt
+
+_log = logging.getLogger("octo_agents.workflows")
 
 SCREENING_PROMPT = """You are the OCTO investment screening analyst. Draft a screening memo
 for the prospect named in the task using only facts you pulled through the
@@ -179,7 +182,13 @@ def score_events(
                 "How relevant is this prospect event to judging whether the "
                 "prospect merits a human screening review?"
             ),
-            criteria=["1-unrelated", "2-tangential", "3-useful", "4-relevant", "5-decisive"],
+            criteria=[
+                "1-unrelated",
+                "2-tangential",
+                "3-useful",
+                "4-relevant",
+                "5-decisive",
+            ],
         )
         for i in range(len(scored))
     }
@@ -242,7 +251,13 @@ def judge_memo(
         ),
         "quality": ScoreQuestion(
             instructions="Rate the memo's evidentiary quality for screening purposes.",
-            criteria=["1-unsupported", "2-thin", "3-adequate", "4-strong", "5-exemplary"],
+            criteria=[
+                "1-unsupported",
+                "2-thin",
+                "3-adequate",
+                "4-strong",
+                "5-exemplary",
+            ],
         ),
     }
     verdict = judge.decide(
@@ -294,9 +309,28 @@ def _record_run(
         input=input,
         models=models,
     )
-    if recorded.get("status") and recorded["status"] != "running" and recorded.get("output"):
+    if (
+        recorded.get("status")
+        and recorded["status"] != "running"
+        and recorded.get("output")
+    ):
         return recorded["id"], recorded["output"]
     return recorded["id"], None
+
+
+def finish_failed(api: OctoApiClient, run_id: str, error: Exception) -> None:
+    """Mark a crashed run `failed` for F4's audit spine — without letting the
+    bookkeeping call mask the original error (backlog #15). If `finish_run`
+    itself throws (edge down, the very failure that crashed the run), the
+    original exception still propagates from the caller's bare `raise`; this
+    swallows and logs the secondary failure rather than replacing the real one.
+    """
+    try:
+        api.finish_run(run_id, status="failed", error=str(error)[:2000])
+    except Exception as bookkeeping:  # noqa: BLE001 - must not mask `error`
+        _log.warning(
+            "finish_run(failed) for run %s could not land: %s", run_id, bookkeeping
+        )
 
 
 def run_screening_dd(
@@ -353,7 +387,9 @@ def run_screening_dd(
             tools=read_tools(api),
             system_prompt=warm_prompt(api, tenant_id, SCREENING_PROMPT),
         )
-        evidence = "\n".join(f"- {_digest(e)}" for e in admitted) or "- (no events on record)"
+        evidence = (
+            "\n".join(f"- {_digest(e)}" for e in admitted) or "- (no events on record)"
+        )
         result = agent.invoke(
             {
                 "messages": [
@@ -408,5 +444,5 @@ def run_screening_dd(
     except Exception as e:
         # The run's bookkeeping must not hide its failure — a crashed run lands
         # `failed` with the error text so F4 sees it, then the error propagates.
-        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        finish_failed(api, run_id, e)
         raise
