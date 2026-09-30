@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
   Brain,
@@ -490,6 +490,8 @@ export default function AppShell2() {
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
+      // Esc inside the workspace menu closes only that menu (its own handler).
+      if ((event.target as Element | null)?.closest?.('[role="menu"]')) return;
       if (event.key === "Escape") {
         setDrawerOpen(false);
         setDrawerShown(false);
@@ -586,57 +588,58 @@ export default function AppShell2() {
 
         <div className="relative min-h-0 flex-1">
           <main
-            // Keyed by workspace: switching tenants remounts the area, so one
-            // tenant's inputs or results never render under another.
-            key={tenantId}
             ref={content.ref}
             onScroll={content.onScroll}
             className="h-full overflow-y-auto p-4 sm:p-6"
           >
-            {tenantsLoading ? (
-              <div className="flex h-full items-center justify-center">
-                <div
-                  role="status"
-                  aria-label="Loading workspaces"
-                  className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900 motion-reduce:animate-none dark:border-neutral-700 dark:border-t-neutral-100"
+            {/* Keyed by workspace: switching tenants remounts the area, so one
+                tenant's inputs or results never render under another. */}
+            <Fragment key={tenantId}>
+              {tenantsLoading ? (
+                <div className="flex h-full items-center justify-center">
+                  <div
+                    role="status"
+                    aria-label="Loading workspaces"
+                    className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900 motion-reduce:animate-none dark:border-neutral-700 dark:border-t-neutral-100"
+                  />
+                </div>
+              ) : tenantError ? (
+                <StatePanel
+                  title="Workspaces unavailable"
+                  detail={`Your workspace memberships could not be loaded — ${tenantError}.`}
+                  onRetry={retryTenants}
                 />
-              </div>
-            ) : tenantError ? (
-              <StatePanel
-                title="Workspaces unavailable"
-                detail={`Your workspace memberships could not be loaded — ${tenantError}.`}
-                onRetry={retryTenants}
-              />
-            ) : tenants.length === 0 ? (
-              <StatePanel
-                title="No workspace access yet"
-                detail="Your account is not a member of any workspace. Ask a workspace admin to add you, then reload this page."
-              />
-            ) : area.id === "overview" ? (
-              <Dashboard4 />
-            ) : area.id === "assets" ? (
-              <StatePanel
-                title="Asset register"
-                detail="Assets are recorded one by one, but no register view lists them yet, so there are no rows to show."
-              />
-            ) : area.id === "positions" ? (
-              <StatePanel
-                title="Positions"
-                detail="Positions derive from the transaction ledger, but no positions view is served yet. The overview shows live pipeline and agent activity in the meantime."
-              />
-            ) : area.id === "deals" ? (
-              <PipelineBoard />
-            ) : area.id === "reports" ? (
-              <ReportQueue />
-            ) : area.id === "recon" ? (
-              <ReconPanel />
-            ) : area.id === "compliance" ? (
-              <CompliancePanel />
-            ) : area.id === "alerts" ? (
-              <AgentRunsPanel />
-            ) : area.id === "brain" ? (
-              <BrainPanel />
-            ) : null}
+              ) : tenants.length === 0 ? (
+                <StatePanel
+                  title="No workspace access yet"
+                  detail="Your account is not a member of any workspace. Ask a workspace admin to add you, then reload this page."
+                />
+              ) : area.id === "overview" ? (
+                <Dashboard4 />
+              ) : area.id === "assets" ? (
+                <StatePanel
+                  title="Asset register"
+                  detail="Assets are recorded one by one, but no register view lists them yet, so there are no rows to show."
+                />
+              ) : area.id === "positions" ? (
+                <StatePanel
+                  title="Positions"
+                  detail="Positions derive from the transaction ledger, but no positions view is served yet. The overview shows live pipeline and agent activity in the meantime."
+                />
+              ) : area.id === "deals" ? (
+                <PipelineBoard />
+              ) : area.id === "reports" ? (
+                <ReportQueue />
+              ) : area.id === "recon" ? (
+                <ReconPanel />
+              ) : area.id === "compliance" ? (
+                <CompliancePanel />
+              ) : area.id === "alerts" ? (
+                <AgentRunsPanel />
+              ) : area.id === "brain" ? (
+                <BrainPanel />
+              ) : null}
+            </Fragment>
           </main>
           <div
             aria-hidden="true"

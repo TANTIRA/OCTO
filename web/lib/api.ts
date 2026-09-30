@@ -37,8 +37,8 @@ async function parse<T>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function getJson<T>(path: string): Promise<T> {
-  return parse<T>(await apiFetch(path));
+export async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
+  return parse<T>(await apiFetch(path, init));
 }
 
 export async function postJson<T>(path: string, body: unknown): Promise<T> {
@@ -69,6 +69,10 @@ export function messageFor(err: unknown): string {
 export type Tenant = { tenantId: string; slug: string; role: string };
 
 export async function myAccess(): Promise<Tenant[]> {
-  const body = await getJson<{ tenants: Tenant[] }>("/api/v1/me/access");
+  // The whole app shell waits on this read: bound it so a hung request turns
+  // into the retryable error state instead of an endless spinner.
+  const body = await getJson<{ tenants: Tenant[] }>("/api/v1/me/access", {
+    signal: AbortSignal.timeout(15_000),
+  });
   return body.tenants;
 }
