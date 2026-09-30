@@ -118,6 +118,56 @@ class AccessStoreIT {
         }.isInstanceOfSatisfying(SQLException::class.java) { assertThat(it.sqlState).isEqualTo(CHECK_VIOLATION) }
     }
 
+    @Test
+    fun `the trigger waits on the store's per-member lock key`() {
+        val (tenant, userId) = newMember()
+        val directGrant =
+            """
+            insert into octo.tenant_member_event (tenant_id, user_id, event_type, role, actor, occurred_at, correlation_id)
+            values ('${tenant.id}', '$userId', 'granted', 'analyst', '$grantor', now(), gen_random_uuid())
+            """.trimIndent()
+        val connect = { DriverManagerDataSource(postgres.jdbcUrl, postgres.username, postgres.password).connection }
+
+        connect().use { holder ->
+            connect().use { writer ->
+                holder.autoCommit = false
+                // The key JdbcAccessStore.replayLocked takes.
+                holder
+                    .prepareStatement("select pg_advisory_xact_lock(hashtextextended('octo.tenant_member:' || ?::text || ':' || ?::text, 0))")
+                    .use { statement ->
+                        statement.setObject(1, tenant.id)
+                        statement.setObject(2, userId)
+                        statement.executeQuery().close()
+                    }
+                writer.createStatement().use { it.execute("set lock_timeout = '500ms'") }
+
+                assertThatThrownBy { writer.createStatement().use { it.execute(directGrant) } }
+                    .isInstanceOfSatisfying(SQLException::class.java) { assertThat(it.sqlState).isEqualTo(LOCK_NOT_AVAILABLE) }
+
+                holder.rollback()
+                writer.createStatement().use { it.execute(directGrant) }
+            }
+        }
+        assertThat(store.tenantsOf(userId).single().role).isEqualTo(TenantRole.ANALYST)
+
+        connect().use { connection ->
+            connection
+                .createStatement()
+                .use {
+                    it.executeQuery(
+                        """
+                        select pg_get_functiondef(p.oid), array_to_string(p.proconfig, ',')
+                        from pg_proc p where p.oid = 'octo.tenant_member_event_rules()'::regprocedure
+                        """.trimIndent(),
+                    )
+                }.use { rows ->
+                    assertThat(rows.next()).isTrue()
+                    assertThat(rows.getString(1)).contains("'octo.tenant_member:'").doesNotContain("mesta.")
+                    assertThat(rows.getString(2)).isEqualTo("search_path=pg_catalog, pg_temp")
+                }
+        }
+    }
+
     private fun execute(sql: String) {
         DriverManagerDataSource(postgres.jdbcUrl, postgres.username, postgres.password).connection.use { connection ->
             connection.createStatement().use { it.execute(sql) }
@@ -127,6 +177,9 @@ class AccessStoreIT {
     private companion object {
         /** SQLSTATE the V8 trigger's check_violation raises. */
         const val CHECK_VIOLATION = "23514"
+
+        /** SQLSTATE a lock wait raises once lock_timeout expires. */
+        const val LOCK_NOT_AVAILABLE = "55P03"
 
         val T0: Instant = Instant.parse("2026-09-25T09:00:00Z")
 
