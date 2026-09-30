@@ -78,7 +78,7 @@ docker run -d --name octo-bolt-bridge --network dokploy-network \
 
 # Local — tunnel, then any HTTP Browser (e.g. a local neo4j's own):
 ssh -N -L 7687:localhost:7687 <dokploy-host>
-docker run -d --name octo-browser -p 7474:7474 neo4j:2025.12.1-community
+docker run -d --name octo-browser -p 7474:7474 neo4j:2025.12.1-community@sha256:c64d8750884c95ae57441a103d64d08fdaf55265acc3af687aa8ec25aa77d0c3
 # http://localhost:7474 → bolt://localhost:7687
 ```
 

@@ -17,7 +17,7 @@ networks:
 services:
 
   api:
-    image: ${REGISTRY_URL}/octo-api:${API_IMAGE_TAG}
+    image: ${REGISTRY_URL:?set REGISTRY_URL}/octo-api:${API_IMAGE_TAG:?set API_IMAGE_TAG — a pinned sha or semver tag, never latest}
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
@@ -75,7 +75,7 @@ services:
           memory: 512M
 
   web:
-    image: ${REGISTRY_URL}/octo-web:${WEB_IMAGE_TAG}
+    image: ${REGISTRY_URL:?set REGISTRY_URL}/octo-web:${WEB_IMAGE_TAG:?set WEB_IMAGE_TAG — a pinned sha or semver tag, never latest}
     restart: unless-stopped
     environment:
       API_BASE_URL: ${API_PUBLIC_URL}

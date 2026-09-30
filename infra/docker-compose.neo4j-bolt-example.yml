@@ -10,7 +10,7 @@ networks:
 services:
 
   neo4j:
-    image: neo4j:2025.12.1-community
+    image: neo4j:2025.12.1-community@sha256:c64d8750884c95ae57441a103d64d08fdaf55265acc3af687aa8ec25aa77d0c3
     container_name: octo-neo4j-db
     restart: unless-stopped
     
