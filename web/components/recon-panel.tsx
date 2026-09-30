@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw, X } from "lucide-react";
 import { getJson, messageFor, postJson } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Reconciliation, live: `POST /api/v1/reconciliations` runs the match against
@@ -47,7 +47,7 @@ const emptyRow = (): RecordRow => ({
 });
 
 export default function ReconPanel() {
-  const { tenants, tenantId, setTenantId, error: tenantError } = useTenants();
+  const { tenantId } = useTenants();
   const [rows, setRows] = useState<RecordRow[]>([emptyRow()]);
   const [run, setRun] = useState<Run | null>(null);
   const [running, setRunning] = useState(false);
@@ -101,7 +101,6 @@ export default function ReconPanel() {
             Source records vs the IBOR. Breaks open review tasks automatically.
           </p>
         </div>
-        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
       </header>
 
       <div className="shrink-0 space-y-2 px-6 pb-3 sm:px-8">
@@ -164,11 +163,6 @@ export default function ReconPanel() {
         </div>
       </div>
 
-      {tenantError && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {tenantError}
-        </p>
-      )}
       {error && (
         <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
           {error}

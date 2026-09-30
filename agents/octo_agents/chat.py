@@ -25,7 +25,9 @@ def drafter_model(
         max_retries=2,
         # The retrying client must also bound each attempt, or a hung upstream
         # holds the run open for the full deepagent budget (backlog #326).
-        request_timeout=settings.request_timeout_s,
+        # ChatOpenRouter.request_timeout is milliseconds (SDK timeout_ms) —
+        # passing seconds bounded every drafter call at ~60 ms.
+        request_timeout=int(settings.request_timeout_s * 1000),
         openrouter_api_key=settings.openrouter_api_key,
         openrouter_api_base=settings.openrouter_chat_endpoint,
         openrouter_provider=_ZDR_PROVIDER,

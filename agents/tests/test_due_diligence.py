@@ -21,7 +21,7 @@ class FakeApi(OctoApiClient):
         self.evidence_requests: list[tuple[str, str]] = []
 
     def get_prospect(self, prospect_id: str) -> Any:
-        return {"id": prospect_id, "stage": "due-diligence", "name": "PT Acme"}
+        return {"id": prospect_id, "tenantId": "t-1", "stage": "due-diligence", "name": "PT Acme"}
 
     def list_prospect_events(self, prospect_id: str) -> Any:
         return self.events
@@ -204,6 +204,53 @@ def test_task_open_failure_is_bounded_and_recorded(
     assert by_ws["market"].opened
     assert not by_ws["financial"].opened
     assert result.task_errors == ["financial: HTTP 500: server error"]
+
+
+def test_crash_mid_task_opening_persists_tasks_already_opened(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # #330: a non-API failure after some tasks landed fails the run, but the
+    # failed run record still carries the tasks that were opened.
+    class CrashApi(FakeApi):
+        def __init__(self, events: list[Any]) -> None:
+            super().__init__(events)
+            self.finished: list[dict[str, Any]] = []
+
+        def open_dd_evidence(
+            self, prospect_id: str, workstream: str, summary: str
+        ) -> Any:
+            if workstream == "financial":
+                raise httpx.ConnectError("edge down")
+            return super().open_dd_evidence(prospect_id, workstream, summary)
+
+        def finish_run(self, run_id: str, **kwargs: Any) -> Any:
+            self.finished.append(kwargs)
+            return {}
+
+    api = CrashApi(events=[{"note": "deck"}])
+    fake_agent_factory(monkeypatch)
+    with pytest.raises(httpx.ConnectError):
+        run_due_diligence(
+            agent_model=None,
+            judge=fake_judge(
+                preflight=0.9,
+                bands={"market": "high", "financial": "blocker", "legal": "high", "operational": "low"},
+            ),
+            api=api,
+            prospect_id="p-1",
+            tenant_id="t-1",
+            run_key="rk-1",
+            models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
+        )
+    assert len(api.finished) == 1
+    failed = api.finished[0]
+    assert failed["status"] == "failed"
+    assert "edge down" in failed["error"]
+    assert failed["output"]["tasks"] == [
+        {"workstream": "market", "task_id": "task-market", "opened": True}
+    ]
+    # Opening stopped at the crash — legal was never attempted.
+    assert api.evidence_requests == [("p-1", "market")]
 
 
 def test_preflight_refusal_runs_no_subagents_and_opens_nothing(
