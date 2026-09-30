@@ -62,7 +62,7 @@ class ComplianceController(
                     body.name,
                     check,
                     body.version,
-                    ComplianceProvenance(jwt.subject, UUID.randomUUID()),
+                    ComplianceProvenance(jwt.subject!!, UUID.randomUUID()),
                     TenantScope.User(userId),
                 )
             } catch (e: IllegalStateException) {
@@ -93,7 +93,7 @@ class ComplianceController(
             store.retire(
                 body.tenantId,
                 ruleId,
-                ComplianceProvenance(jwt.subject, body.correlationId ?: UUID.randomUUID()),
+                ComplianceProvenance(jwt.subject!!, body.correlationId ?: UUID.randomUUID()),
                 TenantScope.User(userId),
             ) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(rule.view())
@@ -120,7 +120,7 @@ class ComplianceController(
         val inputs = body.inputs() ?: return ResponseEntity.badRequest().build()
         val outcomes =
             try {
-                runner.run(body.tenantId, inputs, jwt.subject, UUID.randomUUID())
+                runner.run(body.tenantId, inputs, jwt.subject!!, UUID.randomUUID())
             } catch (e: IllegalStateException) {
                 // More active rules than a run can cover is the tenant's state, not the request's shape.
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
@@ -146,7 +146,7 @@ class ComplianceController(
         val inputs = body.inputs() ?: return ResponseEntity.badRequest().build()
         val outcomes =
             try {
-                runner.run(body.tenantId, inputs, jwt.subject, UUID.randomUUID())
+                runner.run(body.tenantId, inputs, jwt.subject!!, UUID.randomUUID())
             } catch (e: IllegalStateException) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
@@ -178,7 +178,7 @@ class ComplianceController(
         tenantId: UUID,
     ): TenantRole? = tenants.tenantsOf(userId).firstOrNull { it.tenantId == tenantId }?.role
 
-    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
+    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
 
     /** `type` is `concentration-limit`, `currency-exposure-limit` or `coverage-floor`; the other fields depend on it. */
     data class CheckBody(

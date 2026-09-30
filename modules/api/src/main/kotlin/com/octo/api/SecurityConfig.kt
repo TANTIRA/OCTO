@@ -173,7 +173,13 @@ class SecurityConfig {
  * different audience still fails here.
  */
 internal fun bearerTokenValidator(env: Environment): OAuth2TokenValidator<Jwt> {
-    val validators = mutableListOf<OAuth2TokenValidator<Jwt>>(JwtTimestampValidator())
+    val validators =
+        mutableListOf<OAuth2TokenValidator<Jwt>>(
+            JwtTimestampValidator(),
+            // Every downstream controller reads `jwt.subject` — a subjectless JWT (e.g. a
+            // publishable anon token signed by the same JWKS) must fail here, not NPE there.
+            JwtClaimValidator<Any>(JwtClaimNames.SUB) { sub -> sub is String && sub.isNotBlank() },
+        )
     env
         .getProperty("AUTH_ISSUER")
         ?.takeIf(String::isNotBlank)

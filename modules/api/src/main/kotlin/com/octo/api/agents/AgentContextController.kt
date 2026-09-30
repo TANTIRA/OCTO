@@ -32,7 +32,7 @@ class AgentContextController(
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<Any> {
         val userId =
-            runCatching { UUID.fromString(jwt.subject) }.getOrNull()
+            runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
                 ?: return ResponseEntity.notFound().build()
         if (tenants.tenantsOf(userId).none { it.tenantId == tenantId }) {
             return ResponseEntity.notFound().build()

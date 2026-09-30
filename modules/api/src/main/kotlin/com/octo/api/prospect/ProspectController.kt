@@ -180,7 +180,7 @@ class ProspectController(
             }.getOrNull() ?: return ResponseEntity.badRequest().build()
         prospects.create(
             prospect,
-            jwt.subject,
+            jwt.subject!!,
             ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
             TenantScope.User(userId),
         )
@@ -239,7 +239,7 @@ class ProspectController(
         val inserted =
             prospects.importBatch(
                 items,
-                jwt.subject,
+                jwt.subject!!,
                 ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
                 TenantScope.User(userId),
             )
@@ -310,7 +310,7 @@ class ProspectController(
                 ProspectStage.PASSED ->
                     body.rationale
                         ?.takeIf { it.isNotBlank() }
-                        ?.let { ProspectEvent.Passed(jwt.subject, at, current.stage, it) }
+                        ?.let { ProspectEvent.Passed(jwt.subject!!, at, current.stage, it) }
                         ?: return ResponseEntity.badRequest().build()
                 ProspectStage.INVESTED -> {
                     val rationale =
@@ -318,9 +318,9 @@ class ProspectController(
                             ?: return ResponseEntity.badRequest().build()
                     val taskId = body.taskId ?: return ResponseEntity.badRequest().build()
                     if (!icApproved(id, taskId)) return ResponseEntity.status(HttpStatus.CONFLICT).build()
-                    ProspectEvent.Invested(jwt.subject, at, rationale, taskId)
+                    ProspectEvent.Invested(jwt.subject!!, at, rationale, taskId)
                 }
-                else -> ProspectEvent.Advanced(jwt.subject, at, current.stage, to)
+                else -> ProspectEvent.Advanced(jwt.subject!!, at, current.stage, to)
             }
         // Validate through the same state machine the store replays under its lock, before any
         // write — a transition that cannot land answers 409 without opening its checklist.
@@ -334,7 +334,7 @@ class ProspectController(
         // to cancel it: a claimed task serves the winner, an unclaimed one is an orphan no one can
         // ever close.
         val checklist =
-            if (landing.stage == ProspectStage.DUE_DILIGENCE) openDiligenceChecklist(id, jwt.subject) else null
+            if (landing.stage == ProspectStage.DUE_DILIGENCE) openDiligenceChecklist(id, jwt.subject!!) else null
         val appendEvent =
             if (event is ProspectEvent.Advanced && checklist != null) event.copy(taskId = checklist.taskId) else event
         val after =
@@ -346,14 +346,14 @@ class ProspectController(
                     TenantScope.User(userId),
                 )
             } catch (_: NoSuchElementException) {
-                checklist?.mintedId?.let { cancelOrphanedChecklist(it, jwt.subject) }
+                checklist?.mintedId?.let { cancelOrphanedChecklist(it, jwt.subject!!) }
                 return ResponseEntity.notFound().build()
             } catch (_: IllegalArgumentException) {
-                cancelUnlessClaimed(checklist, id, userId, jwt.subject)
+                cancelUnlessClaimed(checklist, id, userId, jwt.subject!!)
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             } catch (failure: Exception) {
                 // Any other store failure commits nothing either — the minted checklist gets the same cleanup.
-                cancelUnlessClaimed(checklist, id, userId, jwt.subject)
+                cancelUnlessClaimed(checklist, id, userId, jwt.subject!!)
                 throw failure
             }
         counter("deal.prospects.transitions", "to", to.wireValue)?.increment()
@@ -476,7 +476,7 @@ class ProspectController(
                 TaskKind.APPROVAL,
                 "prospect",
                 id.toString(),
-                jwt.subject,
+                jwt.subject!!,
                 Instant.now(),
             )
         val review = tasks.openUnlessOpen(candidate, TaskProvenance("api", UUID.randomUUID()))
@@ -519,7 +519,7 @@ class ProspectController(
                         // a distinct subject so each stream holds one open evidence request.
                         (it.task.subjectId == id.toString() || it.task.subjectId.startsWith("$id:dd:"))
                 } ?: return ResponseEntity.notFound().build()
-        val event = body.toEvent(jwt.subject) ?: return ResponseEntity.badRequest().build()
+        val event = body.toEvent(jwt.subject!!) ?: return ResponseEntity.badRequest().build()
         // A gate decision on an approval task is governance, not working access: the same
         // approver-or-admin bar the compliance-rule endpoints apply (ComplianceController). Routing
         // the task (assigned) or the requester resubmitting after rework stays a working action.
@@ -569,7 +569,7 @@ class ProspectController(
                 TaskKind.EVIDENCE_REQUEST,
                 "prospect",
                 "$id:dd:$workstream",
-                jwt.subject,
+                jwt.subject!!,
                 Instant.now(),
             )
         val opened =
@@ -622,7 +622,7 @@ class ProspectController(
                 body.ruleId,
                 body.name,
                 json.writeValueAsString(body.criteria),
-                jwt.subject,
+                jwt.subject!!,
                 ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
                 TenantScope.User(userId),
             )
@@ -649,7 +649,7 @@ class ProspectController(
             rules.retire(
                 body.tenantId,
                 ruleId,
-                jwt.subject,
+                jwt.subject!!,
                 ProspectProvenance("api", body.correlationId ?: UUID.randomUUID()),
                 TenantScope.User(userId),
             ) ?: return ResponseEntity.notFound().build()
@@ -681,7 +681,7 @@ class ProspectController(
                     prospects.append(
                         id,
                         ProspectEvent.Passed(
-                            jwt.subject,
+                            jwt.subject!!,
                             Instant.now(),
                             current.stage,
                             "screened out: ${outcome.reasons.joinToString("; ")}",
@@ -705,7 +705,7 @@ class ProspectController(
                                 TaskKind.REVIEW,
                                 "prospect",
                                 id.toString(),
-                                jwt.subject,
+                                jwt.subject!!,
                                 Instant.now(),
                             ),
                             TaskProvenance("api", UUID.randomUUID()),
@@ -860,7 +860,7 @@ class ProspectController(
         tenantId: UUID,
     ): TenantRole? = tenants.tenantsOf(userId).firstOrNull { it.tenantId == tenantId }?.role
 
-    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
+    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
 
     private fun com.octo.dealsourcing.persistence.ProspectEventRow.view() =
         EventView(

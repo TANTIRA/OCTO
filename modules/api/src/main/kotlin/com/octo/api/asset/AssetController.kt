@@ -26,7 +26,7 @@ class AssetController(
         @PathVariable id: UUID,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<AssetResponse> {
-        val userId = runCatching { UUID.fromString(jwt.subject) }.getOrNull() ?: return ResponseEntity.notFound().build()
+        val userId = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull() ?: return ResponseEntity.notFound().build()
         val record = assets.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
         if (tenants.tenantsOf(userId).none { it.tenantId == record.asset.tenantId }) return ResponseEntity.notFound().build()
         return ResponseEntity.ok(

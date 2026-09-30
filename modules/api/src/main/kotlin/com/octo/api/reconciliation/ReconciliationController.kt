@@ -36,7 +36,7 @@ class ReconciliationController(
         @Valid @RequestBody body: RunBody,
         @AuthenticationPrincipal jwt: Jwt,
     ): ResponseEntity<RunView> {
-        val userId = runCatching { UUID.fromString(jwt.subject) }.getOrNull() ?: return ResponseEntity.notFound().build()
+        val userId = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull() ?: return ResponseEntity.notFound().build()
         val role = tenants.tenantsOf(userId).firstOrNull { it.tenantId == body.tenantId }?.role ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val (tolerance, zone, records) =
@@ -57,7 +57,7 @@ class ReconciliationController(
             }.getOrElse { return ResponseEntity.badRequest().build() }
         val result =
             try {
-                runner.run(body.tenantId, records, tolerance, zone, jwt.subject, UUID.randomUUID())
+                runner.run(body.tenantId, records, tolerance, zone, jwt.subject!!, UUID.randomUUID())
             } catch (e: IllegalArgumentException) {
                 return ResponseEntity.badRequest().build()
             } catch (e: IllegalStateException) {
