@@ -54,7 +54,7 @@ State of `main` on 2026-09-27. ✅ passes, ⚠️ acceptable for now, ❌ must f
 | --- | --- | --- | --- |
 | Probes | liveness and readiness separated | ❌ → ✅ after the baseline PR | `management.endpoint.health.probes.enabled`, DB in the readiness group |
 | Probes | health says what failed | ❌ → ✅ | `show-details: when_authorized`: probes see a status, operators see components |
-| Metrics | a scraper can read request and JVM metrics | ❌ → ✅ | Prometheus registry on `/actuator/prometheus`, authenticated |
+| Metrics | a scraper can read request and JVM metrics | ✅ | `/actuator/prometheus` needs a JWT on the public port; anonymous only on the internal, unrouted `OCTO_METRICS_PORT` (8081) connector (#338, `MetricsPortTest`) |
 | Tracing | a request can be followed across logs and database rows | ❌ → ✅ | `CorrelationIdFilter`: one id per request in the MDC, the response, and every `correlation_id` column |
 | Logs | machine-readable, no free-text personal data | ❌ → ✅ | ECS-format JSON on the console; the governance rule against logging tokens and personal data still applies to what code puts in a message |
 | Config | every env var the compose file passes is read by something | ✅ | `OTEL_EXPORTER_OTLP_ENDPOINT` was passed and read by nothing; dropped until a collector exists (backlog item 8 adds the exporter with it) |

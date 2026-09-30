@@ -131,9 +131,23 @@ unauthenticated attack surface); `octo.mesta.click`/`admin-octo.mesta.click`
 can share the same middleware. The webhook route gets the same limit — its
 shared-secret check is cheap, and bursts there are also just retries.
 
-Tune `average`/`burst` against real traffic once Prometheus scrapes
-`http.server.requests`; start conservative, watch for false 429s on import
+Tune `average`/`burst` against the `http_server_requests_seconds` metrics the
+collector scrapes (below); start conservative, watch for false 429s on import
 batches (`IMPORT_BATCH_LIMIT`-sized bursts are legitimate).
+
+## Metrics scrape port (#338)
+
+On the public port (`8080`, the only port Traefik routes) actuator is unchanged:
+`/actuator/health/**` and `/actuator/info` are anonymous, `/actuator/metrics` and
+`/actuator/prometheus` need a bearer JWT. A scraper has no user, so the api opens
+a second connector on `OCTO_METRICS_PORT` (default `8081`) that answers anonymous
+`GET /actuator/prometheus` and denies every other path (`MetricsPortConfig`).
+
+- Never publish `8081` (`ports:`) or give it a Dokploy domain — it has no auth by
+  design. Only containers on the stack's networks reach it.
+- The request is matched by the socket's local port, not by a header, so traffic
+  arriving through Traefik on `8080` cannot claim to be a scrape.
+- Check from the host: `docker exec <api-container> curl -fsS localhost:8081/actuator/prometheus | head`.
 
 ## Gotchas (all learned the hard way)
 

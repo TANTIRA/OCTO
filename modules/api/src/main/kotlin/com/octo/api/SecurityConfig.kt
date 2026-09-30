@@ -46,6 +46,7 @@ import java.time.Duration
  * against the issuer's JWKS (`AUTH_JWKS_URL`), with issuer validation when `AUTH_ISSUER` is set.
  * Actuator health (including the liveness and readiness probes) and info stay public so probes and the
  * compose healthcheck keep working; metrics and prometheus need a bearer token like everything else.
+ * The one anonymous scrape path lives on a separate internal port ([MetricsPortConfig], #338).
  *
  * When no JWKS URL is configured the chain still requires authentication on every endpoint —
  * there is no unauthenticated fallback, so a misconfigured environment fails closed.
