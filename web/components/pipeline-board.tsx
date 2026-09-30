@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw, UserPlus } from "lucide-react";
 import { getJson, messageFor, postJson } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Deal pipeline, live: `GET /api/v1/prospects?tenantId&stage` per column
@@ -53,8 +53,7 @@ const STAGE_TONE: Record<string, string> = {
 };
 
 export default function PipelineBoard() {
-  const { tenants, tenantId, setTenantId, loading: tenantsLoading, error: tenantError } =
-    useTenants();
+  const { tenantId } = useTenants();
   const [cols, setCols] = useState<Record<string, Prospect[]>>({});
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -153,7 +152,6 @@ export default function PipelineBoard() {
             machine; the server rejects illegal jumps.
           </p>
         </div>
-        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
         <button
           type="button"
           onClick={load}
@@ -167,11 +165,6 @@ export default function PipelineBoard() {
         </button>
       </header>
 
-      {tenantError && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {tenantError}
-        </p>
-      )}
       {error && (
         <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
           {error}
@@ -287,7 +280,7 @@ export default function PipelineBoard() {
                     Nothing here yet
                   </p>
                 )}
-                {(!loaded || tenantsLoading) && rows.length === 0 && (
+                {!loaded && !error && rows.length === 0 && (
                   <p className="px-2 py-6 text-center text-[12px] text-neutral-400 dark:text-neutral-600">
                     Loading…
                   </p>

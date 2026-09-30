@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { Loader2, RefreshCw, Scale } from "lucide-react";
 import { getJson, messageFor, postJson } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Post-trade compliance, live: `GET /api/v1/compliance/rules` lists the
@@ -47,7 +47,7 @@ const RESULT_DOT: Record<string, string> = {
 };
 
 export default function CompliancePanel() {
-  const { tenants, tenantId, setTenantId, error: tenantError } = useTenants();
+  const { tenantId } = useTenants();
   const [rules, setRules] = useState<Rule[]>([]);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [rationale, setRationale] = useState<RationaleResult | null>(null);
@@ -137,7 +137,6 @@ export default function CompliancePanel() {
             is AI-drafted and citation-gated.
           </p>
         </div>
-        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
         <button
           type="button"
           onClick={loadRules}
@@ -230,11 +229,6 @@ export default function CompliancePanel() {
         )}
       </div>
 
-      {tenantError && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {tenantError}
-        </p>
-      )}
       {error && (
         <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
           {error}

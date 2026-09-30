@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useScrollFade } from "@/lib/use-scroll-fade";
 import { getJson, messageFor } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Portfolio overview, live: every figure below is a real read —
@@ -65,13 +65,7 @@ const fmtTime = (iso?: string) =>
 
 export default function Dashboard4() {
   const body = useScrollFade<HTMLDivElement>();
-  const {
-    tenants,
-    tenantId,
-    setTenantId,
-    loading: tenantsLoading,
-    error: tenantError,
-  } = useTenants();
+  const { tenantId } = useTenants();
 
   const [prospects, setProspects] = useState<Record<string, Prospect[]>>({});
   const [runs, setRuns] = useState<Run[]>([]);
@@ -149,13 +143,6 @@ export default function Dashboard4() {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          {tenants.length > 1 && (
-            <TenantPicker
-              tenants={tenants}
-              tenantId={tenantId}
-              onChange={setTenantId}
-            />
-          )}
           <span
             aria-live="polite"
             className="hidden text-[13px] tabular-nums text-neutral-500 sm:inline"
@@ -190,11 +177,6 @@ export default function Dashboard4() {
           onScroll={body.onScroll}
           className="h-full overflow-y-auto p-4 sm:p-6"
         >
-          {tenantError && (
-            <p className="mb-4 rounded-[var(--rb-r-lg,10px)] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-              Workspaces unavailable — {tenantError}
-            </p>
-          )}
           {error && (
             <p className="mb-4 rounded-[var(--rb-r-lg,10px)] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
               {error}
@@ -211,7 +193,7 @@ export default function Dashboard4() {
                   {s.label}
                 </p>
                 <p className="mt-2 truncate text-2xl font-medium tabular-nums tracking-[-0.02em] text-neutral-900 dark:text-neutral-100">
-                  {tenantsLoading || (loading && !loadedAt) ? "—" : s.value}
+                  {loadedAt ? s.value : "—"}
                 </p>
               </div>
             ))}

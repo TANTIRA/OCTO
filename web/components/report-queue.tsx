@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { getJson, messageFor, postJson } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Report queue, live and honest to the engine contract (backlog #13/#35).
@@ -50,8 +50,7 @@ type Flow = { date: string; amount: string };
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ReportQueue() {
-  const { tenants, tenantId, setTenantId, loading: tenantsLoading, error: tenantError } =
-    useTenants();
+  const { tenantId } = useTenants();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [polling, setPolling] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -150,7 +149,6 @@ export default function ReportQueue() {
             outbound artifact passes the approval gate.
           </p>
         </div>
-        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
         <button
           type="button"
           onClick={refresh}
@@ -164,11 +162,6 @@ export default function ReportQueue() {
         </button>
       </header>
 
-      {tenantError && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {tenantError}
-        </p>
-      )}
       {error && (
         <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
           {error}
@@ -336,7 +329,7 @@ export default function ReportQueue() {
             ))}
             {jobs.length === 0 && (
               <li className="px-4 py-10 text-center text-[13px] text-neutral-400 dark:text-neutral-600">
-                {tenantsLoading ? "Loading…" : "No jobs yet — queue one above."}
+                No jobs yet — queue one above.
               </li>
             )}
           </ul>
