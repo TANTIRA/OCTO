@@ -14,7 +14,8 @@ from threading import Lock
 from typing import Any, TypeVar
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
@@ -32,7 +33,11 @@ from .workflows.equity_bridge import run_equity_bridge
 from .workflows.ic_memo import run_ic_memo
 from .workflows.lp_report import run_lp_report
 from .workflows.operating_review import run_operating_review
-from .workflows.screening_dd import run_screening_dd
+from .workflows.screening_dd import (
+    RunKeyCollisionError,
+    SubjectNotInTenantError,
+    run_screening_dd,
+)
 
 
 @asynccontextmanager
@@ -54,6 +59,19 @@ app = FastAPI(
 _bearer = HTTPBearer(auto_error=False)
 
 
+# Tenant/subject binding (#318): a subject outside the body's tenant answers 404
+# like the platform does (nothing leaks about which tenant owns it), and a
+# run_key replay bound to another request answers 409 instead of its output.
+@app.exception_handler(SubjectNotInTenantError)
+def _subject_not_in_tenant(_: Request, exc: SubjectNotInTenantError) -> JSONResponse:
+    return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": str(exc)})
+
+
+@app.exception_handler(RunKeyCollisionError)
+def _run_key_collision(_: Request, exc: RunKeyCollisionError) -> JSONResponse:
+    return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"detail": str(exc)})
+
+
 def require_caller(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     settings: Settings = Depends(get_settings),
@@ -63,8 +81,10 @@ def require_caller(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="OCTO_AGENTS_TOKEN is not configured",
         )
+    # Bytes, not str: compare_digest raises TypeError on non-ASCII str, which
+    # turned a garbage header into a 500 instead of a 401.
     if credentials is None or not hmac.compare_digest(
-        credentials.credentials, settings.octo_agents_token
+        credentials.credentials.encode(), settings.octo_agents_token.encode()
     ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
