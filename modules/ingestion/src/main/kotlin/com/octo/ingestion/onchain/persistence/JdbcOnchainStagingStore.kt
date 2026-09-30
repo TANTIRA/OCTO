@@ -57,6 +57,13 @@ class JdbcOnchainStagingStore(
                 }
         }
 
+    /**
+     * The newest staged slot for a chain/wallet, or null when nothing is staged.
+     *
+     * Exactly one query, and the `use` block's value is the return. A second `executeQuery()` here is
+     * not a "missing result-set read" — the block above already is the result. `JdbcOnchainStagingStoreQueryCountTest`
+     * fails if the query count moves off 1.
+     */
     override fun newestSlot(
         chain: String,
         wallet: String,
