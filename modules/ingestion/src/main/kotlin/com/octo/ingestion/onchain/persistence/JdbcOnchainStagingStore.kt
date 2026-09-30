@@ -18,6 +18,15 @@ import javax.sql.DataSource
  * JDBC implementation of [OnchainStagingStore] against the V10 tables. Thin glue — exercised
  * end-to-end by `OnchainStagingStoreIT` in `:modules:api` and excluded from module coverage the
  * same way `JdbcDecisionStore` is.
+ *
+ * Every method runs under `dataSource.scoped(TenantScope.All)`, never a bare `dataSource.connection`
+ * (#309). `onchain_transfer`/`onchain_balance_snapshot`/`onchain_claim_evidence` derive their tenant
+ * via a V30 subselect against `tracked_address` rather than a stamped column, but the RLS predicate
+ * still reads the transaction-local `app.tenant_ids` GUC — unset (a bare `.connection`) evaluates
+ * every predicate to `deny`, not `defer to the subselect`. `All` is the correct scope, not a missing
+ * one: this store is the ingestion collectors'/webhook's shared staging surface and legitimately
+ * spans every tenant's tracked addresses in one poll/delivery, exactly like `activeWatchedAddresses`
+ * below already did.
  */
 class JdbcOnchainStagingStore(
     private val dataSource: DataSource,
@@ -68,7 +77,7 @@ class JdbcOnchainStagingStore(
         chain: String,
         wallet: String,
     ): Long? =
-        dataSource.connection.use { c ->
+        dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
@@ -91,7 +100,7 @@ class JdbcOnchainStagingStore(
         }
 
     override fun watchedTokenAccounts(chain: String): Map<String, String> =
-        dataSource.connection.use { c ->
+        dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
@@ -112,7 +121,7 @@ class JdbcOnchainStagingStore(
         }
 
     override fun newestStagedSlot(chain: String): Long? =
-        dataSource.connection.use { c ->
+        dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
@@ -127,7 +136,7 @@ class JdbcOnchainStagingStore(
         }
 
     override fun tokenContracts(chain: String): List<TokenContract> =
-        dataSource.connection.use { c ->
+        dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
@@ -166,7 +175,7 @@ class JdbcOnchainStagingStore(
             """.trimIndent()
         // TODO(#114): carry the normalized provider payload into vendor_payload when the webhook
         // path lands — lineage then covers both delivery routes.
-        return dataSource.connection.use { c ->
+        return dataSource.scoped(TenantScope.All) { c ->
             c.prepareStatement(sql).use { s ->
                 for (t in transfers) {
                     s.setString(1, t.externalId)
@@ -210,7 +219,7 @@ class JdbcOnchainStagingStore(
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             on conflict (source_system, external_id) do nothing
             """.trimIndent()
-        return dataSource.connection.use { c ->
+        return dataSource.scoped(TenantScope.All) { c ->
             c.prepareStatement(sql).use { s ->
                 for (b in balances) {
                     s.setString(1, snapshotExternalId(b))
@@ -239,7 +248,7 @@ class JdbcOnchainStagingStore(
         chain: String,
         wallet: String,
     ): List<OnchainBalance> =
-        dataSource.connection.use { c ->
+        dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
@@ -286,7 +295,7 @@ class JdbcOnchainStagingStore(
         actor: String,
     ): Int {
         if (evidence.isEmpty()) return 0
-        return dataSource.connection.use { c ->
+        return dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
