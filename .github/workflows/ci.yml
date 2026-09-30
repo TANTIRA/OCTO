@@ -67,11 +67,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@7a13c313d3cb331f7a55e2f51995b310e3f9be4e # v3.7.1
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
 
       - name: Log in to Container Registry
         if: github.event_name == 'push'
-        uses: docker/login-action@9780b0c442986d1c56e8713605a7a57371bbcf2c # v3.3.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -79,7 +79,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@8e5442c4ef9f78752691f53d7fb18bc2d02b7a76 # v5.5.1
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -89,7 +89,7 @@ jobs:
             type=sha,prefix={{branch}}-
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@b4d94f6fa4e64ff9b0fa63c59e10d29a10d64ab5 # v6.4.0
+        uses: docker/build-push-action@a254f8ca60a858f3136a2f1f23a60969f2c402dd # v6.4.0
         with:
           context: .
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -109,14 +109,14 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Log in to Container Registry
-        uses: docker/login-action@9780b0c442986d1c56e8713605a7a57371bbcf2c # v3.3.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@1ac1000bd4aaf410e936ab12ac62fead76f664dbb # v0.31.1
+        uses: aquasecurity/trivy-action@76071ef0d7ec797419534a183b498b4d6366cf37 # v0.31.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           format: sarif
