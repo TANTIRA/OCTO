@@ -113,6 +113,9 @@ class JudgeClient:
         self._backoff_s = backoff_s
         self._client = client or httpx.Client(timeout=timeout_s)
 
+    def close(self) -> None:
+        self._client.close()
+
     def decide(
         self,
         state: Any,
@@ -151,6 +154,7 @@ class JudgeClient:
             ),
             retries=self._retries,
             backoff_s=self._backoff_s,
+            idempotent=True,  # a decision is stateless inference; a resend changes nothing
         )
         if response.status_code not in range(200, 300):
             raise JudgmentRequestError(response.status_code, response.text[:512])

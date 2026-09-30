@@ -52,6 +52,9 @@ class OctoApiClient:
         self._client.base_url = base_url.rstrip("/")
         self._client.headers["Authorization"] = f"Bearer {token}"
 
+    def close(self) -> None:
+        self._client.close()
+
     def _get(self, path: str, params: Mapping[str, Any] | None = None) -> Any:
         r = send_with_retry(
             lambda: self._client.get(path, params=params),
@@ -62,11 +65,20 @@ class OctoApiClient:
             raise OctoApiError(r.status_code, r.text[:512])
         return r.json()
 
-    def _post(self, path: str, body: dict[str, Any] | None = None) -> Any:
+    def _post(
+        self,
+        path: str,
+        body: dict[str, Any] | None = None,
+        *,
+        idempotent: bool = False,
+    ) -> Any:
+        """Most POSTs open platform workflows, so a resend could duplicate one —
+        only endpoints the server dedupes pass idempotent=True (see retry.py)."""
         r = send_with_retry(
             lambda: self._client.post(path, json=body or {}),
             retries=self._retries,
             backoff_s=self._backoff_s,
+            idempotent=idempotent,
         )
         if r.status_code not in range(200, 300):
             raise OctoApiError(r.status_code, r.text[:512])
@@ -166,6 +178,7 @@ class OctoApiClient:
                 "thresholds": thresholds,
                 "requestIds": request_ids,
             },
+            idempotent=True,  # the api replays an existing run_key's row
         )
 
     def finish_run(
@@ -180,6 +193,7 @@ class OctoApiClient:
         return self._post(
             f"/api/v1/agent-runs/{_q(run_id)}/finish",
             {"status": status, "output": output, "verdict": verdict, "error": error},
+            idempotent=True,  # first finish wins; a replay answers 409, never rewrites
         )
 
     def draft_report(
