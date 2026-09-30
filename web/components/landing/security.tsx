@@ -3,24 +3,24 @@ import { Reveal } from "./motion";
 
 const PRINCIPLES = [
   {
-    title: "Derived, never written",
-    body: "Positions and cash are derived from the transaction ledger. Nothing writes position state directly, so every figure traces back to the event that produced it.",
+    title: "Every number traces back",
+    body: "Positions and cash are calculated from the transaction history, never typed in — so any figure can be followed back to the event that produced it.",
   },
   {
-    title: "Fail-closed tenant isolation",
-    body: "Tenant-scoped data is guarded by PostgreSQL row-level security that fails closed, with authorization enforced again at the API on every request.",
+    title: "Your data stays yours",
+    body: "Each firm's data is walled off inside the database itself, and every request is checked again before anything comes back. If a check can't be made, the answer is no.",
   },
   {
-    title: "Attributed decisions",
-    body: "Approvals and screening outcomes record who decided from the authenticated session — never from what the client sends — with model lineage on every AI proposal.",
+    title: "Every decision has a name on it",
+    body: "Approvals and screening calls are recorded against the person actually signed in — never a name typed into a form — and every AI suggestion shows which model made it.",
   },
   {
-    title: "Verified sources",
-    body: "Source writes are idempotent and replay-safe, and onchain deliveries are checked against the chain's own transaction before they reach the ledger.",
+    title: "Clean data in",
+    body: "Imports can be re-run safely without creating duplicates, and on-chain transfers are checked against the blockchain itself before they're recorded.",
   },
   {
-    title: "Inside your perimeter",
-    body: "Self-hosted on PostgreSQL and Neo4j. The platform refuses to boot with half-configured identity, and confidential data never reaches external model APIs.",
+    title: "Runs on your infrastructure",
+    body: "OCTO is self-hosted, so your ledger and ontology live on your servers. It won't start with half-finished sign-in settings, and confidential data only goes to AI models that keep nothing.",
   },
 ];
 
@@ -33,10 +33,10 @@ export function Security() {
             Trust & controls
           </p>
           <h2 data-anim className="mt-6 font-display text-4xl font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl">
-            Institutional grade in all we do.
+            Controls you can check, not just trust.
           </h2>
           <p data-anim className="mt-6 max-w-md font-editorial text-xl leading-relaxed text-neutral-600">
-            Controls live in the data model and the runtime, not in a policy PDF.
+            Safeguards are built into the data and the software itself — not left to a policy document.
           </p>
         </div>
 

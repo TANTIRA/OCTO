@@ -4,23 +4,23 @@ import { Reveal } from "./motion";
 const FAQ = [
   {
     q: "Who is OCTO for?",
-    a: "Private-equity managers and allocators who want funds, deals, portfolio companies, and LP reporting on one governed book of record — instead of a stack of spreadsheets reconciled by hand every quarter.",
+    a: "Private-equity firms and allocators who are tired of rebuilding the same numbers in spreadsheets every quarter. OCTO puts funds, deals, portfolio companies, and LP reporting on one shared record.",
   },
   {
-    q: "Where does OCTO actually run?",
-    a: "On your infrastructure. The platform deploys as a self-hosted stack — PostgreSQL for the ledger, Neo4j for the ontology — so client, position, and LP data never leave your perimeter. There is no external SaaS dependency for core data.",
+    q: "Where does OCTO run?",
+    a: "On your own infrastructure. The ledger (PostgreSQL) and the ontology (Neo4j) are self-hosted, so client, position, and LP records stay inside your walls, and your core data doesn't depend on any outside service. The one outside call is to AI models — and confidential data only goes to ones that keep nothing.",
   },
   {
-    q: "If the ledger is append-only, how do corrections work?",
-    a: "By supersession, never mutation. A correcting event references the original and carries a mandatory rationale, so every figure in a report can be traced back through its full history. Replay protection rejects duplicate writes from source systems.",
+    q: "If nothing is ever overwritten, how do I fix a mistake?",
+    a: "You add a correction. It points to the original entry and must include a reason, so the history stays complete and every reported number can still be traced. Duplicate imports from source systems are rejected automatically.",
   },
   {
-    q: "What does the AI actually decide?",
-    a: "It classifies documents, assesses claim support, and proposes screening outcomes — every decision carries model, provider, and request lineage. Confidential data is blocked from external APIs at the trust boundary, and high-impact actions still require human approval.",
+    q: "What does the AI actually do?",
+    a: "It sorts documents, checks whether claims are backed by their sources, and suggests screening outcomes. Each result records the model and request behind it. Confidential data only goes to AI models that keep nothing (zero data retention), and important actions still need a person to approve them.",
   },
   {
     q: "How do we get access?",
-    a: "OCTO is in private beta. Request access below and a specialist will scope a pilot against your fund structure and data sources.",
+    a: "OCTO is in private beta. Request access below and a specialist will plan a pilot around your fund structure and data sources.",
   },
 ];
 
