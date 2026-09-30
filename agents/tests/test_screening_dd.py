@@ -25,7 +25,7 @@ class FakeApi(OctoApiClient):
         self.finished: list[dict] = []
 
     def get_prospect(self, prospect_id: str) -> Any:
-        return {"id": prospect_id, "stage": "screening", "name": "PT Acme"}
+        return {"id": prospect_id, "tenantId": "t-1", "stage": "screening", "name": "PT Acme"}
 
     def list_prospect_events(self, prospect_id: str) -> Any:
         return self.events

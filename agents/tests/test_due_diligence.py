@@ -21,7 +21,7 @@ class FakeApi(OctoApiClient):
         self.evidence_requests: list[tuple[str, str]] = []
 
     def get_prospect(self, prospect_id: str) -> Any:
-        return {"id": prospect_id, "stage": "due-diligence", "name": "PT Acme"}
+        return {"id": prospect_id, "tenantId": "t-1", "stage": "due-diligence", "name": "PT Acme"}
 
     def list_prospect_events(self, prospect_id: str) -> Any:
         return self.events

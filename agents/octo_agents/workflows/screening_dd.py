@@ -18,6 +18,7 @@ A record the pre-flight refuses exits at step 2 with status=refused: no drafter
 call, no write, and the refusal verdict is still recorded for F4's audit spine.
 """
 
+import json
 import logging
 from typing import Any, Literal
 
@@ -287,10 +288,38 @@ def judge_memo(
     )
 
 
+class SubjectNotInTenantError(LookupError):
+    """The requested subject is not visible in, or does not belong to, the
+    requested tenant. Acting on it would book one tenant's run (and mediated
+    writes) against another tenant's record (backlog #318)."""
+
+    def __init__(self, subject: str, tenant_id: str) -> None:
+        super().__init__(f"{subject} does not belong to tenant {tenant_id}")
+
+
+def load_prospect_in_tenant(api: OctoApiClient, prospect_id: str, tenant_id: str) -> Any:
+    """Fetches the prospect and verifies it belongs to `tenant_id` — the body's
+    tenant and prospect are independent caller inputs, and the platform's
+    record is the only source of truth for which tenant owns the prospect.
+    Must run before `_record_run` so a mismatched pair never books a run."""
+    try:
+        prospect = api.get_prospect(prospect_id)
+    except OctoApiError as e:
+        # The platform answers 404 for a prospect outside the principal's tenants.
+        if e.status_code == 404:
+            raise SubjectNotInTenantError(f"prospect {prospect_id}", tenant_id) from e
+        raise
+    owner = prospect.get("tenantId") if isinstance(prospect, dict) else None
+    if owner is None or str(owner).lower() != tenant_id.lower():
+        raise SubjectNotInTenantError(f"prospect {prospect_id}", tenant_id)
+    return prospect
+
+
 class RunKeyCollisionError(RuntimeError):
-    """A run_key resolved to an existing run on a different subject. Returning
-    that run's output would hand back the wrong prospect's memo, so the replay
-    is refused instead (backlog #318)."""
+    """A run_key resolved to an existing run for a different workflow, subject
+    or input. Returning that run's output would hand back another request's
+    result (e.g. the wrong prospect's memo), so the replay is refused instead
+    (backlog #318)."""
 
     def __init__(self, run_key: str, expected: str, found: str) -> None:
         super().__init__(
@@ -334,10 +363,15 @@ def _record_run(
     # mismatch either way — cached output or an in-flight run under the key.
     replay_subject_type = recorded.get("subjectType")
     if replay_subject_type is not None:
-        found = f"{replay_subject_type}/{recorded.get('subjectId')}"
-        expected = f"{subject_type}/{subject_id}"
+        found = f"{recorded.get('workflow', workflow)}:{replay_subject_type}/{recorded.get('subjectId')}"
+        expected = f"{workflow}:{subject_type}/{subject_id}"
         if found != expected:
             raise RunKeyCollisionError(run_key, expected, found)
+        # Same subject, different request (e.g. another question or as_of under
+        # a reused key): the stored output answers a different input. Compare
+        # through a JSON round trip — the platform echoes input from jsonb.
+        if "input" in recorded and recorded["input"] != json.loads(json.dumps(input)):
+            raise RunKeyCollisionError(run_key, f"{expected} (this input)", f"{found} (another input)")
     if recorded.get("status") and recorded["status"] != "running" and recorded.get("output"):
         return recorded["id"], recorded["output"]
     return recorded["id"], None
@@ -368,6 +402,7 @@ def run_screening_dd(
     run_key: str,
     models: dict[str, str],
 ) -> ScreeningResult:
+    prospect_state = load_prospect_in_tenant(api, prospect_id, tenant_id)
     run_id, replayed = _record_run(
         api,
         tenant_id=tenant_id,
@@ -385,7 +420,6 @@ def run_screening_dd(
         if replayed is not None:
             return ScreeningResult.model_validate(replayed)
 
-        prospect_state = api.get_prospect(prospect_id)
         raw_events = api.list_prospect_events(prospect_id)
         events = raw_events if isinstance(raw_events, list) else []
 
