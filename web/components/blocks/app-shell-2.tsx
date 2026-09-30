@@ -99,7 +99,6 @@ type Area = {
   current: string;
   groups: Group[];
   title: string;
-  action: string;
   listTitle: string;
   listCount: string;
   rows: Row[];
@@ -112,7 +111,6 @@ const AREAS: Area[] = [
     icon: LayoutDashboard,
     current: "Fund overview",
     title: "Portfolio overview",
-    action: "New report",
     listTitle: "Fund overview",
     listCount: "3 funds",
     groups: [
@@ -142,7 +140,6 @@ const AREAS: Area[] = [
     icon: Landmark,
     current: "All assets",
     title: "Assets",
-    action: "Register asset",
     listTitle: "Asset register",
     listCount: "148",
     groups: [
@@ -174,7 +171,6 @@ const AREAS: Area[] = [
     icon: ChartPie,
     current: "All positions",
     title: "Positions",
-    action: "Export positions",
     listTitle: "Open positions",
     listCount: "87",
     groups: [
@@ -263,7 +259,6 @@ const AREAS: Area[] = [
     icon: Kanban,
     current: "Pipeline",
     title: "Deal pipeline",
-    action: "New prospect",
     listTitle: "Pipeline",
     listCount: "23",
     groups: [
@@ -296,7 +291,6 @@ const AREAS: Area[] = [
     icon: GitCompareArrows,
     current: "Open breaks",
     title: "Reconciliation",
-    action: "Run reconciliation",
     listTitle: "Open breaks",
     listCount: "7",
     groups: [
@@ -362,7 +356,6 @@ const AREAS: Area[] = [
     icon: ChartPie,
     current: "Queue",
     title: "Reports",
-    action: "New report",
     listTitle: "Queue",
     listCount: "live",
     groups: [
@@ -384,7 +377,6 @@ const AREAS: Area[] = [
     icon: Check,
     current: "Rules",
     title: "Compliance",
-    action: "Evaluate",
     listTitle: "Rules",
     listCount: "live",
     groups: [
@@ -405,7 +397,6 @@ const AREAS: Area[] = [
     icon: Bell,
     current: "Active alerts",
     title: "Alerts & agents",
-    action: "New rule",
     listTitle: "Active alerts",
     listCount: "11",
     groups: [
@@ -658,6 +649,25 @@ function WorkspaceSwitcher({
   );
 }
 
+// Chords the command menu advertises (g + key → area) and bare action keys.
+// Destinations mirror the menu's command map: an area hash or a route path.
+const KEY_DESTINATIONS: Record<string, string> = {
+  "g o": "overview",
+  "g p": "positions",
+  "g a": "assets",
+  "g d": "deals",
+  "g r": "recon",
+  "g e": "reports",
+  "g c": "compliance",
+  "g l": "alerts",
+  "g x": "/admin",
+  t: "positions",
+  n: "deals",
+  r: "recon",
+  l: "reports",
+  e: "alerts",
+};
+
 function NavigationFrame({
   areaId,
   onSelectArea,
@@ -816,24 +826,27 @@ function NavigationFrame({
               transition={{ duration: 0.18, ease: EASE_OUT }}
               className="space-y-4"
             >
-              {area.groups.map((group) => (
-                <div key={group.label}>
-                  <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
-                    {group.label}
-                  </p>
-                  <ul className="space-y-0.5">
-                    {group.items.map((item) => {
-                      const current = item.label === area.current;
-                      return (
+              {area.groups
+                .map((group) => ({
+                  ...group,
+                  // Only the live surface is a real destination — fabricated
+                  // saved views/filters and their counts are not rendered.
+                  items: group.items.filter((i) => i.label === area.current),
+                }))
+                .filter((group) => group.items.length > 0)
+                .map((group) => (
+                  <div key={group.label}>
+                    <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
+                      {group.label}
+                    </p>
+                    <ul className="space-y-0.5">
+                      {group.items.map((item) => (
                         <li key={item.label}>
                           <a
                             href={`#${area.id}`}
-                            aria-current={current ? "page" : undefined}
+                            aria-current="page"
                             className={cx(
-                              "flex h-8 cursor-pointer items-center gap-2 rounded-[var(--rb-r-md,8px)] px-3 text-[13px] active:bg-neutral-200 dark:active:bg-neutral-700",
-                              current
-                                ? "bg-neutral-100 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
-                                : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100",
+                              "flex h-8 cursor-pointer items-center gap-2 rounded-[var(--rb-r-md,8px)] bg-neutral-100 px-3 text-[13px] font-medium text-neutral-900 active:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:active:bg-neutral-700",
                               transition,
                               focus,
                             )}
@@ -841,18 +854,12 @@ function NavigationFrame({
                             <span className="min-w-0 flex-1 truncate">
                               {item.label}
                             </span>
-                            {item.count && (
-                              <span className="shrink-0 text-xs tabular-nums text-neutral-500 dark:text-neutral-500">
-                                {item.count}
-                              </span>
-                            )}
                           </a>
                         </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
+                      ))}
+                    </ul>
+                  </div>
+                ))}
             </motion.div>
           </nav>
           <div
@@ -914,6 +921,46 @@ export default function AppShell2() {
     window.location.hash = id;
     setAreaId(id);
   }, []);
+
+  // Bind the shortcuts the command menu advertises: g+<key> chords switch
+  // areas, bare keys run the matching action's navigation. Skipped while
+  // typing or while the ⌘K dialog owns the keys.
+  useEffect(() => {
+    let chord = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.closest(
+          'input, textarea, select, [contenteditable="true"], [role="dialog"]',
+        )
+      )
+        return;
+      const key = event.key.toLowerCase();
+      if (key === "g") {
+        chord = true;
+        clearTimeout(timer);
+        timer = setTimeout(() => (chord = false), 900);
+        return;
+      }
+      if (key.length !== 1) {
+        chord = false;
+        return;
+      }
+      const dest = KEY_DESTINATIONS[chord ? `g ${key}` : key];
+      chord = false;
+      if (!dest) return;
+      event.preventDefault();
+      if (dest.startsWith("/")) window.location.assign(dest);
+      else selectArea(dest);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      clearTimeout(timer);
+    };
+  }, [selectArea]);
 
   // First real API read: the caller's tenants drive the vehicle switcher.
   // The proxy (next.config.ts) forwards to the API with the session JWT;
@@ -1042,6 +1089,7 @@ export default function AppShell2() {
 
           <button
             type="button"
+            aria-label="Commands (⌘K)"
             onClick={() => {
               // The command menu's public API is its document-level ⌘K
               // listener — a synthetic event opens it without prop drilling.
@@ -1054,11 +1102,12 @@ export default function AppShell2() {
               );
             }}
             className={cx(
-              "inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-2.5 text-[13px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(20.5%_0_0))_90%,transparent)] active:scale-[0.97] motion-reduce:active:scale-100 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))] dark:hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(100%_0_0))_90%,transparent)]",
+              "inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 justify-center rounded-[var(--rb-r-md,8px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-2.5 text-[13px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(20.5%_0_0))_90%,transparent)] active:scale-[0.97] motion-reduce:active:scale-100 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))] dark:hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(100%_0_0))_90%,transparent)]",
               focus,
             )}
           >
-            {area.action}
+            Commands
+            <kbd className="font-mono text-[11px] opacity-70">⌘K</kbd>
           </button>
 
           <SessionMenu />
