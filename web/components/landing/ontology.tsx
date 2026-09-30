@@ -357,9 +357,6 @@ function Schematic({ spec, className }: { spec: Spec; className: string }) {
           </text>
           {spec.bar.meta && (
             <>
-              <text x={spec.margin + 18} y={spec.bar.y + spec.bar.h / 2 + 4} fontSize="12" className="font-figures" fill="#fff" fillOpacity="0.55">
-                OWL · SHACL
-              </text>
               <text x={spec.width - spec.margin - 18} y={spec.bar.y + spec.bar.h / 2 + 4} fontSize="12" textAnchor="end" className="font-figures" fill="#fff" fillOpacity="0.55">
                 45 classes
               </text>
@@ -416,16 +413,10 @@ function Schematic({ spec, className }: { spec: Spec; className: string }) {
   );
 }
 
-const POINTS = [
-  "Modeled in OWL, constrained with SHACL",
-  "Versioned in Git and reviewed like code",
-  "Served from Neo4j beside the PostgreSQL ledger",
-];
-
 export function Ontology() {
   return (
     <section id="ontology" className="scroll-mt-16 overflow-hidden bg-black px-4 py-24 text-white sm:px-6 sm:py-32 lg:px-8">
-      <div className="mx-auto grid max-w-[1320px] items-center gap-16 xl:grid-cols-[0.85fr_1.15fr]">
+      <div className="relative z-40 mx-auto grid max-w-[1320px] items-center gap-16 xl:grid-cols-[0.85fr_1.15fr]">
         <Reveal>
           <p data-anim className="font-figures text-xs uppercase tracking-[0.18em] text-white/50">
             Ontology
@@ -436,19 +427,8 @@ export function Ontology() {
             your data.
           </h2>
           <p data-anim className="mt-6 max-w-lg font-editorial text-xl leading-relaxed text-white/65">
-            OCTO describes the private-markets world once — parties, funds,
-            deals, instruments, and the events between them — and every source
-            maps onto it. Screening, analytics, and reporting all read the same
-            graph.
+            Every source, one shared graph.
           </p>
-          <ul className="mt-10 max-w-lg">
-            {POINTS.map((p) => (
-              <li key={p} data-anim className="flex items-center gap-4 border-t border-white/10 py-4 text-base">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-signal" />
-                {p}
-              </li>
-            ))}
-          </ul>
         </Reveal>
 
         <div className="mx-auto w-full max-w-[600px]">

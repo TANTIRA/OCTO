@@ -48,7 +48,7 @@ export function Footer() {
 
   return (
     <footer ref={root} className="overflow-hidden bg-black px-4 pt-20 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1320px] border-t border-white/10 pt-14">
+      <div className="relative z-40 mx-auto max-w-[1320px] border-t border-white/10 pt-14">
         <div className="grid gap-12 md:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div>
             <Image src={wordmark} alt="Mesta" width={99} className="h-7 w-auto" />
