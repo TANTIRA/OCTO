@@ -22,10 +22,17 @@ import java.util.logging.Logger
  * finalized (#167) — staging can only ever hold `commitment='finalized'` rows, and the claim
  * is now observed rather than stamped. The poller stages the dropped transactions when they
  * finalize; deterministic external ids dedupe the overlap.
+ *
+ * A finalized signature is not itself trustworthy content (#316): it proves *a* transaction
+ * landed, not that the caller's `accountKeys`/balance payload describes it honestly. Every
+ * finalized signature is re-fetched through [transactions] and normalized from that canonical
+ * copy — the delivered payload is used only to learn which signatures to look up, never as a
+ * source of transfer facts.
  */
 class OnchainWebhookService(
     private val store: OnchainStagingStore,
     private val finality: FinalityProbe,
+    private val transactions: TransactionFetcher,
     private val normalizer: HeliusTransferNormalizer = HeliusTransferNormalizer(),
 ) {
     private val log = Logger.getLogger(OnchainWebhookService::class.java.name)
@@ -55,13 +62,21 @@ class OnchainWebhookService(
         if (pending > 0) {
             log.info("deferred $pending webhook transactions pending finality; the finalized-only poller picks them up")
         }
+
+        val canonical = finalized.mapNotNull { sig -> transactions.fetch(sig)?.let { sig to it } }.toMap()
+        val notFetched = finalized - canonical.keys
+        if (notFetched.isNotEmpty()) {
+            log.warning(
+                "could not fetch canonical content for ${notFetched.size} finalized signatures; " +
+                    "dropped, the finalized-only poller picks them up",
+            )
+        }
+
         val observedAt = Instant.now()
         val parses =
-            payload
-                .filter { signatureOf(it) in finalized }
-                .flatMap { tx ->
-                    watchedAccounts(tx, watched, tokenOwners).map { normalizer.normalize(tx, it, observedAt) }
-                }
+            canonical.values.flatMap { tx ->
+                watchedAccounts(tx, watched, tokenOwners).map { normalizer.normalize(tx, it, observedAt) }
+            }
         val skipped = parses.flatMap { it.skipped }
         if (skipped.isNotEmpty()) {
             log.warning("skipped ${skipped.size} malformed transfer legs: ${skipped.take(5).joinToString()}")

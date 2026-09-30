@@ -1,5 +1,6 @@
 package com.octo.api.ingestion
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.OctoApplication
 import com.octo.ingestion.onchain.FinalityProbe
 import com.octo.ingestion.onchain.OnchainBalance
@@ -7,6 +8,7 @@ import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
 import com.octo.ingestion.onchain.TokenContract
+import com.octo.ingestion.onchain.TransactionFetcher
 import com.octo.ingestion.onchain.WatchSource
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -93,6 +95,9 @@ private class RecordingStore : OnchainStagingStore {
 }
 
 class HeliusWebhookTest {
+    /** Stands in for the chain's own copy: the test delivery normalizes the same either way. */
+    private val canonicalFetcher = TransactionFetcher { sig -> ObjectMapper().readTree(delivery)[0].takeIf { sig == SIG } }
+
     private val contextRunner =
         WebApplicationContextRunner()
             .withUserConfiguration(OctoApplication::class.java)
@@ -126,6 +131,7 @@ class HeliusWebhookTest {
             .withPropertyValues("HELIUS_WEBHOOK_SECRET=$SECRET")
             .withBean(OnchainStagingStore::class.java, { store })
             .withBean(FinalityProbe::class.java, { FinalityProbe { it.toSet() } })
+            .withBean(TransactionFetcher::class.java, { canonicalFetcher })
             .run { context ->
                 postDelivery(context).andExpect(status().isOk)
                 assertThat(store.transfers).hasSize(1)
