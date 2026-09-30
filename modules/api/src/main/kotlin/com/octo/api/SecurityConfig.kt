@@ -57,7 +57,9 @@ class SecurityConfig {
     ): SecurityFilterChain {
         http
             .securityMatcher("/api/v1/ingestion/webhooks/helius")
-            .csrf { it.disable() }
+            // Stateless shared-secret auth — no cookies, no browser ambient credentials, so no
+            // CSRF surface (CodeQL spring-disabled-csrf-protection is a false positive here).
+            .csrf { it.disable() } // codeql[java/spring-disabled-csrf-protection]
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
                 // An exception triggers an ERROR dispatch to /error with the SecurityContext
@@ -97,7 +99,9 @@ class SecurityConfig {
         tenantSettings: TenantSettings,
     ): SecurityFilterChain {
         http
-            .csrf { it.disable() }
+            // Stateless JWT Bearer — no cookies accepted, nothing ambient for CSRF to replay.
+            // (CodeQL spring-disabled-csrf-protection: false positive on a stateless API.)
+            .csrf { it.disable() } // codeql[java/spring-disabled-csrf-protection]
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
                 // Same ERROR dispatch as the webhook chain: without this, a parse failure,

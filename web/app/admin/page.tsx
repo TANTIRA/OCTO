@@ -1,21 +1,35 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import AuthGate from "@/components/auth-gate";
 
-export const dynamic = "force-dynamic";
-
-const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8080";
+/**
+ * Ops page — probes the API's actuator health endpoints through the
+ * same-origin /ops-api rewrite (next.config.ts), so the internal API base
+ * URL never reaches the page. The whole surface sits behind AuthGate:
+ * sessions live in the browser client, so gating must happen client-side —
+ * a server-rendered page would ship probe results in the HTML to anyone.
+ */
 
 type Probe = {
   label: string;
   path: string;
-  status: "UP" | "DOWN" | "ERROR";
+  status: "UP" | "DOWN" | "ERROR" | "PENDING";
   ms: number | null;
   detail: string;
 };
 
+const PROBES: { label: string; path: string }[] = [
+  { label: "Health", path: "/actuator/health" },
+  { label: "Readiness (incl. database)", path: "/actuator/health/readiness" },
+  { label: "Liveness", path: "/actuator/health/liveness" },
+];
+
 async function probe(label: string, path: string): Promise<Probe> {
   const start = Date.now();
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(`/ops-api${path}`, {
       cache: "no-store",
       signal: AbortSignal.timeout(4000),
     });
@@ -29,22 +43,25 @@ async function probe(label: string, path: string): Promise<Probe> {
       detail: body.status ?? `HTTP ${res.status}`,
     };
   } catch {
-    return {
-      label,
-      path,
-      status: "ERROR",
-      ms: null,
-      detail: "unreachable",
-    };
+    return { label, path, status: "ERROR", ms: null, detail: "unreachable" };
   }
 }
 
-export default async function AdminPage() {
-  const probes = await Promise.all([
-    probe("Health", "/actuator/health"),
-    probe("Readiness (incl. database)", "/actuator/health/readiness"),
-    probe("Liveness", "/actuator/health/liveness"),
-  ]);
+function AdminPanel() {
+  const [probes, setProbes] = useState<Probe[]>(
+    PROBES.map((p) => ({ ...p, status: "PENDING", ms: null, detail: "…" })),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(PROBES.map((p) => probe(p.label, p.path))).then((results) => {
+      if (!cancelled) setProbes(results);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const allUp = probes.every((p) => p.status === "UP");
 
   return (
@@ -77,7 +94,7 @@ export default async function AdminPage() {
         <section className="mt-6 overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-neutral-50 p-1 dark:border-neutral-800 dark:bg-neutral-900/50">
           <div className="flex h-10 items-center justify-between px-3">
             <h2 className="text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
-              API — {API_BASE.replace(/^https?:\/\//, "")}
+              API
             </h2>
           </div>
           <ul className="divide-y divide-neutral-100 rounded-[var(--rb-r-xl,12px)] border border-neutral-200/70 bg-white dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-950">
@@ -90,7 +107,9 @@ export default async function AdminPage() {
                       ? "bg-emerald-500"
                       : p.status === "DOWN"
                         ? "bg-amber-500"
-                        : "bg-red-500"
+                        : p.status === "PENDING"
+                          ? "animate-pulse bg-neutral-300 dark:bg-neutral-700"
+                          : "bg-red-500"
                   }`}
                 />
                 <span className="min-w-0 flex-1">
@@ -106,7 +125,9 @@ export default async function AdminPage() {
                     className={`block text-[13px] font-medium ${
                       p.status === "UP"
                         ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-red-600 dark:text-red-400"
+                        : p.status === "PENDING"
+                          ? "text-neutral-500"
+                          : "text-red-600 dark:text-red-400"
                     }`}
                   >
                     {p.detail}
@@ -152,5 +173,13 @@ export default async function AdminPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <AuthGate>
+      <AdminPanel />
+    </AuthGate>
   );
 }
