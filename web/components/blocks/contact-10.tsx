@@ -226,21 +226,7 @@ export default function Contact10() {
 
           <p className="mt-5 text-xs leading-relaxed text-neutral-500">
             We only use your details to contact you about our products and
-            services. By submitting, you agree to our{" "}
-            <a
-              href="#"
-              className="cursor-pointer underline underline-offset-2 transition-colors hover:text-neutral-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-            >
-              Terms
-            </a>{" "}
-            and{" "}
-            <a
-              href="#"
-              className="cursor-pointer underline underline-offset-2 transition-colors hover:text-neutral-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-            >
-              Privacy Policy
-            </a>
-            .
+            services.
           </p>
 
           <motion.button

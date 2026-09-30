@@ -95,13 +95,16 @@ export default function BrainPanel() {
         </label>
       )}
 
-      <textarea
-        className="min-h-24 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        placeholder="Who is standing at ic-review? What did diligence surface on PT Acme?"
-        value={question}
-        onChange={(e) => setQuestion(e.target.value)}
-        maxLength={2000}
-      />
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="text-neutral-500">Question</span>
+        <textarea
+          className="min-h-24 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          placeholder="Who is standing at ic-review? What did diligence surface on PT Acme?"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          maxLength={2000}
+        />
+      </label>
 
       <button
         className="self-start rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900"

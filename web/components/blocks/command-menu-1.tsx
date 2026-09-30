@@ -13,6 +13,7 @@ import {
 import {
   Activity,
   Bell,
+  Brain,
   ChartPie,
   CornerDownLeft,
   FileBarChart,
@@ -26,36 +27,10 @@ import {
   UserPlus,
   type LucideIcon,
 } from "lucide-react";
+import { useScrollFade } from "@/lib/use-scroll-fade";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
-
-function useScrollFade<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  const [edges, setEdges] = useState({ start: false, end: false });
-
-  const update = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const { scrollTop, scrollHeight, clientHeight } = el;
-    setEdges({
-      start: scrollTop > 1,
-      end: Math.ceil(scrollTop + clientHeight) < scrollHeight - 1,
-    });
-  }, []);
-
-  useEffect(() => {
-    update();
-    const el = ref.current;
-    const view = el?.ownerDocument.defaultView;
-    if (!el || !view?.ResizeObserver) return;
-    const observer = new view.ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [update]);
-
-  return { ref, edges, onScroll: update };
-}
 
 type Command = {
   id: string;
@@ -132,6 +107,14 @@ const COMMANDS: Command[] = [
     icon: Activity,
   },
   {
+    id: "go-brain",
+    group: "Navigation",
+    title: "Company brain",
+    detail: "Ask a natural-language question",
+    shortcut: "G B",
+    icon: Brain,
+  },
+  {
     id: "do-position",
     group: "Actions",
     title: "Record a transaction",
@@ -196,6 +179,7 @@ const AREA_BY_COMMAND: Record<string, string> = {
 // Commands that leave the shell entirely (route-level navigation).
 const PATH_BY_COMMAND: Record<string, string> = {
   "go-ops": "/admin",
+  "go-brain": "/brain",
 };
 
 const EXIT_MS = 140;

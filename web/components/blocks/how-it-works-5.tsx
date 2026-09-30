@@ -44,17 +44,18 @@ export default function HowItWorks5() {
               From fragmented feeds to a governed book of record — no migration
               project that never ends, no numbers that disagree.
             </p>
-            <motion.button
+            <motion.a
+              href="#contact"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="self-start px-10 py-3.5 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs tracking-[0.2em] uppercase font-bold transition-all cursor-pointer"
             >
               Request access
-            </motion.button>
+            </motion.a>
             <p className="text-sm text-neutral-500 dark:text-neutral-500">
               Deploying in a regulated environment?{" "}
               <a
-                href="#"
+                href="#contact"
                 className="text-neutral-900 dark:text-white font-semibold hover:underline"
               >
                 Talk to us
