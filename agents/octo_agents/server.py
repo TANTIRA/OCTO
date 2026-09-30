@@ -5,6 +5,7 @@ requires the shared bearer (OCTO_AGENTS_TOKEN) plus its per-workflow feature
 flag; /healthz is open for the compose healthcheck only.
 """
 
+import hmac
 from functools import lru_cache
 from typing import Any
 from uuid import uuid4
@@ -29,7 +30,15 @@ from .workflows.lp_report import run_lp_report
 from .workflows.operating_review import run_operating_review
 from .workflows.screening_dd import run_screening_dd
 
-app = FastAPI(title="octo-agents", version="0.1.0")
+# No docs surface: the schema leaks the endpoint map to anyone who can reach
+# the port — /docs, /redoc and /openapi.json stay off (backlog #345).
+app = FastAPI(
+    title="octo-agents",
+    version="0.1.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 _bearer = HTTPBearer(auto_error=False)
 
 
@@ -42,7 +51,9 @@ def require_caller(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="OCTO_AGENTS_TOKEN is not configured",
         )
-    if credentials is None or credentials.credentials != settings.octo_agents_token:
+    if credentials is None or not hmac.compare_digest(
+        credentials.credentials, settings.octo_agents_token
+    ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
