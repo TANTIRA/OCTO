@@ -67,5 +67,21 @@ def test_non_transient_status_is_not_retried() -> None:
     assert calls["n"] == 1  # 404 is the caller's to handle, never retried
 
 
+def test_non_idempotent_retries_only_unsent_requests() -> None:
+    # Connect failed: nothing reached the server, a resend cannot duplicate.
+    send = _sequence(httpx.ConnectError("refused"), _resp(200))
+    out = send_with_retry(send, idempotent=False, backoff_s=0, sleep=_noop_sleep)
+    assert out.status_code == 200
+
+    # 503 or a read timeout after send: the server may have acted — surface it.
+    send = _sequence(_resp(503), _resp(200))
+    out = send_with_retry(send, idempotent=False, backoff_s=0, sleep=_noop_sleep)
+    assert out.status_code == 503
+
+    send = _sequence(httpx.ReadTimeout("slow"), _resp(200))
+    with pytest.raises(httpx.ReadTimeout):
+        send_with_retry(send, idempotent=False, backoff_s=0, sleep=_noop_sleep)
+
+
 def test_retryable_set_is_transient_only() -> None:
     assert RETRYABLE_STATUS == {429, 502, 503, 504}
