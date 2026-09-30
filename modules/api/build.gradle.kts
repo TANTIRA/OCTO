@@ -58,11 +58,6 @@ dependencies {
         testImplementation(libs.commons.compress)
     }
 
-    // Enforce Jackson BOM 2.22.3 over Spring Boot's 2.21.5 for CVE fixes
-    constraints {
-        add("implementation", enforcedPlatform("com.fasterxml.jackson:jackson-bom:2.22.3"))
-    }
-
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.jackson.datatype.jsr310)
     testImplementation(libs.spring.security.test)
