@@ -21,7 +21,13 @@ from pydantic import BaseModel
 from ..api_client import OctoApiClient, OctoApiError
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import read_tools
-from .screening_dd import _record_run, extract_final_text, preflight_gate, score_events
+from .screening_dd import (
+    _record_run,
+    extract_final_text,
+    finish_failed,
+    preflight_gate,
+    score_events,
+)
 from .warm_context import warm_prompt
 
 IC_MEMO_PROMPT = """You are the OCTO investment-committee analyst. Draft an IC memo for the
@@ -97,7 +103,13 @@ def judge_memo_for_ic(
             ),
             "evidence": ScoreQuestion(
                 instructions="Rate the memo's evidentiary support for an IC decision.",
-                criteria=["1-unsupported", "2-thin", "3-adequate", "4-strong", "5-exemplary"],
+                criteria=[
+                    "1-unsupported",
+                    "2-thin",
+                    "3-adequate",
+                    "4-strong",
+                    "5-exemplary",
+                ],
             ),
         },
         session_id=f"ic-memo:{prospect_id}",
@@ -173,7 +185,10 @@ def run_ic_memo(
             tools=read_tools(api),
             system_prompt=warm_prompt(api, tenant_id, IC_MEMO_PROMPT),
         )
-        evidence = "\n".join(f"- {str(e)[:400]}" for e in admitted) or "- (no events on record)"
+        evidence = (
+            "\n".join(f"- {str(e)[:400]}" for e in admitted)
+            or "- (no events on record)"
+        )
         result = agent.invoke(
             {
                 "messages": [
@@ -208,7 +223,9 @@ def run_ic_memo(
                 task_id = review.get("taskId") or review.get("task_id")
             except OctoApiError as e:
                 if e.status_code == 409:
-                    stage_note = "prospect is not at ic-review — memo left as judged draft"
+                    stage_note = (
+                        "prospect is not at ic-review — memo left as judged draft"
+                    )
                 else:
                     raise
 
@@ -234,5 +251,5 @@ def run_ic_memo(
         )
         return result
     except Exception as e:
-        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        finish_failed(api, run_id, e)
         raise

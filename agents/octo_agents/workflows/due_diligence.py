@@ -22,7 +22,13 @@ from pydantic import BaseModel
 from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, ScoreQuestion
 from ..tools import read_tools
-from .screening_dd import _record_run, extract_final_text, preflight_gate, score_events
+from .screening_dd import (
+    _record_run,
+    extract_final_text,
+    finish_failed,
+    preflight_gate,
+    score_events,
+)
 from .warm_context import warm_prompt
 
 WORKSTREAMS = ("market", "financial", "legal", "operational")
@@ -203,7 +209,10 @@ def run_due_diligence(
             system_prompt=ORCHESTRATOR_PROMPT + context,
             subagents=subagents,
         )
-        evidence = "\n".join(f"- {str(e)[:400]}" for e in admitted) or "- (no events on record)"
+        evidence = (
+            "\n".join(f"- {str(e)[:400]}" for e in admitted)
+            or "- (no events on record)"
+        )
         result = agent.invoke(
             {
                 "messages": [
@@ -221,14 +230,19 @@ def run_due_diligence(
         dossier = extract_final_text(result)
 
         bands, completeness, lineage = _band_workstreams(
-            judge, prospect_id=prospect_id, prospect_state=prospect_state, dossier=dossier
+            judge,
+            prospect_id=prospect_id,
+            prospect_state=prospect_state,
+            dossier=dossier,
         )
 
         tasks = [
             DdTask(
                 workstream=band.workstream,
                 task_id=(
-                    resp := api.open_dd_evidence(prospect_id, band.workstream, dossier[:2000])
+                    resp := api.open_dd_evidence(
+                        prospect_id, band.workstream, dossier[:2000]
+                    )
                 ).get("taskId"),
                 opened=bool(resp.get("opened")),
             )
@@ -257,5 +271,5 @@ def run_due_diligence(
         )
         return result
     except Exception as e:
-        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        finish_failed(api, run_id, e)
         raise

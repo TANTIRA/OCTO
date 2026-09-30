@@ -23,7 +23,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
-from .screening_dd import _record_run
+from .screening_dd import _record_run, finish_failed
 
 WORKFLOW = "calibration"
 MIN_DECIDED_FOR_SUGGESTION = 5
@@ -106,7 +106,9 @@ def run_calibration(
     try:
         rows = api.list_agent_runs(tenant_id, limit=limit)
         runs = [
-            r for r in (rows if isinstance(rows, list) else []) if r.get("workflow") != WORKFLOW
+            r
+            for r in (rows if isinstance(rows, list) else [])
+            if r.get("workflow") != WORKFLOW
         ]
 
         stats: dict[str, WorkflowStats] = {}
@@ -116,7 +118,10 @@ def run_calibration(
         for run in runs:
             workflow = run.get("workflow") or "unknown"
             bucket = stats.setdefault(
-                workflow, WorkflowStats(runs=0, decided=0, agreed=0, disagreed=0, agreement_rate=None)
+                workflow,
+                WorkflowStats(
+                    runs=0, decided=0, agreed=0, disagreed=0, agreement_rate=None
+                ),
             )
             bucket.runs += 1
             decision = _decision(run)
@@ -181,5 +186,5 @@ def run_calibration(
         api.finish_run(run_id, status="completed", output=result.model_dump())
         return result
     except Exception as e:
-        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        finish_failed(api, run_id, e)
         raise
