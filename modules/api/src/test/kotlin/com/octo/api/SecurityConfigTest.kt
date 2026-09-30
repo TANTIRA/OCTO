@@ -3,12 +3,12 @@ package com.octo.api
 import jakarta.servlet.DispatcherType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 import org.springframework.boot.availability.AvailabilityChangeEvent
 import org.springframework.boot.availability.LivenessState
 import org.springframework.boot.availability.ReadinessState
-import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
-import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner
 import org.springframework.mock.env.MockEnvironment
 import org.springframework.mock.web.MockHttpServletRequest
@@ -35,7 +35,7 @@ class SecurityConfigTest {
                 // contributor pulls the aggregate DOWN when no dev redis happens to be running.
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName}," +
                     "${FlywayAutoConfiguration::class.qualifiedName}," +
-                    "${DataRedisAutoConfiguration::class.qualifiedName}",
+                    "${RedisAutoConfiguration::class.qualifiedName}",
                 // Mirrors application.yml — the context runner does not load it.
                 "management.endpoints.web.exposure.include=health,info,metrics,prometheus",
                 "management.endpoint.health.probes.enabled=true",

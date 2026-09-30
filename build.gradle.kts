@@ -52,37 +52,7 @@ val koverReporterLock =
     }
 
 subprojects {
-    configurations.all {
-        resolutionStrategy {
-            // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot)
-            force("io.netty:netty-common:4.2.17.Final")
-            force("io.netty:netty-handler:4.2.17.Final")
-            force("io.netty:netty-buffer:4.2.17.Final")
-            force("io.netty:netty-transport:4.2.17.Final")
-            force("io.netty:netty-codec:4.2.17.Final")
-            force("io.netty:netty-resolver:4.2.17.Final")
-            force("org.apache.tomcat.embed:tomcat-embed-core:11.0.25")
-            force("org.apache.tomcat.embed:tomcat-embed-el:11.0.25")
-            force("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.25")
-            force("org.apache.logging.log4j:log4j-api:2.25.5")
-            force("org.apache.logging.log4j:log4j-to-slf4j:2.25.5")
-            force("org.freemarker:freemarker:2.3.35")
-            force("org.bouncycastle:bcprov-jdk18on:1.85")
-            force("org.apache.thrift:libthrift:0.24.0")
-            force("org.apache.httpcomponents.client5:httpclient5:5.6.3")
-            force("org.apache.httpcomponents.core5:httpcore5:5.4.3")
-            force("org.apache.httpcomponents.core5:httpcore5-h2:5.4.3")
-            // Jackson - Spring Boot's BOM downgrades to 2.21.5, force 2.22.3+
-            force("com.fasterxml.jackson.core:jackson-databind:2.22.3")
-            force("com.fasterxml.jackson.core:jackson-core:2.22.3")
-            force("com.fasterxml.jackson.core:jackson-annotations:2.18.0")
-            force("com.fasterxml.jackson.module:jackson-module-kotlin:2.22.3")
-            force("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.3")
-            force("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.3")
-            force("com.fasterxml.jackson.module:jackson-module-parameter-names:2.22.3")
-            force("com.fasterxml.jackson:jackson-bom:2.22.3")
-        }
-    }
+
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
         extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension> {
             jvmToolchain(21)
