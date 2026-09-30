@@ -189,6 +189,27 @@ class ComplianceEndpointTest {
     }
 
     @Test
+    fun `a rule id outside the V14 shape is 400 on both endpoints, not a 500 from the CHECK`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rule(ruleId = "CONC"))
+                        .with(asUser(approver)),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules/%20/retire")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"tenantId": "$tenantId"}""")
+                        .with(asUser(approver)),
+                ).andExpect(status().isBadRequest)
+            assertThat(store.rules).isEmpty()
+        }
+    }
+
+    @Test
     fun `an analyst cannot define rules, a viewer cannot evaluate, a bad check is 400, and no token is 403`() {
         run { mvc ->
             mvc

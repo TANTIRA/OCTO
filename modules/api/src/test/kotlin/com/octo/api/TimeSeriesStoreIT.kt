@@ -96,6 +96,22 @@ class TimeSeriesStoreIT {
     }
 
     @Test
+    fun `limit bounds the read, and an out-of-range limit is refused before any query`() {
+        val (ds, _) = dataset()
+        store.write(listOf(nav(ds, q1, "90"), nav(ds, q2, "100")), provenance, TenantScope.All)
+
+        val all = store.query(scope = TenantScope.All, query = TimeSeriesQuery(ds, q1, q2))
+        assertThat(all).hasSize(2)
+        assertThat(store.query(scope = TenantScope.All, query = TimeSeriesQuery(ds, q1, q2, limit = 1))).hasSize(1)
+        assertThat(store.query(scope = TenantScope.All, query = TimeSeriesQuery(ds, q1, q2, limit = 1)))
+            .containsExactly(all.first())
+
+        assertThatThrownBy { TimeSeriesQuery(ds, q1, q2, limit = 0) }.isInstanceOf(IllegalArgumentException::class.java)
+        assertThatThrownBy { TimeSeriesQuery(ds, q1, q2, limit = TimeSeriesQuery.MAX_OBSERVATIONS + 1) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
     fun `a refused observation rolls the batch back, and an unknown dataset has no tenant`() {
         val (ds, _) = dataset()
         assertThatThrownBy {
