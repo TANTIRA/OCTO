@@ -9,7 +9,9 @@ import org.slf4j.LoggerFactory
  * Security: logs are sanitized to remove credential-bearing URLs and API keys.
  * See EvmConfig.kt for rationale (RPC URLs commonly embed credentials).
  */
-class EvmSyncRunner(private val config: EvmConfig) {
+class EvmSyncRunner(
+    private val config: EvmConfig,
+) {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
     private val client = EvmRpcClient(config)
 
@@ -62,10 +64,18 @@ class EvmSyncRunner(private val config: EvmConfig) {
         ) {
             val sanitizedUrl = sanitizeUrl(url)
             when (level.lowercase()) {
-                "error" -> if (exception != null) logger.error("$message at $sanitizedUrl", exception)
-                else logger.error("$message at $sanitizedUrl")
-                "warn" -> if (exception != null) logger.warn("$message at $sanitizedUrl", exception)
-                else logger.warn("$message at $sanitizedUrl")
+                "error" ->
+                    if (exception != null) {
+                        logger.error("$message at $sanitizedUrl", exception)
+                    } else {
+                        logger.error("$message at $sanitizedUrl")
+                    }
+                "warn" ->
+                    if (exception != null) {
+                        logger.warn("$message at $sanitizedUrl", exception)
+                    } else {
+                        logger.warn("$message at $sanitizedUrl")
+                    }
                 "info" -> logger.info("$message at $sanitizedUrl")
                 "debug" -> logger.debug("$message at $sanitizedUrl")
             }
@@ -84,4 +94,3 @@ class EvmSyncRunner(private val config: EvmConfig) {
         }
     }
 }
-
