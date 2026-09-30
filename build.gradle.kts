@@ -7,6 +7,15 @@ plugins {
     alias(libs.plugins.kover) apply false
 }
 
+buildscript {
+    configurations.classpath {
+        // CVE-2026-84939: kover's plugin classpath pulls freemarker 2.3.32 via
+        // intellij-coverage-reporter -> coverage-report; the project-level force()
+        // below cannot reach the build classpath, so pin the patched version here.
+        resolutionStrategy.force("org.freemarker:freemarker:2.3.35")
+    }
+}
+
 allprojects {
     group = "com.octo"
     version = "0.1.0-SNAPSHOT"
