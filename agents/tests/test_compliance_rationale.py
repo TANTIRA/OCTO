@@ -25,11 +25,38 @@ class FakeApi(OctoApiClient):
         self.calls.append(name)
         raise AttributeError(name)
 
-    def record_run(self, **kwargs: Any) -> Any:
+    # Signatures mirror OctoApiClient exactly — a production-side rename or
+    # new required arg must break here, not pass silently through **kwargs.
+    def record_run(
+        self,
+        *,
+        tenant_id: str,
+        workflow: str,
+        run_key: str,
+        subject_type: str,
+        subject_id: str,
+        input: Any,
+        models: Any,
+        thresholds: Any = None,
+        request_ids: Any = None,
+    ) -> Any:
         return {"id": "run-1"}
 
-    def finish_run(self, run_id: str, **kwargs: Any) -> Any:
-        self.finished = kwargs
+    def finish_run(
+        self,
+        run_id: str,
+        *,
+        status: str,
+        output: Any = None,
+        verdict: Any = None,
+        error: str | None = None,
+    ) -> Any:
+        self.finished = {
+            "status": status,
+            "output": output,
+            "verdict": verdict,
+            "error": error,
+        }
         return {}
 
 

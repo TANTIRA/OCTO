@@ -46,11 +46,11 @@ class OctoApiClient:
             raise ValueError("octo_agent_token is required for api calls")
         self._retries = retries
         self._backoff_s = backoff_s
-        self._client = client or httpx.Client(
-            base_url=base_url.rstrip("/"),
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=timeout_s,
-        )
+        # An injected client still gets base_url + auth — injection swaps the
+        # transport (tests), never the credentials contract.
+        self._client = client or httpx.Client(timeout=timeout_s)
+        self._client.base_url = base_url.rstrip("/")
+        self._client.headers["Authorization"] = f"Bearer {token}"
 
     def _get(self, path: str, params: Mapping[str, Any] | None = None) -> Any:
         r = send_with_retry(
