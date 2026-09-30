@@ -247,6 +247,7 @@ export default function Dashboard4() {
                     {!loadedAt
                       ? "—"
                       : `${prospects[s.id].length}${prospects[s.id].length === LIMIT ? "+" : ""}`}
+                    {prospects[s.id]?.length ?? 0}
                   </span>
                 </span>
               ))}
@@ -320,6 +321,7 @@ export default function Dashboard4() {
             </h2>
             <span className="inline-flex h-5 shrink-0 items-center rounded-[var(--rb-r-xs,4px)] bg-neutral-200/70 px-1.5 text-[11px] font-medium tabular-nums text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
               {loadedAt ? attention.length : "—"}
+              {attention.length}
             </span>
           </div>
           <ul className="flex flex-col gap-1.5 p-1.5">
