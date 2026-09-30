@@ -113,7 +113,10 @@ class JudgeClient:
                 qid: q.model_dump(by_alias=True, exclude_none=True)
                 for qid, q in questions.items()
             },
-            "provider": {"allow_fallbacks": False},
+            # Zero-data-retention only, no fallbacks — the same routing
+            # constraint the drafter sends (chat.py). Confidential judge state
+            # must never reach a non-ZDR route (README "ZDR fail-closed").
+            "provider": {"zdr": True, "allow_fallbacks": False},
         }
         if session_id is not None:
             payload["session_id"] = session_id
