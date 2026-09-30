@@ -53,6 +53,12 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.flyway.core)
     implementation(libs.flyway.postgres)
+    // Boot 4 split Flyway autoconfiguration out of spring-boot-autoconfigure — without this
+    // module migrations do not run at boot and FlywayAutoConfiguration is not importable.
+    implementation(libs.spring.boot.flyway)
+    // Boot 4 defaults to Jackson 3 (tools.jackson); the app's beans and controllers autowire
+    // com.fasterxml.jackson.databind.ObjectMapper — spring-boot-jackson2 restores it.
+    implementation(libs.spring.boot.jackson2)
     runtimeOnly(libs.postgresql)
 
     // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot BOM)
@@ -76,6 +82,8 @@ dependencies {
     implementation("org.apache.httpcomponents.core5:httpcore5-h2:5.4.3") { version { strictly("5.4.3") } }
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.boot.resttestclient)
+    testImplementation(libs.jackson.datatype.jsr310)
     testImplementation(libs.spring.security.test)
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.testcontainers.postgres)

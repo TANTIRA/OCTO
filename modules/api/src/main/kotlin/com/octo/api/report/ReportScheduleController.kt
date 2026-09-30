@@ -84,7 +84,7 @@ class ReportScheduleController(
         return ResponseEntity.ok(schedules.list(tenantId, TenantScope.User(userId)).map { it.view() })
     }
 
-    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
+    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
 
     /** Cron is validated here so a bad expression can never reach the table. */
     private fun ScheduleBody.toSchedule(id: UUID): ReportSchedule? {

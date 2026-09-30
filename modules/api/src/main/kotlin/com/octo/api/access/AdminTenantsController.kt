@@ -50,7 +50,7 @@ class AdminTenantsController(
                 access.provisionTenant(
                     tenant = tenant,
                     adminUserId = body.firstAdminUserId,
-                    grantor = jwt.subject,
+                    grantor = jwt.subject!!,
                     registeredAt = Instant.now(),
                     provenance = AccessProvenance(SOURCE, UUID.randomUUID()),
                 )
@@ -85,16 +85,16 @@ class AdminTenantsController(
                         if (access.load(tenantId, userId) == null) {
                             access.registerMember(tenantId, userId, now, provenance)
                         }
-                        access.append(tenantId, userId, MembershipEvent.Granted(jwt.subject, now, role), provenance)
+                        access.append(tenantId, userId, MembershipEvent.Granted(jwt.subject!!, now, role), provenance)
                     }
                     "role-changed" ->
-                        access.append(tenantId, userId, MembershipEvent.RoleChanged(jwt.subject, now, roleOf(body.role)), provenance)
+                        access.append(tenantId, userId, MembershipEvent.RoleChanged(jwt.subject!!, now, roleOf(body.role)), provenance)
                     "revoked" ->
                         access.append(
                             tenantId,
                             userId,
                             MembershipEvent.Revoked(
-                                jwt.subject,
+                                jwt.subject!!,
                                 now,
                                 body.rationale?.takeIf(String::isNotBlank)
                                     ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "a revocation needs a rationale"),
@@ -142,7 +142,7 @@ class AdminTenantsController(
                 tenantId,
                 body.key,
                 body.value,
-                jwt.subject,
+                jwt.subject!!,
                 AccessProvenance(SOURCE, UUID.randomUUID()),
                 scopeOf(jwt),
             )
@@ -153,14 +153,14 @@ class AdminTenantsController(
     }
 
     private fun scopeOf(jwt: Jwt): TenantScope =
-        if (platform.isAdmin(jwt.subject)) {
+        if (platform.isAdmin(jwt.subject!!)) {
             TenantScope.All
         } else {
-            TenantScope.User(UUID.fromString(jwt.subject))
+            TenantScope.User(UUID.fromString(jwt.subject!!))
         }
 
     private fun requirePlatformAdmin(jwt: Jwt) {
-        if (!platform.isAdmin(jwt.subject)) {
+        if (!platform.isAdmin(jwt.subject!!)) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "tenant provisioning needs a platform admin")
         }
     }
@@ -169,8 +169,8 @@ class AdminTenantsController(
         jwt: Jwt,
         tenantId: UUID,
     ) {
-        if (platform.isAdmin(jwt.subject)) return
-        val caller = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
+        if (platform.isAdmin(jwt.subject!!)) return
+        val caller = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
         val tenantAdmin =
             caller
                 ?.let(directory::tenantsOf)

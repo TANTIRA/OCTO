@@ -58,7 +58,7 @@ class ReleaseController(
         val role = roleIn(userId, job) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         if (job.status != JobStatus.DONE || job.approvalTaskId != null) return ResponseEntity.status(HttpStatus.CONFLICT).build()
-        val task = Task(UUID.randomUUID(), TaskKind.APPROVAL, "report-job", id.toString(), jwt.subject, Instant.now())
+        val task = Task(UUID.randomUUID(), TaskKind.APPROVAL, "report-job", id.toString(), jwt.subject!!, Instant.now())
         // openUnlessOpen dedupes on the job subject, so a loser adopts the winner's task instead of
         // orphaning one nobody can decide; its attach then finds the slot taken and is a 409.
         val openedTask = tasks.openUnlessOpen(task, TaskProvenance("api", job.request.correlationId))
@@ -87,7 +87,7 @@ class ReleaseController(
         job: ReportJob,
     ): TenantRole? = tenants.tenantsOf(userId).firstOrNull { it.tenantId == job.request.tenantId }?.role
 
-    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
+    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
 
     /** [result] is present only once the approval task is approved: before that the artifact stays inside. */
     data class ReleaseView(

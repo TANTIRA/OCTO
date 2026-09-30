@@ -58,7 +58,7 @@ class ReportController(
                     positionSourceId = body.positionSourceId,
                     measures = body.measures,
                     parameters = json.writeValueAsString(body.parameters ?: emptyMap<String, Any?>()),
-                    requestedBy = jwt.subject,
+                    requestedBy = jwt.subject!!,
                     correlationId = UUID.randomUUID(),
                 ),
                 scope,
@@ -77,7 +77,7 @@ class ReportController(
         return ResponseEntity.ok(job.view())
     }
 
-    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject) }.getOrNull()
+    private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
 
     data class SubmitRequest(
         val tenantId: UUID,

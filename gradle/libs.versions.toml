@@ -2,6 +2,7 @@
 kotlin = "2.4.20"
 springBoot = "4.1.1"
 springDepMgmt = "1.1.7"
+jackson = "2.22.3"
 jackson = "2.22.2"
 jena = "6.1.0"
 ktlint = "14.2.0"
@@ -36,9 +37,13 @@ spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-star
 spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
 spring-boot-starter-oauth2-rs = { module = "org.springframework.boot:spring-boot-starter-oauth2-resource-server" }
 spring-boot-starter-data-redis = { module = "org.springframework.boot:spring-boot-starter-data-redis" }
+spring-boot-flyway = { module = "org.springframework.boot:spring-boot-flyway" }
+spring-boot-resttestclient = { module = "org.springframework.boot:spring-boot-resttestclient" }
+spring-boot-jackson2 = { module = "org.springframework.boot:spring-boot-jackson2" }
 spring-security-test = { module = "org.springframework.security:spring-security-test" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
 flyway-core = { module = "org.flywaydb:flyway-core" }
 flyway-postgres = { module = "org.flywaydb:flyway-database-postgresql" }
