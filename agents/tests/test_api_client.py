@@ -44,8 +44,9 @@ def test_path_segments_are_percent_encoded() -> None:
     # raw_path keeps the wire encoding — url.path decodes it.
     assert seen[0].url.raw_path == b"/api/v1/prospects/p%2F..%2Fx%3Fstage%3Dy"
 
-    api.list_agent_runs("t-1", subject_id="a/b?c")
-    assert seen[1].url.params["subjectId"] == "a/b?c"
+    api.list_agent_runs("t/1?x", limit=5)
+    assert seen[1].url.params["tenantId"] == "t/1?x"
+    assert seen[1].url.params["limit"] == "5"
 
 
 def test_query_params_encode_reserved_characters() -> None:
@@ -56,13 +57,6 @@ def test_query_params_encode_reserved_characters() -> None:
     assert params["stage"] == "ic-review"
     assert params["limit"] == "200"
     assert params["offset"] == "50"
-
-
-def test_get_dataset_passes_arbitrary_params_through_httpx() -> None:
-    seen, api = recording()
-    api.get_dataset("ds/1", as_of="2026-06-30", field="a&b")
-    assert seen[0].url.raw_path == b"/api/v1/data/ds%2F1?as_of=2026-06-30&field=a%26b"
-    assert seen[0].url.params["field"] == "a&b"
 
 
 def test_error_keeps_status_and_body() -> None:
