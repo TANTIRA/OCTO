@@ -68,7 +68,13 @@ const nextConfig: NextConfig = {
   // sets http://api:8080; local dev falls back to bootRun on localhost.
   async rewrites() {
     const api = process.env.API_INTERNAL_URL ?? "http://localhost:8080";
-    return [{ source: "/api/:path*", destination: `${api}/api/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${api}/api/:path*` },
+      // /admin probes actuator same-origin so the internal API base URL
+      // stays server-side. Actuator health is permitAll in SecurityConfig —
+      // this exposes nothing the API doesn't already serve publicly.
+      { source: "/ops-api/actuator/:path*", destination: `${api}/actuator/:path*` },
+    ];
   },
 };
 
