@@ -90,11 +90,22 @@ loopback and no bolt entryPoint is configured on the host.
 
 ## Rate limiting
 
-Two layers exist. The api carries a Redis-backed per-tenant limiter
-(`RateLimitFilter`, `OCTO_RATE_LIMIT_PER_MINUTE`, default 240/min) that counts
-authenticated JWT traffic; anonymous callers skip it, so any anonymously
-reachable path (webhooks, contact forms) needs the **edge** limiter below as
-the primary control.
+The api enforces its own limits; the Traefik middleware below is defense in
+depth, not a precondition (#321). In-app, always on:
+
+- **Per tenant** (`RateLimitFilter`): authenticated JWT traffic,
+  `OCTO_RATE_LIMIT_PER_MINUTE` (default 120/min, per-tenant override via the
+  `rate_limit_per_minute` tenant setting).
+- **Per client IP** (`ClientIpRateLimitFilter`, ahead of authentication on the
+  JWT and webhook chains): 30 failed authentications/min (401, or 403 for an
+  unauthenticated caller) before every request from that IP answers 429, and
+  10/min on the anonymous `POST /api/v1/contact`. The IP is the rightmost
+  `X-Forwarded-For` entry — the peer Traefik appended, not a client-chosen value.
+
+Counters live in Redis when `REDIS_HOST` is set (the `redis` service below), so
+replicas share one quota. Without Redis, or while it is failing, the api keeps
+enforcing with in-process counters — per instance, never fail-open — and logs
+one warning per 30s of outage.
 
 Dokploy's Traefik accepts per-router middlewares on each domain entry; the
 middleware itself is declared once as a file-provider dynamic config on the
@@ -111,7 +122,7 @@ http:
         burst: 200          # short spikes above average
         sourceCriterion:
           ipStrategy:
-            depth: 1        # X-Forwarded-For leftmost — Traefik fronts the api
+            depth: 1        # X-Forwarded-For rightmost — the peer Traefik appended
 ```
 
 Attach it in Dokploy → project → **Domains** → each domain's middleware field:

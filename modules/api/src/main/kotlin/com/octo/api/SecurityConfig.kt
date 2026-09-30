@@ -3,14 +3,22 @@ package com.octo.api
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.persistence.TenantSettings
 import com.octo.api.ingestion.HeliusWebhookAuthFilter
+import io.lettuce.core.ClientOptions
+import io.lettuce.core.SocketOptions
 import jakarta.servlet.DispatcherType
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Condition
+import org.springframework.context.annotation.ConditionContext
+import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
 import org.springframework.core.env.Environment
+import org.springframework.core.type.AnnotatedTypeMetadata
 import org.springframework.data.redis.connection.RedisConnectionFactory
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.http.HttpMethod
@@ -29,6 +37,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import java.time.Duration
 
 /**
  * Auth boundary for the REST API (AGENTS.md: auth endpoints are T2).
@@ -55,6 +64,7 @@ class SecurityConfig {
     fun heliusWebhookFilterChain(
         http: HttpSecurity,
         env: Environment,
+        quotaCounter: QuotaCounter,
     ): SecurityFilterChain {
         http
             .securityMatcher("/api/v1/ingestion/webhooks/helius")
@@ -77,27 +87,53 @@ class SecurityConfig {
                 HeliusWebhookAuthFilter(env.getProperty("HELIUS_WEBHOOK_SECRET")),
                 UsernamePasswordAuthenticationFilter::class.java,
             )
+            // Wrong-secret floods are charged per IP ahead of the digest compare (#321); valid
+            // deliveries are never counted — Helius bursts are retries we must not drop.
+            .addFilterBefore(ClientIpRateLimitFilter(quotaCounter), HeliusWebhookAuthFilter::class.java)
         return http.build()
     }
 
     /**
-     * Redis backing the per-tenant quota counters — exists only when `REDIS_HOST` is configured,
-     * so a deployment without the cache tier keeps working (the limiter simply isn't registered).
+     * Redis shared by the quota counters — exists only when `REDIS_HOST` is non-blank (compose
+     * passes an empty string when unset). Boot's own Redis auto-config is excluded in
+     * application.yml: it would otherwise mint a `localhost:6379` factory that fails every call.
+     * Timeouts are short because a slow quota store must never stall the request it guards.
      */
     @Bean
-    @ConditionalOnProperty(name = ["REDIS_HOST"])
+    @Conditional(RedisHostConfigured::class)
     fun rateLimitRedisFactory(env: Environment): LettuceConnectionFactory =
         LettuceConnectionFactory(
-            env.getRequiredProperty("REDIS_HOST"),
-            env.getProperty("REDIS_PORT", "6379").toInt(),
+            RedisStandaloneConfiguration(
+                env.getRequiredProperty("REDIS_HOST"),
+                env.getProperty("REDIS_PORT")?.takeIf(String::isNotBlank)?.toInt() ?: 6379,
+            ),
+            LettuceClientConfiguration
+                .builder()
+                .commandTimeout(REDIS_TIMEOUT)
+                .clientOptions(
+                    ClientOptions
+                        .builder()
+                        .socketOptions(SocketOptions.builder().connectTimeout(REDIS_TIMEOUT).build())
+                        .build(),
+                ).build(),
         )
+
+    /**
+     * Always present: Redis-backed when configured, in-process otherwise — never absent (#321).
+     * Bound to [rateLimitRedisFactory] by name so no other Redis client (e.g. Boot's localhost
+     * default in a context that skips application.yml) can become the quota store.
+     */
+    @Bean
+    fun quotaCounter(
+        @Qualifier("rateLimitRedisFactory") redis: ObjectProvider<RedisConnectionFactory>,
+    ): QuotaCounter = QuotaCounter(redis.ifAvailable?.let(::StringRedisTemplate))
 
     @Bean
     @Order(2)
     fun securityFilterChain(
         http: HttpSecurity,
         env: Environment,
-        redis: ObjectProvider<RedisConnectionFactory>,
+        quotaCounter: QuotaCounter,
         tenantDirectory: TenantDirectory,
         tenantSettings: TenantSettings,
     ): SecurityFilterChain {
@@ -145,20 +181,20 @@ class SecurityConfig {
             )
         }
 
-        // Per-tenant quota counts authenticated traffic only, so it runs after the bearer token
-        // has been verified — a forged X-Tenant-Id cannot reach somebody else's counter because
-        // the tenant comes from resolved membership, not the request.
-        redis.ifAvailable { factory ->
-            http.addFilterAfter(
-                RateLimitFilter(
-                    StringRedisTemplate(factory),
-                    tenantSettings,
-                    tenantDirectory,
-                    env.getProperty("octo.rate-limit.default-per-minute", Int::class.java, 120),
-                ),
-                BearerTokenAuthenticationFilter::class.java,
-            )
-        }
+        // Per-IP guard runs before the bearer token is decoded, so 401 floods and the anonymous
+        // lead form are counted (#321). The per-tenant quota counts authenticated traffic only, so
+        // it runs after the token has been verified — a forged X-Tenant-Id cannot reach somebody
+        // else's counter because the tenant comes from resolved membership, not the request.
+        http.addFilterBefore(ClientIpRateLimitFilter(quotaCounter), BearerTokenAuthenticationFilter::class.java)
+        http.addFilterAfter(
+            RateLimitFilter(
+                quotaCounter,
+                tenantSettings,
+                tenantDirectory,
+                env.getProperty("octo.rate-limit.default-per-minute", Int::class.java, 120),
+            ),
+            BearerTokenAuthenticationFilter::class.java,
+        )
 
         val jwksUri = env.getProperty("AUTH_JWKS_URL")?.takeIf(String::isNotBlank)
         if (jwksUri != null) {
@@ -186,6 +222,17 @@ class SecurityConfig {
         }
         return http.build()
     }
+
+    private companion object {
+        val REDIS_TIMEOUT: Duration = Duration.ofMillis(250)
+    }
+}
+
+private class RedisHostConfigured : Condition {
+    override fun matches(
+        context: ConditionContext,
+        metadata: AnnotatedTypeMetadata,
+    ): Boolean = !context.environment.getProperty("REDIS_HOST").isNullOrBlank()
 }
 
 /**
