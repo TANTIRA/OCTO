@@ -66,6 +66,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -99,8 +104,16 @@ services:
     networks:
       - default
       - dokploy-network
+    # api's readiness healthcheck must pass before the sidecar boots — a bare
+    # depends_on raced the JVM and lost runs to connection-refused.
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -122,6 +135,11 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -148,7 +166,8 @@ services:
       - default
       - dokploy-network
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     healthcheck:
       # 127.0.0.1, not localhost: the standalone server binds IPv4 0.0.0.0 and
       # busybox wget tries ::1 first on alpine, which reports unhealthy falsely.
@@ -156,11 +175,18 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
           cpus: "0.5"
           memory: 256M
+        reservations:
+          memory: 128M
 
 # Graph store: the external octo-neo4j-db Dokploy service (bolt :7687 on
 # dokploy-network). It lives outside this compose so Browser and the app share
