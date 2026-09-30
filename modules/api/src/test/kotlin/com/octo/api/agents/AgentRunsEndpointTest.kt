@@ -285,6 +285,91 @@ class AgentRunsEndpointTest {
         }
     }
 
+    @Test
+    fun `input, models and thresholds must be JSON objects, not scalars or arrays`() {
+        run { mvc ->
+            for (bad in listOf(
+                """"input":"not-an-object","models":{}""",
+                """"input":[1,2,3],"models":{}""",
+                """"input":{},"models":["typesafe/jev-1.13"]""",
+                """"input":{},"models":{"judge":42}""",
+                """"input":{},"models":{"judge":""}""",
+                """"input":{},"models":{},"thresholds":"nope"""",
+            )) {
+                mvc
+                    .perform(
+                        post("/api/v1/agent-runs")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(
+                                """{"tenantId":"$tenantId","workflow":"screening-dd","runKey":"${UUID.randomUUID()}",""" +
+                                    """"subjectType":"prospect","subjectId":"p-1",$bad}""",
+                            ).with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isBadRequest)
+            }
+            assertThat(runs.list(tenantId, null, null, 200, TenantScope.User(member))).isEmpty()
+        }
+    }
+
+    @Test
+    fun `an oversized JSON field is rejected without recording a run`() {
+        run { mvc ->
+            val huge = "x".repeat(40_000)
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """{"tenantId":"$tenantId","workflow":"screening-dd","runKey":"oversized",""" +
+                                """"subjectType":"prospect","subjectId":"p-1","input":{"blob":"$huge"},"models":{}}""",
+                        ).with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+            assertThat(runs.list(tenantId, null, null, 200, TenantScope.User(member))).isEmpty()
+        }
+    }
+
+    @Test
+    fun `finish rejects a non-object output or verdict without closing the run`() {
+        run { mvc ->
+            val id = mvc.recorded(member, "rk-finish-shape")
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs/$id/finish")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"status":"completed","output":"not-an-object"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs/$id/finish")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"status":"completed","verdict":[1,2,3]}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `outcome ignores a caller-supplied decided_by and always stamps the real caller`() {
+        run { mvc ->
+            val id = mvc.recorded(member, "rk-decided-by")
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs/$id/finish")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"status":"completed"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs/$id/outcome")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"outcome":{"decision":"advanced","decided_by":"someone-else"}}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.humanOutcome.decided_by").value(member.toString()))
+        }
+    }
+
     private class FakeAgentRuns : AgentRuns {
         private val rows = mutableMapOf<UUID, AgentRun>()
 

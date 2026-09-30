@@ -46,6 +46,16 @@ class AgentRunsController(
 
     private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
 
+    /**
+     * `input`/`models`/`thresholds` used to accept any JSON at all — a bare string, an array, an
+     * arbitrarily large payload — with no shape or size check before landing in the audit spine
+     * (#342). Every one of these fields is documented and exercised as a JSON *object*; a bare
+     * scalar or array is never a legitimate value, and an unbounded one is a storage-abuse lever
+     * for a caller who can already reach this endpoint for their own tenant.
+     */
+    private fun isBoundedObject(value: Any?): Boolean =
+        value == null || (value is Map<*, *> && json.writeValueAsBytes(value).size <= MAX_JSON_BYTES)
+
     @PostMapping("/api/v1/agent-runs")
     fun record(
         @RequestBody body: RecordRequest,
@@ -57,7 +67,11 @@ class AgentRunsController(
         if (!body.workflow.matches(Regex("[a-z][a-z0-9-]{0,62}")) ||
             !body.subjectType.matches(Regex("[a-z][a-z0-9_-]{0,62}")) ||
             body.runKey.isBlank() || body.subjectId.isBlank() ||
-            body.runKey.length > 200 || body.subjectId.length > 200
+            body.runKey.length > 200 || body.subjectId.length > 200 ||
+            !isBoundedObject(body.input) ||
+            !isBoundedObject(body.models) || body.models !is Map<*, *> ||
+            body.models.values.any { it !is String || it.isBlank() } ||
+            !isBoundedObject(body.thresholds)
         ) {
             return ResponseEntity.badRequest().build()
         }
@@ -98,7 +112,13 @@ class AgentRunsController(
         val role = roleIn(userId, run.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val status = body.toStatus() ?: return ResponseEntity.badRequest().build()
-        if (status == AgentRunStatus.RUNNING) return ResponseEntity.badRequest().build()
+        if (status == AgentRunStatus.RUNNING ||
+            !isBoundedObject(body.output) ||
+            !isBoundedObject(body.verdict) ||
+            (body.error?.length ?: 0) > MAX_ERROR_LENGTH
+        ) {
+            return ResponseEntity.badRequest().build()
+        }
         val closed =
             runs.finish(
                 id,
@@ -126,8 +146,11 @@ class AgentRunsController(
         val run = runs.load(id, scope) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, run.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        if (!isBoundedObject(body.outcome)) return ResponseEntity.badRequest().build()
+        // The caller's own outcome map must never be able to overwrite decided_by — Map + Map
+        // favors the right-hand side, so a body containing that key used to spoof who decided.
         val landed =
-            runs.recordOutcome(id, json.writeValueAsString(mapOf("decided_by" to jwt.subject!!) + body.outcome), scope)
+            runs.recordOutcome(id, json.writeValueAsString((body.outcome - "decided_by") + ("decided_by" to jwt.subject!!)), scope)
         return if (landed) {
             ResponseEntity.ok(runs.load(id, scope)!!.view(json))
         } else {
@@ -229,6 +252,12 @@ class AgentRunsController(
     )
 
     companion object {
+        /** Bound on any single JSON-object field recorded onto a run (#342) — audit metadata, not a blob store. */
+        private const val MAX_JSON_BYTES = 32_768
+
+        /** Bound on `finish`'s free-text error message (#342). */
+        private const val MAX_ERROR_LENGTH = 4_000
+
         /** jsonb columns come back as text — re-parse so the wire shape is real JSON, not escaped. */
         private fun AgentRun.view(json: ObjectMapper) =
             mapOf(
