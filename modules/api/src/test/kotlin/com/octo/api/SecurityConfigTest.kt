@@ -102,14 +102,34 @@ class SecurityConfigTest {
     }
 
     @Test
-    fun `context starts when a JWKS URL is configured`() {
+    fun `context starts when a JWKS URL is configured alongside issuer and audience`() {
         contextRunner
             .withPropertyValues(
                 "AUTH_JWKS_URL=https://issuer.example.invalid/.well-known/jwks.json",
                 "AUTH_ISSUER=https://issuer.example.invalid/",
+                "AUTH_AUDIENCE=authenticated",
             ).run { context ->
                 assertThat(context).getBeans(SecurityFilterChain::class.java).hasSize(2)
             }
+    }
+
+    @Test
+    fun `a configured JWKS refuses to boot without both issuer and audience`() {
+        listOf(
+            listOf("AUTH_JWKS_URL=https://issuer.example.invalid/.well-known/jwks.json"),
+            listOf(
+                "AUTH_JWKS_URL=https://issuer.example.invalid/.well-known/jwks.json",
+                "AUTH_ISSUER=https://issuer.example.invalid/",
+            ),
+            listOf(
+                "AUTH_JWKS_URL=https://issuer.example.invalid/.well-known/jwks.json",
+                "AUTH_AUDIENCE=authenticated",
+            ),
+        ).forEach { overrides ->
+            contextRunner
+                .withPropertyValues(*overrides.toTypedArray())
+                .run { context -> assertThat(context.startupFailure).isNotNull() }
+        }
     }
 
     @Test
