@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
 from ..judge import JudgeClient, NoulQuestion
-from .screening_dd import _record_run
+from .screening_dd import _record_run, finish_failed
 
 RATIONALE_PROMPT = """You are the OCTO compliance analyst. Turn the supplied rule
 evaluations into a rationale an approver can act on. For each outcome state
@@ -132,7 +132,11 @@ def run_compliance_rationale(
                 ),
             ]
         )
-        rationale = message.content if isinstance(message.content, str) else str(message.content)
+        rationale = (
+            message.content
+            if isinstance(message.content, str)
+            else str(message.content)
+        )
 
         verdict = judge_rationale(
             judge, subject=subject, outcomes=outcomes, rationale=rationale
@@ -142,7 +146,9 @@ def run_compliance_rationale(
             status="completed" if verdict.ship else "refused",
             rationale=rationale,
             verdict=verdict,
-            note=None if verdict.ship else "the jev gate could not verify the rationale's citations",
+            note=None
+            if verdict.ship
+            else "the jev gate could not verify the rationale's citations",
         )
         api.finish_run(
             run_id,
@@ -156,5 +162,5 @@ def run_compliance_rationale(
         )
         return result
     except Exception as e:
-        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        finish_failed(api, run_id, e)
         raise

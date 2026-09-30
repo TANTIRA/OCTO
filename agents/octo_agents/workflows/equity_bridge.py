@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
-from .screening_dd import _record_run
+from .screening_dd import _record_run, finish_failed
 
 BRIDGE_PROMPT = """You are the OCTO investment analyst. Narrate the equity-value bridge
 between the entry and exit points of the company whose computed effects follow.
@@ -207,5 +207,5 @@ def run_equity_bridge(
         )
         return result
     except Exception as e:
-        api.finish_run(run_id, status="failed", error=str(e)[:2000])
+        finish_failed(api, run_id, e)
         raise
