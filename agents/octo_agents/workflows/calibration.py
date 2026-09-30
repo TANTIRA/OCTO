@@ -133,7 +133,7 @@ def run_calibration(
             if decision in AGREED:
                 bucket.agreed += 1
                 expect_ship = shipped
-            else:
+            elif decision in DISAGREED:
                 # A human override means the machine's direction was wrong.
                 bucket.disagreed += 1
                 expect_ship = not shipped
@@ -148,6 +148,10 @@ def run_calibration(
                         verdict=run.get("verdict"),
                     )
                 )
+            else:
+                # Unrecognized vocabulary isn't a verdict on the artifact —
+                # count it as decided but keep the machine's direction.
+                expect_ship = shipped
             eval_cases.append(
                 EvalCase(
                     case=f"feedback:{run.get('id')}",
