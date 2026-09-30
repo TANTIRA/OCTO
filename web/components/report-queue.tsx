@@ -50,6 +50,21 @@ type Flow = { date: string; amount: string };
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// The API has no job list to re-read, so this tab remembers the ids it queued
+// per workspace. Leaving the area no longer strands a sealed report.
+function storedJobIds(key: string): string[] {
+  try {
+    const ids: unknown = JSON.parse(sessionStorage.getItem(key) ?? "[]");
+    return Array.isArray(ids)
+      ? ids.filter((id): id is string => typeof id === "string" && UUID.test(id))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function ReportQueue() {
   const { tenantId } = useTenants();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -66,6 +81,26 @@ export default function ReportQueue() {
   const [valuationDate, setValuationDate] = useState(today());
   const [flows, setFlows] = useState<Flow[]>([{ date: "", amount: "" }]);
   const [measures, setMeasures] = useState<string[]>(["tvpi", "dpi", "irr"]);
+  const jobsKey = `octo.report-jobs.${tenantId}`;
+
+  useEffect(() => {
+    const ids = storedJobIds(jobsKey);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    Promise.all(ids.map((id) => getJson<Job>(`/api/v1/reports/${id}`).catch(() => null))).then(
+      (list) => {
+        if (cancelled) return;
+        // Merge: a job queued while this read was in flight stays on top.
+        setJobs((prev) => [
+          ...prev,
+          ...list.filter((j): j is Job => j !== null && !prev.some((p) => p.id === j.id)),
+        ]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [jobsKey]);
 
   const refresh = useCallback(async () => {
     const active = jobs.filter((j) => j.status === "new" || j.status === "executing");
@@ -111,6 +146,11 @@ export default function ReportQueue() {
         },
       });
       setJobs((prev) => [job, ...prev]);
+      try {
+        sessionStorage.setItem(jobsKey, JSON.stringify([job.id, ...storedJobIds(jobsKey)].slice(0, 20)));
+      } catch {
+        // Storage blocked: the job still shows until the area is left.
+      }
       setNotice("performance job queued — polling for the result.");
     } catch (e) {
       setError(messageFor(e));
