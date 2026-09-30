@@ -46,12 +46,12 @@ subprojects {
     configurations.all {
         resolutionStrategy {
             // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot)
-            force("io.netty:netty-common:4.1.137.Final")
-            force("io.netty:netty-handler:4.1.137.Final")
-            force("io.netty:netty-buffer:4.1.137.Final")
-            force("io.netty:netty-transport:4.1.137.Final")
-            force("io.netty:netty-codec:4.1.137.Final")
-            force("io.netty:netty-resolver:4.1.137.Final")
+            force("io.netty:netty-common:4.2.17.Final")
+            force("io.netty:netty-handler:4.2.17.Final")
+            force("io.netty:netty-buffer:4.2.17.Final")
+            force("io.netty:netty-transport:4.2.17.Final")
+            force("io.netty:netty-codec:4.2.17.Final")
+            force("io.netty:netty-resolver:4.2.17.Final")
             force("org.apache.tomcat.embed:tomcat-embed-core:11.0.24")
             force("org.apache.tomcat.embed:tomcat-embed-el:11.0.24")
             force("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.24")

@@ -8,15 +8,15 @@ plugins {
 configurations.all {
     resolutionStrategy {
         // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot BOM)
-        force("io.netty:netty-common:4.1.137.Final")
-        force("io.netty:netty-handler:4.1.137.Final")
-        force("io.netty:netty-buffer:4.1.137.Final")
-        force("io.netty:netty-transport:4.1.137.Final")
-        force("io.netty:netty-codec:4.1.137.Final")
-        force("io.netty:netty-resolver:4.1.137.Final")
-        force("org.apache.tomcat.embed:tomcat-embed-core:10.1.60")
-        force("org.apache.tomcat.embed:tomcat-embed-el:10.1.60")
-        force("org.apache.tomcat.embed:tomcat-embed-websocket:10.1.60")
+        force("io.netty:netty-common:4.2.17.Final")
+        force("io.netty:netty-handler:4.2.17.Final")
+        force("io.netty:netty-buffer:4.2.17.Final")
+        force("io.netty:netty-transport:4.2.17.Final")
+        force("io.netty:netty-codec:4.2.17.Final")
+        force("io.netty:netty-resolver:4.2.17.Final")
+        force("org.apache.tomcat.embed:tomcat-embed-core:11.0.24")
+        force("org.apache.tomcat.embed:tomcat-embed-el:11.0.24")
+        force("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.24")
         force("org.apache.logging.log4j:log4j-api:2.25.5")
         force("org.apache.logging.log4j:log4j-to-slf4j:2.25.5")
         force("org.freemarker:freemarker:2.3.35")
@@ -57,15 +57,15 @@ dependencies {
 
     // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot BOM)
     // Using strictly() to override Spring Dependency Management BOM
-    implementation("io.netty:netty-common:4.1.137.Final") { version { strictly("4.1.137.Final") } }
-    implementation("io.netty:netty-handler:4.1.137.Final") { version { strictly("4.1.137.Final") } }
-    implementation("io.netty:netty-buffer:4.1.137.Final") { version { strictly("4.1.137.Final") } }
-    implementation("io.netty:netty-transport:4.1.137.Final") { version { strictly("4.1.137.Final") } }
-    implementation("io.netty:netty-codec:4.1.137.Final") { version { strictly("4.1.137.Final") } }
-    implementation("io.netty:netty-resolver:4.1.137.Final") { version { strictly("4.1.137.Final") } }
-    implementation("org.apache.tomcat.embed:tomcat-embed-core:10.1.60") { version { strictly("10.1.60") } }
-    implementation("org.apache.tomcat.embed:tomcat-embed-el:10.1.60") { version { strictly("10.1.60") } }
-    implementation("org.apache.tomcat.embed:tomcat-embed-websocket:10.1.60") { version { strictly("10.1.60") } }
+    implementation("io.netty:netty-common:4.2.17.Final") { version { strictly("4.2.17.Final") } }
+    implementation("io.netty:netty-handler:4.2.17.Final") { version { strictly("4.2.17.Final") } }
+    implementation("io.netty:netty-buffer:4.2.17.Final") { version { strictly("4.2.17.Final") } }
+    implementation("io.netty:netty-transport:4.2.17.Final") { version { strictly("4.2.17.Final") } }
+    implementation("io.netty:netty-codec:4.2.17.Final") { version { strictly("4.2.17.Final") } }
+    implementation("io.netty:netty-resolver:4.2.17.Final") { version { strictly("4.2.17.Final") } }
+    implementation("org.apache.tomcat.embed:tomcat-embed-core:11.0.24") { version { strictly("11.0.24") } }
+    implementation("org.apache.tomcat.embed:tomcat-embed-el:11.0.24") { version { strictly("11.0.24") } }
+    implementation("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.24") { version { strictly("11.0.24") } }
     implementation("org.apache.logging.log4j:log4j-api:2.25.5") { version { strictly("2.25.5") } }
     implementation("org.apache.logging.log4j:log4j-to-slf4j:2.25.5") { version { strictly("2.25.5") } }
     implementation("org.freemarker:freemarker:2.3.35") { version { strictly("2.3.35") } }
