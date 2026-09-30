@@ -48,7 +48,7 @@ class JdbcAccessStore(
     }
 
     /** Registers [userId] in the tenant at [registeredAt]. Access comes from events, not this row. */
-    fun registerMember(
+    override fun registerMember(
         tenantId: UUID,
         userId: UUID,
         registeredAt: Instant,
@@ -79,7 +79,7 @@ class JdbcAccessStore(
         }
 
     /** The membership's state after every stored event, or null when the pair is not registered. */
-    fun load(
+    override fun load(
         tenantId: UUID,
         userId: UUID,
     ): MembershipState? = dataSource.scoped(TenantScope.All) { connection -> replayLocked(connection, tenantId, userId) }
@@ -100,25 +100,6 @@ class JdbcAccessStore(
                 replayLocked(connection, tenantId, userId)
                     ?: throw NoSuchElementException("no member $userId in tenant $tenantId")
             val after = before.next(event)
-            insertEvent(connection, tenantId, userId, event, provenance)
-            after
-        }
-
-    /**
-     * [append] for a grant that may be the pair's first: registers [userId] at [event]'s time when
-     * absent, in the same transaction and under the same lock, so a grant the state machine refuses
-     * leaves no registration behind — the row is append-only and could never be removed.
-     */
-    override fun grant(
-        tenantId: UUID,
-        userId: UUID,
-        event: MembershipEvent.Granted,
-        provenance: AccessProvenance,
-    ): MembershipState =
-        dataSource.scoped(TenantScope.All) { connection ->
-            val existing = replayLocked(connection, tenantId, userId)
-            val after = (existing ?: registered(tenantId, userId, event.at)).next(event)
-            if (existing == null) insertMember(connection, tenantId, userId, event.at, provenance)
             insertEvent(connection, tenantId, userId, event, provenance)
             after
         }

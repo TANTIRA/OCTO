@@ -41,12 +41,17 @@ class AccessConfiguration {
                 provenance: AccessProvenance,
             ) = store.provisionTenant(tenant, adminUserId, grantor, registeredAt, provenance)
 
-            override fun grant(
+            override fun registerMember(
                 tenantId: UUID,
                 userId: UUID,
-                event: MembershipEvent.Granted,
+                registeredAt: Instant,
                 provenance: AccessProvenance,
-            ) = store.grant(tenantId, userId, event, provenance)
+            ) = store.registerMember(tenantId, userId, registeredAt, provenance)
+
+            override fun load(
+                tenantId: UUID,
+                userId: UUID,
+            ) = store.load(tenantId, userId)
 
             override fun append(
                 tenantId: UUID,

@@ -330,17 +330,24 @@ class AdminTenantsEndpointTest {
                 .next(MembershipEvent.Granted(grantor, registeredAt, TenantRole.ADMIN))
                 .also { provisioned += tenant }
 
-        /** Like the real store: a rejected grant registers nothing. */
-        override fun grant(
+        override fun registerMember(
             tenantId: UUID,
             userId: UUID,
-            event: MembershipEvent.Granted,
+            registeredAt: Instant,
             provenance: AccessProvenance,
-        ): MembershipState {
-            nextError?.let { throw it }
+        ) {
             registered = true
-            return append(tenantId, userId, event, provenance)
         }
+
+        override fun load(
+            tenantId: UUID,
+            userId: UUID,
+        ): MembershipState? =
+            if (registered) {
+                MembershipState(tenantId, userId, MembershipStatus.NONE, null, Instant.EPOCH)
+            } else {
+                null
+            }
 
         override fun append(
             tenantId: UUID,
