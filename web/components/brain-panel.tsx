@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import PanelHeader from "@/components/panel-header";
 import { messageFor, postJson } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { useTenants } from "@/lib/use-tenants";
 
 /**
@@ -53,6 +54,8 @@ export default function BrainPanel() {
 
       <label className="flex flex-col gap-1.5">
         <span className="text-[13px] text-neutral-500">Question</span>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="text-neutral-500">Question</span>
         <textarea
           className="min-h-24 rounded-[var(--rb-r-lg,10px)] border border-neutral-200/70 bg-white px-3 py-2 text-[13px] text-neutral-900 placeholder:text-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
           placeholder="Who is standing at ic-review? What did diligence surface on PT Acme?"
@@ -75,6 +78,12 @@ export default function BrainPanel() {
         {pending ? "Thinking…" : "Ask"}
         {!pending && <kbd className="font-mono text-[11px] opacity-70">⌘↵</kbd>}
       </button>
+
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       {result && (
         <section

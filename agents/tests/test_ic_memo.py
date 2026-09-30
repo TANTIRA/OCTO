@@ -28,7 +28,7 @@ class FakeApi(OctoApiClient):
         return {"warmContext": self.warm_context}
 
     def get_prospect(self, prospect_id: str) -> Any:
-        return {"id": prospect_id, "stage": "ic-review", "name": "PT Acme"}
+        return {"id": prospect_id, "tenantId": "t-1", "stage": "ic-review", "name": "PT Acme"}
 
     def list_prospect_events(self, prospect_id: str) -> Any:
         return self.events

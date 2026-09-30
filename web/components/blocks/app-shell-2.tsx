@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
   Brain,
@@ -40,6 +41,9 @@ const focusInset =
 const transition =
   "transition-[background-color,border-color,color] duration-150 ease-out";
 
+const TOOLTIP_DELAY_MS = 400;
+const TOOLTIP_GRACE_MS = 300;
+
 type Area = {
   id: string;
   label: string;
@@ -59,6 +63,14 @@ const AREAS: Area[] = [
   { id: "brain", label: "Company brain", icon: Brain, title: "Company brain" },
   { id: "assets", label: "Assets", icon: Landmark, title: "Assets", pending: true },
   { id: "positions", label: "Positions", icon: ChartPie, title: "Positions", pending: true },
+  { id: "assets", label: "Assets", icon: Landmark, title: "Assets" },
+  { id: "positions", label: "Positions", icon: ChartPie, title: "Positions" },
+  { id: "deals", label: "Deals", icon: Kanban, title: "Deal pipeline" },
+  { id: "recon", label: "Recon", icon: GitCompareArrows, title: "Reconciliation" },
+  { id: "reports", label: "Reports", icon: ChartPie, title: "Reports" },
+  { id: "compliance", label: "Compliance", icon: Check, title: "Compliance" },
+  { id: "alerts", label: "Alerts", icon: Bell, title: "Alerts & agents" },
+  { id: "brain", label: "Company brain", icon: Brain, title: "Company brain" },
 ];
 
 function WorkspaceSwitcher() {
@@ -335,6 +347,46 @@ function NavigationFrame({
         </a>
       </li>
     );
+  const [tipFor, setTipFor] = useState<string | null>(null);
+  const [tipShown, setTipShown] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const frameRef = useRef<number | undefined>(undefined);
+  const openRef = useRef(false);
+  const graceRef = useRef(false);
+  const graceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const showTip = (id: string) => {
+    clearTimeout(timerRef.current);
+    cancelAnimationFrame(frameRef.current ?? 0);
+    const instant = openRef.current || graceRef.current;
+    const reveal = () => {
+      openRef.current = true;
+      setTipFor(id);
+      if (instant) {
+        setTipShown(true);
+      } else {
+        setTipShown(false);
+        frameRef.current = requestAnimationFrame(() => setTipShown(true));
+      }
+    };
+    if (instant) reveal();
+    else timerRef.current = setTimeout(reveal, TOOLTIP_DELAY_MS);
+  };
+
+  const hideTip = () => {
+    clearTimeout(timerRef.current);
+    cancelAnimationFrame(frameRef.current ?? 0);
+    if (openRef.current) {
+      graceRef.current = true;
+      clearTimeout(graceTimerRef.current);
+      graceTimerRef.current = setTimeout(() => {
+        graceRef.current = false;
+      }, TOOLTIP_GRACE_MS);
+    }
+    openRef.current = false;
+    setTipFor(null);
+    setTipShown(false);
   };
 
   return (
@@ -388,6 +440,13 @@ function NavigationFrame({
         />
       </div>
     </div>
+
+      <div className="flex w-64 min-w-0 flex-col bg-neutral-50 dark:bg-neutral-900">
+        <div className="shrink-0 px-2 pb-1 pt-2">
+          <WorkspaceSwitcher />
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -411,6 +470,7 @@ export default function AppShell2() {
   const shouldFocusRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
+
   const area = AREAS.find((item) => item.id === areaId) ?? AREAS[0];
 
   // location.hash is the source of truth for area selection: sidebar links
@@ -470,6 +530,14 @@ export default function AppShell2() {
       clearTimeout(timer);
     };
   }, [selectArea]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const view = rootRef.current?.ownerDocument.defaultView ?? window;
+      if (view.matchMedia("(max-width: 1023px)").matches) setDrawerOpen(true);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -640,6 +708,43 @@ export default function AppShell2() {
                 <BrainPanel />
               ) : null}
             </Fragment>
+              </div>
+            ) : tenantError ? (
+              <StatePanel
+                title="Workspaces unavailable"
+                detail={`Your workspace memberships could not be loaded — ${tenantError}.`}
+                onRetry={retryTenants}
+              />
+            ) : tenants.length === 0 ? (
+              <StatePanel
+                title="No workspace access yet"
+                detail="Your account is not a member of any workspace. Ask a workspace admin to add you, then reload this page."
+              />
+            ) : area.id === "overview" ? (
+              <Dashboard4 />
+            ) : area.id === "assets" ? (
+              <StatePanel
+                title="Asset register"
+                detail="Assets are recorded one by one, but no register view lists them yet, so there are no rows to show."
+              />
+            ) : area.id === "positions" ? (
+              <StatePanel
+                title="Positions"
+                detail="Positions derive from the transaction ledger, but no positions view is served yet. The overview shows live pipeline and agent activity in the meantime."
+              />
+            ) : area.id === "deals" ? (
+              <PipelineBoard />
+            ) : area.id === "reports" ? (
+              <ReportQueue />
+            ) : area.id === "recon" ? (
+              <ReconPanel />
+            ) : area.id === "compliance" ? (
+              <CompliancePanel />
+            ) : area.id === "alerts" ? (
+              <AgentRunsPanel />
+            ) : area.id === "brain" ? (
+              <BrainPanel />
+            ) : null}
           </main>
           <div
             aria-hidden="true"

@@ -66,6 +66,7 @@ const fmtTime = (iso?: string) =>
     : "";
 
 export default function Dashboard4() {
+  const body = useScrollFade<HTMLDivElement>();
   const { tenantId } = useTenants();
 
   const [prospects, setProspects] = useState<Record<string, Prospect[]>>({});
@@ -171,6 +172,63 @@ export default function Dashboard4() {
             <p className="mt-2 truncate text-2xl font-medium tabular-nums tracking-[-0.02em] text-neutral-900 dark:text-neutral-100">
               {loadedAt ? s.value : "—"}
             </p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span
+            aria-live="polite"
+            className="hidden text-[13px] tabular-nums text-neutral-500 sm:inline"
+          >
+            {loading
+              ? "Refreshing…"
+              : loadedAt
+                ? `Updated ${loadedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`
+                : ""}
+          </span>
+          <button
+            type="button"
+            onClick={load}
+            disabled={loading || !tenantId}
+            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[var(--rb-r-md,8px)] border border-neutral-200 bg-white px-3 text-sm font-medium text-neutral-900 transition-[transform,background-color,border-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-neutral-300 hover:bg-neutral-50 active:scale-[0.97] focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:border-neutral-700 dark:hover:bg-neutral-800 dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))]"
+          >
+            <RefreshCw
+              aria-hidden
+              className={cx(
+                "h-4 w-4 shrink-0 text-neutral-500",
+                loading && "animate-spin motion-reduce:animate-none",
+              )}
+            />
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={body.ref}
+          onScroll={body.onScroll}
+          className="h-full overflow-y-auto p-4 sm:p-6"
+        >
+          {error && (
+            <p className="mb-4 rounded-[var(--rb-r-lg,10px)] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+              {error}
+            </p>
+          )}
+
+          <div className="grid grid-cols-2 gap-1 rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-neutral-50 p-1 lg:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-950">
+            {stats.map((s) => (
+              <div
+                key={s.label}
+                className="rounded-[var(--rb-r-lg,10px)] border border-neutral-200/70 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
+              >
+                <p className="truncate text-[13px] text-neutral-500">
+                  {s.label}
+                </p>
+                <p className="mt-2 truncate text-2xl font-medium tabular-nums tracking-[-0.02em] text-neutral-900 dark:text-neutral-100">
+                  {loadedAt ? s.value : "—"}
+                </p>
+              </div>
+            ))}
           </div>
         ))}
       </div>
