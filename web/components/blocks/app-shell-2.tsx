@@ -798,6 +798,14 @@ export default function AppShell2() {
   }, [selectArea]);
 
   useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const view = rootRef.current?.ownerDocument.defaultView ?? window;
+      if (view.matchMedia("(max-width: 1023px)").matches) setDrawerOpen(true);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
     if (!drawerOpen) return;
     const drawer = drawerRef.current;
     const doc = drawer?.ownerDocument ?? document;

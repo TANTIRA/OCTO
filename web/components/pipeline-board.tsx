@@ -155,6 +155,44 @@ export default function PipelineBoard() {
       />
 
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:min-h-0 xl:flex-1 xl:grid-cols-4">
+
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:min-h-0 xl:flex-1 xl:grid-cols-4">
+    <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
+      <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-medium tracking-[-0.01em] text-neutral-900 dark:text-neutral-100">
+            Deal pipeline
+          </h2>
+          <p className="mt-0.5 text-[13px] text-neutral-500">
+            Live from the prospect ledger. Advance moves through the state
+            machine; the server rejects illegal jumps.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={load}
+          aria-label="Refresh pipeline"
+          className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] border border-neutral-200/70 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-900"
+        >
+          <RefreshCw
+            aria-hidden
+            className={cx("h-4 w-4", loading && "animate-spin motion-reduce:animate-none")}
+          />
+        </button>
+      </header>
+
+      {error && (
+        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="mx-6 mb-2 text-[13px] text-emerald-600 dark:text-emerald-400">
+          {notice}
+        </p>
+      )}
+
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2.5 overflow-y-auto px-6 pb-6 sm:grid-cols-2 sm:px-8 xl:grid-cols-4">
         {STAGES.map((stage) => {
           const rows = cols[stage.id] ?? [];
           return (
