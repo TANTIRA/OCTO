@@ -98,6 +98,12 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 
 48. Infra/services: `depends_on` without `service_healthy` (agents, web); `newestSlot` double `executeQuery`; `ComplianceController` 500 vs 400 on bad ruleId; `evmEvidenceAdapter` bean unwired; no log rotation; web lacks memory reservation; deploy README stale (claims no rate limiting, documents unused `POSTGRES_PORT`); no in-repo backup automation; V38 indexes take SHARE locks (schedule low-traffic); `JdbcTimeSeriesStore` unbounded result; sidecar token compare + plaintext + openapi exposure (also 47). → @Aldroun / @Fatihmaull.
 
+    ⚠️ **Suspected stale — re-check, then remove.** Re-read against the code on 2026-09-30 at `6b3c7f1`, all ten items look resolved: 1/5/6/7/8/9 by #381; 2 by `30017a6`; 3/4/10 by `55ae337`. Not deleted yet, because a second reviewer should confirm each item against the code before this entry goes — the "completed entries are removed" rule above applies once that check happens, not on one reader's word.
+
+    One residual: the plaintext clause is still open, tracked as item 22 / #320.
+
+    Item 4 caveat: `EvmEvidenceAdapter.kt` is **planned ARB-8 work, not dead code** — `55ae337` dropped the unused *bean*, not the class. `OnchainEvidenceAdapter` is unwired the same way. Do not delete either.
+
 ## Verified clean this audit (do not re-flag)
 
 AuthN/RLS: fail-closed throughout — all 44 controller mappings tenant-check; RLS functions `security definer` + pinned `search_path`; webhook secret constant-time SHA-256 compare, fail-closed; `AUTH_DEV_BYPASS` boot-refuses prod/JWKS; no secrets committed; Boot error defaults leak nothing; `package-lock` + `npm ci`, `uv sync --frozen`, SHA-pinned Actions, BOM-pinned Gradle deps; prepared statements only (no SQLi); no CORS surface (same-origin `/api` rewrite); Flyway V1–V38 contiguous; tasks/memberships/prospects serialize on advisory locks; report claims use `SKIP LOCKED` leases.
