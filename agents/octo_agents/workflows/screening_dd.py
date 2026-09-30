@@ -27,7 +27,7 @@ from pydantic import BaseModel
 
 from ..api_client import OctoApiClient, OctoApiError
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
-from ..tools import read_tools
+from ..tools import load_in_tenant, read_tools
 from .warm_context import warm_prompt
 
 _log = logging.getLogger("octo_agents.workflows")
@@ -288,31 +288,12 @@ def judge_memo(
     )
 
 
-class SubjectNotInTenantError(LookupError):
-    """The requested subject is not visible in, or does not belong to, the
-    requested tenant. Acting on it would book one tenant's run (and mediated
-    writes) against another tenant's record (backlog #318)."""
-
-    def __init__(self, subject: str, tenant_id: str) -> None:
-        super().__init__(f"{subject} does not belong to tenant {tenant_id}")
-
-
 def load_prospect_in_tenant(api: OctoApiClient, prospect_id: str, tenant_id: str) -> Any:
     """Fetches the prospect and verifies it belongs to `tenant_id` — the body's
     tenant and prospect are independent caller inputs, and the platform's
     record is the only source of truth for which tenant owns the prospect.
     Must run before `_record_run` so a mismatched pair never books a run."""
-    try:
-        prospect = api.get_prospect(prospect_id)
-    except OctoApiError as e:
-        # The platform answers 404 for a prospect outside the principal's tenants.
-        if e.status_code == 404:
-            raise SubjectNotInTenantError(f"prospect {prospect_id}", tenant_id) from e
-        raise
-    owner = prospect.get("tenantId") if isinstance(prospect, dict) else None
-    if owner is None or str(owner).lower() != tenant_id.lower():
-        raise SubjectNotInTenantError(f"prospect {prospect_id}", tenant_id)
-    return prospect
+    return load_in_tenant(lambda: api.get_prospect(prospect_id), f"prospect {prospect_id}", tenant_id)
 
 
 class RunKeyCollisionError(RuntimeError):
@@ -452,7 +433,7 @@ def run_screening_dd(
 
         agent = create_deep_agent(
             model=agent_model,
-            tools=read_tools(api),
+            tools=read_tools(api, tenant_id),
             system_prompt=warm_prompt(api, tenant_id, SCREENING_PROMPT),
         )
         evidence = (

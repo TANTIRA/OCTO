@@ -9,11 +9,11 @@ from typing import Any
 import pytest
 
 from octo_agents.api_client import OctoApiClient, OctoApiError
+from octo_agents.tools import SubjectNotInTenantError
 from octo_agents.workflows.due_diligence import run_due_diligence
 from octo_agents.workflows.ic_memo import run_ic_memo
 from octo_agents.workflows.screening_dd import (
     RunKeyCollisionError,
-    SubjectNotInTenantError,
     _record_run,
     load_prospect_in_tenant,
     run_screening_dd,
