@@ -6,7 +6,12 @@ COPY pyproject.toml ./
 COPY octo_agents ./octo_agents
 COPY models.yaml ./
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . \
+    && groupadd --system --gid 1001 octo \
+    && useradd --system --uid 1001 --gid octo --shell /usr/sbin/nologin octo \
+    && chown -R octo:octo /app
+
+USER octo
 
 EXPOSE 8080
 
