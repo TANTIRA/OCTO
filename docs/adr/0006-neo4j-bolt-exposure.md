@@ -1,131 +1,122 @@
-# ADR: Neo4j Bolt Exposure for HTTPS Browser Access
+# ADR-0006: Neo4j Bolt Exposure for Remote Browser Access
 
-## Status
-**Proposed** — Pending decision by @EliteSlacker (decision) and @Aldroun (exec).
+- Status: Accepted (Option A — tunnel-only)
+- Date: 2026-09-30
+- Risk tier: T2 (persistence, tenancy, infrastructure)
+- Decision owner: @EliteSlacker (decision) / @Aldroun (exec)
+- Issue: #300
+- Depends on: [ADR-0004](0004-neo4j-graph-store.md)
+- Related: `infra/README.md`, `deploy/README.md` ("Neo4j Browser access")
 
 ## Context
-HTTPS Neo4j Browser requires encrypted Bolt (`bolt+s` or `neo4j+s` protocol), but the current deployment keeps Bolt private on `dokploy-network` with TLS disabled. Remote users cannot browse the graph without an SSH tunnel.
 
-### Current State
-- **Bolt:** `:7687` private on `dokploy-network`, unencrypted
-- **Browser:** `:7474` public, HTTPS via Traefik
-- **Access:** SSH tunnel to localhost → HTTP Browser (documented in `deploy/README.md`)
-- **UX friction:** Extra step; requires SSH access to VPS
+The Neo4j Browser served at `neo4j-octo.mesta.click` is public over HTTPS. Browser sessions
+negotiate `bolt+s`/`neo4j+s`, but bolt itself is private to `dokploy-network` with TLS disabled
+(`NEO4J_BOLT_TLS_ENABLED: "false"`). No remote bolt connection can therefore complete, so
+browsing the deployed graph from a laptop needs an SSH tunnel plus a locally hosted HTTP
+Browser — the recipe in `deploy/README.md` ("Neo4j Browser access").
 
-### Problem Statement
-Either:
-1. Keep the tunnel-only posture (operational burden on users), OR
-2. Publicly expose Bolt with TLS (easier for users, wider attack surface)
+The decision was whether to keep that friction or open bolt publicly through a TLS-terminating
+Traefik TCP router.
 
-## Decision Options
+### The framing that was wrong
 
-### Option A: Keep Tunnel-Only (Status Quo)
-**Approach:** No changes. Users SSH-tunnel to access Browser locally.
+The original write-up treated Option A as "zero public exposure" and Option B as "wider attack
+surface". That understated A's residual risk, because **the Neo4j Browser is already public on
+`mesta.click`**, behind nothing but the `neo4j` password. Neo4j Browser ships a full cypher-shell
+web UI: anyone who authenticates to the public Browser already has the query capability a bolt
+client would grant. So the delta between the two options is one protocol more, not one degree
+more of access.
 
-**Pros:**
-- Bolt never touches the internet — zero public exposure
-- No new infrastructure or TLS management
-- Clear security perimeter: Bolt = internal only
+That reframes the question. Bolt-vs-tunnel was never the real security boundary here. The real
+exposure is a public Browser, and it is tracked separately — this ADR does not bless it.
 
-**Cons:**
-- Requires SSH access to production VPS
-- Extra operational step for each browsing session
-- Can't be automated by scheduled jobs or CI/CD pipelines
-- Harder to share access across team
+### The deciding factor
 
-**Effort:** None.
+Nothing consumes bolt programmatically yet. Per `infra/.env.example`, no API code opens a bolt
+connection; the graph writer (ADR-0004, #308) adds the `NEO4J_*` credentials when it lands. The
+strongest argument for Option B — "CI/CD or scheduled jobs need to query the graph" — is
+therefore currently moot. A public TCP route to a store with zero clients is infrastructure
+built ahead of a requirement that does not exist yet.
 
-### Option B: Traefik TLS-Terminating TCP Router
-**Approach:** Expose Bolt on a public domain (e.g., `bolt-octo.mesta.click:6687`) with TLS termination in Traefik. Internal Bolt remains unencrypted on `dokploy-network`.
+## Decision
 
-**Architecture:**
-```
-Public TLS (bolt+s://) ──Traefik decrypts──> Internal unencrypted Bolt
-                             ↓
-                    Neo4j auth enforced
-```
+**Keep the tunnel-only posture. Bolt stays private to `dokploy-network`.**
 
-**Pros:**
-- HTTPS Browser works directly from any network
-- Can be called from CI/CD or scheduled jobs
-- Team can share access without SSH
-- Traefik provides connection logging/audit trail
-- Can add optional client-cert auth layer (mTLS)
-- TLS certificate auto-renewed by Let's Encrypt
+1. **Access path.** Operators reach the graph over SSH, using the loopback socat bridge plus a
+   locally hosted HTTP Browser. The bridge binds `127.0.0.1:7687` — never `0.0.0.0`.
+2. **No Traefik TCP router.** No bolt entryPoint, no public bolt domain, no certificate to manage
+   for `:6687`.
+3. **Deployment shape.** Neo4j declares **no `ports:` block**. Publishing `"7687:7687"` binds
+   `0.0.0.0:7687` and would put bolt on the public internet with TLS disabled while appearing to
+   be internal. Container-name resolution on `dokploy-network` is all Traefik needs.
+   `infra/docker-compose.neo4j-bolt-example.yml` carried exactly that latent bug until this
+   decision removed the block.
+4. **Revisit trigger.** When the graph writer lands (#308) **and** it has a consumer outside the
+   `api` — a scheduled job, CI, or a second engineer who needs standing access — Option B is
+   re-opened on the merits. Not before.
 
-**Cons:**
-- Bolt publicly routable (wider attack surface)
-- Single gate: Neo4j password (no IP allowlist)
-- Requires TLS certificate management
-- Introduces new Traefik config (TCP router, not HTTP)
-- Need to rotate Neo4j password regularly
+### Rejected: Option B (TLS-terminating Traefik TCP router)
 
-**Security Mitigations:**
-- Strong, random Neo4j password (32+ chars)
-- Regular credential rotation
-- Monitor Traefik/Neo4j logs for brute-force attempts
-- (Optional) Add Traefik basicAuth middleware for extra layer
-- (Optional) Restrict `:6687` port at OS firewall
+Exposing bolt on a public domain (e.g. `bolt-octo.mesta.click:6687`) with TLS terminated at
+Traefik. Its real merits, recorded so the option is not re-litigated from scratch: remote
+browsing with no SSH, machine-callable bolt for automation, shared access without per-person VPS
+credentials, and Traefik connection logging.
 
-**Effort:** ~2–4 hours
-- Generate/manage TLS cert (1 hour)
-- Traefik TCP router config (1 hour)
-- Testing, monitoring, docs (1–2 hours)
+Why not now: it puts a database protocol on the public internet whose only authentication is a
+single shared password with no IP allowlist and no meaningful rate limit (bolt has no HTTP
+middleware to rate-limit through), while the legitimate need — programmatic graph access — has
+not materialized. Cost was low to defer and the posture is easier to tighten now than to unwind.
 
-**Provided Artifacts:**
-- `traefik-bolt-entrypoint.yml` — static config (new entryPoint `:6687`, ACME resolver)
-- `traefik-bolt-tcp-router.yml` — dynamic config (TCP router definition)
-- `setup-bolt-tls.sh` — certificate provisioning (self-signed or Let's Encrypt)
-- `docker-compose.neo4j-bolt-example.yml` — Neo4j config snippet
-- `verify-bolt-tls.sh` — validation script
-- `BOLT-TLS-ROUTER.md` — deployment guide + troubleshooting
+### Rejected artifacts
 
-## Recommendation
-
-**Recommend Option B** if:
-- Team size > 3 and wants shared graph browsing
-- CI/CD or scheduled jobs need to query the graph
-- Production uptime justifies infrastructure investment
-
-**Stick with Option A** if:
-- Only one or two ops people browse the graph
-- Graph queries are rare or low-risk
-- Prefer simpler threat model over convenience
-
-## Implementation Plan (If Approved)
-
-### Phase 1: Staging
-1. Spin up staging Neo4j + test Traefik TCP router locally
-2. Validate TLS cert chain and Browser connection
-3. Load-test with concurrent connections (if graph is large)
-4. Document any operational surprises
-
-### Phase 2: Production
-1. Run `setup-bolt-tls.sh` on Dokploy host (Let's Encrypt)
-2. Copy Traefik configs to `/etc/dokploy/traefik/`
-3. Restart Traefik, watch logs for 5 min
-4. Assign `bolt-octo.mesta.click:6687` in Dokploy UI (Neo4j Browser domain)
-5. Test from Browser and CLI (`cypher-shell`)
-6. Update `deploy/README.md` to reflect new HTTPS path + deprecate tunnel
-
-### Phase 3: Monitoring
-- Traefik metrics: connection count, latency, error rate
-- Neo4j logs: query patterns, slow queries, auth failures
-- Set alerting on connection failures or spike in auth errors
+`infra/traefik-bolt-tcp-router.yml`, `infra/traefik-bolt-entrypoint.yml`,
+`infra/setup-bolt-tls.sh`, `infra/verify-bolt-tls.sh`, and `infra/BOLT-TLS-ROUTER.md` are
+retained as the Option B design record but are **not deployment-ready and must not be applied
+as-is**. Two defects, both verified on review: the TCP router sets `certResolver` and `domains`
+in the same `tls` block, which Traefik rejects; and the ACME resolver uses `httpChallenge` on the
+`web` entryPoint, which cannot issue for a TCP-only entryPoint (DNS-01 is required). If Option B
+is ever revived, fix these first.
 
 ## Consequences
 
-**If approved:**
-- Neo4j Browser becomes directly accessible to any authenticated user
-- Traefik becomes a critical component (TLS termination failure = Browser down)
-- Need incident response for password leaks or suspicious query patterns
+### Positive
 
-**If rejected:**
-- Team continues using SSH tunnels
-- May limit adoption of graph queries in automation
+- Bolt is unreachable from the internet by configuration and by network membership, with no
+  single-password gate in front of it.
+- No new TLS surface, entryPoint, certificate, or Traefik dependency to operate or monitor.
+- The decision costs nothing: the tunnel path already exists and already works.
+- The misleading example compose no longer models a public bolt port.
+
+### Negative
+
+- Browsing the graph stays a two-step, SSH-requiring operation.
+- Graph queries cannot be automated from outside `dokploy-network` yet — CI and scheduled jobs
+  will have to run on the host or tunnel until the graph writer and its consumers land.
+- Bolt traffic between containers on `dokploy-network` is unencrypted, and that network also
+  carries bearer tokens and JWKS URLs in plaintext. Tracked separately as backlog item 22.
+
+### Neutralized risks
+
+- Option B would have added a public database protocol guarded by one shared credential, with no
+  IP allowlist and no rate limiting — a credential-stuffing surface on the graph store.
+- Option B would have made Traefik a new single point of failure for database access; a TLS
+  termination fault would take graph tooling down alongside the app.
+
+## Acceptance criteria
+
+- [x] Decision recorded here with the rejected option and its rationale preserved.
+- [x] `infra/docker-compose.neo4j-bolt-example.yml` publishes no host ports; comment matches
+      behavior.
+- [x] `deploy/README.md` documents the tunnel as the settled path and points here.
+- [x] Tunnel bridge binds loopback only (`127.0.0.1:7687`).
+- [x] No Traefik bolt entryPoint or router applied to the host.
+- [ ] Revisit when the graph writer (#308) has a consumer outside the `api`.
 
 ## References
+
 - Issue #300 (this decision)
-- `infra/README.md` (current topology)
-- `deploy/README.md` (Browser access section)
-- `docs/adr/0004-neo4j-graph-store.md` (graph store rationale)
+- `deploy/README.md` ("Neo4j Browser access") — the operative recipe
+- `infra/README.md` — topology and privacy posture
+- [ADR-0004](0004-neo4j-graph-store.md) — graph store rationale
+- `docs/backlog-tracker.md` — item 2 (closed by this ADR), item 22 (adjacent, open)

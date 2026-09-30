@@ -26,7 +26,7 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | # | Item | Source | Owner | Status |
 | --- | --- | --- | --- | --- |
 | 1 | Set `GOTRUE_EXTERNAL_WEB3_SOLANA_ENABLED=true` on the Dokploy Supabase `auth` service and redeploy — the SIWS button ships in web (PR #237) but self-hosted GoTrue ignores the legacy `SOLANA_ENABLED` name | `infra/supabase/vendor/CONFIG.md`, `vendor/docker-compose.yml` | @mzf11125 (feature) / @Aldroun (deploy) | open |
-| 2 | Neo4j Browser remote access — keep tunnel-only path or expose bolt through a TLS-terminating Traefik TCP router (public bolt behind neo4j auth; contra the "bolt stays private" posture) | `deploy/README.md` ("Neo4j Browser access"), ADR-level | @EliteSlacker (decision) / @Aldroun (exec) | decision pending |
+| 2 | Neo4j Browser remote access — keep tunnel-only path or expose bolt through a TLS-terminating Traefik TCP router (public bolt behind neo4j auth; contra the "bolt stays private" posture) | `deploy/README.md` ("Neo4j Browser access"), ADR-level | @EliteSlacker (decision) / @Aldroun (exec) | decided — Option A (tunnel-only), [ADR-0006](adr/0006-neo4j-bolt-exposure.md) |
 | 3 | Rehearsed restore — procedure exists, drill pending | `docs/restore-runbook.md`, reliability §4 | @Aldroun | open |
 | 4 | Migration rollback rehearsal for V5–V7 on staging (T2 requirement) | `docs/reliability.md` §5, `AGENTS.md` | @Aldroun | open |
 | 5 | Burn-rate alerts once metrics reach the collector; OTEL exporter env was dropped until a collector exists | `docs/reliability.md` §4–5 | @Aldroun | blocked on #8 |

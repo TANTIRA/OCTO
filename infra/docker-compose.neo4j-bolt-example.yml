@@ -32,12 +32,12 @@ services:
     networks:
       - dokploy-network
     
-    ports:
-      # Bolt (internal, on dokploy-network only — not exposed to host)
-      # Traefik reaches it via container-to-container routing
-      - "7687:7687"
-      # Browser HTTP (optional; can also be exposed via Traefik)
-      - "7474:7474"
+    # No `ports:` block — publishing "7687:7687" would bind 0.0.0.0:7687 and put bolt on the
+    # public internet with TLS disabled, which is the opposite of what this file documents.
+    # Both 7687 and 7474 are reachable on dokploy-network by container name, which is all
+    # Traefik needs. Host-local access (ssh -L, cypher-shell on the box) goes through the
+    # loopback socat bridge in deploy/README.md, bound to 127.0.0.1.
+    # See ADR-0006 for the exposure decision.
     
     healthcheck:
       # Check that Bolt is listening

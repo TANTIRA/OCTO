@@ -123,4 +123,4 @@ Backend scaffold in place — `./gradlew check` compiles all modules and runs te
 - Wired into the running application with Testcontainers coverage: Helius onchain ingestion (RPC, webhooks, finality probe), the EVM scan service, onchain staging → promotion → recon, and market-data sync (Alpha Vantage). SIWS wallet sign-in is live in the web UI.
 - Implemented as libraries, not yet wired into the running application: IBOR derivation, the decision-model client, document classification and claim-support assessment, the analytics suite (PE performance, Brinson attribution, return and risk measures, factor exposure, the value-creation bridge, DCF), path-sum look-through exposure, and the ontology validation gate.
 - Still open: the reconciliation triage loop, deal sourcing, and workflow.
-- The ADRs in `docs/adr/` are still Proposed.
+- ADRs in `docs/adr/`: 0006 accepted (Neo4j bolt stays tunnel-only), the rest still Proposed.

@@ -78,9 +78,11 @@ docker run -d --name octo-browser -p 7474:7474 neo4j:2025.12.1-community
 # http://localhost:7474 → bolt://localhost:7687
 ```
 
-If remote HTTPS browsing becomes a real requirement, exposing bolt through a
-TLS-terminating Traefik TCP router is an ADR-level decision — it puts bolt on
-the public internet behind only neo4j auth, contra the privacy posture above.
+The tunnel is the settled path, not a workaround: [ADR-0006](../docs/adr/0006-neo4j-bolt-exposure.md)
+records the decision to keep bolt private. Exposing bolt through a TLS-terminating Traefik TCP
+router is re-opened only when the graph writer (#308) has a consumer outside the `api` — a
+scheduled job, CI, or standing second-engineer access. Until then the bridge stays bound to
+loopback and no bolt entryPoint is configured on the host.
 
 ## Rate limiting
 
