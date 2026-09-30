@@ -24,7 +24,7 @@ import ReconPanel from "@/components/recon-panel";
 import CompliancePanel from "@/components/compliance-panel";
 import AgentRunsPanel from "@/components/agent-runs-panel";
 import SessionMenu from "@/components/session-menu";
-import { apiFetch } from "@/lib/api";
+import { useTenants } from "@/lib/use-tenants";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
@@ -259,27 +259,13 @@ const AREAS: Area[] = [
   },
 ];
 
-function WorkspaceSwitcher({
-  workspaces,
-  loadFailed,
-}: {
-  workspaces: { name: string; members: string }[];
-  loadFailed: boolean;
-}) {
-  const [workspace, setWorkspace] = useState(workspaces[0]?.name ?? "");
+function WorkspaceSwitcher() {
+  const { tenants, tenantId, setTenantId, loading, error } = useTenants();
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Tenants arrive async — if the current pick is no longer in the list
-  // (or the list just loaded), fall back to the first entry.
-  useEffect(() => {
-    if (workspaces.length && !workspaces.some((w) => w.name === workspace)) {
-      setWorkspace(workspaces[0].name);
-    }
-  }, [workspaces, workspace]);
 
   const close = (restoreFocus: boolean) => {
     setOpen(false);
@@ -346,10 +332,10 @@ function WorkspaceSwitcher({
     };
   }, [open]);
 
-  const active = workspaces.find((item) => item.name === workspace);
+  const active = tenants.find((t) => t.tenantId === tenantId);
 
   // An empty list is honest state, not a menu — never offer fabricated names.
-  if (workspaces.length === 0) {
+  if (!active) {
     return (
       <div
         className={cx(
@@ -359,10 +345,10 @@ function WorkspaceSwitcher({
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
-            {loadFailed ? "Vehicles unavailable" : "No vehicles"}
+            {loading ? "Loading workspaces…" : error ? "Workspaces unavailable" : "No workspaces"}
           </span>
           <span className="block truncate text-xs text-neutral-500 dark:text-neutral-500">
-            {loadFailed ? "couldn't reach the API" : "none assigned to you"}
+            {loading ? "\u00a0" : (error ?? "none assigned to you")}
           </span>
         </span>
       </div>
@@ -376,6 +362,7 @@ function WorkspaceSwitcher({
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={`Workspace: ${active.slug} (${active.role}). Switch workspace`}
         onClick={() => (open ? close(false) : setOpen(true))}
         className={cx(
           "flex h-11 w-full cursor-pointer items-center gap-2 rounded-[var(--rb-r-lg,10px)] bg-neutral-100 px-2 text-left hover:bg-neutral-200 active:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:active:bg-neutral-700",
@@ -384,14 +371,14 @@ function WorkspaceSwitcher({
         )}
       >
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--rb-r-md,8px)] bg-neutral-300 text-xs font-medium text-neutral-700 dark:bg-neutral-600 dark:text-neutral-100">
-          {workspace.charAt(0)}
+          {active.slug.charAt(0).toUpperCase()}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
-            {workspace}
+            {active.slug}
           </span>
           <span className="block truncate text-xs text-neutral-500 dark:text-neutral-500">
-            {active?.members}
+            {active.role}
           </span>
         </span>
         <ChevronsUpDown
@@ -404,20 +391,20 @@ function WorkspaceSwitcher({
         <div
           ref={menuRef}
           role="menu"
-          aria-label="Switch vehicle"
+          aria-label="Switch workspace"
           className={cx(
             "absolute left-0 right-0 top-[calc(100%+0.25rem)] z-30 origin-top rounded-[var(--rb-r-2xl,14px)] border border-neutral-200 bg-white p-1 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.10)] transition-[opacity,transform] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none",
             shown ? "scale-100 opacity-100" : "scale-95 opacity-0",
           )}
         >
-          {workspaces.map((item) => (
+          {tenants.map((item) => (
             <button
-              key={item.name}
+              key={item.tenantId}
               type="button"
               role="menuitemradio"
-              aria-checked={item.name === workspace}
+              aria-checked={item.tenantId === tenantId}
               onClick={() => {
-                setWorkspace(item.name);
+                setTenantId(item.tenantId);
                 close(true);
               }}
               className={cx(
@@ -428,13 +415,13 @@ function WorkspaceSwitcher({
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
-                  {item.name}
+                  {item.slug}
                 </span>
                 <span className="block truncate text-xs text-neutral-500 dark:text-neutral-500">
-                  {item.members}
+                  {item.role}
                 </span>
               </span>
-              {item.name === workspace && (
+              {item.tenantId === tenantId && (
                 <Check
                   aria-hidden="true"
                   className="h-3.5 w-3.5 shrink-0 text-neutral-900 dark:text-neutral-100"
@@ -449,13 +436,19 @@ function WorkspaceSwitcher({
   );
 }
 
-// Chords the command menu advertises (g + key → area) and bare action keys.
-// Destinations mirror the menu's command map: an area hash or a route path.
 /**
- * Honest placeholder for an area the API doesn't serve yet — no fabricated
- * rows, counts, or saved-view stand-ins (#314).
+ * Honest full-area state: an area the API doesn't serve yet, or a workspace
+ * gate — no fabricated rows, counts, or saved-view stand-ins (#314).
  */
-function UnwiredPanel({ title, detail }: { title: string; detail: string }) {
+function StatePanel({
+  title,
+  detail,
+  onRetry,
+}: {
+  title: string;
+  detail: string;
+  onRetry?: () => void;
+}) {
   return (
     <div className="flex h-full items-center justify-center p-6">
       <div className="max-w-md rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white px-6 py-10 text-center dark:border-neutral-800 dark:bg-neutral-900">
@@ -465,11 +458,26 @@ function UnwiredPanel({ title, detail }: { title: string; detail: string }) {
         <p className="mt-2 text-[13px] leading-relaxed text-neutral-500 dark:text-neutral-400">
           {detail}
         </p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className={cx(
+              "mt-4 inline-flex h-8 cursor-pointer items-center rounded-[var(--rb-r-md,8px)] bg-neutral-100 px-3 text-[13px] font-medium text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700",
+              transition,
+              focus,
+            )}
+          >
+            Try again
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
+// Chords the command menu advertises (g + key → area) and bare action keys.
+// Destinations mirror the menu's command map: an area hash or a route path.
 const KEY_DESTINATIONS: Record<string, string> = {
   "g o": "overview",
   "g p": "positions",
@@ -491,14 +499,10 @@ const KEY_DESTINATIONS: Record<string, string> = {
 function NavigationFrame({
   areaId,
   onSelectArea,
-  workspaces,
-  loadFailed,
   onClose,
 }: {
   areaId: string;
   onSelectArea: (id: string) => void;
-  workspaces: { name: string; members: string }[];
-  loadFailed: boolean;
   onClose?: () => void;
 }) {
   const [tipFor, setTipFor] = useState<string | null>(null);
@@ -629,7 +633,7 @@ function NavigationFrame({
 
       <div className="flex w-64 min-w-0 flex-col bg-neutral-50 dark:bg-neutral-900">
         <div className="shrink-0 px-2 pb-1 pt-2">
-          <WorkspaceSwitcher workspaces={workspaces} loadFailed={loadFailed} />
+          <WorkspaceSwitcher />
         </div>
 
         <div className="relative min-h-0 flex-1">
@@ -711,10 +715,13 @@ export default function AppShell2() {
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerShown, setDrawerShown] = useState(false);
-  const [workspaces, setWorkspaces] = useState<
-    { name: string; members: string }[]
-  >([]);
-  const [workspacesLoadFailed, setWorkspacesLoadFailed] = useState(false);
+  const {
+    tenants,
+    tenantId,
+    loading: tenantsLoading,
+    error: tenantError,
+    retry: retryTenants,
+  } = useTenants();
   const content = useScrollFade<HTMLElement>();
   const shouldFocusRef = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -781,33 +788,6 @@ export default function AppShell2() {
       clearTimeout(timer);
     };
   }, [selectArea]);
-
-  // First real API read: the caller's tenants drive the vehicle switcher.
-  // The proxy (next.config.ts) forwards to the API with the session JWT;
-  // on failure the switcher shows an explicit unavailable state — never a
-  // fabricated list.
-  useEffect(() => {
-    let cancelled = false;
-    apiFetch("/api/v1/me/access")
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((body) => {
-        if (cancelled) return;
-        setWorkspaces(
-          ((body?.tenants ?? []) as { slug: string; role: string }[]).map(
-            (t) => ({ name: t.slug, members: t.role }),
-          ),
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setWorkspacesLoadFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -878,8 +858,6 @@ export default function AppShell2() {
         <NavigationFrame
           areaId={areaId}
           onSelectArea={selectArea}
-          workspaces={workspaces}
-          loadFailed={workspacesLoadFailed}
         />
       </aside>
 
@@ -935,19 +913,41 @@ export default function AppShell2() {
 
         <div className="relative min-h-0 flex-1">
           <main
+            // Keyed by workspace: switching tenants remounts the area, so one
+            // tenant's inputs or results never render under another.
+            key={tenantId}
             ref={content.ref}
             onScroll={content.onScroll}
             className="h-full overflow-y-auto p-4 sm:p-6"
           >
-            {area.id === "overview" ? (
+            {tenantsLoading ? (
+              <div className="flex h-full items-center justify-center">
+                <div
+                  role="status"
+                  aria-label="Loading workspaces"
+                  className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900 motion-reduce:animate-none dark:border-neutral-700 dark:border-t-neutral-100"
+                />
+              </div>
+            ) : tenantError ? (
+              <StatePanel
+                title="Workspaces unavailable"
+                detail={`Your workspace memberships could not be loaded — ${tenantError}.`}
+                onRetry={retryTenants}
+              />
+            ) : tenants.length === 0 ? (
+              <StatePanel
+                title="No workspace access yet"
+                detail="Your account is not a member of any workspace. Ask a workspace admin to add you, then reload this page."
+              />
+            ) : area.id === "overview" ? (
               <Dashboard4 />
             ) : area.id === "assets" ? (
-              <UnwiredPanel
+              <StatePanel
                 title="Asset register"
                 detail="The API serves a single asset by id (GET /api/v1/assets/{id}) — no list endpoint exists yet, so there are no rows to show."
               />
             ) : area.id === "positions" ? (
-              <UnwiredPanel
+              <StatePanel
                 title="Positions"
                 detail="Positions derive from the transaction ledger, but no read endpoint serves this surface yet. The overview shows live pipeline and agent activity in the meantime."
               />
@@ -1005,8 +1005,6 @@ export default function AppShell2() {
             <NavigationFrame
               areaId={areaId}
               onSelectArea={selectArea}
-              workspaces={workspaces}
-              loadFailed={workspacesLoadFailed}
               onClose={closeDrawer}
             />
           </div>

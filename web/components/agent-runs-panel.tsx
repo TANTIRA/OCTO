@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { getJson, messageFor } from "@/lib/api";
-import { TenantPicker, useTenants } from "@/lib/use-tenants";
+import { useTenants } from "@/lib/use-tenants";
 
 /**
  * Agent runs, live: `GET /api/v1/agent-runs?tenantId` lists the audit spine
@@ -34,8 +34,7 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 export default function AgentRunsPanel() {
-  const { tenants, tenantId, setTenantId, loading: tenantsLoading, error: tenantError } =
-    useTenants();
+  const { tenantId } = useTenants();
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -71,7 +70,6 @@ export default function AgentRunsPanel() {
             audit spine, read-only.
           </p>
         </div>
-        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
         <button
           type="button"
           onClick={load}
@@ -85,11 +83,6 @@ export default function AgentRunsPanel() {
         </button>
       </header>
 
-      {tenantError && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {tenantError}
-        </p>
-      )}
       {error && (
         <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
           {error}
@@ -130,7 +123,7 @@ export default function AgentRunsPanel() {
                 No agent runs yet — workflows appear here when triggered.
               </li>
             )}
-            {runs.length === 0 && (!loaded || tenantsLoading) && (
+            {runs.length === 0 && !loaded && !error && (
               <li className="px-4 py-10 text-center text-[13px] text-neutral-400 dark:text-neutral-600">
                 Loading…
               </li>
