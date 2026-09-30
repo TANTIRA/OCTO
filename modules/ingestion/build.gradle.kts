@@ -6,6 +6,7 @@ dependencies {
     implementation(project(":modules:control-panel"))
     implementation(project(":modules:persistence"))
     implementation(libs.jackson.databind)
+    implementation(libs.slf4j.api)
 
     testImplementation(libs.kotlin.test)
 }

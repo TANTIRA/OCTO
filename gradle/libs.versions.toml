@@ -1,7 +1,5 @@
 [versions]
 kotlin = "2.4.20"
-springBoot = "3.5.7"
-kotlin = "2.2.21"
 springBoot = "4.1.1"
 springDepMgmt = "1.1.7"
 jackson = "2.22.2"
@@ -20,7 +18,8 @@ bouncycastle = "1.85"
 thrift = "0.24.0"
 httpcomponents = "5.6.3"
 httpcore5 = "5.4.3"
-postgresql = "42.7.11"
+postgresql = "42.7.13"
+slf4j = "2.0.17"
 
 [libraries]
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
@@ -58,6 +57,7 @@ tomcat-embed-el = { module = "org.apache.tomcat.embed:tomcat-embed-el", version.
 tomcat-embed-websocket = { module = "org.apache.tomcat.embed:tomcat-embed-websocket", version.ref = "tomcat" }
 log4j-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
 log4j-to-slf4j = { module = "org.apache.logging.log4j:log4j-to-slf4j", version.ref = "log4j" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 freemarker = { module = "org.freemarker:freemarker", version.ref = "freemarker" }
 bouncycastle = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 thrift = { module = "org.apache.thrift:libthrift", version.ref = "thrift" }
