@@ -5,13 +5,16 @@
 # next.config.ts sets output: "standalone" — `next build` emits .next/standalone,
 # a pruned server bundle; the runtime stage carries only that, static assets, and
 # public files. No dev dependencies, no sources.
+#
+# Base images are pinned by version + digest (infra/README.md guardrails). Bump both together:
+#   docker buildx imagetools inspect node:22.23.3-alpine --format '{{.Manifest.Digest}}'
 
-FROM node:22-alpine AS deps
+FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
-FROM node:22-alpine AS build
+FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -31,7 +34,7 @@ ARG API_INTERNAL_URL=http://api:8080
 ENV API_INTERNAL_URL=$API_INTERNAL_URL
 RUN npm run build
 
-FROM node:22-alpine AS runner
+FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS runner
 WORKDIR /app
 # PORT=80 matches the compose healthcheck (wget on :80); HOSTNAME binds beyond loopback.
 ENV NODE_ENV=production \

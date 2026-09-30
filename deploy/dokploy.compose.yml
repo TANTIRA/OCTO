@@ -10,7 +10,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: ${API_IMAGE:-octo-api}:${API_IMAGE_TAG:-latest}
+    image: ${API_IMAGE:-octo-api}:${API_IMAGE_TAG:?API_IMAGE_TAG must be set — see deploy/README.md}
     restart: unless-stopped
     environment:
       # List form on purpose: bare names pass through only when set in the Dokploy env, so
@@ -86,7 +86,7 @@ services:
     build:
       context: ../agents
       dockerfile: Dockerfile
-    image: ${AGENTS_IMAGE:-octo-agents}:${AGENTS_IMAGE_TAG:-latest}
+    image: ${AGENTS_IMAGE:-octo-agents}:${AGENTS_IMAGE_TAG:?AGENTS_IMAGE_TAG must be set — see deploy/README.md}
     restart: unless-stopped
     environment:
       - OPENROUTER_API_KEY
@@ -128,7 +128,9 @@ services:
   # Quota counters for RateLimitFilter — internal only (no Traefik labels, no host port).
   # Losing its data resets current-minute counters; nothing durable lives here, so no volume.
   redis:
-    image: redis:7-alpine
+    # Pinned by version + digest (infra/README.md guardrails). Bump both together:
+    #   docker buildx imagetools inspect redis:7.4.11-alpine --format '{{.Manifest.Digest}}'
+    image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     restart: unless-stopped
     command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
     networks:
@@ -160,7 +162,7 @@ services:
         NEXT_PUBLIC_SOLANA_RPC_URL: ${NEXT_PUBLIC_SOLANA_RPC_URL:-}
         # Also baked at build: rewrites() reads it when next.config evaluates.
         API_INTERNAL_URL: http://api:8080
-    image: ${WEB_IMAGE:-octo-web}:${WEB_IMAGE_TAG:-latest}
+    image: ${WEB_IMAGE:-octo-web}:${WEB_IMAGE_TAG:?WEB_IMAGE_TAG must be set — see deploy/README.md}
     restart: unless-stopped
     environment:
       API_BASE_URL: ${API_PUBLIC_URL}

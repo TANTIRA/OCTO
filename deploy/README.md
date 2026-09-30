@@ -29,6 +29,10 @@ retire the mirror.
 Set in the Dokploy compose environment (never committed). Keys mirror
 `infra/docker-compose.yml`; see `infra/.env.example` for the full contract.
 
+- `API_IMAGE_TAG`, `AGENTS_IMAGE_TAG`, `WEB_IMAGE_TAG` — **required, no default**. Each service's
+  locally built image is tagged with these; a `:latest` fallback made the image a deploy actually
+  ran impossible to name from the config, and unliftable into a rollback (#322). Use the commit sha
+  of the deploy (CI's `type=sha` form, e.g. `main-cf5c269`) so the running image names its build.
 - `POSTGRES_HOST` / `POSTGRES_DB` → `DB_HOST`/`DB_NAME` for the datasource. `DB_PORT` is hardcoded `5432` — the Postgres peer is on the compose network, so the port never varies; no `POSTGRES_PORT` key exists.
 - `DB_USER=octo_app`, `DB_MIGRATION_USER=octo_migrate` — the least-privilege roles from `infra/init-db-roles.sql` (create/rename before first api boot; `octo_migrate` needs `CREATE` on the database for the `octo` schema + Flyway history).
 - `AUTH_ISSUER`, `AUTH_JWKS_URL`, `AUTH_PUBLIC_URL`, `API_PUBLIC_URL`.
