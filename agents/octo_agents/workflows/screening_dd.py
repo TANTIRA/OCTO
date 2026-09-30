@@ -24,7 +24,7 @@ from typing import Any, Literal
 from deepagents import create_deep_agent
 from pydantic import BaseModel
 
-from ..api_client import OctoApiClient
+from ..api_client import OctoApiClient, OctoApiError
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import read_tools
 from .warm_context import warm_prompt
@@ -92,6 +92,7 @@ class ScreeningResult(BaseModel):
     verdict: ScreeningVerdict | None = None
     screening_requested: bool = False
     screening_response: Any = None
+    stage_note: str | None = None
 
 
 def _digest(event: Any) -> str:
@@ -446,8 +447,16 @@ def run_screening_dd(
         )
 
         screening_response = None
+        stage_note = None
         if verdict.proceed:
-            screening_response = api.request_screening(prospect_id)
+            try:
+                screening_response = api.request_screening(prospect_id)
+            except OctoApiError as e:
+                if e.status_code != 409:
+                    raise
+                # Task already open or the stage moved on — same degrade as
+                # ic_memo: the memo still lands as a judged draft.
+                stage_note = "screening task already open — memo left as judged draft"
 
         result = ScreeningResult(
             prospect_id=prospect_id,
@@ -458,6 +467,7 @@ def run_screening_dd(
             verdict=verdict,
             screening_requested=verdict.proceed,
             screening_response=screening_response,
+            stage_note=stage_note,
         )
         api.finish_run(
             run_id,

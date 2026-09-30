@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 import pytest
 
-from octo_agents.api_client import OctoApiClient
+from octo_agents.api_client import OctoApiClient, OctoApiError
 from octo_agents.judge import JudgeClient
 from octo_agents.workflows import due_diligence
 from octo_agents.workflows.due_diligence import WORKSTREAMS, run_due_diligence
@@ -138,6 +138,72 @@ def test_all_low_risk_streams_open_no_tasks(monkeypatch: pytest.MonkeyPatch) -> 
     assert result.status == "completed"
     assert api.evidence_requests == []
     assert result.tasks == []
+
+
+def test_task_open_conflict_completes_with_the_band_unopened(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ConflictApi(FakeApi):
+        def open_dd_evidence(
+            self, prospect_id: str, workstream: str, summary: str
+        ) -> Any:
+            self.evidence_requests.append((prospect_id, workstream))
+            if workstream == "financial":
+                raise OctoApiError(409, "task already open")
+            return {"taskId": f"task-{workstream}", "opened": True}
+
+    api = ConflictApi(events=[{"note": "deck"}])
+    fake_agent_factory(monkeypatch)
+    result = run_due_diligence(
+        agent_model=None,
+        judge=fake_judge(
+            preflight=0.9,
+            bands={"market": "high", "financial": "blocker", "legal": "low", "operational": "medium"},
+        ),
+        api=api,
+        prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-1",
+        models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
+    )
+    assert result.status == "completed"
+    by_ws = {t.workstream: t for t in result.tasks}
+    assert by_ws["market"].opened and by_ws["market"].task_id == "task-market"
+    assert not by_ws["financial"].opened and by_ws["financial"].task_id is None
+    assert result.task_errors == []
+
+
+def test_task_open_failure_is_bounded_and_recorded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FailApi(FakeApi):
+        def open_dd_evidence(
+            self, prospect_id: str, workstream: str, summary: str
+        ) -> Any:
+            self.evidence_requests.append((prospect_id, workstream))
+            if workstream == "financial":
+                raise OctoApiError(500, "server error")
+            return {"taskId": f"task-{workstream}", "opened": True}
+
+    api = FailApi(events=[{"note": "deck"}])
+    fake_agent_factory(monkeypatch)
+    result = run_due_diligence(
+        agent_model=None,
+        judge=fake_judge(
+            preflight=0.9,
+            bands={"market": "high", "financial": "blocker", "legal": "low", "operational": "medium"},
+        ),
+        api=api,
+        prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-1",
+        models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
+    )
+    assert result.status == "completed"
+    by_ws = {t.workstream: t for t in result.tasks}
+    assert by_ws["market"].opened
+    assert not by_ws["financial"].opened
+    assert result.task_errors == ["financial: HTTP 500"]
 
 
 def test_preflight_refusal_runs_no_subagents_and_opens_nothing(

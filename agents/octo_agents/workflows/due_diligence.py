@@ -19,7 +19,7 @@ from typing import Any, Literal
 from deepagents import SubAgent, create_deep_agent
 from pydantic import BaseModel
 
-from ..api_client import OctoApiClient
+from ..api_client import OctoApiClient, OctoApiError
 from ..judge import ChoiceQuestion, JudgeClient, ScoreQuestion
 from ..tools import read_tools
 from .screening_dd import (
@@ -90,6 +90,7 @@ class DdResult(BaseModel):
     bands: list[WorkstreamBand] = []
     completeness: float | None = None
     tasks: list[DdTask] = []
+    task_errors: list[str] = []
     judge_lineage: dict[str, Any] = {}
 
 
@@ -236,19 +237,39 @@ def run_due_diligence(
             dossier=dossier,
         )
 
-        tasks = [
-            DdTask(
-                workstream=band.workstream,
-                task_id=(
-                    resp := api.open_dd_evidence(
-                        prospect_id, band.workstream, dossier[:2000]
+        # Task opening is side-effectful — a throw must not strand the tasks
+        # already minted. Per-band handling keeps the result truthful: a 409
+        # (task already open) or any other API error is recorded instead of
+        # failing the whole run.
+        tasks: list[DdTask] = []
+        task_errors: list[str] = []
+        for band in bands:
+            if band.band not in TASK_BANDS:
+                continue
+            try:
+                resp = api.open_dd_evidence(
+                    prospect_id, band.workstream, dossier[:2000]
+                )
+            except OctoApiError as e:
+                if e.status_code != 409:
+                    task_errors.append(
+                        f"{band.workstream}: HTTP {e.status_code}"
                     )
-                ).get("taskId"),
-                opened=bool(resp.get("opened")),
+                tasks.append(
+                    DdTask(
+                        workstream=band.workstream,
+                        task_id=None,
+                        opened=False,
+                    )
+                )
+                continue
+            tasks.append(
+                DdTask(
+                    workstream=band.workstream,
+                    task_id=resp.get("taskId"),
+                    opened=bool(resp.get("opened")),
+                )
             )
-            for band in bands
-            if band.band in TASK_BANDS
-        ]
 
         result = DdResult(
             prospect_id=prospect_id,
@@ -257,6 +278,7 @@ def run_due_diligence(
             bands=bands,
             completeness=completeness,
             tasks=tasks,
+            task_errors=task_errors,
             judge_lineage=lineage,
         )
         api.finish_run(

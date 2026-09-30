@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 import pytest
 
-from octo_agents.api_client import OctoApiClient
+from octo_agents.api_client import OctoApiClient, OctoApiError
 from octo_agents.judge import JudgeClient
 from octo_agents.workflows import screening_dd
 from octo_agents.workflows.screening_dd import run_screening_dd
@@ -180,6 +180,53 @@ def test_all_events_below_bar_still_admits_the_top_one(
     assert result.retrieval is not None and result.retrieval.events_admitted == 1
     assert result.verdict is not None and not result.verdict.proceed
     assert api.screening_requests == []
+
+
+def test_screening_conflict_degrades_to_judged_draft(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ConflictApi(FakeApi):
+        def request_screening(self, prospect_id: str) -> Any:
+            self.screening_requests.append(prospect_id)
+            raise OctoApiError(409, "task already open")
+
+    api = ConflictApi(events=[{"note": "deck"}])
+    fake_agent_factory(monkeypatch)
+    result = run_screening_dd(
+        agent_model=None,
+        judge=fake_judge(preflight=0.9, scores=[5.0], advance=0.85),
+        api=api,
+        prospect_id="p-1",
+        tenant_id="t-1",
+        run_key="rk-1",
+        models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
+    )
+    assert result.status == "completed"
+    assert result.screening_response is None
+    assert result.stage_note is not None
+    assert api.finished[0]["status"] == "completed"
+
+
+def test_screening_non_conflict_error_still_fails_the_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FailApi(FakeApi):
+        def request_screening(self, prospect_id: str) -> Any:
+            raise OctoApiError(500, "server error")
+
+    api = FailApi(events=[{"note": "deck"}])
+    fake_agent_factory(monkeypatch)
+    with pytest.raises(OctoApiError):
+        run_screening_dd(
+            agent_model=None,
+            judge=fake_judge(preflight=0.9, scores=[5.0], advance=0.85),
+            api=api,
+            prospect_id="p-1",
+            tenant_id="t-1",
+            run_key="rk-1",
+            models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
+        )
+    assert api.finished[0]["status"] == "failed"
 
 
 def test_empty_history_passes_preflight_with_an_empty_evidence_block(
