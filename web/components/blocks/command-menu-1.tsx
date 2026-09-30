@@ -115,14 +115,6 @@ const COMMANDS: Command[] = [
     icon: Brain,
   },
   {
-    id: "do-position",
-    group: "Actions",
-    title: "Record a transaction",
-    detail: "Post a ledger event to the IBOR",
-    shortcut: "T",
-    icon: FileText,
-  },
-  {
     id: "do-prospect",
     group: "Actions",
     title: "Add a prospect",
@@ -134,25 +126,17 @@ const COMMANDS: Command[] = [
     id: "do-recon",
     group: "Actions",
     title: "Run reconciliation",
-    detail: "Custodian vs IBOR, latest feeds",
+    detail: "Match source records against the IBOR",
     shortcut: "R",
     icon: GitCompareArrows,
   },
   {
     id: "do-report",
     group: "Actions",
-    title: "Generate LP report",
-    detail: "Quarterly pack for a fund",
+    title: "Queue a performance report",
+    detail: "DPI, TVPI and IRR over a cash-flow series",
     shortcut: "L",
     icon: FileText,
-  },
-  {
-    id: "do-alert-rule",
-    group: "Actions",
-    title: "New alert rule",
-    detail: "Threshold or agent-triggered alert",
-    shortcut: "E",
-    icon: Bell,
   },
 ];
 
@@ -169,11 +153,9 @@ const AREA_BY_COMMAND: Record<string, string> = {
   "go-reports": "reports",
   "go-compliance": "compliance",
   "go-alerts": "alerts",
-  "do-position": "positions",
   "do-prospect": "deals",
   "do-recon": "recon",
   "do-report": "reports",
-  "do-alert-rule": "alerts",
   "go-brain": "brain",
 };
 

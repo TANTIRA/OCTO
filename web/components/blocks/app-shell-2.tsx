@@ -498,11 +498,9 @@ const KEY_DESTINATIONS: Record<string, string> = {
   "g l": "alerts",
   "g x": "/admin",
   "g b": "brain",
-  t: "positions",
   n: "deals",
   r: "recon",
   l: "reports",
-  e: "alerts",
 };
 
 function NavigationFrame({
