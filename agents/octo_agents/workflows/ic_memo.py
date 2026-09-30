@@ -26,6 +26,7 @@ from .screening_dd import (
     _record_run,
     extract_final_text,
     finish_failed,
+    load_prospect_in_tenant,
     preflight_gate,
     score_events,
 )
@@ -147,6 +148,7 @@ def run_ic_memo(
     run_key: str,
     models: dict[str, str],
 ) -> IcMemoResult:
+    prospect_state = load_prospect_in_tenant(api, prospect_id, tenant_id)
     run_id, replayed = _record_run(
         api,
         tenant_id=tenant_id,
@@ -161,7 +163,6 @@ def run_ic_memo(
         if replayed is not None:
             return IcMemoResult.model_validate(replayed)
 
-        prospect_state = api.get_prospect(prospect_id)
         raw_events = api.list_prospect_events(prospect_id)
         events = raw_events if isinstance(raw_events, list) else []
 

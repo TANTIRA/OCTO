@@ -25,7 +25,7 @@ class FakeApi(OctoApiClient):
         self.finished: list[dict] = []
 
     def get_prospect(self, prospect_id: str) -> Any:
-        return {"id": prospect_id, "stage": "screening", "name": "PT Acme"}
+        return {"id": prospect_id, "tenantId": "t-1", "stage": "screening", "name": "PT Acme"}
 
     def list_prospect_events(self, prospect_id: str) -> Any:
         return self.events
@@ -203,7 +203,9 @@ def test_screening_conflict_degrades_to_judged_draft(
     )
     assert result.status == "completed"
     assert result.screening_response is None
-    assert result.stage_note is not None
+    # A 409 means nothing was requested — same contract as ic_memo (#330).
+    assert result.screening_requested is False
+    assert result.stage_note is not None and "not at screening" in result.stage_note
     assert api.finished[0]["status"] == "completed"
 
 
