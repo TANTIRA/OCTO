@@ -14,7 +14,6 @@ import {
   Activity,
   Bell,
   ChartPie,
-  Clock,
   CornerDownLeft,
   FileBarChart,
   FileText,
@@ -68,22 +67,6 @@ type Command = {
 };
 
 const COMMANDS: Command[] = [
-  {
-    id: "recent-ic-memo",
-    group: "Recent",
-    title: "IC memo — Kirana Consumer add-on",
-    detail: "Opened 40 minutes ago",
-    shortcut: "1",
-    icon: Clock,
-  },
-  {
-    id: "recent-break",
-    group: "Recent",
-    title: "Cash break — USD operating",
-    detail: "Opened yesterday",
-    shortcut: "2",
-    icon: Clock,
-  },
   {
     id: "go-overview",
     group: "Navigation",
@@ -190,7 +173,7 @@ const COMMANDS: Command[] = [
   },
 ];
 
-const GROUP_ORDER = ["Recent", "Navigation", "Actions"];
+const GROUP_ORDER = ["Navigation", "Actions"];
 
 // Commands navigate by setting the area hash — the app shell owns area
 // selection and keeps location.hash in sync (deep links + back button).
@@ -203,8 +186,6 @@ const AREA_BY_COMMAND: Record<string, string> = {
   "go-reports": "reports",
   "go-compliance": "compliance",
   "go-alerts": "alerts",
-  "recent-ic-memo": "deals",
-  "recent-break": "recon",
   "do-position": "positions",
   "do-prospect": "deals",
   "do-recon": "recon",
