@@ -29,8 +29,9 @@ data class AccessProvenance(
  * JDBC access to `octo.tenant`, `octo.tenant_member` and `octo.tenant_member_event` (V8). Access
  * state is never stored: [load] replays a member's events through the state machine, and [append]
  * validates a new event against that replay before inserting it. Both run under the per-member
- * advisory lock the V8 trigger takes, so two writers to one membership serialize and neither can
- * interleave an event into a history the other already replayed.
+ * advisory lock `octo.tenant_member:<tenant>:<user>` that the insert trigger also takes (key pinned
+ * by V40), so two writers to one membership serialize and neither can interleave an event into a
+ * history the other already replayed.
  */
 class JdbcAccessStore(
     private val dataSource: DataSource,
