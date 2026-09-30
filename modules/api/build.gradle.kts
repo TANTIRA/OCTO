@@ -7,7 +7,7 @@ plugins {
 
 configurations.all {
     resolutionStrategy {
-        // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot BOM)
+        // Force patched versions for CVE-2024/2025 vulnerabilities (transitive deps from Spring Boot)
         force("io.netty:netty-common:4.2.17.Final")
         force("io.netty:netty-handler:4.2.17.Final")
         force("io.netty:netty-buffer:4.2.17.Final")

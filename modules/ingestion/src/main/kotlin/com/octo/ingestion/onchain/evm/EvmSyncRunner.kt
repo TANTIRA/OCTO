@@ -85,7 +85,3 @@ class EvmSyncRunner(private val config: EvmConfig) {
     }
 }
 
-/**
- * Exception wrapper for EVM RPC errors that sanitizes credential-bearing URLs.
- */
-class EvmException(message: String, val status: Int? = null) : RuntimeException(message)
