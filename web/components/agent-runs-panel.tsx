@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import PanelHeader from "@/components/panel-header";
 import { getJson, messageFor } from "@/lib/api";
 import { useTenants } from "@/lib/use-tenants";
 
@@ -59,6 +59,14 @@ export default function AgentRunsPanel() {
   }, [load]);
 
   return (
+    <div>
+      <PanelHeader
+        description="Every agent workflow run, with its models and judge verdict — the audit spine, read-only."
+        onRefresh={load}
+        refreshing={loading}
+        refreshLabel="Refresh runs"
+        error={error}
+      />
     <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
       <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
         <div className="min-w-0 flex-1">
@@ -89,7 +97,7 @@ export default function AgentRunsPanel() {
         </p>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 sm:px-8">
+      <div>
         <div className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex h-12 items-center gap-3 bg-neutral-50 px-4 dark:bg-neutral-800/40">
             <h3 className="min-w-0 flex-1 truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
+import PanelHeader from "@/components/panel-header";
 import { getJson, messageFor, postJson } from "@/lib/api";
 import { useTenants } from "@/lib/use-tenants";
 
@@ -138,6 +139,15 @@ export default function ReportQueue() {
   };
 
   return (
+    <div>
+      <PanelHeader
+        description="Performance runs over the investor-signed series you supply; every outbound artifact passes the approval gate."
+        onRefresh={refresh}
+        refreshing={polling}
+        refreshLabel="Refresh running jobs"
+        error={error}
+        notice={notice}
+      />
     <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
       <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
         <div className="min-w-0 flex-1">
@@ -173,7 +183,7 @@ export default function ReportQueue() {
         </p>
       )}
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 sm:px-8">
+      <div className="space-y-4">
         <section className="rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
           <h3 className="text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
             New performance report

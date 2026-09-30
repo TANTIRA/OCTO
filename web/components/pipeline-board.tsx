@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, RefreshCw, UserPlus } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
+import PanelHeader from "@/components/panel-header";
 import { getJson, messageFor, postJson } from "@/lib/api";
 import { useTenants } from "@/lib/use-tenants";
 
@@ -141,6 +142,19 @@ export default function PipelineBoard() {
   };
 
   return (
+    // Fixed-height board with per-column scroll only when all four columns sit
+    // side by side; stacked columns take their natural height and the page scrolls.
+    <div className="flex flex-col xl:h-full xl:min-h-[560px]">
+      <PanelHeader
+        description="Live from the prospect ledger. Advance moves through the state machine; the server rejects illegal jumps."
+        onRefresh={load}
+        refreshing={loading}
+        refreshLabel="Refresh pipeline"
+        error={error}
+        notice={notice}
+      />
+
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:min-h-0 xl:flex-1 xl:grid-cols-4">
     <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
       <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
         <div className="min-w-0 flex-1">

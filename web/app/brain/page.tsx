@@ -1,8 +1,11 @@
+import { redirect } from "next/navigation";
 import AuthGate from "@/components/auth-gate";
 import BrainPanel from "@/components/brain-panel";
 import { TenantProvider } from "@/lib/use-tenants";
 
+// Company brain lives inside the app shell (workspace switcher, nav, ⌘K).
 export default function BrainPage() {
+  redirect("/app#brain");
   return (
     <AuthGate>
       <TenantProvider>

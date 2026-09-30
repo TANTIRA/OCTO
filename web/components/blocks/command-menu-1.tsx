@@ -174,12 +174,12 @@ const AREA_BY_COMMAND: Record<string, string> = {
   "do-recon": "recon",
   "do-report": "reports",
   "do-alert-rule": "alerts",
+  "go-brain": "brain",
 };
 
 // Commands that leave the shell entirely (route-level navigation).
 const PATH_BY_COMMAND: Record<string, string> = {
   "go-ops": "/admin",
-  "go-brain": "/brain",
 };
 
 const EXIT_MS = 140;
