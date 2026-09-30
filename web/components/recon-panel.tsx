@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import PanelHeader from "@/components/panel-header";
 import { messageFor, postJson } from "@/lib/api";
-import { Loader2, RefreshCw, X } from "lucide-react";
-import { getJson, messageFor, postJson } from "@/lib/api";
 import { useTenants } from "@/lib/use-tenants";
 
 /**
@@ -100,17 +98,6 @@ export default function ReconPanel() {
         error={error}
         notice={notice}
       />
-    <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-medium tracking-[-0.01em] text-neutral-900 dark:text-neutral-100">
-            Reconciliation
-          </h2>
-          <p className="mt-0.5 text-[13px] text-neutral-500">
-            Source records vs the IBOR. Breaks open review tasks automatically.
-          </p>
-        </div>
-      </header>
 
       <div className="space-y-2 pb-4">
         {rows.map((r, i) => (
@@ -171,15 +158,6 @@ export default function ReconPanel() {
           </button>
         </div>
       </div>
-
-      {error && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-      {notice && (
-        <p className="mx-6 mb-2 text-[13px] text-emerald-600 dark:text-emerald-400">{notice}</p>
-      )}
 
       {run && (
         <div>
