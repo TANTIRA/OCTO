@@ -29,6 +29,15 @@ class MetricsPortTest {
             HttpResponse.BodyHandlers.ofString(),
         )
 
+    private fun post(
+        port: Int,
+        path: String,
+    ): HttpResponse<String> =
+        client.send(
+            HttpRequest.newBuilder(URI("http://127.0.0.1:$port$path")).POST(HttpRequest.BodyPublishers.noBody()).build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+
     @Test
     fun `prometheus is anonymous on the metrics port only, and the public port is unchanged`() {
         val metricsPort = ServerSocket(0).use { it.localPort }
@@ -62,6 +71,8 @@ class MetricsPortTest {
                 for (path in listOf("/actuator/metrics", "/actuator/health", "/api/v1/funds")) {
                     assertThat(get(metricsPort, path).statusCode()).`as`("GET :metrics$path").isEqualTo(403)
                 }
+                // Read-only: an anonymous unsafe method on the scrape path is refused.
+                assertThat(post(metricsPort, "/actuator/prometheus").statusCode()).isEqualTo(403)
             }
     }
 
