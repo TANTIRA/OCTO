@@ -82,6 +82,15 @@ subprojects {
         apply(plugin = "org.jetbrains.kotlinx.kover")
     }
 
+    // Override Spring Dependency Management's Jackson BOM version
+    pluginManager.withPlugin("io.spring.dependency-management") {
+        extensions.configure<io.spring.gradle.dependencymanagement.DependencyManagementExtension> {
+            imports {
+                mavenBom("com.fasterxml.jackson:jackson-bom:2.22.3")
+            }
+        }
+    }
+
     // The plugin's bundled ktlint predates Kotlin 2.2 and crashes on KtTokens — pin a CLI that
     // supports it.
     pluginManager.withPlugin("org.jlleitschuh.gradle.ktlint") {
