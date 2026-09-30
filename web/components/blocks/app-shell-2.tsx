@@ -1,18 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
 import {
   Bell,
   Brain,
   ChartPie,
   Check,
   ChevronsUpDown,
+  FileBarChart,
   GitCompareArrows,
   Kanban,
   Landmark,
   LayoutDashboard,
   Menu,
+  Scale,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -39,233 +40,36 @@ const focusInset =
 const transition =
   "transition-[background-color,border-color,color] duration-150 ease-out";
 
-const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
-
 const TOOLTIP_DELAY_MS = 400;
 const TOOLTIP_GRACE_MS = 300;
-
-type Group = {
-  label: string;
-  items: { label: string }[];
-};
 
 type Area = {
   id: string;
   label: string;
   icon: LucideIcon;
-  current: string;
-  groups: Group[];
   title: string;
+  // No read endpoint serves the area yet: listed apart, never with stand-in data.
+  pending?: boolean;
 };
 
 const AREAS: Area[] = [
-  {
-    id: "overview",
-    label: "Overview",
-    icon: LayoutDashboard,
-    current: "Fund overview",
-    title: "Portfolio overview",
-    groups: [
-      {
-        label: "Overview",
-        items: [
-          { label: "Fund overview" },
-          { label: "NAV summary" },
-          { label: "Exposure" },
-          { label: "Cash & projections" },
-        ],
-      },
-      {
-        label: "Saved views",
-        items: [
-          { label: "Quarterly pack" },
-          { label: "IC briefing" },
-          { label: "LP report draft" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "assets",
-    label: "Assets",
-    icon: Landmark,
-    current: "All assets",
-    title: "Assets",
-    groups: [
-      {
-        label: "Assets",
-        items: [
-          { label: "All assets" },
-          { label: "Portfolio companies" },
-          { label: "Fund interests" },
-          { label: "Listed equity" },
-          { label: "Private credit" },
-          { label: "Digital assets" },
-        ],
-      },
-      {
-        label: "Reference",
-        items: [
-          { label: "Instrument master" },
-          { label: "Issuers" },
-          { label: "Identifiers" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "positions",
-    label: "Positions",
-    icon: ChartPie,
-    current: "All positions",
-    title: "Positions",
-    groups: [
-      {
-        label: "Positions",
-        items: [
-          { label: "All positions" },
-          { label: "By fund" },
-          { label: "By strategy" },
-          { label: "By geography" },
-          { label: "By sector" },
-        ],
-      },
-      {
-        label: "Saved views",
-        items: [
-          { label: "Top 10 by NAV" },
-          { label: "Underwater" },
-          { label: "Recent writes" },
-          { label: "Look-through" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "deals",
-    label: "Deals",
-    icon: Kanban,
-    current: "Pipeline",
-    title: "Deal pipeline",
-    groups: [
-      {
-        label: "Deals",
-        items: [
-          { label: "Pipeline" },
-          { label: "Sourced" },
-          { label: "Screening" },
-          { label: "Due diligence" },
-          { label: "IC review" },
-          { label: "Closed" },
-        ],
-      },
-      {
-        label: "Saved views",
-        items: [
-          { label: "My deals" },
-          { label: "Aging > 60d" },
-          { label: "This quarter" },
-          { label: "Passed" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "recon",
-    label: "Recon",
-    icon: GitCompareArrows,
-    current: "Open breaks",
-    title: "Reconciliation",
-    groups: [
-      {
-        label: "Recon",
-        items: [
-          { label: "Open breaks" },
-          { label: "Resolved" },
-          { label: "Runs" },
-          { label: "Rules" },
-        ],
-      },
-      {
-        label: "Sources",
-        items: [
-          { label: "Custodian feeds" },
-          { label: "Fund admin" },
-          { label: "Broker statements" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "reports",
-    label: "Reports",
-    icon: ChartPie,
-    current: "Queue",
-    title: "Reports",
-    groups: [
-      {
-        label: "Reports",
-        items: [
-          { label: "Queue" },
-          { label: "Performance" },
-          { label: "Exposure" },
-          { label: "GL export" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "compliance",
-    label: "Compliance",
-    icon: Check,
-    current: "Rules",
-    title: "Compliance",
-    groups: [
-      {
-        label: "Compliance",
-        items: [
-          { label: "Rules" },
-          { label: "Evaluations" },
-          { label: "Breaches" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "alerts",
-    label: "Alerts",
-    icon: Bell,
-    current: "Active alerts",
-    title: "Alerts & agents",
-    groups: [
-      {
-        label: "Alerts",
-        items: [
-          { label: "Active" },
-          { label: "Snoozed" },
-          { label: "Resolved" },
-          { label: "Rules" },
-        ],
-      },
-      {
-        label: "Agents",
-        items: [
-          { label: "News matching" },
-          { label: "NL query" },
-          { label: "Email drafts" },
-          { label: "Approval queue" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "brain",
-    label: "Company brain",
-    icon: Brain,
-    current: "Ask",
-    title: "Company brain",
-    groups: [{ label: "Brain", items: [{ label: "Ask" }] }],
-  },
+  { id: "overview", label: "Overview", icon: LayoutDashboard, title: "Portfolio overview" },
+  { id: "deals", label: "Deals", icon: Kanban, title: "Deal pipeline" },
+  { id: "recon", label: "Reconciliation", icon: GitCompareArrows, title: "Reconciliation" },
+  { id: "reports", label: "Reports", icon: FileBarChart, title: "Reports" },
+  { id: "compliance", label: "Compliance", icon: Scale, title: "Compliance" },
+  { id: "alerts", label: "Alerts & agents", icon: Bell, title: "Alerts & agents" },
+  { id: "brain", label: "Company brain", icon: Brain, title: "Company brain" },
+  { id: "assets", label: "Assets", icon: Landmark, title: "Assets", pending: true },
+  { id: "positions", label: "Positions", icon: ChartPie, title: "Positions", pending: true },
+  { id: "assets", label: "Assets", icon: Landmark, title: "Assets" },
+  { id: "positions", label: "Positions", icon: ChartPie, title: "Positions" },
+  { id: "deals", label: "Deals", icon: Kanban, title: "Deal pipeline" },
+  { id: "recon", label: "Recon", icon: GitCompareArrows, title: "Reconciliation" },
+  { id: "reports", label: "Reports", icon: ChartPie, title: "Reports" },
+  { id: "compliance", label: "Compliance", icon: Check, title: "Compliance" },
+  { id: "alerts", label: "Alerts", icon: Bell, title: "Alerts & agents" },
+  { id: "brain", label: "Company brain", icon: Brain, title: "Company brain" },
 ];
 
 function WorkspaceSwitcher() {
@@ -498,11 +302,9 @@ const KEY_DESTINATIONS: Record<string, string> = {
   "g l": "alerts",
   "g x": "/admin",
   "g b": "brain",
-  t: "positions",
   n: "deals",
   r: "recon",
   l: "reports",
-  e: "alerts",
 };
 
 function NavigationFrame({
@@ -514,9 +316,38 @@ function NavigationFrame({
   onSelectArea: (id: string) => void;
   onClose?: () => void;
 }) {
+  const nav = useScrollFade<HTMLElement>();
+
+  const link = (item: Area) => {
+    const Icon = item.icon;
+    const selected = item.id === areaId;
+    return (
+      <li key={item.id}>
+        <a
+          href={`#${item.id}`}
+          aria-current={selected ? "page" : undefined}
+          onClick={(event) => {
+            event.preventDefault();
+            onSelectArea(item.id);
+          }}
+          className={cx(
+            "flex h-8 items-center gap-2.5 rounded-[var(--rb-r-md,8px)] px-2.5 text-[13px]",
+            selected
+              ? "bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+              : item.pending
+                ? "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:text-neutral-500 dark:hover:bg-neutral-800/60 dark:hover:text-neutral-300"
+                : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/60 dark:hover:text-neutral-100",
+            transition,
+            focusInset,
+          )}
+        >
+          <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        </a>
+      </li>
+    );
   const [tipFor, setTipFor] = useState<string | null>(null);
   const [tipShown, setTipShown] = useState(false);
-  const nav = useScrollFade<HTMLElement>();
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const frameRef = useRef<number | undefined>(undefined);
   const openRef = useRef(false);
@@ -524,10 +355,6 @@ function NavigationFrame({
   const graceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
-  const reduceMotion = useReducedMotion();
-
-  const area = AREAS.find((item) => item.id === areaId) ?? AREAS[0];
-
   const showTip = (id: string) => {
     clearTimeout(timerRef.current);
     cancelAnimationFrame(frameRef.current ?? 0);
@@ -561,38 +388,19 @@ function NavigationFrame({
     setTipShown(false);
   };
 
-  useEffect(
-    () => () => {
-      clearTimeout(timerRef.current);
-      clearTimeout(graceTimerRef.current);
-      cancelAnimationFrame(frameRef.current ?? 0);
-    },
-    [],
-  );
-
-  const tip = (id: string, label: string) =>
-    tipFor === id ? (
-      <span
-        role="tooltip"
-        className={cx(
-          "pointer-events-none absolute left-full top-1/2 z-[70] ml-2 flex h-7 origin-left -translate-y-1/2 items-center whitespace-nowrap rounded-[var(--rb-r-sm,6px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-2 text-xs text-[var(--rb-accent-fg,oklch(100%_0_0))] transition-[opacity,transform] duration-[125ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))]",
-          tipShown ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        {label}
-      </span>
-    ) : null;
-
   return (
-    <>
-      <div className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-neutral-200/70 bg-neutral-50 px-2 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+    <div className="flex w-60 min-w-0 flex-col border-r border-neutral-200/70 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="flex shrink-0 items-center gap-1 px-2 pb-1 pt-2">
+        <div className="min-w-0 flex-1">
+          <WorkspaceSwitcher />
+        </div>
         {onClose && (
           <button
             type="button"
             aria-label="Close navigation"
             onClick={onClose}
             className={cx(
-              "mb-1 inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-900 active:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-neutral-100 dark:active:bg-neutral-700",
+              "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-100",
               transition,
               focus,
             )}
@@ -600,115 +408,41 @@ function NavigationFrame({
             <X aria-hidden="true" className="h-4 w-4 shrink-0" />
           </button>
         )}
-
-        <nav
-          aria-label="Areas"
-          onMouseLeave={hideTip}
-          className="flex flex-col items-center gap-1"
-        >
-          {AREAS.map((item) => {
-            const Icon = item.icon;
-            const selected = item.id === areaId;
-            return (
-              <span key={item.id} className="relative">
-                <button
-                  type="button"
-                  aria-label={item.label}
-                  aria-current={selected ? "page" : undefined}
-                  onClick={() => {
-                    onSelectArea(item.id);
-                    hideTip();
-                  }}
-                  onMouseEnter={() => showTip(item.id)}
-                  onFocus={() => showTip(item.id)}
-                  onBlur={hideTip}
-                  className={cx(
-                    "inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)]",
-                    selected
-                      ? "bg-[var(--rb-accent,oklch(20.5%_0_0))] text-[var(--rb-accent-fg,oklch(100%_0_0))] dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))]"
-                      : "bg-transparent text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 active:bg-neutral-200 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-100 dark:active:bg-neutral-700",
-                    transition,
-                    focus,
-                  )}
-                >
-                  <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-                </button>
-                {tip(item.id, item.label)}
-              </span>
-            );
-          })}
-        </nav>
       </div>
+
+      <div className="relative min-h-0 flex-1">
+        <nav
+          ref={nav.ref}
+          onScroll={nav.onScroll}
+          aria-label="Areas"
+          className="h-full overflow-y-auto px-2 py-2"
+        >
+          <ul className="space-y-0.5">{AREAS.filter((a) => !a.pending).map(link)}</ul>
+          <p className="mb-1 mt-5 px-2.5 text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+            Not yet available
+          </p>
+          <ul className="space-y-0.5">{AREAS.filter((a) => a.pending).map(link)}</ul>
+        </nav>
+        <div
+          aria-hidden="true"
+          className={cx(
+            "pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-neutral-50 to-transparent transition-opacity duration-200 ease-out dark:from-neutral-900",
+            nav.edges.start ? "opacity-100" : "opacity-0",
+          )}
+        />
+        <div
+          aria-hidden="true"
+          className={cx(
+            "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-neutral-50 to-transparent transition-opacity duration-200 ease-out dark:from-neutral-900",
+            nav.edges.end ? "opacity-100" : "opacity-0",
+          )}
+        />
+      </div>
+    </div>
 
       <div className="flex w-64 min-w-0 flex-col bg-neutral-50 dark:bg-neutral-900">
         <div className="shrink-0 px-2 pb-1 pt-2">
           <WorkspaceSwitcher />
-        </div>
-
-        <div className="relative min-h-0 flex-1">
-          <nav
-            ref={nav.ref}
-            onScroll={nav.onScroll}
-            aria-label={area.label}
-            className="h-full overflow-y-auto px-2 pb-3"
-          >
-            <motion.div
-              key={area.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, ease: EASE_OUT }}
-              className="space-y-4"
-            >
-              {area.groups
-                .map((group) => ({
-                  ...group,
-                  // Only the live surface is a real destination — fabricated
-                  // saved views/filters and their counts are not rendered.
-                  items: group.items.filter((i) => i.label === area.current),
-                }))
-                .filter((group) => group.items.length > 0)
-                .map((group) => (
-                  <div key={group.label}>
-                    <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
-                      {group.label}
-                    </p>
-                    <ul className="space-y-0.5">
-                      {group.items.map((item) => (
-                        <li key={item.label}>
-                          <a
-                            href={`#${area.id}`}
-                            aria-current="page"
-                            className={cx(
-                              "flex h-8 cursor-pointer items-center gap-2 rounded-[var(--rb-r-md,8px)] bg-neutral-100 px-3 text-[13px] font-medium text-neutral-900 active:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:active:bg-neutral-700",
-                              transition,
-                              focus,
-                            )}
-                          >
-                            <span className="min-w-0 flex-1 truncate">
-                              {item.label}
-                            </span>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-            </motion.div>
-          </nav>
-          <div
-            aria-hidden="true"
-            className={cx(
-              "pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-neutral-50 to-transparent transition-opacity duration-200 ease-out dark:from-neutral-900",
-              nav.edges.start ? "opacity-100" : "opacity-0",
-            )}
-          />
-          <div
-            aria-hidden="true"
-            className={cx(
-              "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-neutral-50 to-transparent transition-opacity duration-200 ease-out dark:from-neutral-900",
-              nav.edges.end ? "opacity-100" : "opacity-0",
-            )}
-          />
         </div>
       </div>
     </>
@@ -733,10 +467,8 @@ export default function AppShell2() {
   } = useTenants();
   const content = useScrollFade<HTMLElement>();
   const shouldFocusRef = useRef(false);
-  const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion();
 
   const area = AREAS.find((item) => item.id === areaId) ?? AREAS[0];
 
@@ -860,7 +592,6 @@ export default function AppShell2() {
 
   return (
     <div
-      ref={rootRef}
       className="relative flex h-full min-h-[720px] w-full overflow-hidden bg-white dark:bg-neutral-950"
     >
       <aside className="hidden shrink-0 lg:flex">
@@ -953,12 +684,12 @@ export default function AppShell2() {
             ) : area.id === "assets" ? (
               <StatePanel
                 title="Asset register"
-                detail="The API serves a single asset by id (GET /api/v1/assets/{id}) — no list endpoint exists yet, so there are no rows to show."
+                detail="Assets are recorded one by one, but no register view lists them yet, so there are no rows to show."
               />
             ) : area.id === "positions" ? (
               <StatePanel
                 title="Positions"
-                detail="Positions derive from the transaction ledger, but no read endpoint serves this surface yet. The overview shows live pipeline and agent activity in the meantime."
+                detail="Positions derive from the transaction ledger, but no positions view is served yet. The overview shows live pipeline and agent activity in the meantime."
               />
             ) : area.id === "deals" ? (
               <PipelineBoard />
@@ -1009,13 +740,16 @@ export default function AppShell2() {
             aria-modal="true"
             aria-label="Navigation"
             className={cx(
-              "absolute inset-y-0 left-0 z-40 flex w-[312px] max-w-[calc(100%-3rem)] overflow-hidden rounded-r-[var(--rb-r-4xl,18px)] bg-neutral-50 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.18)] transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none dark:bg-neutral-900 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]",
+              "absolute inset-y-0 left-0 z-40 flex w-60 max-w-[calc(100%-3rem)] overflow-hidden rounded-r-[var(--rb-r-4xl,18px)] bg-neutral-50 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.18)] transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none dark:bg-neutral-900 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]",
               drawerShown ? "translate-x-0" : "-translate-x-full",
             )}
           >
             <NavigationFrame
               areaId={areaId}
-              onSelectArea={selectArea}
+              onSelectArea={(id) => {
+                selectArea(id);
+                closeDrawer();
+              }}
               onClose={closeDrawer}
             />
           </div>

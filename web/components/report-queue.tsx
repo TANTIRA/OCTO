@@ -50,6 +50,21 @@ type Flow = { date: string; amount: string };
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// The API has no job list to re-read, so this tab remembers the ids it queued
+// per workspace. Leaving the area no longer strands a sealed report.
+function storedJobIds(key: string): string[] {
+  try {
+    const ids: unknown = JSON.parse(sessionStorage.getItem(key) ?? "[]");
+    return Array.isArray(ids)
+      ? ids.filter((id): id is string => typeof id === "string" && UUID.test(id))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function ReportQueue() {
   const { tenantId } = useTenants();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -60,13 +75,32 @@ export default function ReportQueue() {
 
   // Inline-series inputs — the real evidence base for a performance report.
   const [currency, setCurrency] = useState("USD");
-  const [nav, setNav] = useState("120");
+  // Empty until the user supplies them — a pre-filled NAV or cash-flow series
+  // would let a report run on numbers nobody entered (#314).
+  const [nav, setNav] = useState("");
   const [valuationDate, setValuationDate] = useState(today());
-  const [flows, setFlows] = useState<Flow[]>([
-    { date: "2024-01-15", amount: "-100" },
-    { date: "2025-06-30", amount: "30" },
-  ]);
+  const [flows, setFlows] = useState<Flow[]>([{ date: "", amount: "" }]);
   const [measures, setMeasures] = useState<string[]>(["tvpi", "dpi", "irr"]);
+  const jobsKey = `octo.report-jobs.${tenantId}`;
+
+  useEffect(() => {
+    const ids = storedJobIds(jobsKey);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    Promise.all(ids.map((id) => getJson<Job>(`/api/v1/reports/${id}`).catch(() => null))).then(
+      (list) => {
+        if (cancelled) return;
+        // Merge: a job queued while this read was in flight stays on top.
+        setJobs((prev) => [
+          ...prev,
+          ...list.filter((j): j is Job => j !== null && !prev.some((p) => p.id === j.id)),
+        ]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [jobsKey]);
 
   const refresh = useCallback(async () => {
     const active = jobs.filter((j) => j.status === "new" || j.status === "executing");
@@ -112,6 +146,11 @@ export default function ReportQueue() {
         },
       });
       setJobs((prev) => [job, ...prev]);
+      try {
+        sessionStorage.setItem(jobsKey, JSON.stringify([job.id, ...storedJobIds(jobsKey)].slice(0, 20)));
+      } catch {
+        // Storage blocked: the job still shows until the area is left.
+      }
       setNotice("performance job queued — polling for the result.");
     } catch (e) {
       setError(messageFor(e));
@@ -194,7 +233,8 @@ export default function ReportQueue() {
               <input
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                className="mt-0.5 h-8 w-20 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                className="mt-0.5 h-8 w-20 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+                className="mt-0.5 h-8 w-20 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
               />
             </label>
             <label className="flex flex-col text-[11px] text-neutral-500">
@@ -203,7 +243,8 @@ export default function ReportQueue() {
                 type="number"
                 value={nav}
                 onChange={(e) => setNav(e.target.value)}
-                className="mt-0.5 h-8 w-24 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                className="mt-0.5 h-8 w-24 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+                className="mt-0.5 h-8 w-24 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
               />
             </label>
             <label className="flex flex-col text-[11px] text-neutral-500">
@@ -212,7 +253,8 @@ export default function ReportQueue() {
                 type="date"
                 value={valuationDate}
                 onChange={(e) => setValuationDate(e.target.value)}
-                className="mt-0.5 h-8 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                className="mt-0.5 h-8 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+                className="mt-0.5 h-8 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
               />
             </label>
           </div>
@@ -231,7 +273,7 @@ export default function ReportQueue() {
                   onChange={(e) =>
                     setFlows((prev) => prev.map((x, idx) => (idx === i ? { ...x, date: e.target.value } : x)))
                   }
-                  className="h-8 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                  className="h-8 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
                 />
                 <input
                   type="number"
@@ -241,7 +283,7 @@ export default function ReportQueue() {
                   onChange={(e) =>
                     setFlows((prev) => prev.map((x, idx) => (idx === i ? { ...x, amount: e.target.value } : x)))
                   }
-                  className="h-8 w-28 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                  className="h-8 w-28 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
                 />
                 {flows.length > 1 && (
                   <button
@@ -257,7 +299,7 @@ export default function ReportQueue() {
             ))}
             <button
               type="button"
-              onClick={() => setFlows((prev) => [...prev, { date: today(), amount: "0" }])}
+              onClick={() => setFlows((prev) => [...prev, { date: "", amount: "" }])}
               className="inline-flex h-7 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-neutral-100 px-2.5 text-[12px] font-medium text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
             >
               + flow
@@ -285,7 +327,13 @@ export default function ReportQueue() {
 
           <button
             type="button"
-            disabled={submitting || !tenantId || flows.some((f) => !f.date || f.amount === "")}
+            disabled={
+              submitting ||
+              !tenantId ||
+              !nav.trim() ||
+              measures.length === 0 ||
+              flows.some((f) => !f.date || f.amount === "")
+            }
             onClick={submitPerformance}
             className="mt-4 inline-flex h-9 cursor-pointer items-center rounded-[var(--rb-r-md,8px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-4 text-[13px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] disabled:opacity-50 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))]"
           >

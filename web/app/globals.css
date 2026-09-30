@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
+/* Follow the OS theme: every dark: style in the app keys off the system
+   preference (nothing ever set a .dark class, so they never applied). */
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 :root {
     --rb-accent: oklch(20.5% 0 0);
@@ -16,9 +18,12 @@
     --rb-r-4xl: calc(var(--rb-radius) + min(8px, var(--rb-radius)));
 }
 
-.dark {
-    --rb-accent: oklch(100% 0 0);
-    --rb-accent-fg: oklch(20.5% 0 0);
+@media (prefers-color-scheme: dark) {
+    :root {
+        --rb-accent: oklch(100% 0 0);
+        --rb-accent-fg: oklch(20.5% 0 0);
+        color-scheme: dark;
+    }
 }
 
 @theme inline {
