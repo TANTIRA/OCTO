@@ -3,3 +3,6 @@ root = true
 [*.{kt,kts}]
 # Scaffold modules intentionally carry package-only placeholder files until they gain sources.
 ktlint_standard_no-empty-file = disabled
+# 1.8.0's new when-condition spacing/bracing rules flag the codebase's established style.
+ktlint_standard_blank-line-between-when-conditions = disabled
+ktlint_standard_when-entry-bracing = disabled

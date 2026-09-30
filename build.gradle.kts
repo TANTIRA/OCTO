@@ -79,6 +79,22 @@ subprojects {
         extensions.configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
             version.set("1.8.0")
         }
+        configurations.named("ktlint") {
+            // Kotlin 2.4 removed kotlin-compiler-embeddable, yet the Kotlin Gradle plugin still
+            // rewrites the ktlint worker classpath's request to the project Kotlin version, which
+            // then cannot resolve (or start the PSI factory). Re-pin ktlint's own compiler; the
+            // afterEvaluate registration makes this substitution run after the KGP's.
+            afterEvaluate {
+                configurations.named("ktlint") {
+                    resolutionStrategy {
+                        dependencySubstitution {
+                            substitute(module("org.jetbrains.kotlin:kotlin-compiler-embeddable"))
+                                .using(module("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.21"))
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pluginManager.withPlugin("org.jetbrains.kotlinx.kover") {
