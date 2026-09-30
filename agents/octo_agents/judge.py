@@ -12,6 +12,8 @@ from typing import Any, Literal
 import httpx
 from pydantic import BaseModel, Field
 
+from .retry import send_with_retry
+
 
 class NoulCriteria(BaseModel):
     when_true: str | None = Field(default=None, alias="true")
@@ -89,11 +91,15 @@ class JudgeClient:
         api_key: str,
         model: str,
         timeout_s: float = 60.0,
+        retries: int = 2,
+        backoff_s: float = 0.5,
         client: httpx.Client | None = None,
     ) -> None:
         self._endpoint = endpoint
         self._api_key = api_key
         self._model = model
+        self._retries = retries
+        self._backoff_s = backoff_s
         self._client = client or httpx.Client(timeout=timeout_s)
 
     def decide(
@@ -123,13 +129,17 @@ class JudgeClient:
         if user is not None:
             payload["user"] = user
 
-        response = self._client.post(
-            self._endpoint,
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
+        response = send_with_retry(
+            lambda: self._client.post(
+                self._endpoint,
+                headers={
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            ),
+            retries=self._retries,
+            backoff_s=self._backoff_s,
         )
         if response.status_code not in range(200, 300):
             raise JudgmentRequestError(response.status_code, response.text[:512])

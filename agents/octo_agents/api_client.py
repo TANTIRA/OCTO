@@ -10,6 +10,8 @@ from typing import Any
 
 import httpx
 
+from .retry import send_with_retry
+
 
 class OctoApiError(RuntimeError):
     def __init__(self, status_code: int, body: str) -> None:
@@ -28,10 +30,14 @@ class OctoApiClient:
         token: str,
         *,
         timeout_s: float = 60.0,
+        retries: int = 2,
+        backoff_s: float = 0.5,
         client: httpx.Client | None = None,
     ) -> None:
         if not token:
             raise ValueError("octo_agent_token is required for api calls")
+        self._retries = retries
+        self._backoff_s = backoff_s
         self._client = client or httpx.Client(
             base_url=base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {token}"},
@@ -39,13 +45,21 @@ class OctoApiClient:
         )
 
     def _get(self, path: str) -> Any:
-        r = self._client.get(path)
+        r = send_with_retry(
+            lambda: self._client.get(path),
+            retries=self._retries,
+            backoff_s=self._backoff_s,
+        )
         if r.status_code not in range(200, 300):
             raise OctoApiError(r.status_code, r.text[:512])
         return r.json()
 
     def _post(self, path: str, body: dict[str, Any] | None = None) -> Any:
-        r = self._client.post(path, json=body or {})
+        r = send_with_retry(
+            lambda: self._client.post(path, json=body or {}),
+            retries=self._retries,
+            backoff_s=self._backoff_s,
+        )
         if r.status_code not in range(200, 300):
             raise OctoApiError(r.status_code, r.text[:512])
         return r.json() if r.text else {}
@@ -61,11 +75,17 @@ class OctoApiClient:
         return self._get(f"/api/v1/assets/{asset_id}")
 
     def list_pipeline(self, tenant_id: str, stage: str, limit: int = 50) -> Any:
-        return self._get(f"/api/v1/prospects?tenantId={tenant_id}&stage={stage}&limit={limit}")
+        return self._get(
+            f"/api/v1/prospects?tenantId={tenant_id}&stage={stage}&limit={limit}"
+        )
 
     def get_dataset(self, dataset_id: str, **params: Any) -> Any:
         query = "&".join(f"{k}={v}" for k, v in params.items())
-        return self._get(f"/api/v1/data/{dataset_id}?{query}" if query else f"/api/v1/data/{dataset_id}")
+        return self._get(
+            f"/api/v1/data/{dataset_id}?{query}"
+            if query
+            else f"/api/v1/data/{dataset_id}"
+        )
 
     def get_agent_context(self, tenant_id: str) -> Any:
         return self._get(f"/api/v1/agent-context?tenantId={tenant_id}")
