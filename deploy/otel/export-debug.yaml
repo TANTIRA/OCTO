@@ -1,0 +1,8 @@
+# OTELCOL_EXPORT=debug (default): log a one-line summary per batch to the collector's stdout, export nothing.
+# Proves the api → collector path without a backend; `docker logs` on the collector shows it.
+service:
+  pipelines:
+    traces:
+      exporters: [debug]
+    metrics:
+      exporters: [debug]

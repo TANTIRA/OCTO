@@ -149,6 +149,25 @@ a second connector on `OCTO_METRICS_PORT` (default `8081`) that answers anonymou
   arriving through Traefik on `8080` cannot claim to be a scrape.
 - Check from the host: `docker exec <api-container> curl -fsS localhost:8081/actuator/prometheus | head`.
 
+## OTEL collector (#306)
+
+`otel-collector` runs the pinned core `otel/opentelemetry-collector` image with the config in
+`deploy/otel/` (bind-mounted from the cloned repo). It scrapes `api:8081/actuator/prometheus` every
+30s and receives OTLP on `:4317`/`:4318` — the api sends traces there through
+`MANAGEMENT_OTLP_TRACING_ENDPOINT`, derived from `OTEL_EXPORTER_OTLP_ENDPOINT` (default
+`http://otel-collector:4318`; Boot samples 10% of requests). Internal only: default network, no
+host ports, no domain.
+
+| Env | Default | Effect |
+| --- | --- | --- |
+| `OTELCOL_EXPORT` | `debug` | Exporter overlay `deploy/otel/export-<name>.yaml`. `debug` logs a summary per batch and sends nothing off-host |
+| `OTELCOL_OTLP_ENDPOINT` | — | Required when `OTELCOL_EXPORT=otlphttp`: backend base URL (`/v1/traces`, `/v1/metrics` are appended). Unset → the collector refuses to start |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4318` | Where the api sends traces |
+
+A backend that needs an auth header, or lives on `dokploy-network`, gets its own overlay (and the
+network) in the PR that provisions it. Check it runs: `docker logs <otel-collector>` shows
+`ResourceMetrics`/`ResourceSpans` summaries every batch under the debug overlay.
+
 ## Gotchas (all learned the hard way)
 
 - **Healthchecks and Traefik:** Dokploy drops *unhealthy* containers from the

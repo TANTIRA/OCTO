@@ -57,6 +57,11 @@ services:
       # URL makes agent endpoints answer 503; the token is shared with the agents service.
       - OCTO_AGENTS_BASE_URL=${OCTO_AGENTS_BASE_URL:-http://agents:8080}
       - OCTO_AGENTS_TOKEN=${OCTO_AGENTS_TOKEN}
+      # Traces → otel-collector (#306). Boot 3.5 does not read OTEL_* itself; this maps the standard
+      # knob onto its own property. Point OTEL_EXPORTER_OTLP_ENDPOINT elsewhere to bypass the collector.
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}/v1/traces
+      # Internal Prometheus scrape port (#338) — never publish it; otel-collector scrapes api:8081.
+      - OCTO_METRICS_PORT=8081
     networks:
       - default
       - dokploy-network
@@ -150,6 +155,37 @@ services:
         limits:
           cpus: "0.25"
           memory: 96M
+
+  # OpenTelemetry collector (#306): scrapes api:8081/actuator/prometheus and receives OTLP traces.
+  # Internal only — no Traefik labels, no host ports, default network only. OTELCOL_EXPORT picks the
+  # exporter overlay in deploy/otel/ (debug by default: logs a summary, sends nothing off-host).
+  otel-collector:
+    # Core distribution (otlp + prometheus receivers, debug/otlphttp exporters). Pinned by version +
+    # digest (infra/README.md guardrails). Bump both together:
+    #   docker buildx imagetools inspect otel/opentelemetry-collector:0.162.0 --format '{{.Manifest.Digest}}'
+    image: otel/opentelemetry-collector:0.162.0@sha256:310a800ad69ee430e7c541796852a242c9c7db97aaad4daa5ccf843c525fbdb2
+    restart: unless-stopped
+    command:
+      - --config=/etc/octo-otel/collector.yaml
+      - --config=/etc/octo-otel/export-${OTELCOL_EXPORT:-debug}.yaml
+    environment:
+      # Read by export-otlphttp.yaml only; required there, ignored by the debug overlay.
+      - OTELCOL_OTLP_ENDPOINT
+    volumes:
+      - ./otel:/etc/octo-otel:ro
+    networks:
+      - default
+    # No healthcheck: the image is distroless (no shell, curl or wget), and nothing routes to it.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
 
   web:
     build:
