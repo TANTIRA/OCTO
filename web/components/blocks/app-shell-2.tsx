@@ -478,6 +478,7 @@ export default function AppShell2() {
       clearTimeout(timer);
     };
   }, [selectArea]);
+  }, [selectArea, platformAdmin]);
 
   useEffect(() => {
     if (!drawerOpen) return;

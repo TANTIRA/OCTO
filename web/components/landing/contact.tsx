@@ -56,7 +56,7 @@ export function Contact() {
 
   return (
     <section id="contact" className="scroll-mt-16 bg-black px-4 py-24 text-white sm:px-6 sm:py-32 lg:px-8">
-      <Reveal className="mx-auto grid max-w-[1320px] gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
+      <Reveal className="relative z-40 mx-auto grid max-w-[1320px] gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
         <div>
           <h2 data-anim className="font-display text-5xl font-semibold leading-[0.98] tracking-[-0.045em] sm:text-7xl">
             See your numbers in one place.
