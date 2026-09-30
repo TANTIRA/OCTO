@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Plus, Minus } from "lucide-react";
+import { Plus, Minus } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function FAQ2() {
@@ -49,13 +49,9 @@ export default function FAQ2() {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="flex flex-col sm:flex-row items-stretch gap-3 sm:gap-4"
             >
-              <button className="px-6 sm:px-8 py-3 sm:py-3.5 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium text-sm sm:text-base hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors duration-200 whitespace-nowrap">
+              <a href="#contact" className="text-center px-6 sm:px-8 py-3 sm:py-3.5 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium text-sm sm:text-base hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors duration-200 whitespace-nowrap">
                 Request access
-              </button>
-              <button className="group px-6 sm:px-8 py-3 sm:py-3.5 rounded-full border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white font-medium text-sm sm:text-base hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors duration-200 flex items-center justify-center gap-2 whitespace-nowrap">
-                <span>Book a call</span>
-                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
-              </button>
+              </a>
             </motion.div>
           </div>
 

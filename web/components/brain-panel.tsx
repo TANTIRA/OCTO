@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { TenantPicker, useTenants } from "@/lib/use-tenants";
 
 /**
  * Company-brain query surface (F7). The question posts to
@@ -9,8 +10,6 @@ import { apiFetch } from "@/lib/api";
  * `{status, answer, verdict, note}` — a refused answer renders its note, not
  * a fabricated response.
  */
-
-type Tenant = { tenantId: string; slug: string; role: string };
 
 type BrainResult = {
   status: "completed" | "refused";
@@ -23,22 +22,11 @@ type BrainResult = {
 };
 
 export default function BrainPanel() {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [tenantId, setTenantId] = useState("");
+  const { tenants, tenantId, setTenantId, error: tenantError } = useTenants();
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<BrainResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    apiFetch("/api/v1/me/access")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((d: { tenants: Tenant[] }) => {
-        setTenants(d.tenants);
-        if (d.tenants.length === 1) setTenantId(d.tenants[0].tenantId);
-      })
-      .catch(() => setError("could not load your tenants"));
-  }, []);
 
   async function ask() {
     if (!tenantId || !question.trim()) return;
@@ -78,21 +66,7 @@ export default function BrainPanel() {
       </header>
 
       {tenants.length > 1 && (
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-neutral-500">Tenant</span>
-          <select
-            className="rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
-            value={tenantId}
-            onChange={(e) => setTenantId(e.target.value)}
-          >
-            <option value="">choose…</option>
-            {tenants.map((t) => (
-              <option key={t.tenantId} value={t.tenantId}>
-                {t.slug} — {t.role}
-              </option>
-            ))}
-          </select>
-        </label>
+        <TenantPicker tenants={tenants} tenantId={tenantId} onChange={setTenantId} />
       )}
 
       <label className="flex flex-col gap-1 text-sm">
@@ -107,6 +81,7 @@ export default function BrainPanel() {
       </label>
 
       <button
+        type="button"
         className="self-start rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900"
         disabled={pending || !tenantId || !question.trim()}
         onClick={ask}
@@ -114,7 +89,11 @@ export default function BrainPanel() {
         {pending ? "thinking…" : "Ask"}
       </button>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {(tenantError || error) && (
+        <p role="alert" className="text-sm text-red-600">
+          {tenantError ?? error}
+        </p>
+      )}
 
       {result && (
         <section className="rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800">

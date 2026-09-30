@@ -99,6 +99,9 @@ export function Navigation2() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
             onMouseLeave={() => setActiveMenu(null)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setActiveMenu(null);
+            }}
           >
             <div className="mx-auto w-fit rounded-3xl bg-white/40 backdrop-blur-2xl border border-neutral-200/50 shadow-xl dark:bg-neutral-950/20 dark:border-neutral-800/50 overflow-hidden">
               <div className="flex items-center justify-between gap-2 pl-6 pr-3 py-3">
@@ -111,13 +114,19 @@ export function Navigation2() {
 
                 <div className="flex items-center gap-1">
                   <button
+                    type="button"
+                    aria-expanded={activeMenu === "Platform"}
                     onMouseEnter={() => setActiveMenu("Platform")}
+                    onClick={() => setActiveMenu((v) => (v === "Platform" ? null : "Platform"))}
                     className="px-4 py-2 text-sm tracking-tight font-light text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded-full"
                   >
                     Platform
                   </button>
                   <button
+                    type="button"
+                    aria-expanded={activeMenu === "Resources"}
                     onMouseEnter={() => setActiveMenu("Resources")}
+                    onClick={() => setActiveMenu((v) => (v === "Resources" ? null : "Resources"))}
                     className="px-4 py-2 text-sm tracking-tight font-light text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded-full"
                   >
                     Resources

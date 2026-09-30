@@ -59,6 +59,13 @@ export function TenantPicker({
       onChange={(e) => onChange(e.target.value)}
       className="h-8 cursor-pointer rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
     >
+      {/* Without this, 2+ tenants display the first one while tenantId is still "" —
+          the panel looks selected but loads nothing until the user changes it. */}
+      {!tenantId && (
+        <option value="" disabled>
+          Choose workspace…
+        </option>
+      )}
       {tenants.map((t) => (
         <option key={t.tenantId} value={t.tenantId}>
           {t.slug} ({t.role})
