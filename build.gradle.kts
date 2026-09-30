@@ -13,6 +13,20 @@ buildscript {
         // intellij-coverage-reporter -> coverage-report; the project-level force()
         // below cannot reach the build classpath, so pin the patched version here.
         resolutionStrategy.force("org.freemarker:freemarker:2.3.35")
+
+        // Dependabot #79 / #81 / #83: spring-boot-gradle-plugin -> spring-boot-buildpack-platform
+        // pulls httpclient5 5.5.2 / httpcore5 5.3.6 / httpcore5-h2 5.3.6 onto the build classpath.
+        // The version catalog cannot reach this classpath — an earlier attempt pinned these in
+        // gradle/libs.versions.toml and nothing referenced them, so the resolved versions never
+        // moved. Pin them where the freemarker fix above already proved force() does work.
+        //
+        // Scope: these are build-time only (Gradle plugin execution — dependency resolution and
+        // buildpack packaging). No httpclient5 reaches the application runtime classpath.
+        resolutionStrategy.force(
+            "org.apache.httpcomponents.client5:httpclient5:5.6.3",
+            "org.apache.httpcomponents.core5:httpcore5:5.4.3",
+            "org.apache.httpcomponents.core5:httpcore5-h2:5.4.3",
+        )
     }
 }
 
