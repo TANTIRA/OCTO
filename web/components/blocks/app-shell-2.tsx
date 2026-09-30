@@ -27,7 +27,7 @@ import CompliancePanel from "@/components/compliance-panel";
 import AgentRunsPanel from "@/components/agent-runs-panel";
 import BrainPanel from "@/components/brain-panel";
 import SessionMenu from "@/components/session-menu";
-import { useTenants } from "@/lib/use-tenants";
+import { usePlatformAdmin, useTenants } from "@/lib/use-tenants";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
@@ -466,6 +466,8 @@ export default function AppShell2() {
     error: tenantError,
     retry: retryTenants,
   } = useTenants();
+  // Gates the g+x chord to the ops console (#312); null (loading) counts as no.
+  const platformAdmin = usePlatformAdmin() === true;
   const content = useScrollFade<HTMLElement>();
   const shouldFocusRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -519,7 +521,7 @@ export default function AppShell2() {
       }
       const dest = KEY_DESTINATIONS[chord ? `g ${key}` : key];
       chord = false;
-      if (!dest) return;
+      if (!dest || (dest === "/admin" && !platformAdmin)) return;
       event.preventDefault();
       if (dest.startsWith("/")) window.location.assign(dest);
       else selectArea(dest);
@@ -529,7 +531,7 @@ export default function AppShell2() {
       document.removeEventListener("keydown", onKey);
       clearTimeout(timer);
     };
-  }, [selectArea]);
+  }, [selectArea, platformAdmin]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {

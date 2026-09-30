@@ -3,13 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import AuthGate from "@/components/auth-gate";
+import NotFound from "@/app/not-found";
+import { usePlatformAdmin } from "@/lib/use-tenants";
 
 /**
  * Ops page — probes the API's actuator health endpoints through the
  * same-origin /ops-api rewrite (next.config.ts), so the internal API base
- * URL never reaches the page. The whole surface sits behind AuthGate:
- * sessions live in the browser client, so gating must happen client-side —
- * a server-rendered page would ship probe results in the HTML to anyone.
+ * URL never reaches the page. Sessions live in the browser client, so the
+ * gate runs client-side — a server-rendered page would ship probe results in
+ * the HTML to anyone. AuthGate sends visitors without a session to /login;
+ * signed-in users who are not platform admins (API `OCTO_PLATFORM_ADMINS`,
+ * #312) get the 404 page, and the probes never run for them.
  */
 
 type Probe = {
@@ -176,10 +180,27 @@ function AdminPanel() {
   );
 }
 
+function PlatformAdminGate() {
+  const admin = usePlatformAdmin();
+  if (admin === null) {
+    return (
+      <div className="flex h-dvh w-full items-center justify-center bg-white dark:bg-neutral-950">
+        <div
+          role="status"
+          aria-label="Checking access"
+          className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900 dark:border-neutral-700 dark:border-t-neutral-100"
+        />
+      </div>
+    );
+  }
+  // Same surface as an unknown route: non-admins learn nothing about /admin.
+  return admin ? <AdminPanel /> : <NotFound />;
+}
+
 export default function AdminPage() {
   return (
     <AuthGate>
-      <AdminPanel />
+      <PlatformAdminGate />
     </AuthGate>
   );
 }

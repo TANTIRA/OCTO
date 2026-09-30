@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isPlatformAdmin } from "@/lib/admin-gate";
 
 /**
  * Fetch helper for the OCTO API.
@@ -75,4 +76,13 @@ export async function myAccess(): Promise<Tenant[]> {
     signal: AbortSignal.timeout(15_000),
   });
   return body.tenants;
+}
+
+/** Platform-admin verdict for the ops surface (#312). Any failure is "no". */
+export async function amPlatformAdmin(): Promise<boolean> {
+  try {
+    return isPlatformAdmin(await getJson<unknown>("/api/v1/me/access"));
+  } catch {
+    return false;
+  }
 }

@@ -57,9 +57,16 @@ Set in the Dokploy compose environment (never committed). Keys mirror
 | Domain | Service | Notes |
 | --- | --- | --- |
 | `octo.mesta.click` | web | landing + `/app` shell + `/login` |
-| `admin-octo.mesta.click` | web | `/` rewrites to `/admin` (ops surface) via `web/middleware.ts` |
+| `admin-octo.mesta.click` | web | `/` rewrites to `/admin` (ops surface) via `web/middleware.ts`; platform admins only (see below) |
 | `api-octo.mesta.click` | api :8080 | `/actuator/health`, `/actuator/health/readiness` public |
 | `supa-octo.mesta.click` | supabase kong :8000 | own compose project |
+
+`/admin` (either domain) sends visitors without a session to `/login` and shows signed-in users the
+404 page unless their Supabase user id is listed in the api's `OCTO_PLATFORM_ADMINS` — the same
+list that gates `/api/v1/admin/*`, read via `platformAdmin` on `/api/v1/me/access` (#312). Unset
+admits nobody, so name the operators there before relying on the console. The web origin proxies
+only `/actuator/health/**` (as `/ops-api/...`); when the api itself is down the console cannot
+verify access, so probe `api-octo.mesta.click/actuator/health` directly.
 
 Neo4j has no public domain (#390). Port 7474 serves the Browser *and* Neo4j's HTTP query API, so a
 public route there is a password-only Cypher endpoint, not a viewer. Do not assign one; like Studio,

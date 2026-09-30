@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { myAccess, messageFor, type Tenant } from "@/lib/api";
+import { amPlatformAdmin, myAccess, messageFor, type Tenant } from "@/lib/api";
 
 type TenantState = {
   tenants: Tenant[];
@@ -93,4 +93,23 @@ export function useTenants(): TenantState {
   const state = useContext(TenantContext);
   if (!state) throw new Error("useTenants must be used inside <TenantProvider>");
   return state;
+}
+
+/**
+ * `null` while the API answers, then the platform-admin verdict. Hides the
+ * ops entry points and gates /admin. A UI gate only — every privileged read
+ * is re-authorized by the API.
+ */
+export function usePlatformAdmin(): boolean | null {
+  const [admin, setAdmin] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    amPlatformAdmin().then((verdict) => {
+      if (!cancelled) setAdmin(verdict);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return admin;
 }

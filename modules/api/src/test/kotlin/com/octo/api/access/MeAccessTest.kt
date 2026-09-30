@@ -48,6 +48,20 @@ class MeAccessTest {
                 .andExpect(jsonPath("$.tenants[0].tenantId").value(tenant.tenantId.toString()))
                 .andExpect(jsonPath("$.tenants[0].slug").value("acme-capital"))
                 .andExpect(jsonPath("$.tenants[0].role").value("analyst"))
+                .andExpect(jsonPath("$.platformAdmin").value(false))
+        }
+    }
+
+    @Test
+    fun `a subject named in OCTO_PLATFORM_ADMINS is reported as a platform admin`() {
+        contextRunner.withPropertyValues("OCTO_PLATFORM_ADMINS=$userId").run { context ->
+            MockMvcBuilders
+                .webAppContextSetup(context)
+                .apply<DefaultMockMvcBuilder>(springSecurity())
+                .build()
+                .perform(get("/api/v1/me/access").with(jwt().jwt { it.subject(userId.toString()) }))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.platformAdmin").value(true))
         }
     }
 
@@ -74,6 +88,7 @@ class MeAccessTest {
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.userId").value("service-account"))
                 .andExpect(jsonPath("$.tenants").isEmpty())
+                .andExpect(jsonPath("$.platformAdmin").value(false))
         }
     }
 }
