@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isPlatformAdmin } from "@/lib/admin-gate";
 
 /**
  * Fetch helper for the OCTO API.
@@ -71,4 +72,13 @@ export type Tenant = { tenantId: string; slug: string; role: string };
 export async function myAccess(): Promise<Tenant[]> {
   const body = await getJson<{ tenants: Tenant[] }>("/api/v1/me/access");
   return body.tenants;
+}
+
+/** Platform-admin verdict for the ops surface (#312). Any failure is "no". */
+export async function amPlatformAdmin(): Promise<boolean> {
+  try {
+    return isPlatformAdmin(await getJson<unknown>("/api/v1/me/access"));
+  } catch {
+    return false;
+  }
 }

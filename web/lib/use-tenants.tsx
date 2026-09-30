@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { myAccess, messageFor, type Tenant } from "@/lib/api";
+import { amPlatformAdmin, myAccess, messageFor, type Tenant } from "@/lib/api";
 
 /**
  * One shared read of `/api/v1/me/access` per mount. Every tenant-scoped
@@ -41,6 +41,25 @@ export function useTenants(): {
   }, []);
 
   return { tenants, tenantId, setTenantId, loading, error };
+}
+
+/**
+ * `null` while the API answers, then the platform-admin verdict. Hides the
+ * ops entry points and gates /admin. A UI gate only — every privileged read
+ * is re-authorized by the API.
+ */
+export function usePlatformAdmin(): boolean | null {
+  const [admin, setAdmin] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    amPlatformAdmin().then((verdict) => {
+      if (!cancelled) setAdmin(verdict);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return admin;
 }
 
 export function TenantPicker({

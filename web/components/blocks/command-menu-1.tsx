@@ -28,6 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useScrollFade } from "@/lib/use-scroll-fade";
+import { usePlatformAdmin } from "@/lib/use-tenants";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
@@ -219,9 +220,16 @@ export default function CommandMenu1() {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const listboxId = `${uid}-listbox`;
+  // The ops console is platform-admin only (#312) — hidden until the API says so.
+  const platformAdmin = usePlatformAdmin();
   const filtered = useMemo(
-    () => COMMANDS.filter((command) => matches(command, query)),
-    [query],
+    () =>
+      COMMANDS.filter(
+        (command) =>
+          (command.id !== "go-ops" || platformAdmin === true) &&
+          matches(command, query),
+      ),
+    [query, platformAdmin],
   );
   const activeCommand = filtered[activeIndex];
   const activeId = activeCommand ? `${uid}-${activeCommand.id}` : undefined;

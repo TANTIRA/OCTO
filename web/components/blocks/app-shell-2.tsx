@@ -25,6 +25,7 @@ import CompliancePanel from "@/components/compliance-panel";
 import AgentRunsPanel from "@/components/agent-runs-panel";
 import SessionMenu from "@/components/session-menu";
 import { apiFetch } from "@/lib/api";
+import { isPlatformAdmin } from "@/lib/admin-gate";
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
@@ -715,6 +716,8 @@ export default function AppShell2() {
     { name: string; members: string }[]
   >([]);
   const [workspacesLoadFailed, setWorkspacesLoadFailed] = useState(false);
+  // Read from the same /me/access body as the workspaces; gates the g+x chord (#312).
+  const [platformAdmin, setPlatformAdmin] = useState(false);
   const content = useScrollFade<HTMLElement>();
   const shouldFocusRef = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -770,7 +773,7 @@ export default function AppShell2() {
       }
       const dest = KEY_DESTINATIONS[chord ? `g ${key}` : key];
       chord = false;
-      if (!dest) return;
+      if (!dest || (dest === "/admin" && !platformAdmin)) return;
       event.preventDefault();
       if (dest.startsWith("/")) window.location.assign(dest);
       else selectArea(dest);
@@ -780,7 +783,7 @@ export default function AppShell2() {
       document.removeEventListener("keydown", onKey);
       clearTimeout(timer);
     };
-  }, [selectArea]);
+  }, [selectArea, platformAdmin]);
 
   // First real API read: the caller's tenants drive the vehicle switcher.
   // The proxy (next.config.ts) forwards to the API with the session JWT;
@@ -795,6 +798,7 @@ export default function AppShell2() {
       })
       .then((body) => {
         if (cancelled) return;
+        setPlatformAdmin(isPlatformAdmin(body));
         setWorkspaces(
           ((body?.tenants ?? []) as { slug: string; role: string }[]).map(
             (t) => ({ name: t.slug, members: t.role }),

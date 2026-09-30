@@ -13,10 +13,15 @@ import java.util.UUID
  *
  * The subject is the Supabase Auth user id. A bearer token whose subject is not a user id simply
  * resolves to no tenants — default is deny (data-security-governance.md).
+ *
+ * `platformAdmin` reports the [PlatformAdmin] verdict (`OCTO_PLATFORM_ADMINS`) so the web app can
+ * gate its ops surface (#312) on the same list the admin endpoints enforce, rather than inventing a
+ * second role model. It is a UI hint about the caller only; every admin endpoint re-checks.
  */
 @RestController
 class MeController(
     private val tenants: TenantDirectory,
+    private val platform: PlatformAdmin,
 ) {
     @GetMapping("/api/v1/me/access")
     fun access(
@@ -30,6 +35,7 @@ class MeController(
                     ?.let(tenants::tenantsOf)
                     .orEmpty()
                     .map { TenantView(it.tenantId, it.slug, it.role.wireValue) },
+            platformAdmin = platform.isAdmin(jwt.subject),
         )
     }
 
@@ -42,5 +48,6 @@ class MeController(
     data class AccessResponse(
         val userId: String,
         val tenants: List<TenantView>,
+        val platformAdmin: Boolean,
     )
 }
