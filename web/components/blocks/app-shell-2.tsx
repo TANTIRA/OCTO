@@ -733,7 +733,6 @@ export default function AppShell2() {
   } = useTenants();
   const content = useScrollFade<HTMLElement>();
   const shouldFocusRef = useRef(false);
-  const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
@@ -799,14 +798,6 @@ export default function AppShell2() {
   }, [selectArea]);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      const view = rootRef.current?.ownerDocument.defaultView ?? window;
-      if (view.matchMedia("(max-width: 1023px)").matches) setDrawerOpen(true);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
-  useEffect(() => {
     if (!drawerOpen) return;
     const drawer = drawerRef.current;
     const doc = drawer?.ownerDocument ?? document;
@@ -860,7 +851,6 @@ export default function AppShell2() {
 
   return (
     <div
-      ref={rootRef}
       className="relative flex h-full min-h-[720px] w-full overflow-hidden bg-white dark:bg-neutral-950"
     >
       <aside className="hidden shrink-0 lg:flex">
