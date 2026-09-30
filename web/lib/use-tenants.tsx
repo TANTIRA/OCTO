@@ -17,6 +17,8 @@ type TenantState = {
   loading: boolean;
   error: string | null;
   retry: () => void;
+  // null until the read lands; false on failure (fail closed).
+  platformAdmin: boolean | null;
 };
 
 const TenantContext = createContext<TenantState | null>(null);
@@ -44,16 +46,19 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [platformAdmin, setPlatformAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setPlatformAdmin(null);
     myAccess()
-      .then((list) => {
+      .then(({ tenants: list, platformAdmin: admin }) => {
         if (cancelled) return;
         const last = saved();
         setTenants(list);
+        setPlatformAdmin(admin);
         // Restore the last pick if it is still a membership, else the first —
         // never leave 2+ workspaces with nothing selected (panels would load nothing).
         setTenantIdState(
@@ -64,6 +69,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       .catch((e) => {
         if (cancelled) return;
         setError(messageFor(e));
+        setPlatformAdmin(false);
         setLoading(false);
       });
     return () => {
@@ -83,7 +89,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   return (
-    <TenantContext.Provider value={{ tenants, tenantId, setTenantId, loading, error, retry }}>
+    <TenantContext.Provider
+      value={{ tenants, tenantId, setTenantId, loading, error, retry, platformAdmin }}
+    >
       {children}
     </TenantContext.Provider>
   );
@@ -98,11 +106,15 @@ export function useTenants(): TenantState {
 /**
  * `null` while the API answers, then the platform-admin verdict. Hides the
  * ops entry points and gates /admin. A UI gate only — every privileged read
- * is re-authorized by the API.
+ * is re-authorized by the API. Inside TenantProvider it reuses the provider's
+ * /me/access read (and follows its retry); only /admin fetches on its own.
  */
 export function usePlatformAdmin(): boolean | null {
+  const shell = useContext(TenantContext);
   const [admin, setAdmin] = useState<boolean | null>(null);
+  const standalone = shell === null;
   useEffect(() => {
+    if (!standalone) return;
     let cancelled = false;
     amPlatformAdmin().then((verdict) => {
       if (!cancelled) setAdmin(verdict);
@@ -110,6 +122,6 @@ export function usePlatformAdmin(): boolean | null {
     return () => {
       cancelled = true;
     };
-  }, []);
-  return admin;
+  }, [standalone]);
+  return shell ? shell.platformAdmin : admin;
 }
