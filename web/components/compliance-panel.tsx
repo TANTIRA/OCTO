@@ -62,7 +62,7 @@ export default function CompliancePanel() {
   // (backlog #35). Exposure rows are "CCY = fraction of the portfolio".
   const [subject, setSubject] = useState("");
   const [exposure, setExposure] = useState<{ currency: string; fraction: string }[]>([
-    { currency: "USD", fraction: "1" },
+    { currency: "", fraction: "" },
   ]);
 
   const currencyExposure = (): Record<string, number> =>
@@ -196,6 +196,7 @@ export default function CompliancePanel() {
               aria-label={`Exposure ${i + 1} fraction`}
               type="number"
               step="0.01"
+              placeholder="Share"
               value={r.fraction}
               onChange={(e) =>
                 setExposure((p) => p.map((x, idx) => (idx === i ? { ...x, fraction: e.target.value } : x)))

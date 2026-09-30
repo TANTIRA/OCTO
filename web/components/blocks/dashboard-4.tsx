@@ -41,6 +41,9 @@ const STAGES = [
   { id: "ic-review", name: "IC review" },
 ] as const;
 
+// Per-stage read cap: a full page means "at least this many", never an exact count.
+const LIMIT = 200;
+
 const STAGE_NAME: Record<string, string> = Object.fromEntries(
   STAGES.map((s) => [s.id, s.name]),
 );
@@ -83,7 +86,7 @@ export default function Dashboard4() {
         Promise.all(
           STAGES.map(async (s) => {
             const list = await getJson<Prospect[]>(
-              `/api/v1/prospects?tenantId=${tenantId}&stage=${s.id}&limit=200`,
+              `/api/v1/prospects?tenantId=${tenantId}&stage=${s.id}&limit=${LIMIT}`,
             );
             return [s.id, list] as const;
           }),
@@ -112,6 +115,7 @@ export default function Dashboard4() {
     (n, s) => n + (prospects[s.id]?.length ?? 0),
     0,
   );
+  const capped = STAGES.some((s) => prospects[s.id]?.length === LIMIT);
   const attention = runs.filter(
     (r) => r.status === "failed" || r.status === "refused",
   );
@@ -120,7 +124,7 @@ export default function Dashboard4() {
     .slice(0, 8);
 
   const stats = [
-    { label: "Prospects in pipeline", value: String(pipelineCount) },
+    { label: "Prospects in pipeline", value: `${pipelineCount}${capped ? "+" : ""}` },
     { label: "Agent runs (latest 50)", value: String(runs.length) },
     { label: "Compliance rules", value: String(rules.length) },
     { label: "Report schedules", value: String(schedules.length) },
@@ -240,6 +244,9 @@ export default function Dashboard4() {
                 <span key={s.id}>
                   {s.name}{" "}
                   <span className="font-medium text-neutral-700 dark:text-neutral-300">
+                    {!loadedAt
+                      ? "—"
+                      : `${prospects[s.id].length}${prospects[s.id].length === LIMIT ? "+" : ""}`}
                     {prospects[s.id]?.length ?? 0}
                   </span>
                 </span>
@@ -313,6 +320,7 @@ export default function Dashboard4() {
               Agent runs needing attention
             </h2>
             <span className="inline-flex h-5 shrink-0 items-center rounded-[var(--rb-r-xs,4px)] bg-neutral-200/70 px-1.5 text-[11px] font-medium tabular-nums text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+              {loadedAt ? attention.length : "—"}
               {attention.length}
             </span>
           </div>

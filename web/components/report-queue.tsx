@@ -72,6 +72,7 @@ export default function ReportQueue() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   // Inline-series inputs — the real evidence base for a performance report.
   const [currency, setCurrency] = useState("USD");
@@ -87,6 +88,20 @@ export default function ReportQueue() {
     const ids = storedJobIds(jobsKey);
     if (ids.length === 0) return;
     let cancelled = false;
+    let failure: unknown = null;
+    setRestoring(true);
+    Promise.all(
+      ids.map((id) =>
+        getJson<Job>(`/api/v1/reports/${id}`).catch((e) => {
+          failure = e;
+          return null;
+        }),
+      ),
+    ).then(
+      (list) => {
+        if (cancelled) return;
+        setRestoring(false);
+        if (failure) setError(`Some jobs queued in this tab could not be re-read: ${messageFor(failure)}.`);
     Promise.all(ids.map((id) => getJson<Job>(`/api/v1/reports/${id}`).catch(() => null))).then(
       (list) => {
         if (cancelled) return;
@@ -387,7 +402,7 @@ export default function ReportQueue() {
             ))}
             {jobs.length === 0 && (
               <li className="px-4 py-10 text-center text-[13px] text-neutral-400 dark:text-neutral-600">
-                No jobs yet — queue one above.
+                {restoring ? "Loading…" : "No jobs yet — queue one above."}
               </li>
             )}
           </ul>
