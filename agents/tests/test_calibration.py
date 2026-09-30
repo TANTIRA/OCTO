@@ -72,6 +72,24 @@ def test_agreement_stats_and_eval_case_directions() -> None:
     assert api.finished["status"] == "completed"
 
 
+def test_unknown_decision_vocabulary_is_not_a_disagreement() -> None:
+    api = FakeApi(
+        [
+            _run("a", decision="deferred"),  # not in AGREED/DISAGREED
+            _run("b", decision="accepted"),
+        ]
+    )
+    result = run_calibration(api=api, tenant_id="t-1", run_key="cal:5", models={})
+    stats = result.stats["ic-memo"]
+    assert stats.decided == 2
+    assert stats.agreed == 1
+    assert stats.disagreed == 0
+    assert result.disagreements == []
+    by_case = {c.case: c for c in result.eval_cases}
+    assert by_case["feedback:a"].expect_ship is True
+    assert by_case["feedback:b"].expect_ship is True
+
+
 def test_enough_disagreement_suggests_a_threshold_review() -> None:
     api = FakeApi(
         [_run(str(i), decision="rejected") for i in range(4)]
