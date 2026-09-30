@@ -16,15 +16,15 @@ octo project            octo-supabase project       octo-neo4j project
 ┌─────────────────────┐        ┌──────────────────────────┐  ┌────────────────┐
 │ web                 │        │ kong/envoy  (public)     │  │ neo4j          │
 │ api ────────────────┼──data──┼─▶ db (postgres)          │  │  bolt (private)│
-│        │            │        │  auth / rest / storage   │  │  7474 (public) │
+│        │            │        │  auth / rest / storage   │  │  7474 (private)│
 │        └─bolt───────┼────────┼─dokploy-network──────────┼─▶│                │
 └─────────────────────┘        │  studio (private only)   │  └────────────────┘
         private app net        └──────────────────────────┘
                                        private db net
 ```
 
-- Only `web`, the Supabase gateway, and Neo4j Browser (7474) get public domains in Dokploy.
-- `studio`, `db`, `storage`, `auth` internals and neo4j **bolt** are never publicly exposed — Studio is reached via VPN/bastion.
+- Only `web`, `api`, and the Supabase gateway get public domains in Dokploy.
+- `studio`, `db`, `storage`, `auth` internals, and all of neo4j (bolt `:7687`, Browser and HTTP API `:7474`) are never publicly exposed. Studio is reached via VPN/bastion, and neo4j through the SSH tunnel in `deploy/README.md` (#390).
 - `api` reaches Postgres/Storage over the shared `data` external network, and neo4j over `dokploy-network` (bolt `:7687`); clients never touch them.
 
 ## Projects
@@ -33,7 +33,7 @@ octo project            octo-supabase project       octo-neo4j project
 | --- | --- | --- |
 | `octo-supabase-{env}` | official pinned Supabase `docker/` + `supabase/docker-compose.override.yml` | PostgreSQL, Auth, Storage, gateway |
 | `octo-{env}` | `infra/docker-compose.yml` | api, web |
-| `octo-neo4j-{env}` | own compose (outside this repo) | Neo4j graph store — bolt private, Browser public |
+| `octo-neo4j-{env}` | own compose (outside this repo) | Neo4j graph store — no public domain (bolt and 7474 private) |
 
 One project set per environment — self-hosted Supabase is single-project (ADR-0002).
 
