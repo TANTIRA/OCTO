@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { Loader2 } from "lucide-react";
+import PanelHeader from "@/components/panel-header";
+import { messageFor, postJson } from "@/lib/api";
 import { useTenants } from "@/lib/use-tenants";
 
 /**
@@ -29,86 +31,71 @@ export default function BrainPanel() {
   const [error, setError] = useState<string | null>(null);
 
   async function ask() {
-    if (!tenantId || !question.trim()) return;
+    if (!tenantId || !question.trim() || pending) return;
     setPending(true);
     setError(null);
     setResult(null);
     try {
-      const r = await apiFetch("/api/v1/company-brain/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, question }),
-      });
-      if (r.status === 503) {
-        setError("the agent service is not available on this deployment");
-      } else if (!r.ok) {
-        setError(`the query failed (HTTP ${r.status})`);
-      } else {
-        setResult((await r.json()) as BrainResult);
-      }
-    } catch {
-      setError("the query could not reach the api");
+      setResult(await postJson<BrainResult>("/api/v1/company-brain/query", { tenantId, question }));
+    } catch (e) {
+      setError(messageFor(e));
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-8">
-      <header>
-        <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
-          Company brain
-        </h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Ask across the platform&apos;s records. Answers are judged before they
-          ship — a refused answer tells you the evidence wasn&apos;t there.
-        </p>
-      </header>
+    <div className="max-w-2xl">
+      <PanelHeader
+        description="Ask across the platform's records. Answers are judged before they ship — a refused answer tells you the evidence wasn't there."
+        error={error}
+      />
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-neutral-500">Question</span>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[13px] text-neutral-500">Question</span>
         <textarea
-          className="min-h-24 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="min-h-24 rounded-[var(--rb-r-lg,10px)] border border-neutral-200/70 bg-white px-3 py-2 text-[13px] text-neutral-900 placeholder:text-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
           placeholder="Who is standing at ic-review? What did diligence surface on PT Acme?"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ask();
+          }}
           maxLength={2000}
         />
       </label>
 
       <button
         type="button"
-        className="self-start rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900"
+        className="mt-3 inline-flex h-9 cursor-pointer items-center gap-2 rounded-[var(--rb-r-md,8px)] bg-[var(--rb-accent)] px-4 text-[13px] font-medium text-[var(--rb-accent-fg)] disabled:cursor-default disabled:opacity-50"
         disabled={pending || !tenantId || !question.trim()}
         onClick={ask}
       >
-        {pending ? "thinking…" : "Ask"}
+        {pending && <Loader2 aria-hidden className="h-4 w-4 animate-spin motion-reduce:animate-none" />}
+        {pending ? "Thinking…" : "Ask"}
+        {!pending && <kbd className="font-mono text-[11px] opacity-70">⌘↵</kbd>}
       </button>
 
-      {error && (
-        <p role="alert" className="text-sm text-red-600">
-          {error}
-        </p>
-      )}
-
       {result && (
-        <section className="rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800">
+        <section
+          aria-live="polite"
+          className="mt-4 rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white p-4 text-[13px] dark:border-neutral-800 dark:bg-neutral-900"
+        >
           {result.status === "completed" ? (
             <>
-              <p className="whitespace-pre-wrap text-neutral-800 dark:text-neutral-200">
+              <p className="whitespace-pre-wrap leading-relaxed text-neutral-800 dark:text-neutral-200">
                 {result.answer}
               </p>
               {result.verdict && (
-                <p className="mt-3 text-xs text-neutral-400">
-                  judged {Math.round(result.verdict.answers_probability * 100)}%
-                  responsive · {Math.round(result.verdict.supported_probability * 100)}%
-                  supported
+                <p className="mt-3 text-xs text-neutral-500">
+                  Judged {Math.round(result.verdict.answers_probability * 100)}% responsive ·{" "}
+                  {Math.round(result.verdict.supported_probability * 100)}% supported
                 </p>
               )}
             </>
           ) : (
-            <p className="text-neutral-500">
-              {result.note ?? "the evidence in the platform could not support an answer"}
+            <p className="text-neutral-600 dark:text-neutral-400">
+              {result.note ?? "The evidence in the platform could not support an answer."}
             </p>
           )}
         </section>

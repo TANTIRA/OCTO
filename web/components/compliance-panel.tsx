@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Loader2, RefreshCw, Scale } from "lucide-react";
+import { Loader2, Scale } from "lucide-react";
+import PanelHeader from "@/components/panel-header";
 import { getJson, messageFor, postJson } from "@/lib/api";
 import { useTenants } from "@/lib/use-tenants";
 
@@ -126,31 +127,16 @@ export default function CompliancePanel() {
   };
 
   return (
-    <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-medium tracking-[-0.01em] text-neutral-900 dark:text-neutral-100">
-            Compliance
-          </h2>
-          <p className="mt-0.5 text-[13px] text-neutral-500">
-            Rules evaluate server-side; breaches open review tasks. Narration
-            is AI-drafted and citation-gated.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={loadRules}
-          aria-label="Load rules"
-          className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] border border-neutral-200/70 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-900"
-        >
-          <RefreshCw
-            aria-hidden
-            className={cx("h-4 w-4", loadingRules && "animate-spin motion-reduce:animate-none")}
-          />
-        </button>
-      </header>
+    <div>
+      <PanelHeader
+        description="Rules evaluate server-side; breaches open review tasks. Narration is AI-drafted and citation-gated."
+        onRefresh={loadRules}
+        refreshing={loadingRules}
+        refreshLabel="Reload rules"
+        error={error}
+      />
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 px-6 pb-3 sm:px-8">
+      <div className="flex flex-wrap items-center gap-2 pb-4">
         <input
           aria-label="Subject"
           value={subject}
@@ -229,13 +215,7 @@ export default function CompliancePanel() {
         )}
       </div>
 
-      {error && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 sm:px-8">
+      <div className="space-y-4">
         <section className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex h-12 items-center gap-3 bg-neutral-50 px-4 dark:bg-neutral-800/40">
             <h3 className="min-w-0 flex-1 truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">

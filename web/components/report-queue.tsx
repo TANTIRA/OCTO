@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
+import PanelHeader from "@/components/panel-header";
 import { getJson, messageFor, postJson } from "@/lib/api";
 import { useTenants } from "@/lib/use-tenants";
 
@@ -138,42 +139,17 @@ export default function ReportQueue() {
   };
 
   return (
-    <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-medium tracking-[-0.01em] text-neutral-900 dark:text-neutral-100">
-            Reports
-          </h2>
-          <p className="mt-0.5 text-[13px] text-neutral-500">
-            Performance runs over the investor-signed series you supply; every
-            outbound artifact passes the approval gate.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={refresh}
-          aria-label="Refresh jobs"
-          className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] border border-neutral-200/70 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-900"
-        >
-          <RefreshCw
-            aria-hidden
-            className={cx("h-4 w-4", polling && "animate-spin motion-reduce:animate-none")}
-          />
-        </button>
-      </header>
+    <div>
+      <PanelHeader
+        description="Performance runs over the investor-signed series you supply; every outbound artifact passes the approval gate."
+        onRefresh={refresh}
+        refreshing={polling}
+        refreshLabel="Refresh running jobs"
+        error={error}
+        notice={notice}
+      />
 
-      {error && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-      {notice && (
-        <p className="mx-6 mb-2 text-[13px] text-emerald-600 dark:text-emerald-400">
-          {notice}
-        </p>
-      )}
-
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 sm:px-8">
+      <div className="space-y-4">
         <section className="rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
           <h3 className="text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
             New performance report

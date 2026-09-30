@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   Bell,
-  Building2,
+  Brain,
   ChartPie,
   Check,
   ChevronsUpDown,
@@ -23,6 +23,7 @@ import ReportQueue from "@/components/report-queue";
 import ReconPanel from "@/components/recon-panel";
 import CompliancePanel from "@/components/compliance-panel";
 import AgentRunsPanel from "@/components/agent-runs-panel";
+import BrainPanel from "@/components/brain-panel";
 import SessionMenu from "@/components/session-menu";
 import { useTenants } from "@/lib/use-tenants";
 
@@ -257,6 +258,14 @@ const AREAS: Area[] = [
       },
     ],
   },
+  {
+    id: "brain",
+    label: "Company brain",
+    icon: Brain,
+    current: "Ask",
+    title: "Company brain",
+    groups: [{ label: "Brain", items: [{ label: "Ask" }] }],
+  },
 ];
 
 function WorkspaceSwitcher() {
@@ -488,7 +497,7 @@ const KEY_DESTINATIONS: Record<string, string> = {
   "g c": "compliance",
   "g l": "alerts",
   "g x": "/admin",
-  "g b": "/brain",
+  "g b": "brain",
   t: "positions",
   n: "deals",
   r: "recon",
@@ -961,6 +970,8 @@ export default function AppShell2() {
               <CompliancePanel />
             ) : area.id === "alerts" ? (
               <AgentRunsPanel />
+            ) : area.id === "brain" ? (
+              <BrainPanel />
             ) : null}
           </main>
           <div
