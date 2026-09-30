@@ -29,7 +29,7 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | 2 | Neo4j Browser remote access — keep tunnel-only path or expose bolt through a TLS-terminating Traefik TCP router (public bolt behind neo4j auth; contra the "bolt stays private" posture) | `deploy/README.md` ("Neo4j Browser access"), ADR-level | @EliteSlacker (decision) / @Aldroun (exec) | decided — Option A (tunnel-only), [ADR-0006](adr/0006-neo4j-bolt-exposure.md) |
 | 3 | Rehearsed restore — procedure exists, drill pending | `docs/restore-runbook.md`, reliability §4 | @Aldroun | open |
 | 4 | Migration rollback rehearsal for V5–V7 on staging (T2 requirement) | `docs/reliability.md` §5, `AGENTS.md` | @Aldroun | open |
-| 5 | Burn-rate alerts once metrics reach the collector; OTEL exporter env was dropped until a collector exists | `docs/reliability.md` §4–5 | @Aldroun | blocked on #8 |
+| 5 | Burn-rate alerts — metrics now reach the collector (#306); needs an alerting backend behind `OTELCOL_EXPORT=otlphttp` | `docs/reliability.md` §3–5 | @Aldroun | open |
 
 ## Reliability backlog (docs/reliability.md §5)
 
@@ -37,7 +37,7 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | --- | --- | --- | --- |
 | 6 | Restore CI — GitHub billing blocker; nothing merges green today. Blocks verification of everything below | @daemon-blockint-tech (billing/admin) | blocked |
 | 7 | Circuit breaker on the decision-model call (`JdkHttpTransport` 30 s) once it sits on a user-facing path | @Fatihmaull | open |
-| 8 | OTEL collector — prerequisite for item 5 | @Aldroun | open |
+| 8 | OTEL collector — prerequisite for item 5 | @Aldroun | done — `otel-collector` in `deploy/dokploy.compose.yml` (#306) |
 
 ## ADR acceptance criteria still open
 

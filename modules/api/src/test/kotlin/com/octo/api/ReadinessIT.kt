@@ -57,6 +57,8 @@ class ReadinessIT {
             registry.add("DB_PASSWORD", postgres::getPassword)
             // Fail fast on the dead database instead of waiting Hikari's 30-second default per probe.
             registry.add("spring.datasource.hikari.connection-timeout") { 2000 }
+            // application.yml's fixed 8081 scrape port would clash with anything already bound there.
+            registry.add("octo.metrics.port") { java.net.ServerSocket(0).use { it.localPort } }
         }
     }
 }

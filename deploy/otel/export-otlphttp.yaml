@@ -1,0 +1,14 @@
+# OTELCOL_EXPORT=otlphttp: forward traces and metrics to an OTLP/HTTP backend (Grafana Alloy/Tempo/Mimir,
+# Prometheus' OTLP receiver, a vendor). OTELCOL_OTLP_ENDPOINT is the backend's base URL; the exporter
+# appends /v1/traces and /v1/metrics. There is no default: with it unset the collector fails config
+# validation at start instead of shipping to a guessed address.
+exporters:
+  otlphttp:
+    endpoint: ${env:OTELCOL_OTLP_ENDPOINT}
+
+service:
+  pipelines:
+    traces:
+      exporters: [otlphttp]
+    metrics:
+      exporters: [otlphttp]

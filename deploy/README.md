@@ -78,7 +78,7 @@ docker run -d --name octo-bolt-bridge --network dokploy-network \
 
 # Local — tunnel, then any HTTP Browser (e.g. a local neo4j's own):
 ssh -N -L 7687:localhost:7687 <dokploy-host>
-docker run -d --name octo-browser -p 7474:7474 neo4j:2025.12.1-community
+docker run -d --name octo-browser -p 7474:7474 neo4j:2025.12.1-community@sha256:c64d8750884c95ae57441a103d64d08fdaf55265acc3af687aa8ec25aa77d0c3
 # http://localhost:7474 → bolt://localhost:7687
 ```
 
@@ -131,9 +131,42 @@ unauthenticated attack surface); `octo.mesta.click`/`admin-octo.mesta.click`
 can share the same middleware. The webhook route gets the same limit — its
 shared-secret check is cheap, and bursts there are also just retries.
 
-Tune `average`/`burst` against real traffic once Prometheus scrapes
-`http.server.requests`; start conservative, watch for false 429s on import
+Tune `average`/`burst` against the `http_server_requests_seconds` metrics the
+collector scrapes (below); start conservative, watch for false 429s on import
 batches (`IMPORT_BATCH_LIMIT`-sized bursts are legitimate).
+
+## Metrics scrape port (#338)
+
+On the public port (`8080`, the only port Traefik routes) actuator is unchanged:
+`/actuator/health/**` and `/actuator/info` are anonymous, `/actuator/metrics` and
+`/actuator/prometheus` need a bearer JWT. A scraper has no user, so the api opens
+a second connector on `OCTO_METRICS_PORT` (default `8081`) that answers anonymous
+`GET /actuator/prometheus` and denies every other path (`MetricsPortConfig`).
+
+- Never publish `8081` (`ports:`) or give it a Dokploy domain — it has no auth by
+  design. Only containers on the stack's networks reach it.
+- The request is matched by the socket's local port, not by a header, so traffic
+  arriving through Traefik on `8080` cannot claim to be a scrape.
+- Check from the host: `docker exec <api-container> curl -fsS localhost:8081/actuator/prometheus | head`.
+
+## OTEL collector (#306)
+
+`otel-collector` runs the pinned core `otel/opentelemetry-collector` image with the config in
+`deploy/otel/` (bind-mounted from the cloned repo). It scrapes `api:8081/actuator/prometheus` every
+30s and receives OTLP on `:4317`/`:4318` — the api sends traces there through
+`MANAGEMENT_OTLP_TRACING_ENDPOINT`, derived from `OTEL_EXPORTER_OTLP_ENDPOINT` (default
+`http://otel-collector:4318`; Boot samples 10% of requests). Internal only: default network, no
+host ports, no domain.
+
+| Env | Default | Effect |
+| --- | --- | --- |
+| `OTELCOL_EXPORT` | `debug` | Exporter overlay `deploy/otel/export-<name>.yaml`. `debug` logs a summary per batch and sends nothing off-host |
+| `OTELCOL_OTLP_ENDPOINT` | — | Required when `OTELCOL_EXPORT=otlphttp`: backend base URL (`/v1/traces`, `/v1/metrics` are appended). Unset → the collector refuses to start |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4318` | Where the api sends traces |
+
+A backend that needs an auth header, or lives on `dokploy-network`, gets its own overlay (and the
+network) in the PR that provisions it. Check it runs: `docker logs <otel-collector>` shows
+`ResourceMetrics`/`ResourceSpans` summaries every batch under the debug overlay.
 
 ## Gotchas (all learned the hard way)
 

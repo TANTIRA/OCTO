@@ -37,7 +37,8 @@ management:
   endpoints:
     web:
       exposure:
-        # health and info are public (SecurityConfig); metrics and prometheus need a bearer token.
+        # health and info are public (SecurityConfig); metrics and prometheus need a bearer token on
+        # server.port. The internal octo.metrics.port serves /actuator/prometheus anonymously (MetricsPortConfig).
         include: health,info,metrics,prometheus
   endpoint:
     health:
@@ -62,6 +63,9 @@ octo:
     # Requests per minute one tenant may consume before the API answers 429. Per-tenant override:
     # tenant_setting key 'rate_limit_per_minute' (V31).
     default-per-minute: ${OCTO_RATE_LIMIT_PER_MINUTE:120}
+  metrics:
+    # Internal-only Prometheus scrape port (#338): never published or routed by Traefik.
+    port: ${OCTO_METRICS_PORT:8081}
 
 server:
   port: 8080
