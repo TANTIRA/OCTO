@@ -55,6 +55,7 @@ class ProspectEndpointTest {
     private val approver = UUID.randomUUID()
     private val approver2 = UUID.randomUUID()
     private val viewer = UUID.randomUUID()
+    private val admin = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val store = FakeProspectStore()
     private val tasks = FakeIcTasks()
@@ -75,6 +76,7 @@ class ProspectEndpointTest {
                             member -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
                             approver, approver2 -> listOf(TenantAccess(tenantId, "acme", TenantRole.APPROVER))
                             viewer -> listOf(TenantAccess(tenantId, "acme", TenantRole.VIEWER))
+                            admin -> listOf(TenantAccess(tenantId, "acme", TenantRole.ADMIN))
                             else -> emptyList()
                         }
                     }
@@ -445,7 +447,14 @@ class ProspectEndpointTest {
                         .content("""{"event":"approved"}""")
                         .with(jwt().jwt { it.subject(approver.toString()) }),
                 ).andExpect(status().isConflict)
-            mvc // an analyst lacks the gate role — deciding needs approver or admin
+            mvc // an admin is segregated from approval duties — the IC gate is the approver's alone
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved"}""")
+                        .with(jwt().jwt { it.subject(admin.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc // an analyst lacks the gate role — deciding needs an approver
                 .perform(
                     post("/api/v1/prospects/$id/tasks/$taskId")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -546,10 +546,11 @@ class ProspectController(
                         (it.task.subjectId == id.toString() || it.task.subjectId.startsWith("$id:dd:"))
                 } ?: return ResponseEntity.notFound().build()
         val event = body.toEvent(jwt.subject!!) ?: return ResponseEntity.badRequest().build()
-        // A gate decision on an approval task is governance, not working access: the same
-        // approver-or-admin bar the compliance-rule endpoints apply (ComplianceController). Routing
-        // the task (assigned) or the requester resubmitting after rework stays a working action.
-        if (bound.task.kind == TaskKind.APPROVAL && event.isGateDecision() && role != TenantRole.APPROVER && role != TenantRole.ADMIN) {
+        // A gate decision on an approval task is the APPROVER's duty alone. ADMIN is segregated from
+        // approval duties (TenantRole.ADMIN; data-security-governance.md: administration vs approval):
+        // an admin who also controls membership must not be able to decide the IC gate. Routing the
+        // task (assigned) or the requester resubmitting after rework stays a working action.
+        if (bound.task.kind == TaskKind.APPROVAL && event.isGateDecision() && role != TenantRole.APPROVER) {
             return ResponseEntity.notFound().build()
         }
         val after =
