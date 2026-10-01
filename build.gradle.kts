@@ -36,7 +36,7 @@ buildscript {
     // BOM lifts databind, core and module-parameter-names together, staying on the 2.21 line the
     // plugin was built against. Build-time only; the app runtime is on 2.22.3 via modules/api.
     dependencies {
-        classpath(platform("com.fasterxml.jackson:jackson-bom:2.21.7"))
+        classpath(platform("com.fasterxml.jackson:jackson-bom:2.22.3"))
     }
 }
 
