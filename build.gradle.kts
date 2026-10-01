@@ -27,8 +27,8 @@ buildscript {
             "org.apache.httpcomponents.core5:httpcore5:5.4.4",
             "org.apache.httpcomponents.core5:httpcore5-h2:5.4.4",
             "org.apache.httpcomponents.client5:httpclient5:5.6.4",
-            "org.apache.httpcomponents.core5:httpcore5:5.4.3",
-            "org.apache.httpcomponents.core5:httpcore5-h2:5.4.3",
+            "org.apache.httpcomponents.core5:httpcore5:5.4.4",
+            "org.apache.httpcomponents.core5:httpcore5-h2:5.4.4",
         )
     }
     // Dependabot #108 / #109: spring-boot-buildpack-platform 3.5.16 pulls jackson-databind 2.21.4
