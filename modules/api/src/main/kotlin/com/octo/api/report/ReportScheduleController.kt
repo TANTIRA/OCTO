@@ -9,6 +9,7 @@ import com.octo.workflow.report.ReportSchedules
 import com.octo.workflow.report.ReportType
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import org.springframework.http.ResponseEntity
 import org.springframework.scheduling.support.CronExpression
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -91,6 +92,7 @@ class ReportScheduleController(
         // GL export and LP reports are on-demand only (ReportType.schedulable): a schedule holds a fixed
         // template, but both need the current data each run, and report_schedule's type check excludes them.
         val type = ReportType.entries.firstOrNull { it.wireValue == this.type && it.schedulable } ?: return null
+        if (!reportInputsBounded(json, measures, parameters)) return null
         val next =
             try {
                 CronExpression.parse(cron).next(ZonedDateTime.now(ZoneOffset.UTC))?.let { Instant.from(it) }
@@ -120,9 +122,9 @@ class ReportScheduleController(
         val tenantId: UUID,
         @field:NotBlank val name: String,
         @field:NotBlank val type: String,
-        @field:NotBlank val positionSourceType: String,
-        @field:NotBlank val positionSourceId: String,
-        val measures: List<String> = emptyList(),
+        @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val positionSourceType: String,
+        @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val positionSourceId: String,
+        @field:Size(max = MAX_REPORT_MEASURES) val measures: List<String> = emptyList(),
         val parameters: Map<String, Any?>? = null,
         @field:NotBlank val cron: String,
         val active: Boolean = true,

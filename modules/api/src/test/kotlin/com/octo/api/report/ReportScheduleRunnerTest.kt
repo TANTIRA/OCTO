@@ -1,6 +1,9 @@
 package com.octo.api.report
 
 import com.octo.persistence.TenantScope
+import com.octo.workflow.report.PENDING_REPORT_LIMIT
+import com.octo.workflow.report.ReportJobs
+import com.octo.workflow.report.ReportRequest
 import com.octo.workflow.report.ReportSchedule
 import com.octo.workflow.report.ReportType
 import org.assertj.core.api.Assertions.assertThat
@@ -60,5 +63,40 @@ class ReportScheduleRunnerTest {
         assertThat(jobs.jobs).isEmpty()
         val reloaded = schedules.load(schedule.id, TenantScope.All)!!
         assertThat(reloaded.nextRunAt).isAfter(Instant.now().plus(90L * 365, ChronoUnit.DAYS))
+    }
+
+    @Test
+    fun `a tenant at the pending-job cap is left due instead of growing the queue`() {
+        val schedule = schedule()
+        schedules.upsert(schedule, TenantScope.All)
+        repeat(PENDING_REPORT_LIMIT) { jobs.submit(schedule.toRequest(UUID.randomUUID()), TenantScope.All) }
+
+        runner.fire(schedule)
+
+        assertThat(jobs.jobs).hasSize(PENDING_REPORT_LIMIT)
+        val reloaded = schedules.load(schedule.id, TenantScope.All)!!
+        assertThat(reloaded.nextRunAt).isEqualTo(schedule.nextRunAt)
+        assertThat(reloaded.claimedUntil).isEqualTo(schedule.claimedUntil)
+    }
+
+    @Test
+    fun `one schedule that throws does not stop the rest of the batch`() {
+        val bad = schedule().copy(claimedUntil = null)
+        val good = schedule().copy(claimedUntil = null)
+        schedules.upsert(bad, TenantScope.All)
+        schedules.upsert(good, TenantScope.All)
+        val failing =
+            object : ReportJobs by jobs {
+                override fun submit(
+                    request: ReportRequest,
+                    scope: TenantScope,
+                ) = if (request.tenantId == bad.tenantId) error("boom") else jobs.submit(request, scope)
+            }
+
+        ReportScheduleRunner(schedules, failing).poll()
+
+        assertThat(jobs.jobs.values.map { it.request.tenantId }).containsExactly(good.tenantId)
+        assertThat(schedules.load(good.id, TenantScope.All)!!.nextRunAt).isAfter(Instant.now())
+        assertThat(schedules.load(bad.id, TenantScope.All)!!.nextRunAt).isEqualTo(bad.nextRunAt)
     }
 }

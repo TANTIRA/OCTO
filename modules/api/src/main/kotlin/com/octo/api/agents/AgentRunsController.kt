@@ -8,6 +8,7 @@ import com.octo.api.agents.persistence.AgentRun
 import com.octo.api.agents.persistence.AgentRunRecord
 import com.octo.api.agents.persistence.AgentRunStatus
 import com.octo.api.agents.persistence.AgentRuns
+import com.octo.api.isBoundedObject
 import com.octo.persistence.TenantScope
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -53,8 +54,7 @@ class AgentRunsController(
      * scalar or array is never a legitimate value, and an unbounded one is a storage-abuse lever
      * for a caller who can already reach this endpoint for their own tenant.
      */
-    private fun isBoundedObject(value: Any?): Boolean =
-        value == null || (value is Map<*, *> && json.writeValueAsBytes(value).size <= MAX_JSON_BYTES)
+    private fun isBoundedObject(value: Any?): Boolean = json.isBoundedObject(value)
 
     @PostMapping("/api/v1/agent-runs")
     fun record(
@@ -259,9 +259,6 @@ class AgentRunsController(
     companion object {
         /** Bound on a run's `subjectId`; triggers that derive one (compliance rationale) check against it up front (#501). */
         const val MAX_SUBJECT_ID_LENGTH = 200
-
-        /** Bound on any single JSON-object field recorded onto a run (#342) — audit metadata, not a blob store. */
-        private const val MAX_JSON_BYTES = 32_768
 
         /** Bound on `finish`'s free-text error message (#342). */
         private const val MAX_ERROR_LENGTH = 4_000

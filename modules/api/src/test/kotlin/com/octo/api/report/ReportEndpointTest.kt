@@ -145,4 +145,21 @@ class ReportEndpointTest {
             assertThat(jobs.jobs).isEmpty()
         }
     }
+
+    @Test
+    fun `oversized parameters, too many or too long measures and an over-long position source are 400`() {
+        val big = "x".repeat(MAX_REPORT_FIELD_LENGTH + 1)
+        val many = (0..MAX_REPORT_MEASURES).joinToString { "\"m$it\"" }
+        run { mvc ->
+            for (oversized in listOf(
+                body().replace("\"USD\"", "\"${"x".repeat(33_000)}\""),
+                body().replace("[\"tvpi\"]", "[$many]"),
+                body().replace("\"tvpi\"", "\"$big\""),
+                body().replace("\"fund-1\"", "\"$big\""),
+            )) {
+                mvc.perform(post(analyst, oversized)).andExpect(status().isBadRequest)
+            }
+            assertThat(jobs.jobs).isEmpty()
+        }
+    }
 }

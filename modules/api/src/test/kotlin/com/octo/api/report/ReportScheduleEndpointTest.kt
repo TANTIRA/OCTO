@@ -5,6 +5,7 @@ import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.workflow.report.ReportSchedules
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -168,6 +169,29 @@ class ReportScheduleEndpointTest {
                         .content(body().replace(tenantId.toString(), UUID.randomUUID().toString()))
                         .with(jwt().jwt { it.subject(analyst.toString()) }),
                 ).andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `oversized parameters, too many or too long measures and an over-long position source are 400`() {
+        val big = "x".repeat(MAX_REPORT_FIELD_LENGTH + 1)
+        val many = (0..MAX_REPORT_MEASURES).joinToString { "\"m$it\"" }
+        run { mvc ->
+            for (oversized in listOf(
+                body().replace("\"parameters\": {}", "\"parameters\": {\"p\": \"${"x".repeat(33_000)}\"}"),
+                body().replace("[\"tvpi\"]", "[$many]"),
+                body().replace("\"tvpi\"", "\"$big\""),
+                body().replace("\"fund-1\"", "\"$big\""),
+            )) {
+                mvc
+                    .perform(
+                        post("/api/v1/report-schedules")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(oversized)
+                            .with(jwt().jwt { it.subject(analyst.toString()) }),
+                    ).andExpect(status().isBadRequest)
+            }
+            assertThat(schedules.schedules).isEmpty()
         }
     }
 }

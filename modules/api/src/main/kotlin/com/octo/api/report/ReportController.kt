@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.api.isBoundedObject
 import com.octo.persistence.TenantScope
 import com.octo.workflow.report.PENDING_REPORT_LIMIT
 import com.octo.workflow.report.ReportJob
@@ -12,6 +13,7 @@ import com.octo.workflow.report.ReportRequest
 import com.octo.workflow.report.ReportType
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -46,6 +48,7 @@ class ReportController(
         val access = tenants.tenantsOf(userId).firstOrNull { it.tenantId == body.tenantId }
         if (access == null || access.role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val type = ReportType.entries.firstOrNull { it.wireValue == body.type } ?: return ResponseEntity.badRequest().build()
+        if (!reportInputsBounded(json, body.measures, body.parameters)) return ResponseEntity.badRequest().build()
         val scope = TenantScope.User(userId)
         if (jobs.pendingCount(body.tenantId, scope) >= PENDING_REPORT_LIMIT) {
             // A full queue drains as the runner works through it; the caller retries later.
@@ -84,9 +87,9 @@ class ReportController(
     data class SubmitRequest(
         val tenantId: UUID,
         @field:NotBlank val type: String,
-        @field:NotBlank val positionSourceType: String,
-        @field:NotBlank val positionSourceId: String,
-        val measures: List<String> = emptyList(),
+        @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val positionSourceType: String,
+        @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val positionSourceId: String,
+        @field:Size(max = MAX_REPORT_MEASURES) val measures: List<String> = emptyList(),
         val parameters: Map<String, Any?>? = null,
     )
 
@@ -131,3 +134,16 @@ class ReportController(
                 .ObjectMapper()
     }
 }
+
+/** Bound on a report's position-source fields and on each measure name; matches the agent-run subject id bound. */
+internal const val MAX_REPORT_FIELD_LENGTH = 200
+
+/** Bound on how many measures one report (or schedule template) may request. */
+internal const val MAX_REPORT_MEASURES = 50
+
+/** Measure names and the free-form `parameters` object are capped the same way for one-off reports and schedules. */
+internal fun reportInputsBounded(
+    json: ObjectMapper,
+    measures: List<String>,
+    parameters: Map<String, Any?>?,
+): Boolean = measures.none { it.length > MAX_REPORT_FIELD_LENGTH } && json.isBoundedObject(parameters)
