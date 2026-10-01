@@ -36,7 +36,7 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | # | Item | Owner | Status |
 | --- | --- | --- | --- |
 | 6 | Restore CI — the billing blocker is gone; `docker-scan` fixed in #477/#480, `main` green since b38ab253 | @daemon-blockint-tech (billing/admin) | done (#304) |
-| 7 | Circuit breaker on the decision-model call (`JdkHttpTransport` 30 s) once it sits on a user-facing path | @Fatihmaull | open |
+| 7 | Circuit breaker on the decision-model call (`JdkHttpTransport` 30 s) — no running service makes the call yet; the PR that wires `DocumentClassifier`/`ClaimSupportAssessor` (or any `JudgmentClient`) adds the breaker (#305, #466) | @Fatihmaull | deferred |
 | 8 | OTEL collector — prerequisite for item 5 | @Aldroun | done — `otel-collector` in `deploy/dokploy.compose.yml` (#306) |
 
 ## ADR acceptance criteria still open
@@ -44,22 +44,19 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | # | Item | Source | Owner | Status |
 | --- | --- | --- | --- | --- |
 | 9 | Self-hosted Supabase acceptance list: restore drill meeting RPO/RTO, upgrade/rollback rehearsal on staging, monitoring + incident runbooks, capacity/dependency-failure tests | `docs/adr/0002-self-hosted-supabase.md` | @Aldroun | open |
-| 10 | Neo4j: dual-write ingestion path with atomic failure semantics; graph-ledger reconciliation on seeded data; ~~backup/restore + upgrade runbooks~~ (done, #308); ~~look-through perf test over 5-level hierarchy~~ (done — `modules/lookthrough/.../ExposurePerfTest.kt`, #308) | `docs/adr/0004-neo4j-graph-store.md` | @Fatihmaull | open |
-| 10 | Neo4j: dual-write ingestion path with atomic failure semantics; graph-ledger reconciliation on seeded data; ~~backup/restore + upgrade runbooks~~ (done — `docs/restore-runbook.md` §6, `docs/runbooks/neo4j-upgrade.md`, #308); look-through perf test over 5-level hierarchy | `docs/adr/0004-neo4j-graph-store.md` | @Fatihmaull | open |
+| 10 | Neo4j: dual-write ingestion path with atomic failure semantics; graph-ledger reconciliation on seeded data. Decided: transactional outbox + idempotent projector + reconciliation report, in three slices ([#308 plan](https://github.com/TANTIRA/OCTO/issues/308#issuecomment-5934714377)). Runbooks (#471) and the 5-level look-through perf test (#472) are done. | `docs/adr/0004-neo4j-graph-store.md`, #308 | @Fatihmaull | in progress |
 
 ## Gap audit — high (real code, verified 2026-09-29)
 
 | # | Finding | Where | Owner |
 | --- | --- | --- | --- |
 | 11 | **Onchain ingestion broken under the runtime role** — `JdbcOnchainStagingStore` uses raw connections everywhere except `activeWatchedAddresses`; V30 RLS `with check` resolves NULL → inserts throw 42501, selects return empty. Every Helius delivery 500s; the EVM cursor never advances; snapshots fail. ITs can't see it — Testcontainers runs as superuser. | `modules/ingestion/.../JdbcOnchainStagingStore.kt:60-314`, `db/migrations/V30` | @mzf11125 |
-| 12 | **Onchain→IBOR promotion never wired** — `JdbcInstrumentFlowStore`/`InstrumentFlowPromoter` only exist in `OnchainPromotionIT`; `instrument_flow` is never written in prod and its store is unscoped like #11. | `modules/ibor-core/.../JdbcInstrumentFlowStore.kt`, `modules/ingestion/.../OnchainPromotion.kt` | @mzf11125 + @Fatihmaull |
 | 13 | **Report queue submits jobs that can never succeed** — posts `positionSourceType:"fund"` (accepted: only `inline-series`/`inline-events`), `netIrr` (produced: `irr`), `positionSourceId=tenantId`; and `load()` never calls `GET /reports/{id}`, so the 5s poll is a no-op and "Request release" is unreachable. | `web/components/report-queue.tsx:47-80`, `modules/api/.../ReportRunner.kt:82-140` | @mapleury + @Venkat5599 (contract) |
 | 14 | **`/admin` ops page is public** — unauthenticated, prints API base + live health; routed publicly (`admin-octo.mesta.click`) and linked from the in-app command menu. | `web/app/admin/page.tsx`, `web/middleware.ts:6-13` | @EliteSlacker + @mapleury |
 | 15 | **`finish_run` inside `except` can throw → audit loss** — bookkeeping failure masks the real error and the run row stays `running`; happy-path `finish_run` inside `try` can also trigger a second `finish_run` (completed→failed) or throw twice. All 7 workflows. | `agents/octo_agents/workflows/*.py` except handlers | @fikriaf |
 | 16 | **Fake-as-live surfaces** — `dashboard-4` (hardcoded stats/alerts + fake refresh→"Updated just now"), `data-table-3` ("Asset register" edits "saved" via setTimeout, budgeting-template copy), positions rows hardcoded in `app-shell-2`. The default view of the gated app is fabricated. | `web/components/blocks/dashboard-4.tsx`, `data-table-3.tsx`, `web/components/blocks/app-shell-2.tsx:207-264` | @Demcruise |
 | 17 | **Landing CTA form submits to nothing** — `onSubmit=preventDefault` only; every "Request access" on the page funnels to it. Terms/Privacy are `href="#"`. | `web/components/blocks/contact-10.tsx:103,231-237` | @mapleury |
 | 18 | **Helius webhook verifies a signature exists, not the payload** — `ingest` checks `transaction.signatures[0]` is a finalized sig on-chain, then trusts submitted `accountKeys`/transfer legs. Secret-holder can fabricate transfers on watched wallets that promote to `instrument_flow`. | `modules/ingestion/.../OnchainWebhookService.kt:49-63`, `HeliusFinalityProbe.kt` | @mzf11125 + @EliteSlacker |
-| 20 | **Sidecar tenant scoping caller-asserted** — every endpoint takes `tenant_id` from the body but reads/writes carry a bare `prospect_id`; a bad pair books tenant A's ledger on tenant B's prospect. `run_key` replay doesn't verify the stored row's subject/input — a key collision returns the wrong subject's memo. | `agents/octo_agents/server.py`, `workflows/screening_dd.py:_record_run` | @fikriaf + @Fatihmaull |
 
 ## Gap audit — medium
 
@@ -79,7 +76,6 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | 39 | CSP `img-src` blocks `cta-2` Unsplash trail images in prod; `connect-src` would also block a real `NEXT_PUBLIC_SOLANA_RPC_URL`. | `web/next.config.ts:39-41`, `cta-2.tsx:7-14` | @mapleury |
 | 40 | Actuator metrics/prometheus unreachable — JWT required, no scraper/service account/deployed Prometheus; deploy README's tuning promise never wired. | `modules/api/.../application.yml:34`, `deploy/README.md:113` | @Aldroun |
 | 41 | `infra/docker-compose.yml` degraded variant: no redis/agents services, never forwards `HELIUS_*`/`ARBITRUM_*`/`ALPHA_VANTAGE_*`/`OCTO_AGENTS_*`/`OCTO_PLATFORM_ADMINS` it documents — those features silently can't run. | `infra/docker-compose.yml:19-88` vs `infra/.env.example:60-79` | @Aldroun |
-| 43 | Non-atomic task-open + record: `ReconciliationRunner`/`ComplianceRunner` commit task then record in a second txn — failure between them leaves an orphan evidence-request/review task. | `ReconciliationRunner.kt:65-80`, `ComplianceRunner.kt:58-68` | @Fatihmaull |
 | 44 | Tenant admins can raise their own rate limit (`PUT /admin/tenants/.../settings` writes any key incl. `rate_limit_per_minute`); any member can forge arbitrary `agent_run` audit rows (`subjectId` uncapped). | `AdminTenantsController.kt:130-153`, `AgentRunsController.kt:49-86` | @EliteSlacker |
 
 ## Gap audit — low (verified, summarized)
