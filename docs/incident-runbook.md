@@ -134,4 +134,3 @@ Each incident records, in its thread: id and severity; declared / mitigated / re
 - **The Supabase project's own reliability** — Auth, Storage, Kong, the database host, backups — is the operator's (ADR-0002). This runbook names the dependency and stops.
 - **Post-incident depth:** §7 defines the record, not a facilitated blameless-postmortem process; reliability.md is the document that must change as a result of an incident.
 - **Capacity and load:** a capacity incident has no playbook here — ADR-0002 ("Availability and scaling") still requires the user, throughput, pool, and peak numbers that would size one. Capacity and dependency-failure rehearsals are recorded on [drill-evidence-template.md](drill-evidence-template.md).
-- **CI is blocked by GitHub billing** (reliability.md §4): "green tests" is not a gate that exists today, so the record should say what the operator actually ran instead of implying CI verified the fix.
