@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlparse
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     octo_agents_operating_review_enabled: bool = False
 
     request_timeout_s: float = 60.0
+    # End-to-end run budget (#486): plus deadline.py's 10 s bookkeeping grace it
+    # must stay under the platform AgentsClient's 120 s timeout.
+    run_deadline_s: float = Field(default=100.0, gt=0, le=110)
 
     @model_validator(mode="after")
     def _plaintext_api_url_requires_opt_in(self) -> "Settings":

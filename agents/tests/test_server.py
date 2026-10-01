@@ -3,12 +3,15 @@ unconfigured, 401 on a wrong token, and lets a valid token reach the
 workflow's own checks (feature flag) rather than failing at the edge."""
 
 from collections.abc import Iterator
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
-from octo_agents import server
+from octo_agents import deadline, server
 from octo_agents.config import get_settings
+from octo_agents.deadline import DeadlineExceeded
 from octo_agents.server import app
 from octo_agents.tools import SubjectNotInTenantError
 from octo_agents.workflows.screening_dd import (
@@ -89,6 +92,7 @@ def test_non_ascii_bearer_answers_401_not_500(
     [
         (SubjectNotInTenantError("prospect p-1", "t-1"), 404),
         (RunKeyCollisionError("rk-1", "prospect/p-1", "prospect/p-2"), 409),
+        (DeadlineExceeded("judge call"), 504),
         (RunInProgressError("rk-1", "run-1"), 409),
         (RunPreviouslyFailedError("rk-1", "run-1"), 409),
     ],
@@ -112,3 +116,27 @@ def test_binding_errors_map_to_client_statuses(
     )
     assert res.status_code == code
     assert res.json()["detail"] == str(error)
+
+
+def test_workflow_runs_under_the_configured_deadline(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OCTO_AGENTS_TOKEN", "s3cret")
+    monkeypatch.setenv("OCTO_AGENT_TOKEN", "api-token")
+    monkeypatch.setenv("OCTO_AGENTS_CALIBRATION_ENABLED", "true")
+    monkeypatch.setenv("RUN_DEADLINE_S", "42")
+    get_settings.cache_clear()
+    seen: list[float] = []
+
+    def observe(**_: object) -> Any:
+        seen.append(deadline._current.get().remaining())  # type: ignore[union-attr]
+        return SimpleNamespace(model_dump=lambda: {"status": "completed"})
+
+    monkeypatch.setattr(server, "run_calibration", observe)
+    res = client.post(
+        "/v1/workflows/calibration",
+        json={"tenant_id": "t-1"},
+        headers={"Authorization": "Bearer s3cret"},
+    )
+    assert res.status_code == 200
+    assert len(seen) == 1 and 40 < seen[0] <= 42

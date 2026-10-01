@@ -17,6 +17,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
+from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
 from .screening_dd import _record_run, finish_failed
 
@@ -166,7 +167,8 @@ def run_equity_bridge(
             "effects": effects,
             "change": change,
         }
-        message = agent_model.invoke(
+        message = invoke_within_deadline(
+            agent_model,
             [
                 SystemMessage(content=BRIDGE_PROMPT),
                 HumanMessage(

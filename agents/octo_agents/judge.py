@@ -12,6 +12,7 @@ from typing import Any, Literal
 import httpx
 from pydantic import BaseModel, Field
 
+from . import deadline
 from .retry import send_with_retry
 
 
@@ -157,6 +158,7 @@ class JudgeClient:
                     "Content-Type": "application/json",
                 },
                 json=payload,
+                timeout=deadline.http_timeout(self._client),
             ),
             retries=self._retries,
             backoff_s=self._backoff_s,

@@ -15,6 +15,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
+from ..deadline import invoke_within_deadline
 from ..judge import JudgeClient, NoulQuestion
 from .screening_dd import _record_run, finish_failed
 
@@ -120,7 +121,8 @@ def run_compliance_rationale(
 
         # The drafter gets no tools: the engine's outcomes are the whole
         # evidence base — a citation has nowhere else to come from.
-        message = agent_model.invoke(
+        message = invoke_within_deadline(
+            agent_model,
             [
                 SystemMessage(content=RATIONALE_PROMPT),
                 HumanMessage(

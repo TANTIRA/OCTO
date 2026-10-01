@@ -25,7 +25,9 @@ from typing import Any, Literal
 from deepagents import create_deep_agent
 from pydantic import BaseModel
 
+from .. import deadline
 from ..api_client import OctoApiClient, OctoApiError
+from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import load_in_tenant, read_tools
 from .warm_context import warm_prompt
@@ -412,12 +414,14 @@ def finish_failed(
     original exception still propagates from the caller's bare `raise`; this
     swallows and logs the secondary failure rather than replacing the real one.
     `output` carries side effects that already landed before the crash (e.g.
-    tasks opened) so the failed run still records them (#330).
+    tasks opened) so the failed run still records them (#330). The grace
+    window lets a run that ran out of time still land `failed` (#486).
     """
     try:
-        api.finish_run(
-            run_id, status="failed", output=output, error=str(error)[:2000]
-        )
+        with deadline.bookkeeping_grace():
+            api.finish_run(
+                run_id, status="failed", output=output, error=str(error)[:2000]
+            )
     except Exception as bookkeeping:  # noqa: BLE001 - must not mask `error`
         _log.warning(
             "finish_run(failed) for run %s could not land: %s", run_id, bookkeeping
@@ -488,7 +492,8 @@ def run_screening_dd(
         evidence = (
             "\n".join(f"- {_digest(e)}" for e in admitted) or "- (no events on record)"
         )
-        result = agent.invoke(
+        result = invoke_within_deadline(
+            agent,
             {
                 "messages": [
                     (
