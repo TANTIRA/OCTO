@@ -94,18 +94,68 @@ filter by id/seq rather than truncate-and-reload. Tables guarded by
 `reject_mutation` triggers (V1, V7) can never receive UPDATE/DELETE — corrupted
 append-only rows are corrected by superseding rows, matching the domain model.
 
-## 6. Neo4j restore
+## 6. Neo4j backup and restore
+
+The graph store (`octo-neo4j-db`, its own Dokploy project per `infra/README.md`)
+is a **projection**, not the ledger of record: PostgreSQL's `octo` schema stays
+authoritative even if the graph is lost, and the graph is reconstructable from
+ledger + staging by replaying ingestion (ADR-0004, "Neutralized risks"). That
+makes a Neo4j restore lower-stakes than §4's Postgres restore, but still the
+documented path — see ADR-0004's acceptance criterion for this runbook.
+
+### 6.1 Pre-flight (do once, verify quarterly)
+
+- [ ] `neo4j-data` volume snapshots run on the schedule stated in
+      `infra/README.md` ("Data" row) and the last snapshot's success is
+      monitored — the same "unmonitored backup silently stopped" failure §3
+      guards against for Postgres.
+- [ ] The pinned image tag (`neo4j:2025.12.1-community` as of this writing —
+      `Neo4jSchemaIT`/`deploy/dokploy.compose.yml` carry the current value) is
+      recorded before any dump/restore: `neo4j-admin database load` across a
+      version mismatch can fail or silently reformat the store.
+- [ ] `ontology/octo-investment.cypher` (the schema under `Neo4jSchemaIT`) is
+      at the commit the dump was taken against — a restore onto a newer schema
+      needs the intervening constraint/index changes re-applied by hand.
+
+### 6.2 Backup
 
 ```bash
 docker exec octo-neo4j-db neo4j-admin database dump neo4j --to-path=/backups
-# restore:
+```
+
+Copy `/backups` off the container host the same way the Postgres base backup
+leaves `octo-supabase-db` (§2's "backup layer" column) — a dump that lives only
+on the volume it protects against is not a backup.
+
+### 6.3 Restore
+
+```bash
 docker exec octo-neo4j-db neo4j-admin database load neo4j --from-path=/backups --overwrite-destination
 ```
 
-The graph is a projection — after a Postgres restore, diff `graph_node_id`
-back-references against restored assets; rows the projection missed rebuild on
-the next ingestion pass, but a `graph_node_id` dangling against a missing graph
-node must be reconciled before the API serves it.
+`--overwrite-destination` replaces the live graph — there is no partial/table-scoped
+Neo4j restore equivalent to §5's surgical Postgres path; a graph restore is
+always whole-database. The container must be stopped for the duration of the
+load (`neo4j-admin database load` does not run against a live store) — expect
+the graph to be unavailable for the restore's duration, unlike Postgres's
+detached-recovery-host approach in §4.
+
+### 6.4 Post-restore verification
+
+- [ ] `Neo4jSchemaIT`-equivalent constraint check: every constraint/index
+      `ontology/octo-investment.cypher` declares exists on the restored store
+      (`SHOW CONSTRAINTS`, `SHOW INDEXES`).
+- [ ] Diff `graph_node_id` back-references in Postgres against the restored
+      graph: a `graph_node_id` whose node the restore does not contain must be
+      reconciled (re-ingested or cleared) before the API serves it. Rows the
+      restored graph is simply missing (dump taken before they were written)
+      rebuild on the next ingestion pass — that is the expected, low-severity
+      case; a dangling reference pointing at a node that was deleted and
+      replaced is the one that needs attention.
+- [ ] A look-through query against a known multi-level hierarchy (see the
+      perf test added for ADR-0004's last acceptance box) returns the same
+      shape as pre-loss — a restore that silently drops a relationship type
+      passes a row-count check but fails this one.
 
 ## 7. Post-restore checklist
 

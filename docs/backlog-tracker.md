@@ -44,7 +44,7 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | # | Item | Source | Owner | Status |
 | --- | --- | --- | --- | --- |
 | 9 | Self-hosted Supabase acceptance list: restore drill meeting RPO/RTO, upgrade/rollback rehearsal on staging, monitoring + incident runbooks, capacity/dependency-failure tests | `docs/adr/0002-self-hosted-supabase.md` | @Aldroun | open |
-| 10 | Neo4j: dual-write ingestion path with atomic failure semantics; graph-ledger reconciliation on seeded data; backup/restore + upgrade runbooks; look-through perf test over 5-level hierarchy | `docs/adr/0004-neo4j-graph-store.md` | @Fatihmaull | open |
+| 10 | Neo4j: dual-write ingestion path with atomic failure semantics; graph-ledger reconciliation on seeded data; ~~backup/restore + upgrade runbooks~~ (done — `docs/restore-runbook.md` §6, `docs/runbooks/neo4j-upgrade.md`, #308); look-through perf test over 5-level hierarchy | `docs/adr/0004-neo4j-graph-store.md` | @Fatihmaull | open |
 
 ## Gap audit — high (real code, verified 2026-09-29)
 

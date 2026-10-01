@@ -72,5 +72,5 @@ Quarterly, and before any upgrade that changes schema, auth, or storage. Each re
 
 - The restore procedure itself — [restore-runbook.md](restore-runbook.md) owns it.
 - The live Supabase template's own upgrade mechanics beyond bumping tags and redeploying; upstream owns the compose distribution.
-- Neo4j and TypeDB, which have their own ADRs (0004, 0003) and their own pending upgrade runbooks.
+- Neo4j, which has [its own upgrade runbook](runbooks/neo4j-upgrade.md) (ADR-0004). TypeDB (ADR-0003) is superseded and has no runbook.
 - Postgres major-version moves (e.g. `docker-compose.pg17.yml`, `utils/upgrade-pg17.sh` in the vendored tree), which are a different procedure from a tag bump and would need their own rehearsal.
