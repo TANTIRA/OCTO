@@ -27,7 +27,7 @@ const PRINCIPLES = [
 export function Security() {
   return (
     <section id="security" className="scroll-mt-16 bg-white px-4 py-24 text-black sm:px-6 sm:py-32 lg:px-8">
-      <Reveal className="mx-auto grid max-w-[1320px] gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
+      <Reveal className="relative z-40 mx-auto grid max-w-[1320px] gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
         <div className="lg:sticky lg:top-28 lg:self-start">
           <p data-anim className="font-figures text-xs uppercase tracking-[0.18em] text-neutral-500">
             Trust & controls

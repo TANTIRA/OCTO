@@ -1,0 +1,74 @@
+# #303: rule pack, not an active deployment. Requires the metric/label contract in README.md.
+groups:
+- name: octo-availability
+  interval: 1m
+  rules:
+  - record: octo:availability_error_ratio:rate5m
+    expr: |-
+      (sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403",status=~"5.."}[5m]))
+       or on (job, deployment) (0 * sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403"}[5m]))))
+      /
+      sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403"}[5m]))
+  - record: octo:availability_error_ratio:rate30m
+    expr: |-
+      (sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403",status=~"5.."}[30m]))
+       or on (job, deployment) (0 * sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403"}[30m]))))
+      /
+      sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403"}[30m]))
+  - record: octo:availability_error_ratio:rate1h
+    expr: |-
+      (sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403",status=~"5.."}[1h]))
+       or on (job, deployment) (0 * sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403"}[1h]))))
+      /
+      sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403"}[1h]))
+  - record: octo:availability_error_ratio:rate6h
+    expr: |-
+      (sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403",status=~"5.."}[6h]))
+       or on (job, deployment) (0 * sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403"}[6h]))))
+      /
+      sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403"}[6h]))
+  - record: octo:availability_error_ratio:rate3d
+    expr: |-
+      (sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403",status=~"5.."}[3d]))
+       or on (job, deployment) (0 * sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403"}[3d]))))
+      /
+      sum by (job, deployment) (rate(http_server_requests_seconds_count{job="octo-api",deployment=~".+",uri!~"/actuator(/.*)?",status!~"401|403"}[3d]))
+  - alert: OctoAvailabilityBurnFast
+    expr: |-
+      (octo:availability_error_ratio:rate1h > 14.4 * 0.001)
+      and on (job, deployment)
+      (octo:availability_error_ratio:rate5m > 14.4 * 0.001)
+    labels:
+      severity: page
+      slo: availability
+    annotations:
+      summary: OCTO availability budget burn exceeds 14.4x
+      description: Eligible API 5xx responses exceed the 99.9% availability budget in both 1h and 5m windows. Check
+        readiness, dependencies and recent deployments.
+      runbook_url: https://github.com/TANTIRA/OCTO/blob/main/docs/runbooks/availability-burn.md
+  - alert: OctoAvailabilityBurnSlow
+    expr: |-
+      (octo:availability_error_ratio:rate6h > 6 * 0.001)
+      and on (job, deployment)
+      (octo:availability_error_ratio:rate30m > 6 * 0.001)
+    labels:
+      severity: page
+      slo: availability
+    annotations:
+      summary: OCTO availability budget burn exceeds 6x
+      description: Eligible API 5xx responses exceed the 99.9% availability budget in both 6h and 30m windows. Check
+        readiness, dependencies and recent deployments.
+      runbook_url: https://github.com/TANTIRA/OCTO/blob/main/docs/runbooks/availability-burn.md
+  - alert: OctoAvailabilityBurnTicket
+    expr: |-
+      (octo:availability_error_ratio:rate3d > 1 * 0.001)
+      and on (job, deployment)
+      (octo:availability_error_ratio:rate6h > 1 * 0.001)
+    labels:
+      severity: ticket
+      slo: availability
+    annotations:
+      summary: OCTO availability budget burn exceeds 1x
+      description: Eligible API 5xx responses exceed the 99.9% availability budget in both 3d and 6h windows. Check
+        readiness, dependencies and recent deployments.
+      runbook_url: https://github.com/TANTIRA/OCTO/blob/main/docs/runbooks/availability-burn.md

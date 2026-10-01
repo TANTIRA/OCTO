@@ -6,6 +6,7 @@ import com.octo.api.access.persistence.AccessProvenance
 import com.octo.api.access.persistence.TenantSettings
 import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
+import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -75,10 +76,11 @@ class AdminTenantsEndpointTest {
     private fun MockMvc.provision(
         caller: UUID,
         slug: String = "new-firm",
+        firstAdmin: UUID = UUID.randomUUID(),
     ) = perform(
         post("/api/v1/admin/tenants")
             .contentType(MediaType.APPLICATION_JSON)
-            .content("""{"slug":"$slug","displayName":"New Firm","firstAdminUserId":"${UUID.randomUUID()}"}""")
+            .content("""{"slug":"$slug","displayName":"New Firm","firstAdminUserId":"$firstAdmin"}""")
             .with(jwt().jwt { it.subject(caller.toString()) }),
     )
 
@@ -123,6 +125,23 @@ class AdminTenantsEndpointTest {
     }
 
     @Test
+    fun `nobody grants their own access — self-grant at provision or member event is 409, not 500`() {
+        run { mvc ->
+            mvc
+                .provision(platformAdmin, firstAdmin = platformAdmin)
+                .andExpect(status().isConflict)
+                .andExpect(status().reason(containsString("segregation of duties")))
+            assertThat(access.provisioned).isEmpty()
+            mvc
+                .memberEvent(platformAdmin, user = platformAdmin, body = """{"type":"granted","role":"admin"}""")
+                .andExpect(status().isConflict)
+                .andExpect(status().reason(containsString("segregation of duties")))
+            assertThat(access.events).isEmpty()
+            assertThat(access.memberships).isEmpty()
+        }
+    }
+
+    @Test
     fun `a tenant admin grants a member in their own tenant only`() {
         run { mvc ->
             mvc
@@ -146,7 +165,6 @@ class AdminTenantsEndpointTest {
                 .memberEvent(tenantAdmin, body = """{"type":"granted","role":"analyst"}""")
                 .andExpect(status().isConflict)
             access.nextError = null
-            access.registered = false
             mvc
                 .memberEvent(tenantAdmin, body = """{"type":"role-changed","role":"approver"}""")
                 .andExpect(status().isNotFound)
@@ -156,6 +174,34 @@ class AdminTenantsEndpointTest {
             mvc
                 .memberEvent(tenantAdmin, body = """{"type":"revoked"}""")
                 .andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `member state persists across changes and rejected grants leave it intact`() {
+        val member = UUID.randomUUID()
+        val otherMember = UUID.randomUUID()
+        run { mvc ->
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"granted","role":"analyst"}""")
+                .andExpect(status().isOk)
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"granted","role":"admin"}""")
+                .andExpect(status().isConflict)
+            assertThat(access.memberships[tenantId to member]?.role).isEqualTo(TenantRole.ANALYST)
+            mvc
+                .memberEvent(tenantAdmin, user = otherMember, body = """{"type":"granted","role":"viewer"}""")
+                .andExpect(status().isOk)
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"role-changed","role":"approver"}""")
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.role").value("approver"))
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"revoked","rationale":"left firm"}""")
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("revoked"))
+            assertThat(access.memberships[tenantId to otherMember]?.role).isEqualTo(TenantRole.VIEWER)
+            assertThat(access.events).hasSize(4)
         }
     }
 
@@ -293,11 +339,11 @@ class AdminTenantsEndpointTest {
         }
     }
 
-    /** Minimal in-memory administration: records calls, replays a one-member state machine. */
+    /** In-memory administration: commits validated state independently for each tenant/member pair. */
     private class FakeAccess : AccessAdministration {
         val provisioned = mutableListOf<Tenant>()
         val events = mutableListOf<MembershipEvent>()
-        var registered = true
+        val memberships = mutableMapOf<Pair<UUID, UUID>, MembershipState>()
         var nextError: IllegalArgumentException? = null
 
         override fun provisionTenant(
@@ -306,29 +352,29 @@ class AdminTenantsEndpointTest {
             grantor: String,
             registeredAt: Instant,
             provenance: AccessProvenance,
-        ): MembershipState {
-            provisioned += tenant
-            return MembershipState(tenant.id, adminUserId, MembershipStatus.ACTIVE, TenantRole.ADMIN, registeredAt)
-        }
+        ): MembershipState =
+            // Same validation as JdbcAccessStore.provisionTenant; a refused grant provisions nothing.
+            registered(tenant.id, adminUserId, registeredAt)
+                .next(MembershipEvent.Granted(grantor, registeredAt, TenantRole.ADMIN))
+                .also {
+                    provisioned += tenant
+                    memberships[tenant.id to adminUserId] = it
+                }
 
-        override fun registerMember(
+        /** Like the real store: a rejected grant registers nothing. */
+        override fun grant(
             tenantId: UUID,
             userId: UUID,
-            registeredAt: Instant,
+            event: MembershipEvent.Granted,
             provenance: AccessProvenance,
-        ) {
-            registered = true
-        }
-
-        override fun load(
-            tenantId: UUID,
-            userId: UUID,
-        ): MembershipState? =
-            if (registered) {
-                MembershipState(tenantId, userId, MembershipStatus.NONE, null, Instant.EPOCH)
-            } else {
-                null
+        ): MembershipState {
+            nextError?.let { throw it }
+            val before = memberships[tenantId to userId] ?: registered(tenantId, userId, event.at)
+            return before.next(event).also {
+                memberships[tenantId to userId] = it
+                events += event
             }
+        }
 
         override fun append(
             tenantId: UUID,
@@ -336,22 +382,12 @@ class AdminTenantsEndpointTest {
             event: MembershipEvent,
             provenance: AccessProvenance,
         ): MembershipState {
-            if (!registered) throw NoSuchElementException("no member")
+            val before = memberships[tenantId to userId] ?: throw NoSuchElementException("no member")
             nextError?.let { throw it }
-            events += event
-            val role =
-                when (event) {
-                    is MembershipEvent.Granted -> event.role
-                    is MembershipEvent.RoleChanged -> event.role
-                    is MembershipEvent.Revoked -> null
-                }
-            return MembershipState(
-                tenantId,
-                userId,
-                if (event is MembershipEvent.Revoked) MembershipStatus.REVOKED else MembershipStatus.ACTIVE,
-                role,
-                event.at,
-            )
+            return before.next(event).also {
+                memberships[tenantId to userId] = it
+                events += event
+            }
         }
     }
 }

@@ -65,12 +65,20 @@ export default function CompliancePanel() {
     { currency: "", fraction: "" },
   ]);
 
-  const currencyExposure = (): Record<string, number> =>
-    Object.fromEntries(
-      exposure
-        .filter((r) => r.currency.trim() && r.fraction.trim())
-        .map((r) => [r.currency.toUpperCase(), Number(r.fraction)]),
-    );
+  // A row the operator started but did not finish blocks the run instead of
+  // being dropped silently (#333).
+  const exposureRows = exposure.filter((r) => r.currency.trim() || r.fraction.trim());
+  const exposureValid = exposureRows.every(
+    (r) => /^[A-Z]{3}$/.test(r.currency.trim()) && r.fraction.trim() !== "" && Number.isFinite(Number(r.fraction)),
+  );
+  const canRun = Boolean(tenantId) && subject.trim() !== "" && exposureValid;
+
+  // No exposure entered → the field is omitted and the engine answers currency
+  // rules `not-evaluable`, rather than scoring an invented breakdown.
+  const currencyExposure = (): Record<string, number> | undefined =>
+    exposureRows.length === 0
+      ? undefined
+      : Object.fromEntries(exposureRows.map((r) => [r.currency.trim(), Number(r.fraction)]));
 
   const loadRules = useCallback(async () => {
     if (!tenantId) return;
@@ -92,7 +100,7 @@ export default function CompliancePanel() {
   }, [loadRules]);
 
   const evaluate = async () => {
-    if (!tenantId || running || !subject.trim()) return;
+    if (!canRun || running) return;
     setRunning(true);
     setError(null);
     setRationale(null);
@@ -112,7 +120,7 @@ export default function CompliancePanel() {
   };
 
   const narrate = async () => {
-    if (!tenantId || narrating || !subject.trim()) return;
+    if (!canRun || narrating) return;
     setNarrating(true);
     setError(null);
     try {
@@ -139,29 +147,6 @@ export default function CompliancePanel() {
         refreshLabel="Reload rules"
         error={error}
       />
-    <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-medium tracking-[-0.01em] text-neutral-900 dark:text-neutral-100">
-            Compliance
-          </h2>
-          <p className="mt-0.5 text-[13px] text-neutral-500">
-            Rules evaluate server-side; breaches open review tasks. Narration
-            is AI-drafted and citation-gated.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={loadRules}
-          aria-label="Load rules"
-          className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] border border-neutral-200/70 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-900"
-        >
-          <RefreshCw
-            aria-hidden
-            className={cx("h-4 w-4", loadingRules && "animate-spin motion-reduce:animate-none")}
-          />
-        </button>
-      </header>
 
       <div className="flex flex-wrap items-center gap-2 pb-4">
         <input
@@ -224,7 +209,7 @@ export default function CompliancePanel() {
         </button>
         <button
           type="button"
-          disabled={running || !tenantId || !subject.trim()}
+          disabled={running || !canRun}
           onClick={evaluate}
           className="inline-flex h-8 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-3 text-[13px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] disabled:opacity-50 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))]"
         >
@@ -233,7 +218,7 @@ export default function CompliancePanel() {
         {outcomes.length > 0 && (
           <button
             type="button"
-            disabled={narrating}
+            disabled={narrating || !canRun}
             onClick={narrate}
             className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-[var(--rb-r-sm,6px)] bg-neutral-100 px-3 text-[13px] font-medium text-neutral-700 hover:bg-neutral-200 disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
           >
@@ -244,13 +229,6 @@ export default function CompliancePanel() {
       </div>
 
       <div className="space-y-4">
-      {error && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 sm:px-8">
         <section className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex h-12 items-center gap-3 bg-neutral-50 px-4 dark:bg-neutral-800/40">
             <h3 className="min-w-0 flex-1 truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">

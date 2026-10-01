@@ -67,35 +67,6 @@ export default function AgentRunsPanel() {
         refreshLabel="Refresh runs"
         error={error}
       />
-    <div className="flex h-full min-h-[680px] flex-col bg-white dark:bg-neutral-950">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 px-6 pt-6 pb-4 sm:px-8">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-medium tracking-[-0.01em] text-neutral-900 dark:text-neutral-100">
-            Alerts &amp; agents
-          </h2>
-          <p className="mt-0.5 text-[13px] text-neutral-500">
-            Every agent workflow run, with its models and judge verdict — the
-            audit spine, read-only.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={load}
-          aria-label="Refresh runs"
-          className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] border border-neutral-200/70 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-900"
-        >
-          <RefreshCw
-            aria-hidden
-            className={cx("h-4 w-4", loading && "animate-spin motion-reduce:animate-none")}
-          />
-        </button>
-      </header>
-
-      {error && (
-        <p role="alert" className="mx-6 mb-2 text-[13px] text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
 
       <div>
         <div className="overflow-hidden rounded-[var(--rb-r-2xl,14px)] border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900">

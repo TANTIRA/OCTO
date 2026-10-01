@@ -446,6 +446,66 @@ class ProspectEndpointTest {
     }
 
     @Test
+    fun `the IC review read returns the latest approval on the prospect, to any role in its tenant only`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc // no review yet
+                .perform(get("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }))
+                .andExpect(status().isNotFound)
+            for (stage in listOf("screening", "due-diligence", "ic-review")) {
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/transition")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"to":"$stage"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+            }
+            mvc
+                .perform(post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }))
+                .andExpect(status().isAccepted)
+            val first = tasks.opened().single { it.kind == TaskKind.APPROVAL }.id
+
+            for (reader in listOf(member, approver, viewer)) {
+                mvc
+                    .perform(get("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(reader.toString()) }))
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.taskId").value(first.toString()))
+                    .andExpect(jsonPath("$.taskStatus").value("open"))
+                    .andExpect(jsonPath("$.requestedBy").value(member.toString()))
+                    .andExpect(jsonPath("$.decidedBy").doesNotExist())
+            }
+            mvc // a caller with no role in the prospect's tenant never learns the review exists
+                .perform(get("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(UUID.randomUUID().toString()) }))
+                .andExpect(status().isNotFound)
+
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$first")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"rejected","rationale":"thin diligence"}""")
+                        .with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isOk)
+            mvc // a decided review is history: asking again opens a fresh one, and the read follows it
+                .perform(post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }))
+                .andExpect(status().isAccepted)
+            val second =
+                tasks
+                    .opened()
+                    .filter { it.kind == TaskKind.APPROVAL }
+                    .single { it.id != first }
+                    .id
+            tasks.approve(second)
+            mvc
+                .perform(get("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.taskId").value(second.toString()))
+                .andExpect(jsonPath("$.taskStatus").value("approved"))
+                .andExpect(jsonPath("$.decidedBy").value("ic-member"))
+        }
+    }
+
+    @Test
     fun `gate events on an approval task are approver-only while routing stays a working action`() {
         run { mvc ->
             val id = mvc.registered()
