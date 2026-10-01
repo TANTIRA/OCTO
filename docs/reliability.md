@@ -86,7 +86,7 @@ State of `main` on 2026-09-27. ✅ passes, ⚠️ acceptable for now, ❌ must f
 4. ~~Backup and restore runbook~~ — `docs/restore-runbook.md`; the rehearsed restore half is still open.
 5. ~~Compose follow-ups~~ — healthcheck on readiness and `MaxRAMPercentage` in #76; the OTEL variable returns with the collector (#306).
 6. **Migration rollback rehearsal** for V5–V7 on staging, as AGENTS.md requires for T2.
-7. **Timeouts on outbound calls.** `JdkHttpTransport` has a 30-second request timeout; the decision-model call sits on the ingestion path, so a slow vendor becomes a slow ingest. Add a circuit breaker once the call is on a user-facing path.
+7. **Timeouts on outbound calls.** `JdkHttpTransport` has a 30-second request timeout. No running service calls the decision model yet: `DocumentClassifier` and `ClaimSupportAssessor` are not wired into any service, and only `DecisionModelEvalTest` constructs the client. The PR that wires that call into a running service adds the circuit breaker, so that a slow vendor fails fast instead of stalling the caller (#305).
 8. **Burn-rate alerts.** ~~OTEL collector~~ ships (#306) and metrics flow into it; next is a backend behind `OTELCOL_EXPORT=otlphttp` that stores them and evaluates §3.
 
 ## 6. What this document does not cover
