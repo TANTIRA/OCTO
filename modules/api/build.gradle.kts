@@ -81,6 +81,13 @@ dependencies {
     testImplementation(libs.archunit.junit5)
 }
 
+// The api suite boots a full Spring context per endpoint test; Gradle's 512m test-JVM default runs
+// out of heap partway through (OutOfMemoryError in context refresh). org.gradle.jvmargs sizes the
+// daemon, not this forked JVM.
+tasks.test {
+    maxHeapSize = "2g"
+}
+
 tasks.processResources {
     from(rootProject.file("db/migrations")) {
         exclude("README.md")
