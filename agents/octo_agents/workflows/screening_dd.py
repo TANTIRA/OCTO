@@ -400,6 +400,10 @@ def run_screening_dd(
         input={"prospect_id": prospect_id},
         models=models,
     )
+    # Declared outside the guard so a crash after the screening task opened
+    # still records it on the failed run (#497, mirrors due_diligence #330).
+    screening_requested = False
+    screening_response: Any = None
     try:
         # Replay validation lives inside the guard: a stored output that no
         # longer validates is a corrupt record — mark the run failed instead of
@@ -465,9 +469,7 @@ def run_screening_dd(
             memo=memo,
         )
 
-        screening_response = None
         stage_note = None
-        screening_requested = False
         if verdict.proceed:
             try:
                 screening_response = api.request_screening(prospect_id)
@@ -506,5 +508,10 @@ def run_screening_dd(
     except Exception as e:
         # The run's bookkeeping must not hide its failure — a crashed run lands
         # `failed` with the error text so F4 sees it, then the error propagates.
-        finish_failed(api, run_id, e)
+        partial = (
+            {"screening_requested": True, "screening_response": screening_response}
+            if screening_requested
+            else None
+        )
+        finish_failed(api, run_id, e, output=partial)
         raise

@@ -249,3 +249,58 @@ def test_empty_history_passes_preflight_with_an_empty_evidence_block(
     )
     assert result.retrieval is not None and result.retrieval.events_total == 0
     assert "(no events on record)" in invocations[0]["messages"][0][1]
+
+
+class CloseFailsApi(FakeApi):
+    """The completed close fails transiently; the failed close lands."""
+
+    def finish_run(self, run_id: str, **kwargs: Any) -> Any:
+        self.finished.append({"run_id": run_id, **kwargs})
+        if kwargs["status"] == "completed":
+            raise OctoApiError(503, "edge unavailable")
+        return {}
+
+
+def test_failed_close_after_screening_opened_records_the_task(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # #497 — the screening task already opened; the failed run must say so.
+    api = CloseFailsApi(events=[{"note": "deck"}])
+    fake_agent_factory(monkeypatch)
+    with pytest.raises(OctoApiError):
+        run_screening_dd(
+            agent_model=None,
+            judge=fake_judge(preflight=0.9, scores=[5.0], advance=0.85),
+            api=api,
+            prospect_id="p-1",
+            tenant_id="t-1",
+            run_key="rk-1",
+            models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
+        )
+    assert api.screening_requests == ["p-1"]
+    failed = api.finished[-1]
+    assert failed["status"] == "failed"
+    assert failed["output"] == {
+        "screening_requested": True,
+        "screening_response": {"verdict": "review"},
+    }
+
+
+def test_failure_before_screening_records_no_side_effects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    api = CloseFailsApi(events=[{"note": "deck"}])
+    fake_agent_factory(monkeypatch)
+    with pytest.raises(OctoApiError):
+        run_screening_dd(
+            agent_model=None,
+            judge=fake_judge(preflight=0.9, scores=[5.0], advance=0.1),  # below bar
+            api=api,
+            prospect_id="p-1",
+            tenant_id="t-1",
+            run_key="rk-1",
+            models={"drafter": "deepseek/deepseek-v4.1-flash", "judge": "typesafe/jev-1.13"},
+        )
+    assert api.screening_requests == []
+    assert api.finished[-1]["status"] == "failed"
+    assert api.finished[-1]["output"] is None
