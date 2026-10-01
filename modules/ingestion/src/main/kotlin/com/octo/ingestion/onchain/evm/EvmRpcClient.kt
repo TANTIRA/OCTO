@@ -108,8 +108,10 @@ class EvmRpcClient(
 
     /**
      * `eth_call` at `finalized`; returns the hex return-data string, or null when the call
-     * reverts or the contract does not implement the method. A transport-level failure
-     * (HTTP error after retries) still propagates — that is an outage, not a revert.
+     * reverts or the contract does not implement the method. Any other failure propagates — a
+     * transport error after retries, or a JSON-RPC error that is not a revert (rate limit,
+     * "header not found", "missing trie node"): that is an outage, and treating it as "not a
+     * token" would skip the contract's transfers while the cursor moves past them.
      */
     private fun ethCall(
         contract: String,
@@ -124,7 +126,7 @@ class EvmRpcClient(
             try {
                 rpc("eth_call", mapper.createArrayNode().add(call).add("finalized"))
             } catch (e: EvmException) {
-                if (e.status == null) return null
+                if (e.isRevert()) return null
                 throw e
             }
         return result.asText().takeIf { it != "0x" }
@@ -154,7 +156,10 @@ class EvmRpcClient(
         val tree = mapper.readTree(response.body)
         val error = tree.path("error")
         if (!error.isMissingNode && !error.isNull) {
-            throw EvmException("evm rpc $method error: ${error.path("message").asText(error.toString())}")
+            throw EvmException(
+                "evm rpc $method error: ${error.path("message").asText(error.toString())}",
+                rpcCode = error.path("code").takeIf { it.isInt }?.asInt(),
+            )
         }
         return tree.path("result")
     }
@@ -219,3 +224,9 @@ internal fun JsonNode.asQuantityOrNull(): BigInteger? = runCatching { asQuantity
 internal fun String.toQuantity(): BigInteger = BigInteger(removePrefix("0x"), 16)
 
 internal fun String.toQuantityOrNull(): BigInteger? = runCatching { toQuantity() }.getOrNull()
+
+/**
+ * A node-reported revert: geth-style code 3, or a revert message (code -32000 "execution reverted",
+ * "VM Exception ... revert"). Only a JSON-RPC error object qualifies; an HTTP failure never does.
+ */
+private fun EvmException.isRevert(): Boolean = status == null && (rpcCode == 3 || message.orEmpty().contains("revert", ignoreCase = true))
