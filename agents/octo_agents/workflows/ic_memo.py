@@ -19,6 +19,7 @@ from deepagents import create_deep_agent
 from pydantic import BaseModel
 
 from ..api_client import OctoApiClient, OctoApiError
+from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import read_tools
 from .screening_dd import (
@@ -194,7 +195,8 @@ def run_ic_memo(
             "\n".join(f"- {str(e)[:400]}" for e in admitted)
             or "- (no events on record)"
         )
-        result = agent.invoke(
+        result = invoke_within_deadline(
+            agent,
             {
                 "messages": [
                     (

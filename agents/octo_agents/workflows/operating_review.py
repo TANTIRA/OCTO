@@ -18,6 +18,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
+from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
 from .screening_dd import _record_run, finish_failed
 from .warm_context import warm_prompt
@@ -156,7 +157,8 @@ def run_operating_review(
         # (the fund's operating playbook) is allowed — it is the firm's own
         # standing brief, not another company's data.
         levers_text = "\n".join(f"- {lever}" for lever in cleaned)
-        message = agent_model.invoke(
+        message = invoke_within_deadline(
+            agent_model,
             [
                 SystemMessage(content=warm_prompt(api, tenant_id, REVIEW_PROMPT)),
                 HumanMessage(

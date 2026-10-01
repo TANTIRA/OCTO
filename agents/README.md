@@ -38,6 +38,7 @@ service's only client and its only tool surface.
 | `OCTO_API_BASE_URL` | Kotlin api base, default `http://api:8080` |
 | `OCTO_AGENT_TOKEN` | service-principal JWT for api calls (tasks+drafts scope) |
 | `OCTO_AGENTS_TOKEN` | bearer the platform presents when calling this service |
+| `RUN_DEADLINE_S` | end-to-end budget per workflow run, default `100` (max `110`); past it the run is recorded `failed` and answers 504, inside the platform's 120 s timeout |
 | `OCTO_AGENTS_SCREENING_DD_ENABLED` | feature flag for the first workflow (default off) |
 | `OCTO_AGENTS_DD_ENABLED` | F3 parallel DD workstreams (default off) |
 | `OCTO_AGENTS_IC_MEMO_ENABLED` | F5 IC memo drafting (default off) |

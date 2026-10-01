@@ -12,6 +12,7 @@ from urllib.parse import quote
 
 import httpx
 
+from . import deadline
 from .retry import send_with_retry
 
 
@@ -57,7 +58,9 @@ class OctoApiClient:
 
     def _get(self, path: str, params: Mapping[str, Any] | None = None) -> Any:
         r = send_with_retry(
-            lambda: self._client.get(path, params=params),
+            lambda: self._client.get(
+                path, params=params, timeout=deadline.http_timeout(self._client)
+            ),
             retries=self._retries,
             backoff_s=self._backoff_s,
         )
@@ -75,7 +78,9 @@ class OctoApiClient:
         """Most POSTs open platform workflows, so a resend could duplicate one —
         only endpoints the server dedupes pass idempotent=True (see retry.py)."""
         r = send_with_retry(
-            lambda: self._client.post(path, json=body or {}),
+            lambda: self._client.post(
+                path, json=body or {}, timeout=deadline.http_timeout(self._client)
+            ),
             retries=self._retries,
             backoff_s=self._backoff_s,
             idempotent=idempotent,

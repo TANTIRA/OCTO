@@ -9,7 +9,7 @@ import hmac
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import date
-from functools import lru_cache
+from functools import lru_cache, wraps
 from threading import Lock
 from typing import Any, TypeVar
 from uuid import uuid4
@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from .api_client import OctoApiClient
 from .chat import drafter_model
 from .config import Settings, get_settings
+from .deadline import DeadlineExceeded, run_deadline
 from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
 from .tools import SubjectNotInTenantError
@@ -67,6 +68,25 @@ def _subject_not_in_tenant(_: Request, exc: SubjectNotInTenantError) -> JSONResp
 @app.exception_handler(RunKeyCollisionError)
 def _run_key_collision(_: Request, exc: RunKeyCollisionError) -> JSONResponse:
     return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"detail": str(exc)})
+
+
+# A run that spent its budget (#486) was recorded `failed` by its workflow; the
+# caller gets a 504 before its own 120 s timeout, so both sides agree.
+@app.exception_handler(DeadlineExceeded)
+def _deadline_exceeded(_: Request, exc: DeadlineExceeded) -> JSONResponse:
+    return JSONResponse(status_code=status.HTTP_504_GATEWAY_TIMEOUT, content={"detail": str(exc)})
+
+
+def _deadlined(endpoint: Callable[..., Any]) -> Callable[..., Any]:
+    """Runs a workflow endpoint under one run deadline. FastAPI passes keyword
+    arguments and reads the wrapped signature, so dependencies are unchanged."""
+
+    @wraps(endpoint)
+    def run(**kwargs: Any) -> Any:
+        with run_deadline(kwargs["settings"].run_deadline_s):
+            return endpoint(**kwargs)
+
+    return run
 
 
 def require_caller(
@@ -194,6 +214,7 @@ class ScreeningDdRequest(BaseModel):
 
 
 @app.post("/v1/workflows/screening-dd")
+@_deadlined
 def screening_dd(
     body: ScreeningDdRequest,
     _: None = Depends(require_caller),
@@ -224,6 +245,7 @@ class DueDiligenceRequest(BaseModel):
 
 
 @app.post("/v1/workflows/due-diligence")
+@_deadlined
 def due_diligence(
     body: DueDiligenceRequest,
     _: None = Depends(require_caller),
@@ -258,6 +280,7 @@ class LpReportRequest(BaseModel):
 
 
 @app.post("/v1/workflows/lp-report")
+@_deadlined
 def lp_report(
     body: LpReportRequest,
     _: None = Depends(require_caller),
@@ -292,6 +315,7 @@ class BrainQueryRequest(BaseModel):
 
 
 @app.post("/v1/workflows/company-brain")
+@_deadlined
 def company_brain(
     body: BrainQueryRequest,
     _: None = Depends(require_caller),
@@ -324,6 +348,7 @@ class CalibrationRequest(BaseModel):
 
 
 @app.post("/v1/workflows/calibration")
+@_deadlined
 def calibration(
     body: CalibrationRequest,
     _: None = Depends(require_caller),
@@ -356,6 +381,7 @@ class ComplianceRationaleRequest(BaseModel):
 
 
 @app.post("/v1/workflows/compliance-rationale")
+@_deadlined
 def compliance_rationale(
     body: ComplianceRationaleRequest,
     _: None = Depends(require_caller),
@@ -395,6 +421,7 @@ class EquityBridgeRequest(BaseModel):
 
 
 @app.post("/v1/workflows/equity-bridge")
+@_deadlined
 def equity_bridge(
     body: EquityBridgeRequest,
     _: None = Depends(require_caller),
@@ -432,6 +459,7 @@ class IcMemoRequest(BaseModel):
 
 
 @app.post("/v1/workflows/ic-memo")
+@_deadlined
 def ic_memo(
     body: IcMemoRequest,
     _: None = Depends(require_caller),
@@ -464,6 +492,7 @@ class DdqResponseRequest(BaseModel):
 
 
 @app.post("/v1/workflows/ddq-response")
+@_deadlined
 def ddq_response(
     body: DdqResponseRequest,
     _: None = Depends(require_caller),
@@ -498,6 +527,7 @@ class OperatingReviewRequest(BaseModel):
 
 
 @app.post("/v1/workflows/operating-review")
+@_deadlined
 def operating_review(
     body: OperatingReviewRequest,
     _: None = Depends(require_caller),
