@@ -94,13 +94,9 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 
 47. Agents: token compare not constant-time (`server.py:42`); `/docs`+`openapi.json` open; default `http://api:8080` plaintext; unencoded path/query interpolation; `admitted,_` discards RetrievalVerdict (ic_memo, dd); `NoulCriteria` dead contract; `ic_review_requested` false-negative on missing taskId; `list_pipeline` truncates silently at 50; raw `answers[...]` KeyError brittleness; replayed `model_validate` outside `try`; eval THRESHOLD conflates two knobs; `as_of` unvalidated; registry re-reads `models.yaml` per request; calibration `limit` unbounded/no pagination; no `test_server`/`test_api_client`/except-path tests; evals only for 2 of 7 workflows; `__getattr__` fakes can mask signature drift. → @fikriaf / @kzahiras21.
 
-48. Infra/services: `depends_on` without `service_healthy` (agents, web); `newestSlot` double `executeQuery`; `ComplianceController` 500 vs 400 on bad ruleId; `evmEvidenceAdapter` bean unwired; no log rotation; web lacks memory reservation; deploy README stale (claims no rate limiting, documents unused `POSTGRES_PORT`); no in-repo backup automation; V38 indexes take SHARE locks (schedule low-traffic); `JdbcTimeSeriesStore` unbounded result; sidecar token compare + plaintext + openapi exposure (also 47). → @Aldroun / @Fatihmaull.
+48. Infra: no scheduled backup runner — `deploy/backup.sh` is a manual `pg_dump` wrapper (deploy/README.md §Backups); a cron/systemd runner is a deliberate follow-up. Plaintext service-to-service traffic is tracked in item 22 / #320. → @Aldroun
 
-    ⚠️ **Suspected stale — re-check, then remove.** Re-read against the code on 2026-09-30 at `6b3c7f1`, all ten items look resolved: 1/5/6/7/8/9 by #381; 2 by `30017a6`; 3/4/10 by `55ae337`. Not deleted yet, because a second reviewer should confirm each item against the code before this entry goes — the "completed entries are removed" rule above applies once that check happens, not on one reader's word.
-
-    One residual: the plaintext clause is still open, tracked as item 22 / #320.
-
-    Item 4 caveat: `EvmEvidenceAdapter.kt` is **planned ARB-8 work, not dead code** — `55ae337` dropped the unused *bean*, not the class. `OnchainEvidenceAdapter` is unwired the same way. Do not delete either.
+    Note: `EvmEvidenceAdapter.kt` and `OnchainEvidenceAdapter` are planned ARB-8 work, not dead code — do not delete either.
 
 ## Verified clean this audit (do not re-flag)
 
