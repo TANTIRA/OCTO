@@ -60,3 +60,5 @@ Unchanged from ADR-0003: Supabase PostgreSQL owns the append-only IBOR ledger, w
 - [ ] Graph-ledger reconciliation report passes on seeded test data
 - [x] Neo4j backup/restore and upgrade runbooks exist (`restore-runbook.md` §6, `runbooks/neo4j-upgrade.md`, #308)
 - [x] Performance test: look-through aggregation over 5-level hierarchy within reporting SLA (`modules/lookthrough/src/test/kotlin/com/octo/lookthrough/ExposurePerfTest.kt`, #308)
+- [x] Neo4j backup/restore and upgrade runbooks exist (`restore-runbook.md` §6, `runbooks/neo4j-upgrade.md`)
+- [ ] Performance test: look-through aggregation over 5-level hierarchy within reporting SLA
