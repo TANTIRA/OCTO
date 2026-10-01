@@ -76,13 +76,19 @@ class JudgmentResult(BaseModel):
         return self.answers[key]
 
     def require_noul(self, key: str) -> float:
-        return float(self.require(key)["noul"])
+        return float(self._require_field(key, "noul"))
 
     def require_choice(self, key: str) -> str | None:
         return self.require(key).get("choice")
 
     def require_score(self, key: str) -> float:
-        return float(self.require(key)["score"])
+        return float(self._require_field(key, "score"))
+
+    def _require_field(self, key: str, field: str) -> Any:
+        answer = self.require(key)
+        if not isinstance(answer, dict) or field not in answer:
+            raise KeyError(f"judge answer {key!r} has no {field!r} — got {answer!r}")
+        return answer[field]
 
 
 class JudgmentRequestError(RuntimeError):
