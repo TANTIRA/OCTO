@@ -59,7 +59,7 @@ The compose already bounds each service (`deploy/dokploy.compose.yml`): api 2 CP
 
 ## 6. What this does not cover
 
-- **Load-test tooling does not exist in this repo yet.** No k6, Gatling, or JMeter profile is committed; choosing one is part of doing this work, and `docs/reliability.md` §6 lists load testing as out of scope for the reliability document itself.
+- **Load-test tooling now exists for C1/C5** — `deploy/loadtest/capacity-drill.sh` (#307), using `ab`. C2-C4/C6-C7 (writes, ingestion throughput, WAL/bloat growth) still have no tooling and `docs/reliability.md` §6 lists load testing as out of scope for the reliability document itself.
 - **Threat modelling and abuse load** — the per-IP and per-tenant limits in `deploy/README.md` are boundary controls, not a capacity case.
 - **Alerting on the results.** Nothing evaluates these thresholds in production until a backend sits behind `OTELCOL_EXPORT=otlphttp` ([incident-runbook.md](incident-runbook.md) §8, [reliability.md](reliability.md) §5 item 8).
 - **High availability.** Docker Compose gives no database failover; ADR-0002 requires the failover strategy to be documented and tested separately, and it is not covered here.
