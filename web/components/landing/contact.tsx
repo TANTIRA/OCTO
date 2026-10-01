@@ -4,6 +4,23 @@ import { ArrowRight, ChevronDown } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Reveal } from "./motion";
 
+// WebMCP declarative form attributes (Chrome origin trial) — React passes them through as-is.
+declare module "react" {
+  interface FormHTMLAttributes<T> {
+    toolname?: string;
+    tooldescription?: string;
+  }
+  interface SelectHTMLAttributes<T> {
+    toolparamdescription?: string;
+  }
+  interface TextareaHTMLAttributes<T> {
+    toolparamdescription?: string;
+  }
+}
+
+// SubmitEvent members WebMCP adds when an agent fills the form.
+type AgentSubmitEvent = SubmitEvent & { agentInvoked?: boolean; respondWith?: (result: Promise<string>) => void };
+
 // Mirrors ContactController's constraints so the browser rejects what the API would.
 const FIELDS = [
   { name: "email", label: "Work email", type: "email", auto: "email", max: 320, required: true, wide: true },
@@ -22,14 +39,28 @@ const label = "mb-2 block text-xs font-medium text-white/60";
 
 type Status = "idle" | "pending" | "sent" | "limited" | "error";
 
+const MESSAGES = {
+  sent: "Thanks — a specialist will reach out shortly.",
+  limited: "Too many requests. Please try again in a minute.",
+  error: "Something went wrong sending that. Please try again.",
+} as const;
+
 export function Contact() {
   const [status, setStatus] = useState<Status>("idle");
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = e.currentTarget;
+    const result = send(e.currentTarget);
+    // respondWith must be called during dispatch, before the first await.
+    const native = e.nativeEvent as AgentSubmitEvent;
+    if (native.agentInvoked) native.respondWith?.(result);
+  }
+
+  async function send(form: HTMLFormElement): Promise<string> {
     const data = new FormData(form);
     const text = (key: string) => String(data.get(key) ?? "").trim();
+    // The honeypot sits outside the <form> so WebMCP never offers it to agents as a parameter.
+    const honeypot = form.ownerDocument.getElementById("contact-website") as HTMLInputElement | null;
     setStatus("pending");
     try {
       const res = await fetch("/api/v1/contact", {
@@ -44,13 +75,16 @@ export function Contact() {
           aumBand: text("aumBand"),
           phone: text("phone") || undefined,
           message: text("message") || undefined,
-          website: text("website") || undefined,
+          website: honeypot?.value.trim() || undefined,
         }),
       });
       if (res.ok) form.reset();
-      setStatus(res.ok ? "sent" : res.status === 429 ? "limited" : "error");
+      const next: Status = res.ok ? "sent" : res.status === 429 ? "limited" : "error";
+      setStatus(next);
+      return MESSAGES[next];
     } catch {
       setStatus("error");
+      return MESSAGES.error;
     }
   }
 
@@ -81,6 +115,8 @@ export function Contact() {
         <form
           data-anim
           onSubmit={onSubmit}
+          toolname="request_access"
+          tooldescription="Request a demo of OCTO, the private-markets book of record by Mesta. A specialist contacts the requester by email. Fill the fields from the user's own details; the user reviews and submits."
           className="rounded-[28px] border border-white/10 bg-neutral-950 p-6 sm:p-10"
         >
           <div className="grid gap-5 sm:grid-cols-2">
@@ -110,6 +146,7 @@ export function Contact() {
                   name="aumBand"
                   defaultValue=""
                   required
+                  toolparamdescription="Total assets under management of the requester's firm."
                   className={`${field} cursor-pointer appearance-none pr-10 invalid:text-white/35`}
                 >
                   <option value="" disabled>
@@ -131,25 +168,21 @@ export function Contact() {
                 name="message"
                 rows={4}
                 maxLength={2000}
+                toolparamdescription="Optional context: fund structure, current systems, and timeline."
                 placeholder="Fund structure, current stack, timeline."
                 className={`${field} resize-none`}
               />
             </div>
           </div>
 
-          {/* Honeypot — hidden from humans; bots that fill it get a silent 202. */}
-          <div className="hidden" aria-hidden="true">
-            <label htmlFor="contact-website">Website</label>
-            <input id="contact-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
-          </div>
 
           <p className="mt-6 text-xs leading-relaxed text-white/40">
             We only use your details to contact you about OCTO.
           </p>
           <p role="status" aria-live="polite" className="mt-3 min-h-5 text-sm">
-            {status === "sent" && <span className="text-emerald-400">Thanks — a specialist will reach out shortly.</span>}
-            {status === "limited" && <span className="text-amber-300">Too many requests. Please try again in a minute.</span>}
-            {status === "error" && <span className="text-red-400">Something went wrong sending that. Please try again.</span>}
+            {status === "sent" && <span className="text-emerald-400">{MESSAGES.sent}</span>}
+            {status === "limited" && <span className="text-amber-300">{MESSAGES.limited}</span>}
+            {status === "error" && <span className="text-red-400">{MESSAGES.error}</span>}
           </p>
 
           <button
@@ -161,6 +194,12 @@ export function Contact() {
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
         </form>
+
+        {/* Honeypot — hidden from humans and outside the form, so agents never see it; bots that fill it get a silent 202. */}
+        <div className="hidden" aria-hidden="true">
+          <label htmlFor="contact-website">Website</label>
+          <input id="contact-website" type="text" tabIndex={-1} autoComplete="off" />
+        </div>
       </Reveal>
     </section>
   );
