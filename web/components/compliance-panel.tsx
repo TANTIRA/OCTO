@@ -65,12 +65,20 @@ export default function CompliancePanel() {
     { currency: "", fraction: "" },
   ]);
 
-  const currencyExposure = (): Record<string, number> =>
-    Object.fromEntries(
-      exposure
-        .filter((r) => r.currency.trim() && r.fraction.trim())
-        .map((r) => [r.currency.toUpperCase(), Number(r.fraction)]),
-    );
+  // A row the operator started but did not finish blocks the run instead of
+  // being dropped silently (#333).
+  const exposureRows = exposure.filter((r) => r.currency.trim() || r.fraction.trim());
+  const exposureValid = exposureRows.every(
+    (r) => /^[A-Z]{3}$/.test(r.currency.trim()) && r.fraction.trim() !== "" && Number.isFinite(Number(r.fraction)),
+  );
+  const canRun = Boolean(tenantId) && subject.trim() !== "" && exposureValid;
+
+  // No exposure entered → the field is omitted and the engine answers currency
+  // rules `not-evaluable`, rather than scoring an invented breakdown.
+  const currencyExposure = (): Record<string, number> | undefined =>
+    exposureRows.length === 0
+      ? undefined
+      : Object.fromEntries(exposureRows.map((r) => [r.currency.trim(), Number(r.fraction)]));
 
   const loadRules = useCallback(async () => {
     if (!tenantId) return;
@@ -92,7 +100,7 @@ export default function CompliancePanel() {
   }, [loadRules]);
 
   const evaluate = async () => {
-    if (!tenantId || running || !subject.trim()) return;
+    if (!canRun || running) return;
     setRunning(true);
     setError(null);
     setRationale(null);
@@ -112,7 +120,7 @@ export default function CompliancePanel() {
   };
 
   const narrate = async () => {
-    if (!tenantId || narrating || !subject.trim()) return;
+    if (!canRun || narrating) return;
     setNarrating(true);
     setError(null);
     try {
@@ -201,7 +209,7 @@ export default function CompliancePanel() {
         </button>
         <button
           type="button"
-          disabled={running || !tenantId || !subject.trim()}
+          disabled={running || !canRun}
           onClick={evaluate}
           className="inline-flex h-8 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-3 text-[13px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] disabled:opacity-50 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))]"
         >
@@ -210,7 +218,7 @@ export default function CompliancePanel() {
         {outcomes.length > 0 && (
           <button
             type="button"
-            disabled={narrating}
+            disabled={narrating || !canRun}
             onClick={narrate}
             className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-[var(--rb-r-sm,6px)] bg-neutral-100 px-3 text-[13px] font-medium text-neutral-700 hover:bg-neutral-200 disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
           >

@@ -48,7 +48,7 @@ const STATUS_DOT: Record<Job["status"], string> = {
 
 type Flow = { date: string; amount: string };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const isAmount = (v: string) => v.trim() !== "" && Number.isFinite(Number(v));
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -75,13 +75,23 @@ export default function ReportQueue() {
   const [restoring, setRestoring] = useState(false);
 
   // Inline-series inputs — the real evidence base for a performance report.
-  const [currency, setCurrency] = useState("USD");
-  // Empty until the user supplies them — a pre-filled NAV or cash-flow series
-  // would let a report run on numbers nobody entered (#314).
+  // Empty until the user supplies them — a pre-filled currency, NAV, valuation
+  // date or cash-flow series would let a report run on values nobody entered
+  // (#314, #333).
+  const [currency, setCurrency] = useState("");
   const [nav, setNav] = useState("");
-  const [valuationDate, setValuationDate] = useState(today());
+  const [valuationDate, setValuationDate] = useState("");
   const [flows, setFlows] = useState<Flow[]>([{ date: "", amount: "" }]);
   const [measures, setMeasures] = useState<string[]>(["tvpi", "dpi", "irr"]);
+
+  const formValid =
+    /^[A-Z]{3}$/.test(currency) &&
+    isAmount(nav) &&
+    Number(nav) >= 0 &&
+    valuationDate !== "" &&
+    measures.length > 0 &&
+    flows.length > 0 &&
+    flows.every((f) => f.date !== "" && isAmount(f.amount));
   const jobsKey = `octo.report-jobs.${tenantId}`;
 
   useEffect(() => {
@@ -139,7 +149,7 @@ export default function ReportQueue() {
     setMeasures((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
 
   const submitPerformance = async () => {
-    if (!tenantId || submitting) return;
+    if (!tenantId || submitting || !formValid) return;
     setSubmitting(true);
     setError(null);
     setNotice(null);
@@ -210,6 +220,8 @@ export default function ReportQueue() {
               Currency
               <input
                 value={currency}
+                placeholder="USD"
+                maxLength={3}
                 onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                 className="mt-0.5 h-8 w-20 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
               />
@@ -218,7 +230,10 @@ export default function ReportQueue() {
               NAV
               <input
                 type="number"
+                min="0"
+                step="0.01"
                 value={nav}
+                placeholder="0.00"
                 onChange={(e) => setNav(e.target.value)}
                 className="mt-0.5 h-8 w-24 rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[13px] text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
               />
@@ -302,13 +317,7 @@ export default function ReportQueue() {
 
           <button
             type="button"
-            disabled={
-              submitting ||
-              !tenantId ||
-              !nav.trim() ||
-              measures.length === 0 ||
-              flows.some((f) => !f.date || f.amount === "")
-            }
+            disabled={submitting || !tenantId || !formValid}
             onClick={submitPerformance}
             className="mt-4 inline-flex h-9 cursor-pointer items-center rounded-[var(--rb-r-md,8px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-4 text-[13px] font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] disabled:opacity-50 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))]"
           >
