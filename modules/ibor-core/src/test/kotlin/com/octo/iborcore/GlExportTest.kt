@@ -120,6 +120,17 @@ class GlExportTest {
     }
 
     @Test
+    fun `events occurring after the journal date are excluded even when recorded before the cut`() {
+        // A capital call scheduled for after the cut, recorded before it, belongs to a later journal.
+        val scheduled = event(FlowType.CONTRIBUTION, "-100", occurred = "2025-01-15T00:00:00Z", recorded = "2024-12-20T00:00:00Z")
+        val sameDay = event(FlowType.DISTRIBUTION, "40", occurred = "2025-01-01T00:00:00Z", recorded = "2024-12-20T00:00:00Z")
+        val j = journal(listOf(scheduled, sameDay))
+        assertEquals(LocalDate.parse("2025-01-01"), j.asOf)
+        assertEquals(listOf(sameDay.id), j.lines.map { it.sourceEventId })
+        assertDecimal("40", j.debitsByCurrency.getValue(USD))
+    }
+
+    @Test
     fun `the accounting zone dates the entry`() {
         val nearMidnight = event(FlowType.DISTRIBUTION, "40", occurred = "2022-01-10T23:30:00Z")
         assertEquals(LocalDate.parse("2022-01-10"), journal(listOf(nearMidnight), ZoneOffset.UTC).lines.single().date)
