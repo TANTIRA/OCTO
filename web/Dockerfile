@@ -9,14 +9,17 @@
 # Base images are pinned by version + digest (infra/README.md guardrails). Bump both together:
 #   docker buildx imagetools inspect node:22.23.3-alpine --format '{{.Manifest.Digest}}'
 
+# Not /app: with the project root at /app, next build maps the root route onto
+# app/app/page.tsx (the dashboard), so / served the auth-gated shell instead of
+# the landing page. Any other directory builds the routes correctly.
 FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS deps
-WORKDIR /app
+WORKDIR /srv/web
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
 FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+WORKDIR /srv/web
+COPY --from=deps /srv/web/node_modules ./node_modules
 COPY . .
 # NEXT_PUBLIC_* is inlined into the client bundle at build time — the anon key
 # is publishable by design (security lives server-side), so baking it in is safe.
@@ -35,7 +38,7 @@ ENV API_INTERNAL_URL=$API_INTERNAL_URL
 RUN npm run build
 
 FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS runner
-WORKDIR /app
+WORKDIR /srv/web
 # PORT=80 matches the compose healthcheck (wget on :80); HOSTNAME binds beyond loopback.
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
@@ -43,9 +46,9 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 --ingroup nodejs nextjs
-COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=build --chown=nextjs:nodejs /app/public ./public
+COPY --from=build --chown=nextjs:nodejs /srv/web/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /srv/web/.next/static ./.next/static
+COPY --from=build --chown=nextjs:nodejs /srv/web/public ./public
 USER nextjs
 EXPOSE 80
 CMD ["node", "server.js"]
