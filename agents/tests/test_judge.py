@@ -1,10 +1,12 @@
 import json
 
 import httpx
+import pytest
 
 from octo_agents.judge import (
     ChoiceQuestion,
     JudgeClient,
+    JudgmentResult,
     NoulQuestion,
     ScoreQuestion,
 )
@@ -82,3 +84,11 @@ def test_request_shape_matches_kotlin_contract() -> None:
     assert result.answers["advance"]["noul"] == 0.82
     assert result.answers["why"]["choice"] == "evidence"
     assert result.model == "typesafe/jev-1.13"
+
+
+def test_answer_missing_its_field_fails_loudly() -> None:
+    result = JudgmentResult(model="m", answers={"advance": {"confidence": 0.9}})
+    with pytest.raises(KeyError, match="'advance' has no 'noul'"):
+        result.require_noul("advance")
+    with pytest.raises(KeyError, match="has no 'score'"):
+        result.require_score("advance")

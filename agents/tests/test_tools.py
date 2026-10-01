@@ -9,11 +9,13 @@ import pytest
 from octo_agents.api_client import OctoApiClient, OctoApiError
 from octo_agents.tools import read_tools
 
+from .fakes import StrictFake
+
 TENANT_A = "0f0e8a52-0000-4000-8000-00000000000a"
 TENANT_B = "0f0e8a52-0000-4000-8000-00000000000b"
 
 
-class MultiTenantApi(OctoApiClient):
+class MultiTenantApi(StrictFake):
     """A principal that belongs to both tenants: the api answers for either."""
 
     def __init__(self) -> None:

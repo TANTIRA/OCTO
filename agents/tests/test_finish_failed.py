@@ -4,11 +4,13 @@ call must never mask the original error. `finish_failed` swallows a secondary
 
 from typing import Any
 
-from octo_agents.api_client import OctoApiClient, OctoApiError
+from octo_agents.api_client import OctoApiError
 from octo_agents.workflows.screening_dd import finish_failed
 
+from .fakes import StrictFake
 
-class RecordingApi(OctoApiClient):
+
+class RecordingApi(StrictFake):
     def __init__(self, *, raises: Exception | None = None) -> None:
         self.finished: dict[str, Any] | None = None
         self._raises = raises
