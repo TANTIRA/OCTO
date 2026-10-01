@@ -23,7 +23,8 @@ import java.util.UUID
 /**
  * `POST /api/v1/reconciliations` (#6 slice 9): the caller submits a source system's records; the run compares them
  * with the current ledger events of that system and returns the matches count and every break with the task
- * reviewing it. Working roles in the tenant only; outside it 404. Duplicate keys in the batch are 400; duplicate
+ * reviewing it. `complete: true` asserts the batch is the system's full record set and is the only way to get
+ * missing-in-source breaks; the default treats the batch as partial (#492). Working roles in the tenant only; outside it 404. Duplicate keys in the batch are 400; duplicate
  * current ledger events for a key are 409, because the ledger itself needs a supersession first.
  */
 @RestController
@@ -57,7 +58,7 @@ class ReconciliationController(
             }.getOrElse { return ResponseEntity.badRequest().build() }
         val result =
             try {
-                runner.run(body.tenantId, records, tolerance, zone, jwt.subject!!, UUID.randomUUID())
+                runner.run(body.tenantId, records, tolerance, zone, jwt.subject!!, UUID.randomUUID(), body.complete)
             } catch (e: IllegalArgumentException) {
                 return ResponseEntity.badRequest().build()
             } catch (e: IllegalStateException) {
@@ -101,6 +102,7 @@ class ReconciliationController(
         @field:NotEmpty @field:Valid val records: List<RecordBody>,
         val tolerance: ToleranceBody? = null,
         val zone: String = "UTC",
+        val complete: Boolean = false,
     )
 
     data class BreakView(

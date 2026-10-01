@@ -78,15 +78,19 @@ data class Reconciliation(
 
 /**
  * Source-versus-IBOR matching on `(sourceSystem, externalId)` (#107): every source record finds the ledger event
- * carrying its id, and every ledger event of the same source systems must be claimed by a source record. A matched
- * pair is compared under [tolerance] and can raise one break per differing field. Pure; the caller turns each
- * break into an evidence-request task. Ledger events without an external id cannot be matched and are reported
- * as missing in source, because an unattributable event is itself a finding.
+ * carrying its id. A matched pair is compared under [tolerance] and can raise one break per differing field. Pure;
+ * the caller turns each break into an evidence-request task.
+ *
+ * Only when [sourceComplete] — the caller asserts [source] is the full record set of every source system it names —
+ * must every ledger event of those systems also be claimed; an unclaimed one is missing in source, and so is one
+ * without an external id, because an unattributable event is itself a finding. A partial batch cannot tell an absent
+ * record from one in another batch, so it raises no missing-in-source break (#492).
  */
 fun reconcile(
     source: List<SourceRecord>,
     ibor: List<IborRecord>,
     tolerance: Tolerance = Tolerance.EXACT,
+    sourceComplete: Boolean = false,
 ): Reconciliation {
     require(
         source.map { it.sourceSystem to it.externalId }.toSet().size == source.size,
@@ -150,6 +154,7 @@ fun reconcile(
                 )
         }
     }
+    if (!sourceComplete) return Reconciliation(matched, breaks)
     for (event in ibor) {
         if (event.sourceSystem !in systems || event.id in claimed) continue
         breaks +=
