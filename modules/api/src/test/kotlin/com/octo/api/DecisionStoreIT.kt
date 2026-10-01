@@ -22,6 +22,10 @@ import java.util.UUID
  * Exercises the decision staging tables end to end: the real Flyway migrations plus real writes
  * through `JdbcDecisionStore`. Same shape as `LedgerMigrationIT` — append-only, replay protection,
  * and the check constraints that mirror the ontology. Skipped when Docker is unavailable.
+ *
+ * The store runs as `decision_probe`, a non-owner login, because the container login owns the
+ * tables and so bypasses the V30 `tenant_scope` RLS policies. Under that role an unscoped write
+ * fails WITH CHECK (#507); the store must scope each write to the row's tenant.
  */
 @Testcontainers(disabledWithoutDocker = true)
 class DecisionStoreIT {
@@ -34,9 +38,50 @@ class DecisionStoreIT {
             .placeholders(mapOf("runtime_role" to postgres.username))
             .load()
             .migrate()
-        JdbcDecisionStore(
-            DriverManagerDataSource(postgres.jdbcUrl, postgres.username, postgres.password),
-        )
+        dataSource().connection.use { connection ->
+            connection.createStatement().use {
+                it.execute(
+                    "do \$\$ begin " +
+                        "if not exists (select 1 from pg_roles where rolname = 'decision_probe') then " +
+                        "create role decision_probe login password 'decision_probe'; end if; end \$\$",
+                )
+                it.execute("grant usage on schema octo to decision_probe")
+                it.execute("grant select, insert on octo.document_classification, octo.claim_assessment to decision_probe")
+            }
+        }
+        JdbcDecisionStore(probe())
+    }
+
+    @Test
+    fun `scoped writes land in their tenant and stay invisible to other tenants`() {
+        val classification = recordClassification()
+        val claim = recordClaim()
+        val tenant = houseTenant().toString()
+        val other = UUID.randomUUID().toString()
+        for ((table, id) in listOf("document_classification" to classification, "claim_assessment" to claim)) {
+            val rows = "select count(*) from octo.$table where id = '$id'"
+            assertThat(probeCount(rows, tenant)).describedAs("$table visible in its own tenant").isEqualTo(1)
+            assertThat(probeCount(rows, other)).describedAs("$table hidden from another tenant").isZero()
+            assertThat(probeCount(rows, null)).describedAs("$table hidden from an unscoped read").isZero()
+        }
+    }
+
+    @Test
+    fun `an unscoped write as the runtime role is rejected by the tenant policy`() {
+        store // migrate and provision the probe role
+        assertThatThrownBy {
+            probe().connection.use { connection ->
+                connection
+                    .prepareStatement(
+                        "insert into octo.claim_assessment (tenant_id, claim_text, support_probability, support_threshold, review_band, supported, requires_review, model_version, source_system, actor, ingestion_run_id, correlation_id) values (?, 'c', 0.7, 0.5, 0.15, true, false, 'test', 'test', 'it', ?, ?)",
+                    ).use { statement ->
+                        statement.setObject(1, houseTenant())
+                        statement.setObject(2, UUID.randomUUID())
+                        statement.setObject(3, UUID.randomUUID())
+                        statement.execute()
+                    }
+            }
+        }.isInstanceOf(SQLException::class.java).hasMessageContaining("row-level security")
     }
 
     @Test
@@ -199,6 +244,26 @@ class DecisionStoreIT {
         )
 
     private fun dataSource() = DriverManagerDataSource(postgres.jdbcUrl, postgres.username, postgres.password)
+
+    private fun probe() = DriverManagerDataSource(postgres.jdbcUrl, "decision_probe", "decision_probe")
+
+    private fun probeCount(
+        sql: String,
+        tenants: String?,
+    ): Int =
+        probe().connection.use { connection ->
+            connection.autoCommit = false
+            connection.prepareStatement("select set_config('app.tenant_ids', ?, true)").use {
+                it.setString(1, tenants)
+                it.execute()
+            }
+            connection.createStatement().use { statement ->
+                statement.executeQuery(sql).use { rows ->
+                    rows.next()
+                    rows.getInt(1)
+                }
+            }
+        }
 
     private fun count(sql: String): Int =
         dataSource().connection.use { connection ->

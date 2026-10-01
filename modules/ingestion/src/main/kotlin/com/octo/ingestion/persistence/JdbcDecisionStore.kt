@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.ingestion.classification.DocumentClassification
 import com.octo.ingestion.extraction.ClaimSupport
 import com.octo.ingestion.extraction.ClaimSupportPolicy
+import com.octo.persistence.TenantScope
+import com.octo.persistence.scoped
 import java.sql.PreparedStatement
 import java.sql.Types
 import java.util.UUID
@@ -12,7 +14,8 @@ import javax.sql.DataSource
 /**
  * JDBC writer for the append-only decision staging tables. Constraint violations surface as
  * `SQLException` — an unknown document type, a malformed hash, or a missing rationale is a caller
- * bug, not a retryable condition.
+ * bug, not a retryable condition. Each write runs scoped to the row's own tenant so the V30
+ * `tenant_scope` RLS policy admits it for the non-owner runtime role (#507).
  */
 class JdbcDecisionStore(
     private val dataSource: DataSource,
@@ -41,7 +44,7 @@ class JdbcDecisionStore(
             json.writeValueAsString(
                 classification.probabilities.mapKeys { it.key.wireValue },
             )
-        dataSource.connection.use { connection ->
+        return dataSource.scoped(TenantScope.Tenants(listOf(tenantId))) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setString(2, provenance.externalId)
@@ -59,7 +62,7 @@ class JdbcDecisionStore(
                 statement.setString(14, provenance.actor)
                 statement.setObject(15, provenance.ingestionRunId)
                 statement.setObject(16, provenance.correlationId)
-                return statement.returnedId()
+                statement.returnedId()
             }
         }
     }
@@ -84,7 +87,7 @@ class JdbcDecisionStore(
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             returning id
             """.trimIndent()
-        dataSource.connection.use { connection ->
+        return dataSource.scoped(TenantScope.Tenants(listOf(tenantId))) { connection ->
             connection.prepareStatement(sql).use { statement ->
                 statement.setObject(1, tenantId)
                 statement.setString(2, provenance.externalId)
@@ -104,7 +107,7 @@ class JdbcDecisionStore(
                 statement.setString(16, provenance.actor)
                 statement.setObject(17, provenance.ingestionRunId)
                 statement.setObject(18, provenance.correlationId)
-                return statement.returnedId()
+                statement.returnedId()
             }
         }
     }
