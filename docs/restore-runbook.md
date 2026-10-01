@@ -37,6 +37,19 @@ A drill that does not measure these has not tested anything, so the arithmetic i
 | Neo4j | `octo-neo4j-db` (dokploy-network) | graph projections from the ontology schema | `neo4j-admin database dump` to object storage |
 | Supabase Storage | `octo-supabase` project | uploaded documents | storage bucket sync / S3-compatible copy |
 
+**Deployed state (observed 2026-10-01, #301):** `octo-supabase-db` runs with
+`archive_mode = off`, no `archive_command`, and `pg_stat_archiver` shows zero
+archived WALs since the container was created (2026-09-26). The Postgres backup
+layer in the table above is therefore **not provisioned**: §3's WAL item cannot
+pass, §4 has no stanza or archive to restore from, and the ≤ 15 min RPO is
+unreachable until the operator provisions base backup + WAL archiving
+(ADR-0002). Until then the only recovery path is a logical dump from
+`deploy/backup.sh` (manual; plain SQL, restored with `gunzip -c <archive> | psql`;
+RPO = time since the last dump, no PITR). Dokploy volume snapshots are not a
+path yet: the Backups and Schedule tabs were empty when checked, still to be
+re-confirmed on the `octo-supabase-db` project itself. Re-check
+with `show archive_mode;` and `select * from pg_stat_archiver;` before a drill.
+
 All three are separate failure domains. A full platform restore restores all of
 them; a surgical restore may only need one.
 
