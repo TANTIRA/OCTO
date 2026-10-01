@@ -3,6 +3,7 @@ package com.octo.api.compliance
 import com.octo.analytics.CoverageReport
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.api.agents.AgentRunsController
 import com.octo.api.agents.AgentsCallException
 import com.octo.api.agents.AgentsClient
 import com.octo.api.agents.AgentsUnavailableException
@@ -152,6 +153,11 @@ class ComplianceController(
         val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val inputs = body.inputs() ?: return ResponseEntity.badRequest().build()
+        // The sidecar records the run under subject_id "{subject}/{as_of}"; reject what the run
+        // spine would refuse before the engine records outcomes and opens breach tasks (#501).
+        if ("${body.subject}/${body.asOf}".length > AgentRunsController.MAX_SUBJECT_ID_LENGTH) {
+            return ResponseEntity.badRequest().build()
+        }
         val outcomes =
             try {
                 runner.run(body.tenantId, inputs, jwt.subject!!, UUID.randomUUID())

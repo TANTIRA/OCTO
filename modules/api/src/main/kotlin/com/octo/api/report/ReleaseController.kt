@@ -36,6 +36,12 @@ interface ReleaseTasks {
 }
 
 /**
+ * Whether [task] — a report job's approval task — releases the job's artifact. Every read path that could
+ * carry a result or its hash gates on this one check (#482), so a draft never leaks around the gate.
+ */
+internal fun releases(task: TaskState?): Boolean = task?.status == TaskStatus.APPROVED
+
+/**
  * The approval gate of #6 slice 7: an outbound artifact passes a `workflow_task` of kind `approval` before
  * release. `POST /api/v1/reports/{id}/release` opens that task for a `done` job, once; `GET …/release` tells
  * whether the task is approved and only then carries the result. Segregation of duties (V5, V7): the
@@ -101,7 +107,7 @@ class ReleaseController(
     )
 
     private fun ReportJob.release(task: TaskState?): ReleaseView {
-        val released = task?.status == TaskStatus.APPROVED
+        val released = releases(task)
         return ReleaseView(
             jobId = id,
             jobStatus = status.wireValue,

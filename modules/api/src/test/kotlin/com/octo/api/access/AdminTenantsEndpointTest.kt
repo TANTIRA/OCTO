@@ -1,5 +1,6 @@
 package com.octo.api.access
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.OctoApplication
 import com.octo.api.access.persistence.AccessAdministration
 import com.octo.api.access.persistence.AccessProvenance
@@ -236,6 +237,24 @@ class AdminTenantsEndpointTest {
                         .content("""{"key":"  ","value":"10"}""")
                         .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
                 ).andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `a setting value that is not one JSON document is 400 and never reaches the store`() {
+        run { mvc ->
+            for (bad in listOf("hello", "", "{\"a\":", "1 2")) {
+                mvc
+                    .perform(
+                        put("/api/v1/admin/tenants/$tenantId/settings")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(
+                                ObjectMapper().writeValueAsString(mapOf("key" to "agents.warm_context", "value" to bad)),
+                            ).with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                    ).andExpect(status().isBadRequest)
+                    .andExpect(status().reason("value must be valid JSON"))
+            }
+            assertThat(settings.rows).isEmpty()
         }
     }
 

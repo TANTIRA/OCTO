@@ -164,26 +164,32 @@ class ClientIpRateLimitFilter(
         return auth == null || auth is AnonymousAuthenticationToken
     }
 
-    /**
-     * Rightmost `X-Forwarded-For` entry: the address Traefik — the api's only ingress — appended
-     * for the peer it actually saw. Entries left of it are client-supplied, so keying on the
-     * leftmost would let a caller rotate the header and never hit a limit. Same source the edge
-     * limiter's `ipStrategy.depth: 1` uses.
-     */
-    private fun clientIp(request: HttpServletRequest): String =
-        request
-            .getHeader("X-Forwarded-For")
-            ?.substringAfterLast(',')
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?: request.remoteAddr
-
     companion object {
         const val AUTH_FAILURES_PER_MINUTE = 30
         const val CONTACT_PER_MINUTE = 10
         private const val CONTACT_PATH = "/api/v1/contact"
     }
 }
+
+/** Longest client address [clientIp] returns — `octo.contact_lead.source_ip`'s CHECK (V39). */
+const val CLIENT_IP_MAX_LENGTH = 255
+
+/**
+ * Rightmost `X-Forwarded-For` entry: the address Traefik — the api's only ingress — appended
+ * for the peer it actually saw. Entries left of it are client-supplied, so keying on the
+ * leftmost would let a caller rotate the header and never hit a limit, or spoof a recorded
+ * source address (#503). Same source the edge limiter's `ipStrategy.depth: 1` uses. Capped at
+ * [CLIENT_IP_MAX_LENGTH] so an oversized header can never fail a write that stores it.
+ */
+fun clientIp(request: HttpServletRequest): String =
+    (
+        request
+            .getHeader("X-Forwarded-For")
+            ?.substringAfterLast(',')
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: request.remoteAddr
+    ).take(CLIENT_IP_MAX_LENGTH)
 
 /**
  * Fixed one-minute windows for both limiters. Counts live in Redis (`INCR octo:rl:…:{minute}` +

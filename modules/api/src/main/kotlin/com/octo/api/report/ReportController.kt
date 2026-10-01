@@ -27,11 +27,13 @@ import java.util.UUID
 /**
  * Marquee report service (#6 slice 7): `POST /api/v1/reports` queues a job, `GET /api/v1/reports/{id}` reads its
  * status and result. Submitting needs a working role in the tenant (analyst, approver or admin, per V8);
- * reading needs any role. Another tenant's job and an unknown id are 404 (default deny).
+ * reading needs any role. Another tenant's job and an unknown id are 404 (default deny). The result and its
+ * artifact hash stay withheld until the release gate's approval task is approved, exactly as `GET …/release`.
  */
 @RestController
 class ReportController(
     private val jobs: ReportJobs,
+    private val tasks: ReleaseTasks,
     private val tenants: TenantDirectory,
     private val json: ObjectMapper,
 ) {
@@ -74,7 +76,7 @@ class ReportController(
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
         if (tenants.tenantsOf(userId).none { it.tenantId == job.request.tenantId }) return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(job.view())
+        return ResponseEntity.ok(job.view(released = releases(job.approvalTaskId?.let(tasks::state))))
     }
 
     private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
@@ -88,7 +90,10 @@ class ReportController(
         val parameters: Map<String, Any?>? = null,
     )
 
-    /** [result] is the job's result object; it is opaque here and typed by the report's engine adapter. */
+    /**
+     * [result] is the job's result object; it is opaque here and typed by the report's engine adapter. It and
+     * [artifactSha256] are null until the job is released (#482).
+     */
     data class JobView(
         val id: UUID,
         val tenantId: UUID,
@@ -104,7 +109,7 @@ class ReportController(
         val updatedAt: Instant,
     )
 
-    private fun ReportJob.view() =
+    private fun ReportJob.view(released: Boolean = false) =
         JobView(
             id = id,
             tenantId = request.tenantId,
@@ -113,9 +118,9 @@ class ReportController(
             positionSourceId = request.positionSourceId,
             measures = request.measures,
             status = status.wireValue,
-            result = result?.let { json.readTree(it) },
+            result = if (released) result?.let { json.readTree(it) } else null,
             error = error,
-            artifactSha256 = artifactSha256,
+            artifactSha256 = if (released) artifactSha256 else null,
             createdAt = createdAt,
             updatedAt = updatedAt,
         )
