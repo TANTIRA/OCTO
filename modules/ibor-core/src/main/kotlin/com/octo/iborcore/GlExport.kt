@@ -64,8 +64,10 @@ data class GlJournal(
 /**
  * Maps investor-signed ledger events to a double-entry journal. Supersessions are resolved first
  * ([currentEvents]) so a corrected event is never posted twice, then each surviving event becomes one
- * balanced entry keyed off its [FlowType]. The magnitude is the absolute value: the investor-signed
- * amount's direction is already carried by which account is debited versus credited.
+ * balanced entry keyed off its [FlowType]. Each flow type has a natural investor sign ([naturallyNegative]);
+ * an event with that sign posts the type's account pair, and one with the opposite sign — a standalone
+ * reversal, a fee rebate, a contribution refund — posts the pair swapped, so it unwinds the original
+ * instead of repeating it. The magnitude is the absolute value; direction lives in the debit/credit choice.
  *
  * @param knownAt bi-temporal cut — rows recorded after it, and events a survivor supersedes, drop out.
  * @param zone the accounting zone the occurrence timestamp is dated in.
@@ -76,21 +78,33 @@ fun glJournal(
     zone: ZoneId,
     chart: GlChart = DEFAULT_GL_CHART,
 ): GlJournal {
+    val asOf = knownAt.atZone(zone).toLocalDate()
     val lines =
-        currentEvents(events, knownAt).map { event ->
-            val (debit, credit) = accounts(event.flowType, chart)
-            GlLine(
-                sourceEventId = event.id,
-                date = event.occurredAt.atZone(zone).toLocalDate(),
-                currency = event.currency,
-                flowType = event.flowType,
-                debit = debit,
-                credit = credit,
-                amount = event.amount.abs(),
-            )
-        }
+        currentEvents(events, knownAt)
+            // A journal dated asOf carries only entries dated on or before it: an event recorded early
+            // but occurring later (a scheduled call) belongs to a later journal, not this one.
+            .filter {
+                !it.occurredAt
+                    .atZone(zone)
+                    .toLocalDate()
+                    .isAfter(asOf)
+            }.map { event ->
+                val (natural, contra) = accounts(event.flowType, chart)
+                val sign = event.amount.signum()
+                val reversed = sign != 0 && (sign < 0) != naturallyNegative(event.flowType)
+                val (debit, credit) = if (reversed) contra to natural else natural to contra
+                GlLine(
+                    sourceEventId = event.id,
+                    date = event.occurredAt.atZone(zone).toLocalDate(),
+                    currency = event.currency,
+                    flowType = event.flowType,
+                    debit = debit,
+                    credit = credit,
+                    amount = event.amount.abs(),
+                )
+            }
     return GlJournal(
-        asOf = knownAt.atZone(zone).toLocalDate(),
+        asOf = asOf,
         lines = lines,
         debitsByCurrency = totalsByCurrency(lines),
         creditsByCurrency = totalsByCurrency(lines),
@@ -117,4 +131,11 @@ private fun accounts(
         FlowType.EXPENSE -> chart.fundExpense to chart.cash
         FlowType.CARRIED_INTEREST -> chart.carriedInterestExpense to chart.cash
         FlowType.OTHER_INCOME -> chart.cash to chart.otherIncome
+    }
+
+/** The investor sign each flow type normally carries (`Ledger.kt`: contributions negative); exhaustive on purpose. */
+private fun naturallyNegative(flowType: FlowType): Boolean =
+    when (flowType) {
+        FlowType.CONTRIBUTION, FlowType.MANAGEMENT_FEE, FlowType.EXPENSE, FlowType.CARRIED_INTEREST -> true
+        FlowType.DISTRIBUTION, FlowType.RECALLABLE_DISTRIBUTION, FlowType.OTHER_INCOME -> false
     }

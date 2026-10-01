@@ -43,6 +43,7 @@ class ReconciliationRunnerTest {
                 ZoneOffset.UTC,
                 "recon-runner",
                 UUID.randomUUID(),
+                complete = true,
             )
 
         assertThat(first.matched).isEqualTo(1)
@@ -69,6 +70,7 @@ class ReconciliationRunnerTest {
                 ZoneOffset.UTC,
                 "recon-runner",
                 UUID.randomUUID(),
+                complete = true,
             )
         assertThat(again.outcomes.map { it.taskId }).isEqualTo(first.outcomes.map { it.taskId })
         assertThat(again.outcomes).noneMatch { it.opened }
@@ -87,6 +89,7 @@ class ReconciliationRunnerTest {
                 ZoneOffset.UTC,
                 "r",
                 UUID.randomUUID(),
+                complete = true,
             )
         }.isInstanceOf(IllegalArgumentException::class.java)
         assertThat(store.rows).isEmpty()
@@ -104,6 +107,7 @@ class ReconciliationRunnerTest {
                 ZoneOffset.UTC,
                 "r",
                 UUID.randomUUID(),
+                complete = true,
             )
         assertThat(clean.matched).isEqualTo(2)
         assertThat(clean.outcomes).isEmpty()
@@ -143,6 +147,7 @@ class ReconciliationRunnerTest {
                 ZoneOffset.UTC,
                 "r",
                 UUID.randomUUID(),
+                complete = true,
             )
         val outcome = raced.outcomes.single()
         assertThat(outcome.brk.kind).isEqualTo(BreakKind.MISSING_IN_IBOR)
@@ -150,5 +155,26 @@ class ReconciliationRunnerTest {
         assertThat(outcome.opened).isFalse()
         // The losing insert rolled back with its task: nothing was left open for the break it lost (#341).
         assertThat(opened).hasSize(openedBefore)
+    }
+
+    @Test
+    fun `batches of a larger source open no missing-in-source task, a complete set opens one per truly missing event`() {
+        // 1,200 current events of one system reconciled as three partial batches of 400 (#492).
+        val ledger = List(1_200) { IborRecord(UUID.randomUUID(), "admin-a", "e-$it", BigDecimal.ONE, usd, day) }
+        val big = ReconciliationRunner(FakeReconciliationStore(ledger), BreakTaskOpener { _, task, _ -> opened += task })
+        val batches = ledger.map { source(it.externalId!!, "1") }.chunked(400)
+
+        val runs = batches.map { big.run(tenantId, it, Tolerance.EXACT, ZoneOffset.UTC, "r", UUID.randomUUID(), complete = false) }
+        assertThat(runs.map { it.matched }).containsExactly(400, 400, 400)
+        assertThat(runs.flatMap { it.outcomes }).isEmpty()
+        assertThat(opened).isEmpty()
+
+        val whole = ReconciliationRunner(FakeReconciliationStore(ledger.take(300)), BreakTaskOpener { _, task, _ -> opened += task })
+        val complete = whole.run(tenantId, batches[0].take(299), Tolerance.EXACT, ZoneOffset.UTC, "r", UUID.randomUUID(), complete = true)
+        assertThat(complete.matched).isEqualTo(299)
+        assertThat(
+            complete.outcomes.map { it.brk.kind to it.brk.ledgerEventId },
+        ).containsExactly(BreakKind.MISSING_IN_SOURCE to ledger[299].id)
+        assertThat(opened).hasSize(1)
     }
 }

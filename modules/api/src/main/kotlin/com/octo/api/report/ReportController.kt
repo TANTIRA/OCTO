@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.api.isBoundedObject
 import com.octo.persistence.TenantScope
 import com.octo.workflow.report.PENDING_REPORT_LIMIT
 import com.octo.workflow.report.ReportJob
@@ -12,6 +13,7 @@ import com.octo.workflow.report.ReportRequest
 import com.octo.workflow.report.ReportType
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -27,11 +29,13 @@ import java.util.UUID
 /**
  * Marquee report service (#6 slice 7): `POST /api/v1/reports` queues a job, `GET /api/v1/reports/{id}` reads its
  * status and result. Submitting needs a working role in the tenant (analyst, approver or admin, per V8);
- * reading needs any role. Another tenant's job and an unknown id are 404 (default deny).
+ * reading needs any role. Another tenant's job and an unknown id are 404 (default deny). The result and its
+ * artifact hash stay withheld until the release gate's approval task is approved, exactly as `GET …/release`.
  */
 @RestController
 class ReportController(
     private val jobs: ReportJobs,
+    private val tasks: ReleaseTasks,
     private val tenants: TenantDirectory,
     private val json: ObjectMapper,
 ) {
@@ -44,6 +48,7 @@ class ReportController(
         val access = tenants.tenantsOf(userId).firstOrNull { it.tenantId == body.tenantId }
         if (access == null || access.role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val type = ReportType.entries.firstOrNull { it.wireValue == body.type } ?: return ResponseEntity.badRequest().build()
+        if (!reportInputsBounded(json, body.measures, body.parameters)) return ResponseEntity.badRequest().build()
         val scope = TenantScope.User(userId)
         if (jobs.pendingCount(body.tenantId, scope) >= PENDING_REPORT_LIMIT) {
             // A full queue drains as the runner works through it; the caller retries later.
@@ -74,7 +79,7 @@ class ReportController(
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
         if (tenants.tenantsOf(userId).none { it.tenantId == job.request.tenantId }) return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(job.view())
+        return ResponseEntity.ok(job.view(released = releases(job.approvalTaskId?.let(tasks::state))))
     }
 
     private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
@@ -82,13 +87,16 @@ class ReportController(
     data class SubmitRequest(
         val tenantId: UUID,
         @field:NotBlank val type: String,
-        @field:NotBlank val positionSourceType: String,
-        @field:NotBlank val positionSourceId: String,
-        val measures: List<String> = emptyList(),
+        @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val positionSourceType: String,
+        @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val positionSourceId: String,
+        @field:Size(max = MAX_REPORT_MEASURES) val measures: List<String> = emptyList(),
         val parameters: Map<String, Any?>? = null,
     )
 
-    /** [result] is the job's result object; it is opaque here and typed by the report's engine adapter. */
+    /**
+     * [result] is the job's result object; it is opaque here and typed by the report's engine adapter. It and
+     * [artifactSha256] are null until the job is released (#482).
+     */
     data class JobView(
         val id: UUID,
         val tenantId: UUID,
@@ -104,7 +112,7 @@ class ReportController(
         val updatedAt: Instant,
     )
 
-    private fun ReportJob.view() =
+    private fun ReportJob.view(released: Boolean = false) =
         JobView(
             id = id,
             tenantId = request.tenantId,
@@ -113,9 +121,9 @@ class ReportController(
             positionSourceId = request.positionSourceId,
             measures = request.measures,
             status = status.wireValue,
-            result = result?.let { json.readTree(it) },
+            result = if (released) result?.let { json.readTree(it) } else null,
             error = error,
-            artifactSha256 = artifactSha256,
+            artifactSha256 = if (released) artifactSha256 else null,
             createdAt = createdAt,
             updatedAt = updatedAt,
         )
@@ -126,3 +134,16 @@ class ReportController(
                 .ObjectMapper()
     }
 }
+
+/** Bound on a report's position-source fields and on each measure name; matches the agent-run subject id bound. */
+internal const val MAX_REPORT_FIELD_LENGTH = 200
+
+/** Bound on how many measures one report (or schedule template) may request. */
+internal const val MAX_REPORT_MEASURES = 50
+
+/** Measure names and the free-form `parameters` object are capped the same way for one-off reports and schedules. */
+internal fun reportInputsBounded(
+    json: ObjectMapper,
+    measures: List<String>,
+    parameters: Map<String, Any?>?,
+): Boolean = measures.none { it.length > MAX_REPORT_FIELD_LENGTH } && json.isBoundedObject(parameters)

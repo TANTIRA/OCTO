@@ -36,6 +36,14 @@ node_modules/
 **/supabase/.temp/
 **/supabase/.branches/
 
+# Rehearsal output from deploy/drill — generated per run and machine-specific. Not the
+# record of authority: a real drill's evidence belongs on the drill thread, per
+# docs/drill-evidence-template.md. The harness recreates this directory as needed.
+deploy/drill/evidence/
+
+# Same contract as deploy/drill/evidence/, for the capacity load-test harness (#307).
+deploy/loadtest/evidence/
+
 # CodeQL static analysis output (regenerated per scan; see build.log inside dir)
 static_analysis_codeql_*/
 .codeql-lock

@@ -71,7 +71,7 @@ class ReportEndpointTest {
     ) = post("/api/v1/reports").contentType(MediaType.APPLICATION_JSON).content(json).with(jwt().jwt { it.subject(subject.toString()) })
 
     @Test
-    fun `an analyst queues a job and reads it back, and the parameters reach the store as json`() {
+    fun `an analyst queues a job and reads it back, the parameters reach the store as json, the draft stays sealed`() {
         run { mvc ->
             val location =
                 mvc
@@ -100,7 +100,9 @@ class ReportEndpointTest {
                 .perform(get("/api/v1/reports/$id").with(jwt().jwt { it.subject(viewer.toString()) }))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.status").value("done"))
-                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+                // Unreleased: the draft and its hash stay behind the release gate on the status read too (#482).
+                .andExpect(jsonPath("$.result").doesNotExist())
+                .andExpect(jsonPath("$.artifactSha256").doesNotExist())
         }
     }
 
@@ -140,6 +142,23 @@ class ReportEndpointTest {
                 .perform(
                     get("/api/v1/reports/${UUID.randomUUID()}").with(jwt().jwt { it.subject(analyst.toString()) }),
                 ).andExpect(status().isNotFound)
+            assertThat(jobs.jobs).isEmpty()
+        }
+    }
+
+    @Test
+    fun `oversized parameters, too many or too long measures and an over-long position source are 400`() {
+        val big = "x".repeat(MAX_REPORT_FIELD_LENGTH + 1)
+        val many = (0..MAX_REPORT_MEASURES).joinToString { "\"m$it\"" }
+        run { mvc ->
+            for (oversized in listOf(
+                body().replace("\"USD\"", "\"${"x".repeat(33_000)}\""),
+                body().replace("[\"tvpi\"]", "[$many]"),
+                body().replace("\"tvpi\"", "\"$big\""),
+                body().replace("\"fund-1\"", "\"$big\""),
+            )) {
+                mvc.perform(post(analyst, oversized)).andExpect(status().isBadRequest)
+            }
             assertThat(jobs.jobs).isEmpty()
         }
     }

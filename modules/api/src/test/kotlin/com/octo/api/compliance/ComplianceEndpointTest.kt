@@ -328,6 +328,40 @@ class ComplianceEndpointTest {
     }
 
     @Test
+    fun `a rationale subject the run spine would refuse is 400 before any outcome or task lands`() {
+        run { mvc ->
+            mvc
+                .perform(post("/api/v1/compliance/rules").contentType(MediaType.APPLICATION_JSON).content(rule()).with(asUser(approver)))
+                .andExpect(status().isCreated)
+            var sidecarCalls = 0
+            agentsBehavior = {
+                sidecarCalls++
+                mapOf("status" to "completed", "rationale" to "ok")
+            }
+            // "{subject}/2026-06-30" is subject + 11 characters; 190 lands at 201, one over the run's subject_id cap.
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rationale")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation.replace("\"fund-1\"", "\"${"x".repeat(190)}\""))
+                        .with(asUser(analyst)),
+                ).andExpect(status().isBadRequest)
+            assertThat(store.recorded).isEmpty()
+            assertThat(opened).isEmpty()
+            assertThat(sidecarCalls).isZero()
+
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rationale")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation.replace("\"fund-1\"", "\"${"x".repeat(189)}\""))
+                        .with(asUser(analyst)),
+                ).andExpect(status().isOk)
+            assertThat(sidecarCalls).isEqualTo(1)
+        }
+    }
+
+    @Test
     fun `an unreadable currency in the evaluation inputs is a client error`() {
         run { mvc ->
             mvc

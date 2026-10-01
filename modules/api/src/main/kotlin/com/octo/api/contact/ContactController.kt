@@ -1,5 +1,6 @@
 package com.octo.api.contact
 
+import com.octo.api.clientIp
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
@@ -35,17 +36,9 @@ class ContactController(
         return ResponseEntity.accepted().build()
     }
 
-    private fun clientIp(request: HttpServletRequest): String =
-        request
-            .getHeader("X-Forwarded-For")
-            ?.substringBefore(',')
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?: request.remoteAddr
-
     /**
-     * One captured submission. `sourceIp` is the Traefik-forwarded client address (XFF
-     * leftmost) — stored for abuse analysis, never echoed back.
+     * One captured submission. `sourceIp` is the Traefik-appended client address (XFF
+     * rightmost, the rate limiter's [clientIp]) — stored for abuse analysis, never echoed back.
      */
     data class ContactLead(
         val email: String,

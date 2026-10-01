@@ -17,6 +17,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
+from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
 from .screening_dd import _record_run, finish_failed
 
@@ -153,7 +154,8 @@ def run_ddq_response(
         # evidence base, so an answer has nowhere else to draw from — a
         # boundary breach is impossible by construction.
         numbered = "\n".join(f"{i + 1}. {q}" for i, q in enumerate(cleaned))
-        message = agent_model.invoke(
+        message = invoke_within_deadline(
+            agent_model,
             [
                 SystemMessage(content=DDQ_PROMPT),
                 HumanMessage(

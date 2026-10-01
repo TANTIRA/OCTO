@@ -9,13 +9,14 @@ from typing import Any
 import httpx
 import pytest
 
-from octo_agents.api_client import OctoApiClient
 from octo_agents.judge import JudgeClient
 from octo_agents.workflows import company_brain
 from octo_agents.workflows.company_brain import run_company_brain
 
+from .fakes import StrictFake
 
-class FakeApi(OctoApiClient):
+
+class FakeApi(StrictFake):
     def __init__(self) -> None:
         self.pipeline_reads: list[str] = []
         self.finished: dict[str, Any] = {}

@@ -14,7 +14,9 @@ import { clusterApiUrl } from "@solana/web3.js";
 import { Loader2, Wallet } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-import "@solana/wallet-adapter-react-ui/styles.css";
+// Local copy of the package stylesheet minus its Google Fonts @import, which
+// the CSP (style-src/font-src 'self') blocks.
+import "./wallet-adapter.css";
 
 /**
  * Sign in with Solana: the wallet signs a SIWS challenge and GoTrue issues the

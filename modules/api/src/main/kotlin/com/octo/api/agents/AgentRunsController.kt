@@ -8,6 +8,7 @@ import com.octo.api.agents.persistence.AgentRun
 import com.octo.api.agents.persistence.AgentRunRecord
 import com.octo.api.agents.persistence.AgentRunStatus
 import com.octo.api.agents.persistence.AgentRuns
+import com.octo.api.isBoundedObject
 import com.octo.persistence.TenantScope
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -47,14 +48,13 @@ class AgentRunsController(
     private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
 
     /**
-     * `input`/`models`/`thresholds` used to accept any JSON at all — a bare string, an array, an
+     * `input`/`models`/`thresholds`/`requestIds` used to accept any JSON at all — a bare string, an array, an
      * arbitrarily large payload — with no shape or size check before landing in the audit spine
      * (#342). Every one of these fields is documented and exercised as a JSON *object*; a bare
      * scalar or array is never a legitimate value, and an unbounded one is a storage-abuse lever
      * for a caller who can already reach this endpoint for their own tenant.
      */
-    private fun isBoundedObject(value: Any?): Boolean =
-        value == null || (value is Map<*, *> && json.writeValueAsBytes(value).size <= MAX_JSON_BYTES)
+    private fun isBoundedObject(value: Any?): Boolean = json.isBoundedObject(value)
 
     @PostMapping("/api/v1/agent-runs")
     fun record(
@@ -67,11 +67,12 @@ class AgentRunsController(
         if (!body.workflow.matches(Regex("[a-z][a-z0-9-]{0,62}")) ||
             !body.subjectType.matches(Regex("[a-z][a-z0-9_-]{0,62}")) ||
             body.runKey.isBlank() || body.subjectId.isBlank() ||
-            body.runKey.length > 200 || body.subjectId.length > 200 ||
+            body.runKey.length > 200 || body.subjectId.length > MAX_SUBJECT_ID_LENGTH ||
             !isBoundedObject(body.input) ||
             !isBoundedObject(body.models) || body.models !is Map<*, *> ||
             body.models.values.any { it !is String || it.isBlank() } ||
-            !isBoundedObject(body.thresholds)
+            !isBoundedObject(body.thresholds) ||
+            !isBoundedObject(body.requestIds)
         ) {
             return ResponseEntity.badRequest().build()
         }
@@ -111,6 +112,10 @@ class AgentRunsController(
         val run = runs.load(id, scope) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, run.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        // Only the principal that opened the run may close it (#499): another member's verdict
+        // would otherwise become the audit record and the real close would be rejected. 404, not
+        // 403 — the same default-deny shape as an unknown or cross-tenant run.
+        if (run.actor != jwt.subject) return ResponseEntity.notFound().build()
         val status = body.toStatus() ?: return ResponseEntity.badRequest().build()
         if (status == AgentRunStatus.RUNNING ||
             !isBoundedObject(body.output) ||
@@ -252,8 +257,8 @@ class AgentRunsController(
     )
 
     companion object {
-        /** Bound on any single JSON-object field recorded onto a run (#342) — audit metadata, not a blob store. */
-        private const val MAX_JSON_BYTES = 32_768
+        /** Bound on a run's `subjectId`; triggers that derive one (compliance rationale) check against it up front (#501). */
+        const val MAX_SUBJECT_ID_LENGTH = 200
 
         /** Bound on `finish`'s free-text error message (#342). */
         private const val MAX_ERROR_LENGTH = 4_000

@@ -57,6 +57,36 @@ jobs:
             uv run evals/run_evals.py
           fi
 
+  # docker-build covers only the root (API) Dockerfile, so nothing else
+  # compiles web/. Mirrors web/Dockerfile's npm ci + npm run build.
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22" # web/Dockerfile's base image major
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
   docker-build:
     runs-on: ubuntu-latest
     needs: [build, agents]
@@ -104,6 +134,7 @@ jobs:
     if: github.event_name == 'push'
     permissions:
       contents: read
+      packages: read # pull the private image docker-build pushed
       security-events: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -115,10 +146,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # OCI refs must be lowercase; metadata-action lowercases for docker-build, so match it here.
+      - name: Resolve image ref
+        id: image
+        run: echo "ref=$(echo "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]'):${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ steps.image.outputs.ref }}
           format: sarif
           output: trivy-results.sarif
           # Findings are reported to the Security tab, not used as a build gate. Without this

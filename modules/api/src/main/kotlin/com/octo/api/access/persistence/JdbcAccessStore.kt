@@ -29,8 +29,9 @@ data class AccessProvenance(
  * JDBC access to `octo.tenant`, `octo.tenant_member` and `octo.tenant_member_event` (V8). Access
  * state is never stored: [load] replays a member's events through the state machine, and [append]
  * validates a new event against that replay before inserting it. Both run under the per-member
- * advisory lock the V8 trigger takes, so two writers to one membership serialize and neither can
- * interleave an event into a history the other already replayed.
+ * advisory lock `octo.tenant_member:<tenant>:<user>` that the insert trigger also takes (key pinned
+ * by V40), so two writers to one membership serialize and neither can interleave an event into a
+ * history the other already replayed.
  */
 class JdbcAccessStore(
     private val dataSource: DataSource,
@@ -48,7 +49,7 @@ class JdbcAccessStore(
     }
 
     /** Registers [userId] in the tenant at [registeredAt]. Access comes from events, not this row. */
-    override fun registerMember(
+    fun registerMember(
         tenantId: UUID,
         userId: UUID,
         registeredAt: Instant,
@@ -79,7 +80,7 @@ class JdbcAccessStore(
         }
 
     /** The membership's state after every stored event, or null when the pair is not registered. */
-    override fun load(
+    fun load(
         tenantId: UUID,
         userId: UUID,
     ): MembershipState? = dataSource.scoped(TenantScope.All) { connection -> replayLocked(connection, tenantId, userId) }
@@ -100,6 +101,25 @@ class JdbcAccessStore(
                 replayLocked(connection, tenantId, userId)
                     ?: throw NoSuchElementException("no member $userId in tenant $tenantId")
             val after = before.next(event)
+            insertEvent(connection, tenantId, userId, event, provenance)
+            after
+        }
+
+    /**
+     * [append] for a grant that may be the pair's first: registers [userId] at [event]'s time when
+     * absent, in the same transaction and under the same lock, so a grant the state machine refuses
+     * leaves no registration behind — the row is append-only and could never be removed.
+     */
+    override fun grant(
+        tenantId: UUID,
+        userId: UUID,
+        event: MembershipEvent.Granted,
+        provenance: AccessProvenance,
+    ): MembershipState =
+        dataSource.scoped(TenantScope.All) { connection ->
+            val existing = replayLocked(connection, tenantId, userId)
+            val after = (existing ?: registered(tenantId, userId, event.at)).next(event)
+            if (existing == null) insertMember(connection, tenantId, userId, event.at, provenance)
             insertEvent(connection, tenantId, userId, event, provenance)
             after
         }

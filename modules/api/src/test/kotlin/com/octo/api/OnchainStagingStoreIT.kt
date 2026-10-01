@@ -86,6 +86,27 @@ class OnchainStagingStoreIT {
     }
 
     @Test
+    fun `newestSlot ignores staking rewards so the poller cursor never skips unscanned history`() {
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+        store.insertTransfers(
+            listOf(
+                transfer(wallet, "scanned", 250_000_001L),
+                transfer(wallet, "reward:700:stake", 250_000_900L).copy(
+                    externalId = "solana:700:stake-$wallet",
+                    direction = TransferDirection.IN,
+                    transferKind = TransferKind.STAKING_REWARD,
+                ),
+            ),
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "helius-staking",
+        )
+        assertThat(store.newestSlot(CHAIN_SOLANA, wallet)).isEqualTo(250_000_001L)
+    }
+
+    @Test
     fun `newestStagedSlot is the EVM resume cursor — the highest staged slot on the chain`() {
         val wallet = evmAddr()
         track(wallet, CHAIN_ARBITRUM_ONE)

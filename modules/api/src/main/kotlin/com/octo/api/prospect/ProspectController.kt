@@ -449,12 +449,12 @@ class ProspectController(
         prospectId: UUID,
         taskId: UUID,
     ): Boolean =
-        tasks.state(taskId)?.let {
-            it.status == TaskStatus.APPROVED &&
-                it.task.kind == TaskKind.APPROVAL &&
-                it.task.subjectType == "prospect" &&
-                it.task.subjectId == prospectId.toString()
-        } == true
+        // Only the latest IC review counts: once a decided review is followed by a fresh one, the
+        // older approval is history and cannot authorize `invested` against the IC's current call.
+        tasks
+            .listForSubject("prospect", prospectId.toString())
+            .lastOrNull { it.task.kind == TaskKind.APPROVAL }
+            ?.let { it.task.id == taskId && it.status == TaskStatus.APPROVED } == true
 
     @PostMapping("/api/v1/prospects/{id}/ic-review")
     fun requestIcReview(
@@ -489,6 +489,32 @@ class ProspectController(
     }
 
     /**
+     * `GET /api/v1/prospects/{id}/ic-review` — the prospect's most recent IC approval task, so a
+     * client can show whether a review is in flight, who asked for it, and which approved task id
+     * `invested` needs (#334). Re-posting `ic-review` cannot serve as this read: once the last
+     * review is decided it opens a fresh one. Any role in the tenant may read, like the prospect
+     * itself; no review yet, or a prospect the caller cannot see, is 404.
+     */
+    @GetMapping("/api/v1/prospects/{id}/ic-review")
+    fun icReview(
+        @PathVariable id: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<IcReviewView> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val current =
+            prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        val review =
+            tasks
+                .listForSubject("prospect", id.toString())
+                .lastOrNull { it.task.kind == TaskKind.APPROVAL }
+                ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(
+            IcReviewView(review.task.id, review.status.name.lowercase(), review.task.requestedBy, review.decidedBy),
+        )
+    }
+
+    /**
      * `POST /api/v1/prospects/{id}/tasks/{taskId}` — applies one task event to a task whose subject
      * is this prospect: an IC member approves or returns the approval `ic-review` opened, a person
      * completes the evidence checklist due-diligence raised, the requester resubmits after rework.
@@ -520,10 +546,11 @@ class ProspectController(
                         (it.task.subjectId == id.toString() || it.task.subjectId.startsWith("$id:dd:"))
                 } ?: return ResponseEntity.notFound().build()
         val event = body.toEvent(jwt.subject!!) ?: return ResponseEntity.badRequest().build()
-        // A gate decision on an approval task is governance, not working access: the same
-        // approver-or-admin bar the compliance-rule endpoints apply (ComplianceController). Routing
-        // the task (assigned) or the requester resubmitting after rework stays a working action.
-        if (bound.task.kind == TaskKind.APPROVAL && event.isGateDecision() && role != TenantRole.APPROVER && role != TenantRole.ADMIN) {
+        // A gate decision on an approval task is the APPROVER's duty alone. ADMIN is segregated from
+        // approval duties (TenantRole.ADMIN; data-security-governance.md: administration vs approval):
+        // an admin who also controls membership must not be able to decide the IC gate. Routing the
+        // task (assigned) or the requester resubmitting after rework stays a working action.
+        if (bound.task.kind == TaskKind.APPROVAL && event.isGateDecision() && role != TenantRole.APPROVER) {
             return ResponseEntity.notFound().build()
         }
         val after =
@@ -941,6 +968,13 @@ class ProspectController(
     data class IcView(
         val taskId: UUID,
         val taskStatus: String,
+    )
+
+    data class IcReviewView(
+        val taskId: UUID,
+        val taskStatus: String,
+        val requestedBy: String,
+        val decidedBy: String?,
     )
 
     /**

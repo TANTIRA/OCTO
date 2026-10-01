@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AuthGate from "@/components/auth-gate";
 import NotFound from "@/app/not-found";
-import { usePlatformAdmin } from "@/lib/use-tenants";
+import { usePlatformAdminCheck } from "@/lib/use-tenants";
 
 /**
  * Ops page — probes the API's actuator health endpoints through the
@@ -181,7 +181,30 @@ function AdminPanel() {
 }
 
 function PlatformAdminGate() {
-  const admin = usePlatformAdmin();
+  const { admin, error, retry } = usePlatformAdminCheck();
+  // A failed or timed-out check is not a "no": say so and offer a retry, so
+  // an API outage — when this page matters most — never reads as a 404.
+  if (error) {
+    return (
+      <div className="flex h-dvh w-full items-center justify-center bg-white px-4 dark:bg-neutral-950">
+        <div role="alert" className="max-w-sm text-center">
+          <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+            Could not check access
+          </p>
+          <p className="mt-1 text-[13px] text-neutral-500 dark:text-neutral-400">
+            {error}
+          </p>
+          <button
+            type="button"
+            onClick={retry}
+            className="mt-4 inline-flex h-8 cursor-pointer items-center rounded-[var(--rb-r-md,8px)] border border-neutral-200 bg-white px-3 text-[13px] font-medium text-neutral-900 transition-colors hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800 dark:focus-visible:outline-neutral-100"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (admin === null) {
     return (
       <div className="flex h-dvh w-full items-center justify-center bg-white dark:bg-neutral-950">

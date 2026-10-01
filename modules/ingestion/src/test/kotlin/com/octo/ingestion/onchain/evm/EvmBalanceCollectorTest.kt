@@ -98,10 +98,14 @@ private class BalanceFakeStore(
         return balances.size
     }
 
+    /** Newest stored snapshot per mint, like the store's `distinct on` query. */
     override fun latestSnapshots(
         chain: String,
         wallet: String,
-    ) = emptyList<OnchainBalance>()
+    ) = snapshots
+        .filter { it.chain == chain && it.wallet == wallet }
+        .groupBy { it.mintAddress }
+        .map { (_, rows) -> rows.last() }
 
     override fun insertEvidence(
         evidence: List<OnchainEvidence>,
@@ -165,6 +169,32 @@ class EvmBalanceCollectorTest {
 
         assertEquals(0, report.snapshotsInserted)
         assertTrue(store.snapshots.isEmpty())
+    }
+
+    @Test
+    fun `a holding that drops to zero snapshots the zero so recon stops reading the old amount`() {
+        val rpc =
+            BalanceFakeRpc().apply {
+                native[EB_WALLET] = BigInteger.TEN
+                token[EB_USDC to EB_WALLET] = BigInteger("1000000000")
+                token[EB_USDCE to EB_WALLET] = BigInteger.ZERO // never held: stays sparse
+            }
+        val store =
+            BalanceFakeStore(EB_WALLET).apply {
+                contracts = listOf(TokenContract(EB_USDC, 6), TokenContract(EB_USDCE, 6))
+            }
+        collector(rpc, store).collect()
+
+        rpc.native[EB_WALLET] = BigInteger.ZERO
+        rpc.token[EB_USDC to EB_WALLET] = BigInteger.ZERO
+        val second = collector(rpc, store).collect()
+
+        assertEquals(2, second.snapshotsInserted)
+        val latest = store.latestSnapshots(CHAIN_ARBITRUM_ONE, EB_WALLET).associate { it.mintAddress to it.amountRaw }
+        assertEquals(mapOf(null to BigInteger.ZERO, EB_USDC to BigInteger.ZERO), latest)
+
+        val third = collector(rpc, store).collect()
+        assertEquals(0, third.snapshotsInserted) // a recorded zero is not re-snapshotted every run
     }
 
     @Test

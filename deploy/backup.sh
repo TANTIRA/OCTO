@@ -19,7 +19,7 @@ KEEP_DAYS="${KEEP_DAYS:-14}"
 mkdir -p "$DIR"
 OUT="$DIR/octo-${DB}-$(date -u +%Y%m%dT%H%M%SZ).dump.gz"
 
-# custom format + gzip: restorable with pg_restore after decompression.
+# plain SQL + gzip: restore with `gunzip -c <archive> | psql` (not pg_restore).
 pg_dump -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" --format=plain --no-owner | gzip >"$OUT"
 echo "wrote $OUT"
 

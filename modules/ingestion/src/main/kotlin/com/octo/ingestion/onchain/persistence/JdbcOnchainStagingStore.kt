@@ -6,6 +6,7 @@ import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
 import com.octo.ingestion.onchain.TokenContract
+import com.octo.ingestion.onchain.TransferKind
 import com.octo.ingestion.onchain.WatchSource
 import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
@@ -69,6 +70,10 @@ class JdbcOnchainStagingStore(
     /**
      * The newest staged slot for a chain/wallet, or null when nothing is staged.
      *
+     * Staking rewards are excluded: they are staged at the reward's `effectiveSlot` by the staking
+     * collector, not by the transaction scan, so counting them would move the poller's `slot.gt`
+     * cursor past history it has not scanned yet.
+     *
      * Exactly one query, and the `use` block's value is the return. A second `executeQuery()` here is
      * not a "missing result-set read" — the block above already is the result. `JdbcOnchainStagingStoreQueryCountTest`
      * fails if the query count moves off 1.
@@ -83,11 +88,12 @@ class JdbcOnchainStagingStore(
                     """
                     select max(slot)
                       from octo.onchain_transfer
-                     where chain = ? and wallet = ?
+                     where chain = ? and wallet = ? and transfer_kind <> ?
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
                     s.setString(2, wallet)
+                    s.setString(3, TransferKind.STAKING_REWARD.db)
                     s.executeQuery().use { r ->
                         if (r.next()) {
                             val slot = r.getLong(1)
@@ -329,7 +335,10 @@ class JdbcOnchainStagingStore(
     }
 
     // The observation's identity: an identical report in the same second is the same fact;
-    // a different amount or a second source is a different observation worth keeping.
-    private fun snapshotExternalId(b: OnchainBalance): String =
-        "${b.chain}:${b.wallet}:${b.mintAddress ?: "native"}:balance:${b.source.db}:${b.asOf.epochSecond}:${b.amountRaw}"
+    // a different amount or a second source is a different observation worth keeping. Stake
+    // accounts share a wallet and (null) mint, so a row with a token account is keyed by it too;
+    // rows without one keep their original id so existing data stays deduplicated.
+    internal fun snapshotExternalId(b: OnchainBalance): String =
+        "${b.chain}:${b.wallet}:${b.mintAddress ?: "native"}${b.tokenAccount?.let { ":$it" } ?: ""}" +
+            ":balance:${b.source.db}:${b.asOf.epochSecond}:${b.amountRaw}"
 }

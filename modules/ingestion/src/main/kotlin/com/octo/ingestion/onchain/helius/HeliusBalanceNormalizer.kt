@@ -27,16 +27,17 @@ class HeliusBalanceNormalizer {
         val skipped = mutableListOf<String>()
         for (token in json.path("balances")) {
             val mint = token.path("mint").asText()
-            val decimals = token.path("decimals").asInt()
+            // A missing or null `balance`/`decimals` would read as 0 through Jackson's defaults —
+            // a wrong fact, not an empty holding — so anything but a number skips the row.
+            val balance = token.path("balance")
+            val decimals = token.path("decimals").takeIf { it.isInt }?.intValue()
             val raw =
-                runCatching {
-                    token
-                        .path("balance")
-                        .decimalValue()
-                        .movePointRight(decimals)
-                        .toBigIntegerExact()
-                }.getOrNull()
-            if (raw == null) {
+                if (!balance.isNumber || decimals == null) {
+                    null
+                } else {
+                    runCatching { balance.decimalValue().movePointRight(decimals).toBigIntegerExact() }.getOrNull()
+                }
+            if (raw == null || decimals == null) {
                 skipped += mint
                 continue
             }

@@ -15,6 +15,10 @@ dependencyManagement {
         // catalog version makes the whole stack agree; this is what takes :modules:api:test from
         // 103 failures to 0.
         mavenBom("io.micrometer:micrometer-bom:${libs.versions.micrometer.get()}")
+        // Dependabot #35 / #110: the Boot 3.5.16 BOM pins OpenTelemetry 1.49.0 for the tracing bridge
+        // and OTLP exporter (#306), in range for GHSA-rcgg-9c38-7xpx (unbounded W3C baggage
+        // allocation; fixed in 1.62.0). The BOM moves api, sdk, exporters and propagators together.
+        mavenBom("io.opentelemetry:opentelemetry-bom:${libs.versions.opentelemetry.get()}")
     }
     // Advisory floors the Spring Boot 3.5.16 BOM still sits below. These must live here, not in
     // resolutionStrategy.force(): io.spring.dependency-management registers its BOM pinning as a
@@ -75,6 +79,13 @@ dependencies {
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.testcontainers.postgres)
     testImplementation(libs.archunit.junit5)
+}
+
+// The api suite boots a full Spring context per endpoint test; Gradle's 512m test-JVM default runs
+// out of heap partway through (OutOfMemoryError in context refresh). org.gradle.jvmargs sizes the
+// daemon, not this forked JVM.
+tasks.test {
+    maxHeapSize = "2g"
 }
 
 tasks.processResources {

@@ -17,6 +17,8 @@ from collections.abc import Callable
 
 import httpx
 
+from . import deadline
+
 # Retry only on statuses that are transient by contract: rate limiting and the
 # upstream-unavailable family. A 4xx like 400/401/403/404/409 is the caller's
 # to handle and is never retried.
@@ -40,9 +42,13 @@ def send_with_retry(
     only NOT_SENT_ERRORS are retried; everything else surfaces on first try."""
     attempt = 0
     while True:
+        # The run deadline (#486) gates every attempt and owns its timeouts.
+        deadline.check("outbound request")
         try:
             response = send()
         except httpx.TransportError as e:
+            if deadline.expired():
+                raise deadline.DeadlineExceeded("outbound request completed") from e
             if attempt >= retries or not (idempotent or isinstance(e, NOT_SENT_ERRORS)):
                 raise
         else:

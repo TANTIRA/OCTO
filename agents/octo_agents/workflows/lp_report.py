@@ -16,6 +16,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
+from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
 from .screening_dd import _record_run, finish_failed
 
@@ -146,7 +147,8 @@ def run_lp_report(
         }
         # The drafter gets no tools: the job's own parameters are the whole
         # evidence base, so a boundary breach is impossible by construction.
-        message = agent_model.invoke(
+        message = invoke_within_deadline(
+            agent_model,
             [
                 SystemMessage(content=LP_PROMPT),
                 HumanMessage(

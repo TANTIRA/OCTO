@@ -429,6 +429,12 @@ export function Ontology() {
           <p data-anim className="mt-6 max-w-lg font-editorial text-xl leading-relaxed text-white/65">
             Every source, one shared graph.
           </p>
+          <p data-anim className="mt-6 max-w-lg font-editorial text-xl leading-relaxed text-white/65">
+            OCTO describes the private-markets world once — parties, funds,
+            deals, instruments, and the events between them — and every source
+            maps onto it. Screening, analytics, and reporting all read the same
+            graph.
+          </p>
         </Reveal>
 
         <div className="mx-auto w-full max-w-[600px]">

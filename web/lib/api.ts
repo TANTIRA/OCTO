@@ -63,26 +63,23 @@ export function messageFor(err: unknown): string {
     if (err.status === 503) return "the backing service is unavailable";
     return `request failed (HTTP ${err.status})`;
   }
+  // AbortSignal.timeout() rejects with a DOMException named TimeoutError.
+  if (err instanceof Error && err.name === "TimeoutError") {
+    return "the API did not respond in time";
+  }
   return "could not reach the API";
 }
 
 /** The caller's tenant memberships drive every tenant-scoped picker in the app. */
 export type Tenant = { tenantId: string; slug: string; role: string };
 
-export async function myAccess(): Promise<Tenant[]> {
+export type Access = { tenants: Tenant[]; platformAdmin: boolean };
+
+export async function myAccess(): Promise<Access> {
   // The whole app shell waits on this read: bound it so a hung request turns
   // into the retryable error state instead of an endless spinner.
   const body = await getJson<{ tenants: Tenant[] }>("/api/v1/me/access", {
     signal: AbortSignal.timeout(15_000),
   });
-  return body.tenants;
-}
-
-/** Platform-admin verdict for the ops surface (#312). Any failure is "no". */
-export async function amPlatformAdmin(): Promise<boolean> {
-  try {
-    return isPlatformAdmin(await getJson<unknown>("/api/v1/me/access"));
-  } catch {
-    return false;
-  }
+  return { tenants: body.tenants, platformAdmin: isPlatformAdmin(body) };
 }

@@ -24,19 +24,16 @@ interface AccessAdministration {
         provenance: AccessProvenance,
     ): MembershipState
 
-    /** Registers [userId] in the tenant; access itself still needs a granted event. */
-    fun registerMember(
+    /**
+     * Grants [event]'s role, registering [userId] first when the pair is unknown — one transaction,
+     * so a grant the state machine rejects ([IllegalArgumentException]) leaves no registration behind.
+     */
+    fun grant(
         tenantId: UUID,
         userId: UUID,
-        registeredAt: Instant,
+        event: MembershipEvent.Granted,
         provenance: AccessProvenance,
-    )
-
-    /** The membership's replayed state, or null when the pair is unregistered. */
-    fun load(
-        tenantId: UUID,
-        userId: UUID,
-    ): MembershipState?
+    ): MembershipState
 
     /**
      * Validates [event] against the replayed state and stores it — throws [NoSuchElementException]

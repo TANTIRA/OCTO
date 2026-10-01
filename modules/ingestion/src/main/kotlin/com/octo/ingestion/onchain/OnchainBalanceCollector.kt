@@ -4,6 +4,7 @@ import com.octo.ingestion.onchain.helius.HeliusBalanceNormalizer
 import com.octo.ingestion.onchain.helius.HeliusException
 import com.octo.ingestion.onchain.helius.HeliusRpcApi
 import com.octo.ingestion.onchain.helius.HeliusWalletApi
+import java.math.BigInteger
 import java.time.Instant
 import java.util.UUID
 
@@ -40,8 +41,13 @@ class OnchainBalanceCollector(
         val failed = mutableListOf<String>()
         val wallets = staging.activeWatchedAddresses(chain)
         for (watch in wallets) {
+            val skippedBefore = skipped.size
+            val fallbacksBefore = fallbacks.size
             val balances = collectWallet(watch.address, asOf, fallbacks, skipped, failed) ?: continue
-            snapshots += staging.insertSnapshots(balances, ingestionRunId, UUID.randomUUID(), ACTOR)
+            val source = if (fallbacks.size > fallbacksBefore) BalanceSource.RPC else BalanceSource.WALLET_API
+            val unreadable = skipped.subList(skippedBefore, skipped.size).map(::mintOf).toSet()
+            val emptied = emptiedHoldings(chain, watch.address, balances, unreadable, source, asOf)
+            snapshots += staging.insertSnapshots(balances + emptied, ingestionRunId, UUID.randomUUID(), ACTOR)
         }
         return BalanceCollectionReport(wallets.size, snapshots, fallbacks, skipped, failed)
     }
@@ -75,6 +81,29 @@ class OnchainBalanceCollector(
                 .getOrNull()
         }
     }
+
+    // Both sources omit empty holdings, so the table stays sparse — except where the latest
+    // snapshot still shows a holding: there a zero must land, or recon keeps reading the stale
+    // amount. Stake rows (token_account set) belong to the staking collector, and a mint this
+    // pass could not read is left alone rather than zeroed.
+    private fun emptiedHoldings(
+        chain: String,
+        wallet: String,
+        observed: List<OnchainBalance>,
+        unreadable: Set<String?>,
+        source: BalanceSource,
+        asOf: Instant,
+    ): List<OnchainBalance> {
+        val seen = observed.map { it.mintAddress }.toSet()
+        return staging
+            .latestSnapshots(chain, wallet)
+            .filter { it.tokenAccount == null && it.amountRaw.signum() > 0 }
+            .filter { it.mintAddress !in seen && it.mintAddress !in unreadable }
+            .distinctBy { it.mintAddress }
+            .map { it.copy(amountRaw = BigInteger.ZERO, usdValue = null, source = source, slot = null, asOf = asOf) }
+    }
+
+    private fun mintOf(walletApiMint: String): String? = walletApiMint.takeIf { it != HeliusBalanceNormalizer.WRAPPED_SOL_MINT }
 
     companion object {
         const val ACTOR = "helius-balance-collector"

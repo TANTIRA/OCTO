@@ -1,5 +1,6 @@
 package com.octo.api
 
+import com.octo.workflow.report.ReportType
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.flywaydb.core.Flyway
@@ -83,6 +84,27 @@ class ReportJobMigrationIT {
         set(done, "approval_task_id = '$task'")
         assertThatThrownBy { set(done, "approval_task_id = '${task()}'") }.isInstanceOf(SQLException::class.java) // only one
     }
+
+    /** #488: the API accepted lp-report but V29's check rejected it. Every type the code can submit must land. */
+    @Test
+    fun `every report type the code submits passes the job and schedule type checks`() {
+        for (type in ReportType.entries) {
+            assertThat(job(type = type.wireValue)).`as`("report_job accepts %s", type.wireValue).isNotNull()
+            if (type.schedulable) {
+                execute(schedule(type.wireValue))
+            } else {
+                assertThatThrownBy { execute(schedule(type.wireValue)) }
+                    .`as`("report_schedule rejects on-demand %s", type.wireValue)
+                    .isInstanceOf(SQLException::class.java)
+            }
+        }
+    }
+
+    private fun schedule(type: String) =
+        """
+        insert into octo.report_schedule (tenant_id, name, report_type, position_source_type, position_source_id, cron, next_run_at)
+        values ('$tenant', 'guard', '$type', 'fund', 'fund-1', '0 0 8 * * MON', now())
+        """.trimIndent()
 
     private fun job(
         type: String = "performance",

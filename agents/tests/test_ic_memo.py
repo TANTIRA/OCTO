@@ -10,13 +10,15 @@ from typing import Any
 import httpx
 import pytest
 
-from octo_agents.api_client import OctoApiClient, OctoApiError
+from octo_agents.api_client import OctoApiError
 from octo_agents.judge import JudgeClient
 from octo_agents.workflows import ic_memo
 from octo_agents.workflows.ic_memo import run_ic_memo
 
+from .fakes import StrictFake
 
-class FakeApi(OctoApiClient):
+
+class FakeApi(StrictFake):
     def __init__(self, *, ic_status: int = 202, events: list[Any] | None = None) -> None:
         self.ic_status = ic_status
         self.events = events or []
@@ -193,3 +195,56 @@ def test_preflight_refusal_spends_no_drafter(monkeypatch: pytest.MonkeyPatch) ->
     assert result.status == "refused"
     assert api.ic_reviews == []
     assert api.finished["status"] == "refused"
+
+
+class CloseFailsApi(FakeApi):
+    """The completed close fails transiently; the failed close lands."""
+
+    def finish_run(self, run_id: str, **kwargs: Any) -> Any:
+        self.finished = kwargs
+        if kwargs["status"] == "completed":
+            raise OctoApiError(503, "edge unavailable")
+        return {}
+
+
+def test_failed_close_after_ic_review_opened_records_the_task(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # #497 — the ic-review task already opened; the failed run must say so.
+    api = CloseFailsApi(events=[{"note": "deck"}])
+    stub_drafter(monkeypatch)
+    with pytest.raises(OctoApiError):
+        run_ic_memo(
+            agent_model=None,
+            judge=fake_judge(preflight=0.9, complete=0.9, evidence=4.0, thesis="aligned"),
+            api=api,
+            prospect_id="p-1",
+            tenant_id="t-1",
+            run_key="rk-1",
+            models=MODELS,
+        )
+    assert api.ic_reviews == ["p-1"]
+    assert api.finished["status"] == "failed"
+    assert api.finished["output"] == {
+        "ic_review_requested": True,
+        "ic_review_task_id": "ic-task-1",
+    }
+
+
+def test_failure_before_ic_review_records_no_side_effects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    api = CloseFailsApi(ic_status=409, events=[{"note": "deck"}])
+    stub_drafter(monkeypatch)
+    with pytest.raises(OctoApiError):
+        run_ic_memo(
+            agent_model=None,
+            judge=fake_judge(preflight=0.9, complete=0.9, evidence=4.0, thesis="aligned"),
+            api=api,
+            prospect_id="p-1",
+            tenant_id="t-1",
+            run_key="rk-1",
+            models=MODELS,
+        )
+    assert api.finished["status"] == "failed"
+    assert api.finished["output"] is None

@@ -4,6 +4,7 @@ import com.octo.ingestion.http.FakeTransport
 import com.octo.ingestion.http.HttpTransport
 import com.octo.ingestion.http.okJson
 import com.octo.ingestion.http.statusOf
+import java.math.BigDecimal
 import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,6 +37,13 @@ class HeliusWalletClientTest {
         assertTrue(uri.startsWith("https://api-devnet.helius.xyz/v1/wallet/walletX/balances"))
         assertTrue(uri.contains("api-key=test-key"))
         assertEquals(5, result["nativeBalance"].asInt())
+    }
+
+    @Test
+    fun `balances keep every digit of a large decimal instead of rounding through double`() {
+        val transport = FakeTransport(okJson("""{"balances":[{"balance":123456789012.123456789,"decimals":9}]}"""))
+        val balance = client(transport).balances("walletX")["balances"][0]["balance"]
+        assertEquals(BigDecimal("123456789012.123456789"), balance.decimalValue())
     }
 
     @Test

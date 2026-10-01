@@ -62,6 +62,29 @@ class HeliusBalanceNormalizerTest {
     }
 
     @Test
+    fun `a missing, null or non-numeric balance or decimals is skipped, not stored as zero`() {
+        val json =
+            tree(
+                """
+                {"balances":[
+                   {"mint":"m-missing","decimals":6},
+                   {"mint":"m-null","balance":null,"decimals":6},
+                   {"mint":"m-text","balance":"12.5","decimals":6},
+                   {"mint":"m-no-decimals","balance":12.5},
+                   {"mint":"m-text-decimals","balance":12.5,"decimals":"6"},
+                   {"mint":"$USDC","balance":0,"decimals":6}],
+                 "pagination":{"page":1,"limit":100,"hasMore":false}}
+                """.trimIndent(),
+            )
+
+        val parsed = normalizer.fromWalletApi(json, WALLET, AS_OF)
+
+        assertEquals(listOf("m-missing", "m-null", "m-text", "m-no-decimals", "m-text-decimals"), parsed.skipped)
+        assertEquals(USDC, parsed.balances.single().mintAddress)
+        assertEquals(BigInteger.ZERO, parsed.balances.single().amountRaw)
+    }
+
+    @Test
     fun `hasMore drives paging`() {
         val more = tree("""{"balances":[],"pagination":{"page":1,"limit":100,"hasMore":true}}""")
 

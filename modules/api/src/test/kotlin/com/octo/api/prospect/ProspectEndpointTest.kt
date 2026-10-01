@@ -55,6 +55,7 @@ class ProspectEndpointTest {
     private val approver = UUID.randomUUID()
     private val approver2 = UUID.randomUUID()
     private val viewer = UUID.randomUUID()
+    private val admin = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val store = FakeProspectStore()
     private val tasks = FakeIcTasks()
@@ -75,6 +76,7 @@ class ProspectEndpointTest {
                             member -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
                             approver, approver2 -> listOf(TenantAccess(tenantId, "acme", TenantRole.APPROVER))
                             viewer -> listOf(TenantAccess(tenantId, "acme", TenantRole.VIEWER))
+                            admin -> listOf(TenantAccess(tenantId, "acme", TenantRole.ADMIN))
                             else -> emptyList()
                         }
                     }
@@ -383,6 +385,43 @@ class ProspectEndpointTest {
     }
 
     @Test
+    fun `an approval superseded by a later IC review no longer authorizes invested`() {
+        run { mvc ->
+            val id = mvc.registered()
+            for (stage in listOf("screening", "due-diligence", "ic-review")) {
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/transition")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"to":"$stage"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+            }
+            val stale = UUID.randomUUID().also { tasks.openAt(it, id) }
+            tasks.approve(stale)
+            val latest = UUID.randomUUID().also { tasks.openAt(it, id) } // re-review, still undecided
+
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"invested","rationale":"corridor thesis","taskId":"$stale"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict) // the IC's current call is the re-review, not the old approval
+
+            tasks.approve(latest)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"invested","rationale":"corridor thesis","taskId":"$latest"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.stage").value("invested"))
+        }
+    }
+
+    @Test
     fun `an IC task is decided by an approver, never its requester, never an analyst`() {
         run { mvc ->
             val id = mvc.registered()
@@ -408,7 +447,14 @@ class ProspectEndpointTest {
                         .content("""{"event":"approved"}""")
                         .with(jwt().jwt { it.subject(approver.toString()) }),
                 ).andExpect(status().isConflict)
-            mvc // an analyst lacks the gate role — deciding needs approver or admin
+            mvc // an admin is segregated from approval duties — the IC gate is the approver's alone
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"approved"}""")
+                        .with(jwt().jwt { it.subject(admin.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc // an analyst lacks the gate role — deciding needs an approver
                 .perform(
                     post("/api/v1/prospects/$id/tasks/$taskId")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -442,6 +488,66 @@ class ProspectEndpointTest {
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.stage").value("invested"))
+        }
+    }
+
+    @Test
+    fun `the IC review read returns the latest approval on the prospect, to any role in its tenant only`() {
+        run { mvc ->
+            val id = mvc.registered()
+            mvc // no review yet
+                .perform(get("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }))
+                .andExpect(status().isNotFound)
+            for (stage in listOf("screening", "due-diligence", "ic-review")) {
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/transition")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"to":"$stage"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+            }
+            mvc
+                .perform(post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }))
+                .andExpect(status().isAccepted)
+            val first = tasks.opened().single { it.kind == TaskKind.APPROVAL }.id
+
+            for (reader in listOf(member, approver, viewer)) {
+                mvc
+                    .perform(get("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(reader.toString()) }))
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.taskId").value(first.toString()))
+                    .andExpect(jsonPath("$.taskStatus").value("open"))
+                    .andExpect(jsonPath("$.requestedBy").value(member.toString()))
+                    .andExpect(jsonPath("$.decidedBy").doesNotExist())
+            }
+            mvc // a caller with no role in the prospect's tenant never learns the review exists
+                .perform(get("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(UUID.randomUUID().toString()) }))
+                .andExpect(status().isNotFound)
+
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$first")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"rejected","rationale":"thin diligence"}""")
+                        .with(jwt().jwt { it.subject(approver.toString()) }),
+                ).andExpect(status().isOk)
+            mvc // a decided review is history: asking again opens a fresh one, and the read follows it
+                .perform(post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }))
+                .andExpect(status().isAccepted)
+            val second =
+                tasks
+                    .opened()
+                    .filter { it.kind == TaskKind.APPROVAL }
+                    .single { it.id != first }
+                    .id
+            tasks.approve(second)
+            mvc
+                .perform(get("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.taskId").value(second.toString()))
+                .andExpect(jsonPath("$.taskStatus").value("approved"))
+                .andExpect(jsonPath("$.decidedBy").value("ic-member"))
         }
     }
 

@@ -23,12 +23,12 @@ buildscript {
         // Scope: these are build-time only (Gradle plugin execution — dependency resolution and
         // buildpack packaging). No httpclient5 reaches the application runtime classpath.
         resolutionStrategy.force(
-            "org.apache.httpcomponents.client5:httpclient5:5.6.3",
+            "org.apache.httpcomponents.client5:httpclient5:5.6.4",
             "org.apache.httpcomponents.core5:httpcore5:5.4.4",
             "org.apache.httpcomponents.core5:httpcore5-h2:5.4.4",
             "org.apache.httpcomponents.client5:httpclient5:5.6.4",
-            "org.apache.httpcomponents.core5:httpcore5:5.4.3",
-            "org.apache.httpcomponents.core5:httpcore5-h2:5.4.3",
+            "org.apache.httpcomponents.core5:httpcore5:5.4.4",
+            "org.apache.httpcomponents.core5:httpcore5-h2:5.4.4",
         )
     }
     // Dependabot #108 / #109: spring-boot-buildpack-platform 3.5.16 pulls jackson-databind 2.21.4
@@ -36,7 +36,7 @@ buildscript {
     // BOM lifts databind, core and module-parameter-names together, staying on the 2.21 line the
     // plugin was built against. Build-time only; the app runtime is on 2.22.3 via modules/api.
     dependencies {
-        classpath(platform("com.fasterxml.jackson:jackson-bom:2.21.7"))
+        classpath(platform("com.fasterxml.jackson:jackson-bom:2.22.3"))
     }
 }
 

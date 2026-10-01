@@ -19,6 +19,7 @@ from deepagents import create_deep_agent
 from pydantic import BaseModel
 
 from ..api_client import OctoApiClient, OctoApiError
+from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import read_tools
 from .screening_dd import (
@@ -159,6 +160,10 @@ def run_ic_memo(
         input={"prospect_id": prospect_id},
         models=models,
     )
+    # Declared outside the guard so a crash after the ic-review task opened
+    # still records it on the failed run (#497, mirrors due_diligence #330).
+    review_requested = False
+    task_id = None
     try:
         if replayed is not None:
             return IcMemoResult.model_validate(replayed)
@@ -194,7 +199,8 @@ def run_ic_memo(
             "\n".join(f"- {str(e)[:400]}" for e in admitted)
             or "- (no events on record)"
         )
-        result = agent.invoke(
+        result = invoke_within_deadline(
+            agent,
             {
                 "messages": [
                     (
@@ -220,9 +226,7 @@ def run_ic_memo(
             memo=memo,
         )
 
-        task_id = None
         stage_note = None
-        review_requested = False
         if verdict.submit:
             try:
                 review = api.request_ic_review(prospect_id)
@@ -263,5 +267,10 @@ def run_ic_memo(
         )
         return result
     except Exception as e:
-        finish_failed(api, run_id, e)
+        partial = (
+            {"ic_review_requested": True, "ic_review_task_id": task_id}
+            if review_requested
+            else None
+        )
+        finish_failed(api, run_id, e, output=partial)
         raise

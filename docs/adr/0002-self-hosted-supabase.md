@@ -173,19 +173,21 @@ CLI telemetry is evaluated under developer-tool policy and disabled where requir
 
 ## Production acceptance criteria
 
+These are **not** satisfied by a document. Each is graded on dated evidence from a rehearsal on staging, recorded on [drill-evidence-template.md](../drill-evidence-template.md): a local harness run is preparation and does not tick a box (`deploy/drill/`). The procedure each criterion depends on is linked beside it.
+
 - [ ] Threat model and architecture review approved
 - [ ] Pinned release and container digests recorded
 - [ ] All default credentials replaced; secrets sourced from the approved secret manager
 - [ ] Public exposure limited to the reverse proxy; Studio and PostgreSQL private
-- [ ] SSO/MFA and token-validation design tested
+- [ ] SSO/MFA and token-validation design tested — [incident-runbook.md](../incident-runbook.md) §5.5
 - [ ] Application, migration, backup, and administrative identities separated
 - [ ] RLS and application authorization isolation tests pass
-- [ ] Append-only IBOR controls and audit events verified
-- [ ] Encrypted base backup, continuous WAL archiving, and object backup operational
-- [ ] Restore drill meets approved RPO and RTO
-- [ ] Monitoring, alerting, log retention, and incident runbooks operational
-- [ ] Upgrade and rollback rehearsed on staging
-- [ ] Capacity and dependency-failure tests pass
+- [ ] Append-only IBOR controls and audit events verified — [restore-runbook.md](../restore-runbook.md) §7
+- [ ] Encrypted base backup, continuous WAL archiving, and object backup operational — [restore-runbook.md](../restore-runbook.md) §3
+- [ ] Restore drill meets approved RPO and RTO — [restore-runbook.md](../restore-runbook.md) §1 (measurement) and `deploy/drill/restore-drill.sh`
+- [ ] Monitoring, alerting, log retention, and incident runbooks operational — [incident-runbook.md](../incident-runbook.md); blocked on an alerting backend behind `OTELCOL_EXPORT` (#303)
+- [ ] Upgrade and rollback rehearsed on staging — [upgrade-runbook.md](../upgrade-runbook.md) and `deploy/drill/rollback-rehearsal.sh`
+- [ ] Capacity and dependency-failure tests pass — [capacity-test-plan.md](../capacity-test-plan.md)
 
 ## References
 

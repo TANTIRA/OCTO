@@ -113,6 +113,19 @@ class OpenRouterDecisionsClientTest {
     }
 
     @Test
+    fun `requires zero-data-retention routing even when fallbacks are allowed`() {
+        val transport = ok("""{"model":"jev-1.13.0","answers":{}}""")
+
+        OpenRouterDecisionsClient(config.copy(allowFallbacks = true), transport).decide(
+            ClassifiedState(DataClassification.Internal, "state"),
+            mapOf("q" to NoulQuestion("Is it urgent?")),
+        )
+
+        val body = mapper.readTree(transport.lastBody!!)
+        assertTrue(body["provider"]["zdr"].asBoolean())
+    }
+
+    @Test
     fun `sends the key as a bearer header and never in the body`() {
         val transport = ok("""{"model":"jev-1.13.0","answers":{}}""")
 

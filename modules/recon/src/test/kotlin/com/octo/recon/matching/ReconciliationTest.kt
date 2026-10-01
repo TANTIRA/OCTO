@@ -34,7 +34,7 @@ class ReconciliationTest {
     fun `exact matches raise no break and unmatched sides raise one each`() {
         val kept = ibor("t-1", "-100")
         val orphan = ibor("t-9", "5")
-        val result = reconcile(listOf(source("t-1", "-100"), source("t-2", "40")), listOf(kept, orphan))
+        val result = reconcile(listOf(source("t-1", "-100"), source("t-2", "40")), listOf(kept, orphan), sourceComplete = true)
 
         assertEquals(listOf("t-1"), result.matched.map { it.first.externalId })
         assertEquals(listOf(BreakKind.MISSING_IN_IBOR, BreakKind.MISSING_IN_SOURCE), result.breaks.map { it.kind })
@@ -60,11 +60,30 @@ class ReconciliationTest {
     fun `other source systems are out of scope and an event without an external id is a finding`() {
         val other = ibor("x-1", "1", system = "admin-b")
         val unattributed = ibor(null, "7")
-        val result = reconcile(listOf(source("t-1", "1")), listOf(ibor("t-1", "1"), other, unattributed))
+        val result = reconcile(listOf(source("t-1", "1")), listOf(ibor("t-1", "1"), other, unattributed), sourceComplete = true)
 
         assertEquals(listOf(BreakKind.MISSING_IN_SOURCE), result.breaks.map { it.kind })
         assertEquals(unattributed.id, result.breaks.single().ledgerEventId)
         assertEquals(null, result.breaks.single().sourceRef)
+    }
+
+    @Test
+    fun `a partial batch raises no missing-in-source break, only the complete set does`() {
+        // One source system of 1,200 events sent as three batches of 400 (#492).
+        val ledger = List(1_200) { ibor("t-$it", "1") } + ibor(null, "7")
+        val batches = ledger.dropLast(1).map { source(it.externalId!!, "1") }.chunked(400)
+
+        for (batch in batches) {
+            val partial = reconcile(batch, ledger)
+            assertEquals(400, partial.matched.size)
+            assertTrue(partial.breaks.isEmpty())
+        }
+
+        val missing = ledger[1_199]
+        val complete = reconcile(batches.flatten().dropLast(1), ledger, sourceComplete = true)
+        assertEquals(1_199, complete.matched.size)
+        assertEquals(listOf(missing.id, ledger.last().id), complete.breaks.map { it.ledgerEventId })
+        assertTrue(complete.breaks.all { it.kind == BreakKind.MISSING_IN_SOURCE })
     }
 
     @Test

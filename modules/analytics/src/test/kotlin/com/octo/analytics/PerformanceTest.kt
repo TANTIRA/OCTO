@@ -3,6 +3,7 @@ package com.octo.analytics
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.Currency
+import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -78,6 +79,31 @@ class PerformanceTest {
         // +100, -230, +132 at yearly steps has roots at 10% and 20%.
         val flows = listOf(flow("2019-01-01", "100"), flow("2020-01-01", "-230"), flow("2020-12-31", "132"))
         assertNull(xirr(flows))
+    }
+
+    // Two flows have a closed form: r = (CF1 / -CF0)^(365 / days) - 1.
+
+    @Test
+    fun `xirr finds a near-total loss below -99 percent`() {
+        // 0.4 back on 100 after 365 days: r = 0.004 - 1 = -99.6%.
+        val irr = xirr(listOf(flow("2019-01-01", "-100"), flow("2020-01-01", "0.4")))
+        assertEquals(-0.996, assertNotNull(irr), 1e-9)
+    }
+
+    @Test
+    fun `xirr finds a short-dated gain above 10000 percent`() {
+        // 110 back on 100 after 5 days: r = 1.1^73 - 1, about 105,000%.
+        val irr = xirr(listOf(flow("2020-01-01", "-100"), flow("2020-01-06", "110")))
+        val expected = 1.1.pow(365.0 / 5) - 1
+        assertEquals(expected, assertNotNull(irr), expected * 1e-9)
+    }
+
+    @Test
+    fun `xirr finds a five-day three percent gain`() {
+        // 103 back on 100 after 5 days: r = 1.03^73 - 1, about 765%.
+        val irr = xirr(listOf(flow("2020-01-01", "-100"), flow("2020-01-06", "103")))
+        val expected = 1.03.pow(365.0 / 5) - 1
+        assertEquals(expected, assertNotNull(irr), expected * 1e-9)
     }
 
     @Test

@@ -38,6 +38,7 @@ service's only client and its only tool surface.
 | `OCTO_API_BASE_URL` | Kotlin api base, default `http://api:8080` |
 | `OCTO_AGENT_TOKEN` | service-principal JWT for api calls (tasks+drafts scope) |
 | `OCTO_AGENTS_TOKEN` | bearer the platform presents when calling this service |
+| `RUN_DEADLINE_S` | end-to-end budget per workflow run, default `100` (max `110`); past it the run is recorded `failed` and answers 504, inside the platform's 120 s timeout |
 | `OCTO_AGENTS_SCREENING_DD_ENABLED` | feature flag for the first workflow (default off) |
 | `OCTO_AGENTS_DD_ENABLED` | F3 parallel DD workstreams (default off) |
 | `OCTO_AGENTS_IC_MEMO_ENABLED` | F5 IC memo drafting (default off) |
@@ -120,7 +121,9 @@ service's only client and its only tool surface.
   platform's `POST /api/v1/agent-runs/{id}/outcome` — `decision` of
   `accepted` agrees, `rejected`/`overridden` disagrees). Returns per-workflow
   agreement, the disagreement queue, and eval-ready cases
-  (`expect_ship` = whether the artifact should have shipped). Deterministic —
+  (`expect_ship` = whether the artifact should have shipped), each referencing
+  its run by `run_id`. Output stays under the platform's 32 KB run-output cap:
+  lists are capped and `truncated` is set, with exact `*_total` counts. Deterministic —
   no model calls. Flag: `OCTO_AGENTS_CALIBRATION_ENABLED`.
 
 ## Warm context (F11)

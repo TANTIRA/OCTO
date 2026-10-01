@@ -21,6 +21,7 @@ from langchain_core.tools import tool
 from pydantic import BaseModel
 
 from ..api_client import OctoApiClient
+from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion
 from ..tools import read_tools
 from .screening_dd import _record_run, extract_final_text, finish_failed
@@ -193,7 +194,7 @@ def run_company_brain(
             tools=[*read_tools(api, tenant_id), _pipeline_tool(api, tenant_id)],
             system_prompt=warm_prompt(api, tenant_id, BRAIN_PROMPT),
         )
-        invoked = agent.invoke({"messages": [("user", question)]})
+        invoked = invoke_within_deadline(agent, {"messages": [("user", question)]})
         answer = extract_final_text(invoked)
 
         verdict = judge_answer(
