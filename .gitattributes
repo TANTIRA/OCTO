@@ -1,0 +1,12 @@
+# Line endings. Git's autocrlf default mangles shell and SQL files on Windows, and a
+# shell script checked out with CRLF fails on Linux with "bad interpreter". Everything
+# else follows the platform default.
+* text=auto
+*.sh eol=lf
+*.sql eol=lf
+*.yml eol=lf
+*.yaml eol=lf
+*.md eol=lf
+.gitattributes eol=lf
+.gitignore eol=lf
+Dockerfile eol=lf
