@@ -78,24 +78,33 @@ fun glJournal(
     zone: ZoneId,
     chart: GlChart = DEFAULT_GL_CHART,
 ): GlJournal {
+    val asOf = knownAt.atZone(zone).toLocalDate()
     val lines =
-        currentEvents(events, knownAt).map { event ->
-            val (natural, contra) = accounts(event.flowType, chart)
-            val sign = event.amount.signum()
-            val reversed = sign != 0 && (sign < 0) != naturallyNegative(event.flowType)
-            val (debit, credit) = if (reversed) contra to natural else natural to contra
-            GlLine(
-                sourceEventId = event.id,
-                date = event.occurredAt.atZone(zone).toLocalDate(),
-                currency = event.currency,
-                flowType = event.flowType,
-                debit = debit,
-                credit = credit,
-                amount = event.amount.abs(),
-            )
-        }
+        currentEvents(events, knownAt)
+            // A journal dated asOf carries only entries dated on or before it: an event recorded early
+            // but occurring later (a scheduled call) belongs to a later journal, not this one.
+            .filter {
+                !it.occurredAt
+                    .atZone(zone)
+                    .toLocalDate()
+                    .isAfter(asOf)
+            }.map { event ->
+                val (natural, contra) = accounts(event.flowType, chart)
+                val sign = event.amount.signum()
+                val reversed = sign != 0 && (sign < 0) != naturallyNegative(event.flowType)
+                val (debit, credit) = if (reversed) contra to natural else natural to contra
+                GlLine(
+                    sourceEventId = event.id,
+                    date = event.occurredAt.atZone(zone).toLocalDate(),
+                    currency = event.currency,
+                    flowType = event.flowType,
+                    debit = debit,
+                    credit = credit,
+                    amount = event.amount.abs(),
+                )
+            }
     return GlJournal(
-        asOf = knownAt.atZone(zone).toLocalDate(),
+        asOf = asOf,
         lines = lines,
         debitsByCurrency = totalsByCurrency(lines),
         creditsByCurrency = totalsByCurrency(lines),
