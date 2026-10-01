@@ -39,6 +39,35 @@ class WorkflowMigrationIT {
     }
 
     @Test
+    fun `V43 pins the trigger and RLS bodies to octo, whichever path V28 took`() {
+        val expected =
+            mapOf(
+                "octo.workflow_task_event_segregation()" to "search_path=pg_catalog, pg_temp",
+                "octo.audit_event_chain()" to "search_path=pg_catalog, pg_temp",
+                "octo.rls_is_member(uuid,uuid)" to "search_path=octo, pg_temp",
+                "octo.rls_admits(uuid)" to "search_path=octo, pg_temp",
+            )
+        dataSource.connection.use { connection ->
+            for ((function, searchPath) in expected) {
+                connection
+                    .prepareStatement(
+                        "select pg_get_functiondef(?::regprocedure), array_to_string(proconfig, ',') from pg_proc where oid = ?::regprocedure",
+                    ).use { statement ->
+                        statement.setString(1, function)
+                        statement.setString(2, function)
+                        statement.executeQuery().use { rows ->
+                            assertThat(rows.next()).isTrue()
+                            assertThat(rows.getString(1)).`as`(function).doesNotContain("mesta.")
+                            assertThat(rows.getString(2)).`as`(function).isEqualTo(searchPath)
+                        }
+                    }
+            }
+        }
+        // The workflow trigger's lock key is the one JdbcTaskStore takes.
+        assertThat(count("select count(*) from pg_proc where prosrc like '%''octo.workflow_task:''%'")).isEqualTo(1)
+    }
+
+    @Test
     fun `segregation of duties is enforced on approvals`() {
         val task = newTask()
 
