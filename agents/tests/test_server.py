@@ -14,7 +14,11 @@ from octo_agents.config import get_settings
 from octo_agents.deadline import DeadlineExceeded
 from octo_agents.server import app
 from octo_agents.tools import SubjectNotInTenantError
-from octo_agents.workflows.screening_dd import RunKeyCollisionError
+from octo_agents.workflows.screening_dd import (
+    RunInProgressError,
+    RunKeyCollisionError,
+    RunPreviouslyFailedError,
+)
 
 
 @pytest.fixture
@@ -89,6 +93,8 @@ def test_non_ascii_bearer_answers_401_not_500(
         (SubjectNotInTenantError("prospect p-1", "t-1"), 404),
         (RunKeyCollisionError("rk-1", "prospect/p-1", "prospect/p-2"), 409),
         (DeadlineExceeded("judge call"), 504),
+        (RunInProgressError("rk-1", "run-1"), 409),
+        (RunPreviouslyFailedError("rk-1", "run-1"), 409),
     ],
 )
 def test_binding_errors_map_to_client_statuses(

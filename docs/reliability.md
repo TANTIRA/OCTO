@@ -76,11 +76,11 @@ State of `main` on 2026-09-27. ✅ passes, ⚠️ acceptable for now, ❌ must f
 | Data | migrations run as a separate role; the runtime role cannot update or delete | ✅ | `DB_MIGRATION_*`, V3, `RuntimeRoleGrantsIT` |
 | Data | backups and point-in-time recovery | ⚠️ | ADR-0002 assigns it to the operator; [restore-runbook.md](restore-runbook.md) now covers the procedure — a rehearsed restore is still pending, and blocked: the deployed DB has `archive_mode = off`, so there is no WAL archive to rehearse PITR from (#301) |
 | Release | rollback path for every migration | ⚠️ | each PR states one; none has been rehearsed. AGENTS.md requires a tested rollback for T2 |
-| Testing | integration tests run in CI | ❌ | CI is blocked by GitHub billing; the ITs run only on developer machines |
+| Testing | integration tests run in CI | ✅ | `ci` runs `./gradlew check` on every PR and `main` push, Testcontainers ITs included (only `DecisionModelEvalTest`, which needs a live model key, skips); `main` green since b38ab253 (#304) |
 
 ## 5. Reliability backlog, ranked by SLO impact
 
-1. **Restore CI.** Nothing merges with a green check today. Blocks every other item's verification.
+1. ~~Restore CI~~ — runs again on every PR and `main` push; the last red job (`docker-scan`) was fixed in #477/#480 (#304).
 2. ~~Observability baseline~~ — probes, Prometheus, correlation ids, and structured logs all ship (§4).
 3. ~~Dockerfile and image build~~ — done in #76.
 4. ~~Backup and restore runbook~~ — `docs/restore-runbook.md`; the rehearsed restore half is still open.

@@ -35,7 +35,11 @@ from .workflows.equity_bridge import run_equity_bridge
 from .workflows.ic_memo import run_ic_memo
 from .workflows.lp_report import run_lp_report
 from .workflows.operating_review import run_operating_review
-from .workflows.screening_dd import RunKeyCollisionError, run_screening_dd
+from .workflows.screening_dd import (
+    RunKeyCollisionError,
+    RunNotReplayableError,
+    run_screening_dd,
+)
 
 
 @asynccontextmanager
@@ -88,6 +92,11 @@ def _deadlined(endpoint: Callable[..., Any]) -> Callable[..., Any]:
 
     return run
 
+# A run_key whose run is still running or already failed has no result to
+# replay; re-executing it would double-spend and race the open run (#485).
+@app.exception_handler(RunNotReplayableError)
+def _run_not_replayable(_: Request, exc: RunNotReplayableError) -> JSONResponse:
+    return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"detail": str(exc)})
 
 def require_caller(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),

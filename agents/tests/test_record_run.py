@@ -13,7 +13,10 @@ from octo_agents.tools import SubjectNotInTenantError
 from octo_agents.workflows.due_diligence import run_due_diligence
 from octo_agents.workflows.ic_memo import run_ic_memo
 from octo_agents.workflows.screening_dd import (
+    RunInProgressError,
     RunKeyCollisionError,
+    RunNotReplayableError,
+    RunPreviouslyFailedError,
     _record_run,
     load_prospect_in_tenant,
     run_screening_dd,
@@ -193,3 +196,107 @@ def test_mismatched_pair_books_no_run(run: Any) -> None:
             models={},
         )
     assert not api.recorded
+
+
+# #485 — only a closed run with a result replays. A run still running or one
+# that already failed is refused as a conflict, never re-executed under its
+# old run id (which would repeat paid calls, then fail to close).
+
+
+def test_running_run_is_refused_not_reexecuted() -> None:
+    with pytest.raises(RunInProgressError) as caught:
+        _run(
+            {
+                "id": "run-1",
+                "workflow": "screening-dd",
+                "subjectType": "prospect",
+                "subjectId": "p-1",
+                "input": {"prospect_id": "p-1"},
+                "status": "running",
+            }
+        )
+    assert caught.value.run_id == "run-1"
+
+
+def test_failed_run_with_partial_output_is_refused_not_replayed() -> None:
+    # A failed DD run stores its partial side effects as output; that output is
+    # not a workflow result and must never be served as one.
+    with pytest.raises(RunPreviouslyFailedError) as caught:
+        _run(
+            {
+                "id": "run-1",
+                "workflow": "screening-dd",
+                "subjectType": "prospect",
+                "subjectId": "p-1",
+                "input": {"prospect_id": "p-1"},
+                "status": "failed",
+                "output": {"tasks": [{"id": "task-1"}], "task_errors": []},
+            }
+        )
+    assert caught.value.run_status == "failed"
+
+
+def test_refused_run_replays_its_refusal() -> None:
+    run_id, replayed = _run(
+        {
+            "id": "run-1",
+            "subjectType": "prospect",
+            "subjectId": "p-1",
+            "status": "refused",
+            "output": {"status": "refused"},
+        }
+    )
+    assert (run_id, replayed) == ("run-1", {"status": "refused"})
+
+
+@pytest.mark.parametrize("status", ["completed", "refused", "cancelled"])
+def test_closed_run_without_a_result_is_refused(status: str) -> None:
+    with pytest.raises(RunNotReplayableError):
+        _run({"id": "run-1", "subjectType": "prospect", "subjectId": "p-1", "status": status})
+
+
+class ClosedRunApi(StrictFake):
+    """The prospect is in tenant and record_run dedupes to a non-replayable
+    run. Any other platform call would be a re-execution and fails the test."""
+
+    def __init__(self, status: str) -> None:
+        self._status = status
+
+    def get_prospect(self, prospect_id: str) -> Any:
+        return {"id": prospect_id, "tenantId": "t-1"}
+
+    def record_run(self, **kwargs: Any) -> Any:
+        return {
+            "id": "run-1",
+            "workflow": kwargs["workflow"],
+            "subjectType": "prospect",
+            "subjectId": "p-1",
+            "input": {"prospect_id": "p-1"},
+            "status": self._status,
+            "output": {"tasks": [], "task_errors": ["boom"]} if self._status == "failed" else None,
+        }
+
+    def __getattribute__(self, name: str) -> Any:
+        if name.startswith("_") or name in {"get_prospect", "record_run"}:
+            return super().__getattribute__(name)
+        raise AssertionError(f"retry re-executed the workflow: called {name}")
+
+
+@pytest.mark.parametrize("run", [run_screening_dd, run_due_diligence, run_ic_memo])
+@pytest.mark.parametrize(
+    ("status", "error"),
+    [("running", RunInProgressError), ("failed", RunPreviouslyFailedError)],
+)
+def test_workflow_refuses_retry_of_open_or_failed_run(
+    run: Any, status: str, error: type[Exception]
+) -> None:
+    with pytest.raises(error):
+        run(
+            agent_model=None,
+            judge=None,
+            api=ClosedRunApi(status),
+            prospect_id="p-1",
+            tenant_id="t-1",
+            run_key="rk-1",
+            models={},
+        )

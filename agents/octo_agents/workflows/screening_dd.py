@@ -311,6 +311,39 @@ class RunKeyCollisionError(RuntimeError):
         self.run_key = run_key
 
 
+class RunNotReplayableError(RuntimeError):
+    """A run_key resolved to this request's own run, but that run has no result
+    to hand back. Re-executing under the old run id would repeat every paid
+    model call and platform write, then fail to close a run the platform no
+    longer holds open (#485) — so the retry is refused as a conflict instead."""
+
+    def __init__(self, run_key: str, run_id: str, run_status: str, reason: str) -> None:
+        super().__init__(f"run_key {run_key!r} (run {run_id}) is {run_status}: {reason}")
+        self.run_key = run_key
+        self.run_id = run_id
+        self.run_status = run_status
+
+
+class RunInProgressError(RunNotReplayableError):
+    """The run under this run_key is still executing; a second execution on the
+    same run id would race it."""
+
+    def __init__(self, run_key: str, run_id: str) -> None:
+        super().__init__(run_key, run_id, "running", "still in progress — retry after it closes")
+
+
+class RunPreviouslyFailedError(RunNotReplayableError):
+    """The run under this run_key already failed; its row is closed and cannot
+    be re-finished. Retry with a fresh run_key."""
+
+    def __init__(self, run_key: str, run_id: str) -> None:
+        super().__init__(run_key, run_id, "failed", "already failed — retry with a new run_key")
+
+
+# Closed statuses whose stored output is a complete workflow result.
+_REPLAYABLE_STATUSES = frozenset({"completed", "refused"})
+
+
 def _record_run(
     api: OctoApiClient,
     *,
@@ -323,8 +356,11 @@ def _record_run(
     models: dict[str, str],
 ) -> tuple[str, Any | None]:
     """Opens the agent_run row for this invocation. Returns (run_id, None) for a
-    fresh run, or (run_id, replayed_output) when run_key already closed — a retried
-    trigger reads its own result back instead of running twice.
+    fresh run, or (run_id, replayed_output) when run_key already closed
+    `completed` or `refused` — a retried trigger reads its own result back
+    instead of running twice. A run_key whose run is still `running`, already
+    `failed`, or closed without output raises a RunNotReplayableError: it is
+    never re-executed under the old run id (#485).
 
     The platform dedupes run_key within a tenant. Before trusting a replayed
     row, this verifies its recorded subject matches the one requested: a
@@ -355,9 +391,18 @@ def _record_run(
         # through a JSON round trip — the platform echoes input from jsonb.
         if "input" in recorded and recorded["input"] != json.loads(json.dumps(input)):
             raise RunKeyCollisionError(run_key, f"{expected} (this input)", f"{found} (another input)")
-    if recorded.get("status") and recorded["status"] != "running" and recorded.get("output"):
-        return recorded["id"], recorded["output"]
-    return recorded["id"], None
+    run_status = recorded.get("status")
+    if run_status is None:
+        return recorded["id"], None  # fresh insert — this request owns the run
+    if run_status == "running":
+        raise RunInProgressError(run_key, recorded["id"])
+    if run_status == "failed":
+        raise RunPreviouslyFailedError(run_key, recorded["id"])
+    if run_status not in _REPLAYABLE_STATUSES:
+        raise RunNotReplayableError(run_key, recorded["id"], run_status, "unknown run status")
+    if recorded.get("output") is None:
+        raise RunNotReplayableError(run_key, recorded["id"], run_status, "closed without output")
+    return recorded["id"], recorded["output"]
 
 
 def finish_failed(
@@ -404,6 +449,10 @@ def run_screening_dd(
         input={"prospect_id": prospect_id},
         models=models,
     )
+    # Declared outside the guard so a crash after the screening task opened
+    # still records it on the failed run (#497, mirrors due_diligence #330).
+    screening_requested = False
+    screening_response: Any = None
     try:
         # Replay validation lives inside the guard: a stored output that no
         # longer validates is a corrupt record — mark the run failed instead of
@@ -470,9 +519,7 @@ def run_screening_dd(
             memo=memo,
         )
 
-        screening_response = None
         stage_note = None
-        screening_requested = False
         if verdict.proceed:
             try:
                 screening_response = api.request_screening(prospect_id)
@@ -511,5 +558,10 @@ def run_screening_dd(
     except Exception as e:
         # The run's bookkeeping must not hide its failure — a crashed run lands
         # `failed` with the error text so F4 sees it, then the error propagates.
-        finish_failed(api, run_id, e)
+        partial = (
+            {"screening_requested": True, "screening_response": screening_response}
+            if screening_requested
+            else None
+        )
+        finish_failed(api, run_id, e, output=partial)
         raise

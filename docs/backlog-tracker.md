@@ -35,7 +35,7 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 
 | # | Item | Owner | Status |
 | --- | --- | --- | --- |
-| 6 | Restore CI — GitHub billing blocker; nothing merges green today. Blocks verification of everything below | @daemon-blockint-tech (billing/admin) | blocked |
+| 6 | Restore CI — the billing blocker is gone; `docker-scan` fixed in #477/#480, `main` green since b38ab253 | @daemon-blockint-tech (billing/admin) | done (#304) |
 | 7 | Circuit breaker on the decision-model call (`JdkHttpTransport` 30 s) once it sits on a user-facing path | @Fatihmaull | open |
 | 8 | OTEL collector — prerequisite for item 5 | @Aldroun | done — `otel-collector` in `deploy/dokploy.compose.yml` (#306) |
 

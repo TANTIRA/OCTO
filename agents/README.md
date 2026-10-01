@@ -121,7 +121,9 @@ service's only client and its only tool surface.
   platform's `POST /api/v1/agent-runs/{id}/outcome` — `decision` of
   `accepted` agrees, `rejected`/`overridden` disagrees). Returns per-workflow
   agreement, the disagreement queue, and eval-ready cases
-  (`expect_ship` = whether the artifact should have shipped). Deterministic —
+  (`expect_ship` = whether the artifact should have shipped), each referencing
+  its run by `run_id`. Output stays under the platform's 32 KB run-output cap:
+  lists are capped and `truncated` is set, with exact `*_total` counts. Deterministic —
   no model calls. Flag: `OCTO_AGENTS_CALIBRATION_ENABLED`.
 
 ## Warm context (F11)
