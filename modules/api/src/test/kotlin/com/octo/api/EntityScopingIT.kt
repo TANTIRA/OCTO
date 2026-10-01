@@ -10,13 +10,15 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.sql.SQLException
+import java.sql.Statement
 import java.util.UUID
 
 /**
  * V30's entity scoping against the real schema: stamped tenant_id on the pre-V9 fact tables and
  * derived tenancy through tracked_address on the onchain child tables — exercised as the same
  * non-superuser `rls_probe` RowLevelSecurityIT uses, because the container login owns the objects
- * and bypasses RLS. Skipped without Docker.
+ * and bypasses RLS. V41 (#481) is covered by several tracked addresses per scope and one EVM
+ * address on two chains for two tenants. Skipped without Docker.
  */
 @Testcontainers(disabledWithoutDocker = true)
 class EntityScopingIT {
@@ -38,6 +40,15 @@ class EntityScopingIT {
             .toString()
             .replace("-", "")
             .replace('0', '1')
+    private val walletA2 =
+        UUID
+            .randomUUID()
+            .toString()
+            .replace("-", "")
+            .replace('0', '1')
+
+    // One lowercase-hex EVM address tracked on two chains by two tenants (allowed since V17).
+    private val evmShared = "0x" + (UUID.randomUUID().toString() + UUID.randomUUID()).replace("-", "").take(40)
     private val walletUntracked =
         UUID
             .randomUUID()
@@ -75,9 +86,10 @@ class EntityScopingIT {
                 s.execute("create role rls_probe login password 'rls_probe'")
                 s.execute("grant usage on schema octo to rls_probe")
                 s.execute(
-                    "grant select on octo.ledger_event, octo.onchain_transfer, " +
+                    "grant select on octo.ledger_event, octo.onchain_transfer, octo.tracked_address_event, " +
                         "octo.tracked_address, octo.tenant_setting, octo.agent_run to rls_probe",
                 )
+                s.execute("grant insert on octo.tracked_address_event, octo.onchain_transfer to rls_probe")
 
                 s.execute(
                     "insert into octo.tenant (id, slug, display_name, source_system, correlation_id) " +
@@ -109,7 +121,19 @@ class EntityScopingIT {
                 s.execute(
                     "insert into octo.tracked_address (chain, address, tenant_id, source_system, correlation_id) values " +
                         "('solana', '$walletA', '$tenantA', 'test', gen_random_uuid()), " +
-                        "('solana', '$walletOther', '$tenantB', 'test', gen_random_uuid())",
+                        "('solana', '$walletOther', '$tenantB', 'test', gen_random_uuid()), " +
+                        "('solana', '$walletA2', '$tenantA', 'test', gen_random_uuid()), " +
+                        "('arbitrum-one', '$evmShared', '$tenantA', 'test', gen_random_uuid()), " +
+                        "('arbitrum-sepolia', '$evmShared', '$tenantB', 'test', gen_random_uuid())",
+                )
+                s.execute(
+                    "insert into octo.tracked_address_event " +
+                        "(chain, address, event_type, actor, occurred_at, correlation_id) values " +
+                        "('solana', '$walletA', 'watched', 'it', now(), gen_random_uuid()), " +
+                        "('solana', '$walletA2', 'watched', 'it', now(), gen_random_uuid()), " +
+                        "('solana', '$walletOther', 'watched', 'it', now(), gen_random_uuid()), " +
+                        "('arbitrum-one', '$evmShared', 'watched', 'it', now(), gen_random_uuid()), " +
+                        "('arbitrum-sepolia', '$evmShared', 'watched', 'it', now(), gen_random_uuid())",
                 )
                 // Derived rows on each wallet.
                 s.execute(
@@ -121,7 +145,11 @@ class EntityScopingIT {
                         "('x-${UUID.randomUUID()}', 'solana', 'sig-b', 2, now(), 'finalized', " +
                         "'$walletOther', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid()), " +
                         "('x-${UUID.randomUUID()}', 'solana', 'sig-u', 3, now(), 'finalized', " +
-                        "'$walletUntracked', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid())",
+                        "'$walletUntracked', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid()), " +
+                        "('x-${UUID.randomUUID()}', 'arbitrum-one', 'sig-e1', 4, now(), 'finalized', " +
+                        "'$evmShared', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid()), " +
+                        "('x-${UUID.randomUUID()}', 'arbitrum-sepolia', 'sig-e2', 5, now(), 'finalized', " +
+                        "'$evmShared', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid())",
                 )
 
                 // V31 settings: one key per tenant, same key name — the boundary, not the key, isolates.
@@ -147,28 +175,45 @@ class EntityScopingIT {
         }
     }
 
+    // Runs one statement as rls_probe under the given scope, in a transaction that is rolled back.
+    private fun <T> asProbe(
+        user: String?,
+        tenants: String?,
+        block: (Statement) -> T,
+    ): T =
+        probe.connection.use { c ->
+            c.autoCommit = false
+            try {
+                c
+                    .prepareStatement(
+                        "select set_config('app.user_id', ?, true), set_config('app.tenant_ids', ?, true)",
+                    ).use { s ->
+                        s.setString(1, user)
+                        s.setString(2, tenants)
+                        s.execute()
+                    }
+                c.createStatement().use(block)
+            } finally {
+                c.rollback()
+            }
+        }
+
     private fun scopedCount(
         sql: String,
         user: String? = null,
         tenants: String? = null,
     ): Int =
-        probe.connection.use { c ->
-            c.autoCommit = false
-            c
-                .prepareStatement(
-                    "select set_config('app.user_id', ?, true), set_config('app.tenant_ids', ?, true)",
-                ).use { s ->
-                    s.setString(1, user)
-                    s.setString(2, tenants)
-                    s.execute()
-                }
-            c.createStatement().use { s ->
-                s.executeQuery(sql).use { rs ->
-                    rs.next()
-                    rs.getInt(1)
-                }
+        asProbe(user, tenants) { s ->
+            s.executeQuery(sql).use { rs ->
+                rs.next()
+                rs.getInt(1)
             }
         }
+
+    private fun scopedUpdate(
+        sql: String,
+        tenants: String,
+    ): Int = asProbe(null, tenants) { s -> s.executeUpdate(sql) }
 
     private val runId = UUID.randomUUID()
     private val ledgerRows = "select count(*) from octo.ledger_event where ingestion_run_id = '$runId'"
@@ -205,6 +250,96 @@ class EntityScopingIT {
         assertThat(scopedCount(transferRows, user = "$member")).isEqualTo(1)
         assertThat(scopedCount(transferRows, tenants = "$tenantA")).isEqualTo(1)
         assertThat(scopedCount(transferRows, tenants = "*")).isEqualTo(3)
+    }
+
+    @Test
+    fun `tracked address events resolve to their own address with several tracked per scope`() {
+        // V27 self-compared chain and address: any scope seeing two tracked addresses raised
+        // "more than one row returned by a subquery", and one visible address claimed every event.
+        val events =
+            "select count(*) from octo.tracked_address_event " +
+                "where address in ('$walletA', '$walletA2', '$walletOther', '$evmShared')"
+        assertThat(scopedCount(events, tenants = "$tenantA")).isEqualTo(3)
+        assertThat(scopedCount(events, user = "$member")).isEqualTo(3)
+        assertThat(scopedCount(events, tenants = "$tenantB")).isEqualTo(2)
+        assertThat(scopedCount(events, tenants = "*")).isEqualTo(5)
+    }
+
+    @Test
+    fun `tracked address event writes are checked against their own address`() {
+        val event = { chain: String, address: String, type: String ->
+            "insert into octo.tracked_address_event " +
+                "(chain, address, event_type, actor, rationale, occurred_at, correlation_id) values " +
+                "('$chain', '$address', '$type', 'it', 'rls test', now(), gen_random_uuid())"
+        }
+        assertThat(scopedUpdate(event("solana", walletA2, "unwatched"), "$tenantA")).isEqualTo(1)
+        assertThat(scopedUpdate(event("arbitrum-one", evmShared, "unwatched"), "$tenantA")).isEqualTo(1)
+        // 'watched' on purpose: the rules trigger cannot see the other tenant's history, so it
+        // passes the row through and the policy's WITH CHECK is what rejects it.
+        assertThatThrownBy { scopedUpdate(event("solana", walletOther, "watched"), "$tenantA") }
+            .isInstanceOf(SQLException::class.java)
+            .hasMessageContaining("row-level security")
+        assertThatThrownBy { scopedUpdate(event("arbitrum-sepolia", evmShared, "watched"), "$tenantA") }
+            .isInstanceOf(SQLException::class.java)
+            .hasMessageContaining("row-level security")
+    }
+
+    @Test
+    fun `the same EVM address on two chains resolves per chain`() {
+        // V30 self-compared chain: tenant A saw tenant B's arbitrum-sepolia row, '*' errored.
+        val evmRows = "select count(*) from octo.onchain_transfer where wallet = '$evmShared'"
+        assertThat(scopedCount(evmRows, tenants = "$tenantA")).isEqualTo(1)
+        assertThat(scopedCount(evmRows, tenants = "$tenantB")).isEqualTo(1)
+        assertThat(scopedCount(evmRows, tenants = "*")).isEqualTo(2)
+
+        val transfer = { chain: String ->
+            "insert into octo.onchain_transfer (external_id, chain, signature, slot, " +
+                "block_time, commitment, wallet, amount_raw, decimals, direction, " +
+                "transfer_kind, source_system, actor, ingestion_run_id, correlation_id) values " +
+                "('x-${UUID.randomUUID()}', '$chain', 'sig-w', 6, now(), 'finalized', " +
+                "'$evmShared', 1, 0, 'in', 'transfer-in', 'test', 'it', gen_random_uuid(), gen_random_uuid())"
+        }
+        assertThat(scopedUpdate(transfer("arbitrum-one"), "$tenantA")).isEqualTo(1)
+        assertThatThrownBy { scopedUpdate(transfer("arbitrum-sepolia"), "$tenantA") }
+            .isInstanceOf(SQLException::class.java)
+            .hasMessageContaining("row-level security")
+    }
+
+    @Test
+    fun `every tracked_address-derived policy compares against the outer row`() {
+        // Catalog check for all five V41 policies, including the three without seeded rows above.
+        val outer =
+            mapOf(
+                "tracked_address_event" to "address",
+                "onchain_transfer" to "wallet",
+                "onchain_balance_snapshot" to "wallet",
+                "instrument_flow" to "wallet",
+                "onchain_claim_evidence" to "subject_address",
+            )
+        owner.connection.use { c ->
+            c.createStatement().use { s ->
+                s
+                    .executeQuery(
+                        "select tablename, qual, with_check from pg_policies " +
+                            "where schemaname = 'octo' and policyname = 'tenant_scope' " +
+                            "and tablename in (${outer.keys.joinToString { "'$it'" }})",
+                    ).use { rs ->
+                        var seen = 0
+                        while (rs.next()) {
+                            val table = rs.getString(1)
+                            for (expr in listOf(rs.getString(2), rs.getString(3))) {
+                                assertThat(expr)
+                                    .contains("ta.chain = $table.chain")
+                                    .contains("ta.address = $table.${outer.getValue(table)}")
+                                    .doesNotContain("ta.chain = ta.chain")
+                                    .doesNotContain("ta.address = ta.address")
+                            }
+                            seen++
+                        }
+                        assertThat(seen).isEqualTo(outer.size)
+                    }
+            }
+        }
     }
 
     @Test
