@@ -71,7 +71,7 @@ class ReportEndpointTest {
     ) = post("/api/v1/reports").contentType(MediaType.APPLICATION_JSON).content(json).with(jwt().jwt { it.subject(subject.toString()) })
 
     @Test
-    fun `an analyst queues a job and reads it back, and the parameters reach the store as json`() {
+    fun `an analyst queues a job and reads it back, the parameters reach the store as json, the draft stays sealed`() {
         run { mvc ->
             val location =
                 mvc
@@ -100,7 +100,9 @@ class ReportEndpointTest {
                 .perform(get("/api/v1/reports/$id").with(jwt().jwt { it.subject(viewer.toString()) }))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.status").value("done"))
-                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+                // Unreleased: the draft and its hash stay behind the release gate on the status read too (#482).
+                .andExpect(jsonPath("$.result").doesNotExist())
+                .andExpect(jsonPath("$.artifactSha256").doesNotExist())
         }
     }
 

@@ -121,6 +121,11 @@ class ReleaseEndpointTest {
                 .andExpect(jsonPath("$.released").value(false))
                 .andExpect(jsonPath("$.result").doesNotExist())
             mvc.perform(post("/api/v1/reports/$id/release").with(asUser(analyst))).andExpect(status().isConflict)
+            mvc
+                .perform(get("/api/v1/reports/$id").with(asUser(viewer)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.result").doesNotExist())
+                .andExpect(jsonPath("$.artifactSha256").doesNotExist())
 
             val taskId = jobs.load(id, TenantScope.All)!!.approvalTaskId!!
             assertThat(taskStates.getValue(taskId).task.requestedBy).isEqualTo(analyst.toString())
@@ -130,6 +135,11 @@ class ReleaseEndpointTest {
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.released").value(true))
                 .andExpect(jsonPath("$.taskStatus").value("approved"))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+                .andExpect(jsonPath("$.artifactSha256").value("a".repeat(64)))
+            mvc
+                .perform(get("/api/v1/reports/$id").with(asUser(viewer)))
+                .andExpect(status().isOk)
                 .andExpect(jsonPath("$.result.tvpi").value(1.3))
                 .andExpect(jsonPath("$.artifactSha256").value("a".repeat(64)))
         }

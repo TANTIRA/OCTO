@@ -35,6 +35,7 @@ import java.util.function.Supplier
  */
 class AgentRunsEndpointTest {
     private val member = UUID.randomUUID()
+    private val otherMember = UUID.randomUUID()
     private val viewer = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val runs = FakeAgentRuns()
@@ -51,7 +52,7 @@ class AgentRunsEndpointTest {
                 Supplier {
                     TenantDirectory { id ->
                         when (id) {
-                            member -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
+                            member, otherMember -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
                             viewer -> listOf(TenantAccess(tenantId, "acme", TenantRole.VIEWER))
                             else -> emptyList()
                         }
@@ -345,6 +346,49 @@ class AgentRunsEndpointTest {
                         .content("""{"status":"completed","verdict":[1,2,3]}""")
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `only the actor that opened a run can finish it, another member sees 404`() {
+        run { mvc ->
+            val id = mvc.recorded(member, "rk-actor")
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs/$id/finish")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"status":"completed","verdict":{"advance":{"noul":0.99}}}""")
+                        .with(jwt().jwt { it.subject(otherMember.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/agent-runs/$id/finish")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"status":"completed","verdict":{"advance":{"noul":0.8}}}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.verdict.advance.noul").value(0.8))
+        }
+    }
+
+    @Test
+    fun `requestIds must be a bounded JSON object, and null is allowed`() {
+        run { mvc ->
+            fun recordWith(requestIds: String) =
+                mvc.perform(
+                    post("/api/v1/agent-runs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """{"tenantId":"$tenantId","workflow":"screening-dd","runKey":"${UUID.randomUUID()}",""" +
+                                """"subjectType":"prospect","subjectId":"p-1","input":{},"models":{},"requestIds":$requestIds}""",
+                        ).with(jwt().jwt { it.subject(member.toString()) }),
+                )
+            for (bad in listOf("\"req-1\"", "[\"req-1\"]", """{"judge":"${"x".repeat(40_000)}"}""")) {
+                recordWith(bad).andExpect(status().isBadRequest)
+            }
+            assertThat(runs.list(tenantId, null, null, 200, TenantScope.User(member))).isEmpty()
+            recordWith("null").andExpect(status().isCreated)
+            recordWith("""{"judge":"req-1"}""").andExpect(status().isCreated)
         }
     }
 

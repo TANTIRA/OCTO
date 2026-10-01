@@ -1,5 +1,8 @@
 package com.octo.api.access
 
+import com.fasterxml.jackson.core.JacksonException
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.access.persistence.AccessAdministration
 import com.octo.api.access.persistence.AccessProvenance
 import com.octo.api.access.persistence.TenantSettingKeys
@@ -38,6 +41,7 @@ class AdminTenantsController(
     private val directory: TenantDirectory,
     private val platform: PlatformAdmin,
     private val settings: TenantSettings,
+    private val json: ObjectMapper,
 ) {
     @PostMapping("/api/v1/admin/tenants")
     fun create(
@@ -141,6 +145,10 @@ class AdminTenantsController(
         if (body.key == TenantSettingKeys.RATE_LIMIT_PER_MINUTE) {
             requirePlatformAdmin(jwt)
         }
+        // The column is jsonb: unparseable text would surface as a 22P02 from the cast (#502).
+        if (!isJson(body.value)) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "value must be valid JSON")
+        }
         try {
             settings.put(
                 tenantId,
@@ -189,11 +197,25 @@ class AdminTenantsController(
         role?.let { runCatching { TenantRole.fromWireValue(it) }.getOrNull() }
             ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "event needs a valid role")
 
+    /** One complete JSON document — empty text and trailing content are refused, as the jsonb cast would. */
+    private fun isJson(value: String): Boolean =
+        try {
+            !json
+                .reader()
+                .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                .readTree(value)
+                .isMissingNode
+        } catch (e: JacksonException) {
+            false
+        }
+
+    /** Fixed reasons only: the driver's message names constraints and echoes row values, so it stays in the cause. */
     private fun translate(e: SQLException): ResponseStatusException =
         when (e.sqlState) {
             "23505" -> ResponseStatusException(HttpStatus.CONFLICT, "a row with that identity already exists", e)
-            "23514", "23502", "23503" -> ResponseStatusException(HttpStatus.BAD_REQUEST, e.message, e)
-            else -> ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.message, e)
+            "23514", "23502", "23503", "22P02", "22P05" ->
+                ResponseStatusException(HttpStatus.BAD_REQUEST, "request violates a data constraint", e)
+            else -> ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "the request could not be stored", e)
         }
 
     data class CreateTenant(

@@ -41,17 +41,31 @@ class ContactEndpointTest {
             "role": "COO", "aumBand": "$250M – $1B", "phone": "+1 555 000 1234", "message": "three funds"}"""
 
     @Test
-    fun `an anonymous submission is accepted and recorded with the caller's address`() {
+    fun `an anonymous submission is recorded with the proxy-appended address, not a client-supplied one`() {
         run { mvc ->
             mvc
                 .perform(
                     post("/api/v1/contact")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(lead)
-                        .header("X-Forwarded-For", "203.0.113.7, 10.0.0.1"),
+                        .header("X-Forwarded-For", "198.51.100.66, 203.0.113.7"),
                 ).andExpect(status().isAccepted)
             assertThat(recorded.single().email).isEqualTo("jane@fund.com")
             assertThat(recorded.single().sourceIp).isEqualTo("203.0.113.7")
+        }
+    }
+
+    @Test
+    fun `an oversized forwarding header is capped to the source_ip column bound, not a failed write`() {
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/contact")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(lead)
+                        .header("X-Forwarded-For", "x".repeat(300)),
+                ).andExpect(status().isAccepted)
+            assertThat(recorded.single().sourceIp).hasSize(255)
         }
     }
 
