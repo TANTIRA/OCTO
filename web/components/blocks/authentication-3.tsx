@@ -17,26 +17,26 @@ import {
   KeyRound,
   Loader2,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { landedFromRecoveryLink, supabase } from "@/lib/supabase";
 
 // Wallets are browser objects — render only on the client.
 const WalletSignIn = dynamic(() => import("@/components/wallet-sign-in"), {
   ssr: false,
 });
 
-const cx = (...c: (string | false | null | undefined)[]) =>
+export const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
 
-const focus =
+export const focus =
   "focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))]";
 
-const transition =
+export const transition =
   "transition-[background-color,border-color,color,transform] duration-150 ease-out";
 
-const field =
+export const field =
   "h-9 w-full rounded-[var(--rb-r-md,8px)] border border-neutral-200 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 transition-colors duration-150 hover:border-neutral-300 focus:border-neutral-900 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:hover:border-neutral-700 dark:focus:border-white";
 
-const btnPrimary =
+export const btnPrimary =
   "inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--rb-r-lg,10px)] bg-[var(--rb-accent,oklch(20.5%_0_0))] px-4 text-sm font-medium text-[var(--rb-accent-fg,oklch(100%_0_0))] hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(20.5%_0_0))_90%,transparent)] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 dark:bg-[var(--rb-accent,oklch(100%_0_0))] dark:text-[var(--rb-accent-fg,oklch(20.5%_0_0))] dark:hover:bg-[color-mix(in_oklab,var(--rb-accent,oklch(100%_0_0))_90%,transparent)]";
 
 const btnProvider =
@@ -45,7 +45,7 @@ const btnProvider =
 const iconBtn =
   "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--rb-r-md,8px)] bg-white text-neutral-600 hover:bg-neutral-100 active:scale-[0.97] dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-800";
 
-const linkClass =
+export const linkClass =
   "cursor-pointer rounded-[var(--rb-r-xs,4px)] text-neutral-900 underline decoration-neutral-300 underline-offset-[3px] transition-colors duration-150 hover:decoration-neutral-900 dark:text-neutral-100 dark:decoration-neutral-600 dark:hover:decoration-white";
 
 function GoogleMark({ className }: { className?: string }) {
@@ -126,10 +126,13 @@ export default function Authentication3() {
     return () => clearInterval(id);
   }, [step]);
 
-  // Already signed in — nothing to do here, go straight to the app.
+  // Already signed in — go straight to the app. A password-reset link that
+  // still points here (sent before #498) also yields a session: send it to
+  // the set-new-password form instead, or the reset would never happen.
   useEffect(() => {
     supabase?.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.replace("/app");
+      if (!data.session) return;
+      window.location.replace(landedFromRecoveryLink ? "/login/reset" : "/app");
     });
   }, []);
 
@@ -198,7 +201,7 @@ export default function Authentication3() {
     setError(null);
     setNotice(null);
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login`,
+      redirectTo: `${window.location.origin}/login/reset`,
     });
     setRecovering(false);
     setNotice(
