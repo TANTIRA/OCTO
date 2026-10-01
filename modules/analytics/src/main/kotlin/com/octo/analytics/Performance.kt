@@ -57,6 +57,10 @@ data class PerformanceReport(
 
 private val MC = MathContext.DECIMAL64
 
+/** XIRR search bracket: just above -100%, up to +100,000,000%. */
+private const val XIRR_FLOOR = -0.999999
+private const val XIRR_CAP = 1e6
+
 private fun ratio(
     numerator: BigDecimal,
     denominator: BigDecimal,
@@ -100,8 +104,9 @@ fun pool(series: List<CashFlowSeries>): CashFlowSeries {
 /**
  * XIRR with an actual/365 year fraction (methodology §2.1).
  *
- * Returns null when the NPV curve does not cross zero exactly once over (-99%, +10,000%). A pattern
- * with several roots has no single meaningful rate, so the function reports none instead of picking one.
+ * Returns null when the NPV curve does not cross zero exactly once over (-99.9999%, +100,000,000%). A
+ * pattern with several roots has no single meaningful rate, so the function reports none instead of
+ * picking one.
  */
 fun xirr(flows: List<CashFlow>): Double? {
     val nonZero = flows.filter { it.amount.signum() != 0 }
@@ -111,7 +116,11 @@ fun xirr(flows: List<CashFlow>): Double? {
     val npv = { r: Double -> points.sumOf { (t, c) -> c / (1 + r).pow(t) } }
 
     // ponytail: fixed grid scan, two roots closer than one grid step read as none; refine the grid if that bites.
-    val grid = (0..400).map { -0.99 + (101.0 - -0.99) * (it / 400.0).pow(3) }
+    // Cubic spacing packs points near -100% (near-total losses); the doubling tail past +10,000% reaches
+    // short-dated large gains, capped where no fund return is plausible.
+    val grid =
+        (0..400).map { XIRR_FLOOR + (101.0 - XIRR_FLOOR) * (it / 400.0).pow(3) } +
+            generateSequence(203.0) { 2 * it + 1 }.takeWhile { it <= XIRR_CAP }
     val crossings = grid.zipWithNext().filter { (a, b) -> npv(a) == 0.0 || npv(a) * npv(b) < 0 }
     if (crossings.size != 1) return null
     var (lo, hi) = crossings.single()
