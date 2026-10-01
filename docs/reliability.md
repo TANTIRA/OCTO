@@ -42,6 +42,15 @@ Multi-window burn-rate alerts on the availability and durability SLIs, once the 
 | 6 h | 6× | page | same |
 | 3 d | 1× | ticket | reliability backlog item |
 
+The availability rule pack and deterministic tests are in [`deploy/alerts/`](../deploy/alerts/README.md),
+with paired short windows of 5m, 30m and 6h respectively. The pack requires a
+Prometheus-compatible evaluator and verified deployment/metric labels; it is not
+active under the collector's debug exporter. Durability rules remain pending
+transaction-outcome instrumentation. The availability pack also does not yet
+implement the planned-maintenance exclusion; notification silences do not remove
+maintenance requests from the SLI. See its README for activation requirements
+and the [availability runbook](runbooks/availability-burn.md) for operator actions.
+
 Non-SLO alerts that page: readiness failing for more than `start_period` after a deploy; Flyway reporting a failed migration; the audit chain failing verification (`verifyAuditChain` returns a break).
 
 Every page links to a runbook. Alerts without an action are deleted.
