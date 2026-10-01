@@ -63,6 +63,10 @@ export function messageFor(err: unknown): string {
     if (err.status === 503) return "the backing service is unavailable";
     return `request failed (HTTP ${err.status})`;
   }
+  // AbortSignal.timeout() rejects with a DOMException named TimeoutError.
+  if (err instanceof Error && err.name === "TimeoutError") {
+    return "the API did not respond in time";
+  }
   return "could not reach the API";
 }
 
@@ -78,17 +82,4 @@ export async function myAccess(): Promise<Access> {
     signal: AbortSignal.timeout(15_000),
   });
   return { tenants: body.tenants, platformAdmin: isPlatformAdmin(body) };
-}
-
-/**
- * Platform-admin verdict for the ops surface (#312). Any failure is "no".
- * Standalone read for /admin, which has no TenantProvider; inside the app
- * shell the verdict comes from the provider's single myAccess() read.
- */
-export async function amPlatformAdmin(): Promise<boolean> {
-  try {
-    return isPlatformAdmin(await getJson<unknown>("/api/v1/me/access"));
-  } catch {
-    return false;
-  }
 }
