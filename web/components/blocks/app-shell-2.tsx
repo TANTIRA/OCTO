@@ -408,7 +408,13 @@ export default function AppShell2() {
     retry: retryTenants,
   } = useTenants();
   // Gates the g+x chord to the ops console (#312); null (loading) counts as no.
-  const platformAdmin = usePlatformAdmin() === true;
+  // Read through a ref so the verdict landing doesn't re-subscribe the key
+  // handler mid-chord (a pending "g" would be dropped and "g l" open Reports).
+  const isPlatformAdmin = usePlatformAdmin() === true;
+  const platformAdmin = useRef(isPlatformAdmin);
+  useEffect(() => {
+    platformAdmin.current = isPlatformAdmin;
+  }, [isPlatformAdmin]);
   const content = useScrollFade<HTMLElement>();
   const shouldFocusRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -461,7 +467,7 @@ export default function AppShell2() {
       }
       const dest = KEY_DESTINATIONS[chord ? `g ${key}` : key];
       chord = false;
-      if (!dest || (dest === "/admin" && !platformAdmin)) return;
+      if (!dest || (dest === "/admin" && !platformAdmin.current)) return;
       event.preventDefault();
       if (dest.startsWith("/")) window.location.assign(dest);
       else selectArea(dest);
@@ -471,6 +477,7 @@ export default function AppShell2() {
       document.removeEventListener("keydown", onKey);
       clearTimeout(timer);
     };
+  }, [selectArea]);
   }, [selectArea, platformAdmin]);
 
   useEffect(() => {

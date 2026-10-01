@@ -100,12 +100,25 @@ class ReportJobStoreIT {
     @Test
     fun `an expired claim is reclaimed and only the new claimant can finish`() {
         generateSequence { store.claimNext() }.toList()
+
+        // A live lease is never reclaimed. Checked under the 5-minute lease so a slow run cannot expire it mid-assertion.
+        val held = store.submit(request(tenant()), TenantScope.All)
+        val holder = store.claimNext()!!
+        assertThat(holder.id).isEqualTo(held.id)
+        assertThat(store.claimNext()).isNull()
+        store.complete(held.id, holder.claimToken!!, "{}")
+
+        // The trigger forbids moving claimed_until backwards, so expiry is real time: a short lease, then poll until it lapses.
         val job = store.submit(request(tenant()), TenantScope.All)
         val initial = JdbcReportJobStore(dataSource, Duration.ofMillis(100)).claimNext()!!
         assertThat(initial.id).isEqualTo(job.id)
-        assertThat(store.claimNext()).isNull()
-        Thread.sleep(250)
-        val reclaimed = store.claimNext()!!
+        val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos()
+        var reclaimedOrNull = store.claimNext()
+        while (reclaimedOrNull == null && System.nanoTime() < deadline) {
+            Thread.sleep(50)
+            reclaimedOrNull = store.claimNext()
+        }
+        val reclaimed = checkNotNull(reclaimedOrNull) { "expired claim on ${job.id} was not reclaimed within 10s" }
         assertThat(reclaimed.id).isEqualTo(job.id)
         assertThat(reclaimed.claimToken).isNotEqualTo(initial.claimToken)
         assertThat(store.renew(job.id, initial.claimToken!!)).isFalse()

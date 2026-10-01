@@ -55,6 +55,10 @@ class AdminTenantsController(
                     registeredAt = Instant.now(),
                     provenance = AccessProvenance(SOURCE, UUID.randomUUID()),
                 )
+            } catch (e: IllegalArgumentException) {
+                // The state machine refused the first grant (e.g. a platform admin naming themselves).
+                // The whole provision rolled back; it's the caller's request, not a server fault.
+                throw ResponseStatusException(HttpStatus.CONFLICT, e.message, e)
             } catch (e: SQLException) {
                 throw translate(e)
             }

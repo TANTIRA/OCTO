@@ -56,9 +56,6 @@ class MetricsPortConfig(
     fun metricsPortFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .securityMatcher(RequestMatcher { it.localPort == metricsPort })
-            // Anonymous read-only GET; no cookies or sessions exist on this port.
-            // codeql[java/spring-disabled-csrf-protection]
-            .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
                 it
