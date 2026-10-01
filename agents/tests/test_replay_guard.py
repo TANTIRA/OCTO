@@ -7,11 +7,12 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from octo_agents.api_client import OctoApiClient
 from octo_agents.workflows.calibration import run_calibration
 
+from .fakes import StrictFake
 
-class ReplayApi(OctoApiClient):
+
+class ReplayApi(StrictFake):
     """record_run echoes a closed run whose stored output no longer validates."""
 
     def __init__(self, *, output: Any) -> None:

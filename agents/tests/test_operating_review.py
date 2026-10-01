@@ -8,12 +8,13 @@ from typing import Any
 
 import httpx
 
-from octo_agents.api_client import OctoApiClient
 from octo_agents.judge import JudgeClient
 from octo_agents.workflows.operating_review import run_operating_review
 
+from .fakes import StrictFake
 
-class FakeApi(OctoApiClient):
+
+class FakeApi(StrictFake):
     """Only the run ledger and warm-context read are touched."""
 
     def __init__(self) -> None:
@@ -26,8 +27,7 @@ class FakeApi(OctoApiClient):
         self.calls.append(name)
         raise AttributeError(name)
 
-    # Signatures mirror OctoApiClient exactly — a production-side rename or
-    # new required arg must break here, not pass silently through **kwargs.
+    # StrictFake binds every call against OctoApiClient's real signature.
     def record_run(
         self,
         *,

@@ -58,5 +58,5 @@ Unchanged from ADR-0003: Supabase PostgreSQL owns the append-only IBOR ledger, w
 - [x] `ontology/octo-investment.cypher` validates against a live Neo4j Community instance in CI (`Neo4jSchemaIT`, pinned image `neo4j:2025.12.1-community`)
 - [ ] Dual-write ingestion path with atomic failure semantics implemented
 - [ ] Graph-ledger reconciliation report passes on seeded test data
-- [ ] Neo4j backup/restore and upgrade runbooks exist
-- [ ] Performance test: look-through aggregation over 5-level hierarchy within reporting SLA
+- [x] Neo4j backup/restore and upgrade runbooks exist (`restore-runbook.md` §6, `runbooks/neo4j-upgrade.md`, #308)
+- [x] Performance test: look-through aggregation over 5-level hierarchy within reporting SLA (`modules/lookthrough/src/test/kotlin/com/octo/lookthrough/ExposurePerfTest.kt`, #308)

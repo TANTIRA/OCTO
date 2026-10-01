@@ -42,6 +42,15 @@ Multi-window burn-rate alerts on the availability and durability SLIs, once the 
 | 6 h | 6× | page | same |
 | 3 d | 1× | ticket | reliability backlog item |
 
+The availability rule pack and deterministic tests are in [`deploy/alerts/`](../deploy/alerts/README.md),
+with paired short windows of 5m, 30m and 6h respectively. The pack requires a
+Prometheus-compatible evaluator and verified deployment/metric labels; it is not
+active under the collector's debug exporter. Durability rules remain pending
+transaction-outcome instrumentation. The availability pack also does not yet
+implement the planned-maintenance exclusion; notification silences do not remove
+maintenance requests from the SLI. See its README for activation requirements
+and the [availability runbook](runbooks/availability-burn.md) for operator actions.
+
 Non-SLO alerts that page: readiness failing for more than `start_period` after a deploy; Flyway reporting a failed migration; the audit chain failing verification (`verifyAuditChain` returns a break).
 
 Every page links to a runbook. Alerts without an action are deleted.
@@ -65,7 +74,7 @@ State of `main` on 2026-09-27. ✅ passes, ⚠️ acceptable for now, ❌ must f
 | Dependencies | api waits for what it needs | ⚠️ | `depends_on` covers the graph store only; PostgreSQL lives in another compose project, so readiness plus `start_period` is the real gate |
 | Auth | fails closed without a JWKS URL | ✅ | `SecurityConfig` |
 | Data | migrations run as a separate role; the runtime role cannot update or delete | ✅ | `DB_MIGRATION_*`, V3, `RuntimeRoleGrantsIT` |
-| Data | backups and point-in-time recovery | ⚠️ | ADR-0002 assigns it to the operator; [restore-runbook.md](restore-runbook.md) now covers the procedure — a rehearsed restore is still pending |
+| Data | backups and point-in-time recovery | ⚠️ | ADR-0002 assigns it to the operator; [restore-runbook.md](restore-runbook.md) now covers the procedure — a rehearsed restore is still pending, and blocked: the deployed DB has `archive_mode = off`, so there is no WAL archive to rehearse PITR from (#301) |
 | Release | rollback path for every migration | ⚠️ | each PR states one; none has been rehearsed. AGENTS.md requires a tested rollback for T2 |
 | Testing | integration tests run in CI | ❌ | CI is blocked by GitHub billing; the ITs run only on developer machines |
 
@@ -77,7 +86,7 @@ State of `main` on 2026-09-27. ✅ passes, ⚠️ acceptable for now, ❌ must f
 4. ~~Backup and restore runbook~~ — `docs/restore-runbook.md`; the rehearsed restore half is still open.
 5. ~~Compose follow-ups~~ — healthcheck on readiness and `MaxRAMPercentage` in #76; the OTEL variable returns with the collector (#306).
 6. **Migration rollback rehearsal** for V5–V7 on staging, as AGENTS.md requires for T2.
-7. **Timeouts on outbound calls.** `JdkHttpTransport` has a 30-second request timeout; the decision-model call sits on the ingestion path, so a slow vendor becomes a slow ingest. Add a circuit breaker once the call is on a user-facing path.
+7. **Timeouts on outbound calls.** `JdkHttpTransport` has a 30-second request timeout. No running service calls the decision model yet: `DocumentClassifier` and `ClaimSupportAssessor` are not wired into any service, and only `DecisionModelEvalTest` constructs the client. The PR that wires that call into a running service adds the circuit breaker, so that a slow vendor fails fast instead of stalling the caller (#305).
 8. **Burn-rate alerts.** ~~OTEL collector~~ ships (#306) and metrics flow into it; next is a backend behind `OTELCOL_EXPORT=otlphttp` that stores them and evaluates §3.
 
 ## 6. What this document does not cover

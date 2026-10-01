@@ -10,13 +10,15 @@ from typing import Any
 import httpx
 import pytest
 
-from octo_agents.api_client import OctoApiClient, OctoApiError
+from octo_agents.api_client import OctoApiError
 from octo_agents.judge import JudgeClient
 from octo_agents.workflows import screening_dd
 from octo_agents.workflows.screening_dd import run_screening_dd
 
+from .fakes import StrictFake
 
-class FakeApi(OctoApiClient):
+
+class FakeApi(StrictFake):
     """Just enough OctoApiClient for the workflow — records the mediated writes."""
 
     def __init__(self, events: list[Any]) -> None:

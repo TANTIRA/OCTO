@@ -145,10 +145,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # OCI refs must be lowercase; metadata-action lowercases for docker-build, so match it here.
+      - name: Resolve image ref
+        id: image
+        run: echo "ref=$(echo "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]'):${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ steps.image.outputs.ref }}
           format: sarif
           output: trivy-results.sarif
           # Findings are reported to the Security tab, not used as a build gate. Without this

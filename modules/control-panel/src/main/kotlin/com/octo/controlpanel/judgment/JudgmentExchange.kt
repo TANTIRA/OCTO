@@ -8,8 +8,10 @@ data class TokenUsage(
     val cost: Double? = null,
 )
 
+// zdr is always true: OpenRouter must reject any non-ZDR route, not just the local registry (ADR-0005).
 internal data class ProviderRouting(
     @get:JsonProperty("allow_fallbacks") val allowFallbacks: Boolean,
+    val zdr: Boolean = true,
 )
 
 internal data class DecisionsRequest(

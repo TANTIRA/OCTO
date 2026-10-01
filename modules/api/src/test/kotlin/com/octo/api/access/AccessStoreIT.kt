@@ -160,6 +160,8 @@ class AccessStoreIT {
                 holder
                     .prepareStatement(
                         "select pg_advisory_xact_lock(hashtextextended('octo.tenant_member:' || ?::text || ':' || ?::text, 0))",
+                        "select pg_advisory_xact_lock(" +
+                            "hashtextextended('octo.tenant_member:' || ?::text || ':' || ?::text, 0))",
                     ).use { statement ->
                         statement.setObject(1, tenant.id)
                         statement.setObject(2, userId)
@@ -177,19 +179,33 @@ class AccessStoreIT {
         assertThat(store.tenantsOf(userId).single().role).isEqualTo(TenantRole.ANALYST)
 
         connect().use { connection ->
-            connection
-                .createStatement()
-                .use {
-                    it.executeQuery(
+            connection.createStatement().use { statement ->
+                statement
+                    .executeQuery(
                         """
                         select pg_get_functiondef(p.oid), array_to_string(p.proconfig, ',')
                         from pg_proc p where p.oid = 'octo.tenant_member_event_rules()'::regprocedure
                         """.trimIndent(),
-                    )
-                }.use { rows ->
-                    assertThat(rows.next()).isTrue()
-                    assertThat(rows.getString(1)).contains("'octo.tenant_member:'").doesNotContain("mesta.")
-                    assertThat(rows.getString(2)).isEqualTo("search_path=pg_catalog, pg_temp")
+                    ).use { rows ->
+                        assertThat(rows.next()).isTrue()
+                        assertThat(rows.getString(1)).contains("'octo.tenant_member:'").doesNotContain("mesta.")
+                        assertThat(rows.getString(2)).isEqualTo("search_path=pg_catalog, pg_temp")
+                    }
+            }
+            connection
+                .createStatement()
+                .use { statement ->
+                    statement
+                        .executeQuery(
+                            """
+                            select pg_get_functiondef(p.oid), array_to_string(p.proconfig, ',')
+                            from pg_proc p where p.oid = 'octo.tenant_member_event_rules()'::regprocedure
+                            """.trimIndent(),
+                        ).use { rows ->
+                            assertThat(rows.next()).isTrue()
+                            assertThat(rows.getString(1)).contains("'octo.tenant_member:'").doesNotContain("mesta.")
+                            assertThat(rows.getString(2)).isEqualTo("search_path=pg_catalog, pg_temp")
+                        }
                 }
         }
     }

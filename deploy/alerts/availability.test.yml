@@ -1,0 +1,474 @@
+rule_files:
+- availability.rules.yml
+evaluation_interval: 1m
+tests:
+- name: healthy traffic with no 5xx series
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+1000x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts: []
+  promql_expr_test:
+  - expr: octo:availability_error_ratio:rate1h
+    eval_time: 80h
+    exp_samples:
+    - labels: octo:availability_error_ratio:rate1h{job="octo-api",deployment="test"}
+      value: 0
+- name: sustained 2 percent error fires all windows
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+980x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+20x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: &id003
+        summary: OCTO availability budget burn exceeds 14.4x
+        description: Eligible API 5xx responses exceed the 99.9% availability budget in both 1h and 5m windows.
+          Check readiness, dependencies and recent deployments.
+        runbook_url: https://github.com/TANTIRA/OCTO/blob/main/docs/runbooks/availability-burn.md
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: &id001
+        summary: OCTO availability budget burn exceeds 6x
+        description: Eligible API 5xx responses exceed the 99.9% availability budget in both 6h and 30m windows.
+          Check readiness, dependencies and recent deployments.
+        runbook_url: https://github.com/TANTIRA/OCTO/blob/main/docs/runbooks/availability-burn.md
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts:
+    - exp_labels:
+        severity: ticket
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: &id002
+        summary: OCTO availability budget burn exceeds 1x
+        description: Eligible API 5xx responses exceed the 99.9% availability budget in both 3d and 6h windows.
+          Check readiness, dependencies and recent deployments.
+        runbook_url: https://github.com/TANTIRA/OCTO/blob/main/docs/runbooks/availability-burn.md
+- name: one percent errors fires slow and ticket only
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+990x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="503",method="GET"}
+    values: 0+10x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id001
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts:
+    - exp_labels:
+        severity: ticket
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id002
+- name: 0.2 percent errors fires ticket only
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+998x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="502",method="GET"}
+    values: 0+2x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts:
+    - exp_labels:
+        severity: ticket
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id002
+- name: at SLO budget does not fire
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+999x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+1x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts: []
+- name: excluded auth actuator and other jobs cannot affect availability
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+1000x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="401",method="GET"}
+    values: 0+5000x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="403",method="GET"}
+    values: 0+5000x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/actuator/health/readiness",status="500",method="GET"}
+    values: 0+5000x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/actuator",status="500",method="GET"}
+    values: 0+5000x4800
+  - series: http_server_requests_seconds_count{job="another-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+5000x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts: []
+- name: ordinary 4xx remain in denominator
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="404",method="GET"}
+    values: 0+999x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+1x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts: []
+- name: zero traffic is not a burn
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+0x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+0x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts: []
+- name: absent telemetry produces no healthy ratio
+  interval: 1m
+  input_series: []
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts: []
+  promql_expr_test:
+  - expr: octo:availability_error_ratio:rate1h
+    eval_time: 80h
+    exp_samples: []
+- name: missing deployment label produces no healthy ratio
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+1000x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts: []
+  promql_expr_test:
+  - expr: octo:availability_error_ratio:rate1h
+    eval_time: 80h
+    exp_samples: []
+- name: healthy production must not dilute failing test deployment
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+980x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+20x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="prod",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+100000x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id003
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id001
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts:
+    - exp_labels:
+        severity: ticket
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id002
+- name: brief recent spike needs the long window too
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+1000x4795 4795950+950x4
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+0x4795 50+50x4
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts: []
+- name: recovered short window clears fast page
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+980x4790 4695200+1000x9
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+20x4790 95800+0x9
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id001
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts:
+    - exp_labels:
+        severity: ticket
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id002
+- name: counter reset on one replica does not page
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+1000x4790 0+1000x9
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api-2:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+1000x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts: []
+- name: at fast threshold only lower thresholds fire
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+9856x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+144x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id001
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts:
+    - exp_labels:
+        severity: ticket
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id002
+- name: at slow threshold only ticket fires
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+994x4800
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+6x4800
+  alert_rule_test:
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts: []
+  - eval_time: 80h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts:
+    - exp_labels:
+        severity: ticket
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id002
+- name: excluded requests must not dilute real eligible failures
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+980x480
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+20x480
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="401",method="GET"}
+    values: 0+50000x480
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="403",method="GET"}
+    values: 0+50000x480
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/actuator/prometheus",status="200",method="GET"}
+    values: 0+50000x480
+  alert_rule_test:
+  - eval_time: 8h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id003
+  - eval_time: 8h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id001
+  - eval_time: 8h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts:
+    - exp_labels:
+        severity: ticket
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id002
+- name: error ratio survives one replica counter reset
+  interval: 1m
+  input_series:
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+980x470 0+980x9
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+20x470 0+20x9
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api-2:8081",uri="/api/v1/prospects",status="200",method="GET"}
+    values: 0+980x480
+  - series: http_server_requests_seconds_count{job="octo-api",deployment="test",instance="api-2:8081",uri="/api/v1/prospects",status="500",method="GET"}
+    values: 0+20x480
+  alert_rule_test:
+  - eval_time: 8h
+    alertname: OctoAvailabilityBurnFast
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id003
+  - eval_time: 8h
+    alertname: OctoAvailabilityBurnSlow
+    exp_alerts:
+    - exp_labels:
+        severity: page
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id001
+  - eval_time: 8h
+    alertname: OctoAvailabilityBurnTicket
+    exp_alerts:
+    - exp_labels:
+        severity: ticket
+        slo: availability
+        job: octo-api
+        deployment: test
+      exp_annotations: *id002
+  promql_expr_test:
+  - expr: abs(octo:availability_error_ratio:rate1h - 0.02) < bool 1e-12
+    eval_time: 8h
+    exp_samples:
+    - labels: '{job="octo-api",deployment="test"}'
+      value: 1

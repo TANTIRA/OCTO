@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from octo_agents.api_client import OctoApiClient, OctoApiError
+from octo_agents.api_client import OctoApiError
 from octo_agents.tools import SubjectNotInTenantError
 from octo_agents.workflows.due_diligence import run_due_diligence
 from octo_agents.workflows.ic_memo import run_ic_memo
@@ -19,8 +19,10 @@ from octo_agents.workflows.screening_dd import (
     run_screening_dd,
 )
 
+from .fakes import StrictFake
 
-class FakeApi(OctoApiClient):
+
+class FakeApi(StrictFake):
     def __init__(self, recorded: dict[str, Any]) -> None:
         self._recorded = recorded
 
@@ -135,7 +137,7 @@ def test_replay_with_matching_workflow_subject_and_input_reads_back() -> None:
     assert (run_id, replayed) == ("run-1", {"memo": "cached"})
 
 
-class TenantApi(OctoApiClient):
+class TenantApi(StrictFake):
     """get_prospect answers from a fixed owner; record_run must never be reached
     when the pair is mismatched."""
 

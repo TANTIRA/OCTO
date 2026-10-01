@@ -89,13 +89,14 @@ def main() -> int:
                     session_id=f"eval:{case['case']}",
                     user="octo-agents-eval",
                 )
-                predicted = result.answers[key]["noul"] >= PREDICT_THRESHOLD
+                noul = result.require_noul(key)
+                predicted = noul >= PREDICT_THRESHOLD
                 expected = case["expect"][key]
                 total += 1
                 hits += int(predicted == expected)
                 print(
                     f"[{workflow}/{name}] {case['case']}: "
-                    f"noul={result.answers[key]['noul']:.2f} -> {predicted} "
+                    f"noul={noul:.2f} -> {predicted} "
                     f"(expected {expected})"
                 )
 

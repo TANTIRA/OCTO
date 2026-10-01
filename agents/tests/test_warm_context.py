@@ -4,13 +4,15 @@ setting is absent or the edge is unreachable (backlog #29)."""
 
 from typing import Any
 
-from octo_agents.api_client import OctoApiClient, OctoApiError
+from octo_agents.api_client import OctoApiError
 from octo_agents.workflows.warm_context import warm_prompt
+
+from .fakes import StrictFake
 
 BASE = "You are the OCTO analyst."
 
 
-class FakeApi(OctoApiClient):
+class FakeApi(StrictFake):
     def __init__(self, *, context: Any = None, raises: Exception | None = None) -> None:
         self._context = context
         self._raises = raises

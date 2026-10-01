@@ -273,11 +273,11 @@ def judge_memo(
         session_id=f"screening-dd:{prospect_id}",
         user="octo-agents",
     )
-    advance = verdict.require("advance")
+    advance = verdict.require_noul("advance")
     rationale = verdict.require("rationale")
     return ScreeningVerdict(
-        proceed=advance["noul"] >= PROCEED_THRESHOLD,
-        proceed_probability=advance["noul"],
+        proceed=advance >= PROCEED_THRESHOLD,
+        proceed_probability=advance,
         confidence=rationale.get("confidence", 0.0),
         rationale_band=rationale.get("choice"),
         judge_lineage={

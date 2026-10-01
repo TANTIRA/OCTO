@@ -25,7 +25,7 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 
 | # | Item | Source | Owner | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Set `GOTRUE_EXTERNAL_WEB3_SOLANA_ENABLED=true` on the Dokploy Supabase `auth` service and redeploy — the SIWS button ships in web (PR #237) but self-hosted GoTrue ignores the legacy `SOLANA_ENABLED` name | `infra/supabase/vendor/CONFIG.md`, `vendor/docker-compose.yml` | @mzf11125 (feature) / @Aldroun (deploy) | open |
+| 1 | Enable SIWS on the Dokploy Supabase `auth` service and redeploy — the SIWS button ships in web (PR #237) but the live GoTrue (v2.189.0) answers `web3_provider_disabled` (probed 2026-10-01). GoTrue reads `GOTRUE_EXTERNAL_WEB3_SOLANA_ENABLED`; the compose maps it from `SOLANA_ENABLED`, so both must be in place. Steps + verification: `infra/supabase/README.md` ("Solana sign-in (SIWS)") | `infra/supabase/vendor/docker-compose.yml`, #299 | @mzf11125 (feature) / @Aldroun (deploy) | open |
 | 2 | Neo4j Browser remote access — keep tunnel-only path or expose bolt through a TLS-terminating Traefik TCP router (public bolt behind neo4j auth; contra the "bolt stays private" posture) | `deploy/README.md` ("Neo4j Browser access"), ADR-level | @EliteSlacker (decision) / @Aldroun (exec) | decided — Option A (tunnel-only), [ADR-0006](adr/0006-neo4j-bolt-exposure.md) |
 | 3 | Rehearsed restore — procedure exists, drill pending | `docs/restore-runbook.md`, reliability §4 | @Aldroun | open |
 | 4 | Migration rollback rehearsal for V5–V7 on staging (T2 requirement) | `docs/reliability.md` §5, `AGENTS.md` | @Aldroun | open |
@@ -44,7 +44,8 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | # | Item | Source | Owner | Status |
 | --- | --- | --- | --- | --- |
 | 9 | Self-hosted Supabase acceptance list: restore drill meeting RPO/RTO, upgrade/rollback rehearsal on staging, monitoring + incident runbooks, capacity/dependency-failure tests | `docs/adr/0002-self-hosted-supabase.md` | @Aldroun | open |
-| 10 | Neo4j: dual-write ingestion path with atomic failure semantics; graph-ledger reconciliation on seeded data; backup/restore + upgrade runbooks; look-through perf test over 5-level hierarchy | `docs/adr/0004-neo4j-graph-store.md` | @Fatihmaull | open |
+| 10 | Neo4j: dual-write ingestion path with atomic failure semantics; graph-ledger reconciliation on seeded data; ~~backup/restore + upgrade runbooks~~ (done, #308); ~~look-through perf test over 5-level hierarchy~~ (done — `modules/lookthrough/.../ExposurePerfTest.kt`, #308) | `docs/adr/0004-neo4j-graph-store.md` | @Fatihmaull | open |
+| 10 | Neo4j: dual-write ingestion path with atomic failure semantics; graph-ledger reconciliation on seeded data; ~~backup/restore + upgrade runbooks~~ (done — `docs/restore-runbook.md` §6, `docs/runbooks/neo4j-upgrade.md`, #308); look-through perf test over 5-level hierarchy | `docs/adr/0004-neo4j-graph-store.md` | @Fatihmaull | open |
 
 ## Gap audit — high (real code, verified 2026-09-29)
 
@@ -58,7 +59,6 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | 16 | **Fake-as-live surfaces** — `dashboard-4` (hardcoded stats/alerts + fake refresh→"Updated just now"), `data-table-3` ("Asset register" edits "saved" via setTimeout, budgeting-template copy), positions rows hardcoded in `app-shell-2`. The default view of the gated app is fabricated. | `web/components/blocks/dashboard-4.tsx`, `data-table-3.tsx`, `web/components/blocks/app-shell-2.tsx:207-264` | @Demcruise |
 | 17 | **Landing CTA form submits to nothing** — `onSubmit=preventDefault` only; every "Request access" on the page funnels to it. Terms/Privacy are `href="#"`. | `web/components/blocks/contact-10.tsx:103,231-237` | @mapleury |
 | 18 | **Helius webhook verifies a signature exists, not the payload** — `ingest` checks `transaction.signatures[0]` is a finalized sig on-chain, then trusts submitted `accountKeys`/transfer legs. Secret-holder can fabricate transfers on watched wallets that promote to `instrument_flow`. | `modules/ingestion/.../OnchainWebhookService.kt:49-63`, `HeliusFinalityProbe.kt` | @mzf11125 + @EliteSlacker |
-| 19 | **Judge calls omit `zdr: true`** — `judge.py` sends `{"allow_fallbacks": False}`; `chat.py` sends zdr. Confidential memo state reaches OpenRouter decisions endpoint without the routing constraint the README claims; test codifies the gap. | `agents/octo_agents/judge.py:116` vs `chat.py:15`, `tests/test_judge.py:75` | @fikriaf |
 | 20 | **Sidecar tenant scoping caller-asserted** — every endpoint takes `tenant_id` from the body but reads/writes carry a bare `prospect_id`; a bad pair books tenant A's ledger on tenant B's prospect. `run_key` replay doesn't verify the stored row's subject/input — a key collision returns the wrong subject's memo. | `agents/octo_agents/server.py`, `workflows/screening_dd.py:_record_run` | @fikriaf + @Fatihmaull |
 
 ## Gap audit — medium
@@ -66,16 +66,10 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | # | Finding | Where | Owner |
 | --- | --- | --- | --- |
 | 21 | JWT issuer/audience validation skipped when `AUTH_ISSUER`/`AUTH_AUDIENCE` blank — any JWKS-signed token (incl. publishable anon key) authenticates; fail-open on misconfig. | `modules/api/.../SecurityConfig.kt:177-194` | @EliteSlacker |
-| 22 | Bearer tokens, JWKS root of trust, shared secrets traverse `dokploy-network` plaintext HTTP (`OCTO_AGENTS_BASE_URL`, `OCTO_API_BASE_URL`, `API_INTERNAL_URL`, `NEO4J_URI`, JWKS URL). | `deploy/dokploy.compose.yml`, `deploy/README.md:38` | @EliteSlacker + @Aldroun |
+| 22 | Bearer tokens, JWKS root of trust, shared secrets traverse `dokploy-network` plaintext HTTP (`OCTO_AGENTS_BASE_URL`, `OCTO_API_BASE_URL`, `API_INTERNAL_URL`, JWKS URL — the `NEO4J_URI` part of the original finding was stale, see [ADR-0008](adr/0008-dokploy-network-plaintext.md)). Proposed — awaiting owner decision, [ADR-0008](adr/0008-dokploy-network-plaintext.md) (#320). | `deploy/dokploy.compose.yml`, `deploy/README.md:38` | @EliteSlacker + @Aldroun |
 | 24 | Floating tags/bases contradict the pinning guardrail: `*:_IMAGE_TAG:-latest`, `redis:7-alpine`, `eclipse-temurin:21-jdk/jre`, `node:22-alpine`×3, `python:3.12-slim`; image ignores `agents/uv.lock` (`pip install .` on `>=` ranges). | `deploy/dokploy.compose.yml`, `Dockerfile`, `web/Dockerfile`, `agents/Dockerfile` | @Aldroun |
 | 25 | Agent sidecar runs as root — no `USER` in `agents/Dockerfile`. | `agents/Dockerfile:1-16` | @Aldroun |
-| 26 | "503 when unconfigured" broken: missing `openrouter_api_key` → `ValidationError` → 500 on every endpoint incl. flag-off and calibration; empty `octo_agent_token` → `ValueError` → 500 in `_api()`. | `agents/octo_agents/config.py:17,24`, `server.py:35,74-79` | @fikriaf |
-| 27 | `httpx.Client` leaked per request — fresh `OctoApiClient`/`JudgeClient` per call, never closed. | `agents/octo_agents/server.py:50-79`, `api_client.py:31`, `judge.py:97` | @fikriaf |
-| 28 | No retries on judge/platform calls; drafter retries but has no request timeout — inverse of ideal. | `api_client.py:37-47`, `judge.py:123-130`, `chat.py:20-27` | @fikriaf |
-| 29 | `warm_context` failure kills the run — an `OctoApiError` propagates → `failed`; optional prompt decor is a hard dependency (404/missing endpoint not handled). | `agents/octo_agents/workflows/warm_context.py:13` | @fikriaf |
-| 30 | Dead/broken client surface: `get_dataset`, `list_agent_runs` subject filters unused; `draft_report` contract is broken — missing required `tenantId`/`positionSourceId` → guaranteed 400 when first called. | `agents/octo_agents/api_client.py:62-156`, `modules/api/.../ReportController.kt:82-89` | @fikriaf |
 | 31 | Calibration counts any unrecognized decision string as disagreement → inflated queue + inverted eval cases; only `DISAGREED` members should invert. | `agents/octo_agents/workflows/calibration.py:128-134` | @kzahiras21 |
-| 32 | 409 inconsistent on mediated writes: only `ic_memo` degrades; `request_screening`/`open_dd_evidence` fail the whole run; `open_dd_evidence` comprehension leaves partial tasks on throw. | `workflows/screening_dd.py:385`, `due_diligence.py:227-237` | @fikriaf |
 | 33 | Sidebar subnav all dead (`href="#{area.id}"`); header action button ("New report"/"Run reconciliation") only opens ⌘K; shortcut hints decorative (only ⌘K bound); "Recent" entries fabricated. | `app-shell-2.tsx:822-842,1028-1047`, `command-menu-1.tsx:70-191,309-319` | @Demcruise |
 | 34 | Command menu mouse-click executes the highlighted row, not the clicked one (`run(command)` then `run()`). | `command-menu-1.tsx:506-511` | @mapleury |
 | 35 | Fabricated inputs sent to live endpoints — `compliance-panel` posts `subject:"portfolio"`, `currencyExposure:{USD:1}`; report queue sends tenant id as `positionSourceId`. Live evaluations/audit get fake data. | `web/components/compliance-panel.tsx:81-105`, `report-queue.tsx:74-80` | @mapleury + @Venkat5599 |
@@ -94,13 +88,9 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 
 47. Agents: token compare not constant-time (`server.py:42`); `/docs`+`openapi.json` open; default `http://api:8080` plaintext; unencoded path/query interpolation; `admitted,_` discards RetrievalVerdict (ic_memo, dd); `NoulCriteria` dead contract; `ic_review_requested` false-negative on missing taskId; `list_pipeline` truncates silently at 50; raw `answers[...]` KeyError brittleness; replayed `model_validate` outside `try`; eval THRESHOLD conflates two knobs; `as_of` unvalidated; registry re-reads `models.yaml` per request; calibration `limit` unbounded/no pagination; no `test_server`/`test_api_client`/except-path tests; evals only for 2 of 7 workflows; `__getattr__` fakes can mask signature drift. → @fikriaf / @kzahiras21.
 
-48. Infra/services: `depends_on` without `service_healthy` (agents, web); `newestSlot` double `executeQuery`; `ComplianceController` 500 vs 400 on bad ruleId; `evmEvidenceAdapter` bean unwired; no log rotation; web lacks memory reservation; deploy README stale (claims no rate limiting, documents unused `POSTGRES_PORT`); no in-repo backup automation; V38 indexes take SHARE locks (schedule low-traffic); `JdbcTimeSeriesStore` unbounded result; sidecar token compare + plaintext + openapi exposure (also 47). → @Aldroun / @Fatihmaull.
+48. Infra: no scheduled backup runner — `deploy/backup.sh` is a manual `pg_dump` wrapper (deploy/README.md §Backups); a cron/systemd runner is a deliberate follow-up. Plaintext service-to-service traffic is tracked in item 22 / #320. → @Aldroun
 
-    ⚠️ **Suspected stale — re-check, then remove.** Re-read against the code on 2026-09-30 at `6b3c7f1`, all ten items look resolved: 1/5/6/7/8/9 by #381; 2 by `30017a6`; 3/4/10 by `55ae337`. Not deleted yet, because a second reviewer should confirm each item against the code before this entry goes — the "completed entries are removed" rule above applies once that check happens, not on one reader's word.
-
-    One residual: the plaintext clause is still open, tracked as item 22 / #320.
-
-    Item 4 caveat: `EvmEvidenceAdapter.kt` is **planned ARB-8 work, not dead code** — `55ae337` dropped the unused *bean*, not the class. `OnchainEvidenceAdapter` is unwired the same way. Do not delete either.
+    Note: `EvmEvidenceAdapter.kt` and `OnchainEvidenceAdapter` are planned ARB-8 work, not dead code — do not delete either.
 
 ## Verified clean this audit (do not re-flag)
 
