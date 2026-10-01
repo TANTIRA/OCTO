@@ -43,7 +43,9 @@ data class RunResult(
  * systems, every break recorded, and exactly one `workflow_task` of kind `evidence-request` per break key across
  * runs. A break blocks nothing: the task's decision is its disposition. The task and the break that claims it
  * commit in one transaction (#341); V15's index is the backstop when two runners race on one break, and the
- * loser's rollback takes its task with it.
+ * loser's rollback takes its task with it. Missing-in-source breaks are raised only for a [complete] batch — one the
+ * caller asserts is the full record set of its source systems; one batch of a larger set would otherwise flag every
+ * event held in the other batches (#492).
  */
 class ReconciliationRunner(
     private val store: ReconciliationStore,
@@ -56,13 +58,14 @@ class ReconciliationRunner(
         zone: ZoneId,
         requestedBy: String,
         correlationId: UUID,
+        complete: Boolean,
     ): RunResult {
         require(source.isNotEmpty() && source.size <= RECONCILIATION_BATCH_LIMIT) {
             "a reconciliation batch holds 1..$RECONCILIATION_BATCH_LIMIT records, got ${source.size}"
         }
         val scope = TenantScope.Tenants(listOf(tenantId))
         val ibor = source.map { it.sourceSystem }.toSet().flatMap { store.iborRecords(tenantId, it, zone, scope) }
-        val result = reconcile(source, ibor, tolerance)
+        val result = reconcile(source, ibor, tolerance, sourceComplete = complete)
         val runId = UUID.randomUUID()
         val outcomes =
             result.breaks.map { brk ->

@@ -148,4 +148,21 @@ class ReconciliationEndpointTest {
             assertThat(opened).isEmpty()
         }
     }
+
+    @Test
+    fun `missing-in-source is raised only when the caller marks the batch complete`() {
+        run { mvc ->
+            mvc
+                .perform(post(analyst, body(record("t-2", "40"))))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.breaks.length()").value(1))
+                .andExpect(jsonPath("$.breaks[0].kind").value("missing-in-ibor"))
+            mvc
+                .perform(post(analyst, """{"tenantId": "$tenantId", "complete": true, "records": [${record("t-2", "40")}]}"""))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.breaks.length()").value(2))
+                .andExpect(jsonPath("$.breaks[1].kind").value("missing-in-source"))
+                .andExpect(jsonPath("$.breaks[1].ledgerEventId").value(kept.id.toString()))
+        }
+    }
 }
