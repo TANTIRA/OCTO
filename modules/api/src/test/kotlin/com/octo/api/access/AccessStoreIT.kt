@@ -159,7 +159,6 @@ class AccessStoreIT {
                 // The key JdbcAccessStore.replayLocked takes.
                 holder
                     .prepareStatement(
-                        "select pg_advisory_xact_lock(hashtextextended('octo.tenant_member:' || ?::text || ':' || ?::text, 0))",
                         "select pg_advisory_xact_lock(" +
                             "hashtextextended('octo.tenant_member:' || ?::text || ':' || ?::text, 0))",
                     ).use { statement ->
