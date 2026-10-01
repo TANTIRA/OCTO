@@ -91,6 +91,31 @@ class AccessStoreIT {
     }
 
     @Test
+    fun `a refused grant to an unregistered user leaves no registration behind`() {
+        val tenant = Tenant(UUID.randomUUID(), "tenant-${UUID.randomUUID().toString().take(8)}", "Test Tenant")
+        store.createTenant(tenant, provenance)
+        val self = UUID.randomUUID()
+
+        // A platform admin who is not a member granting themselves: segregation of duties refuses it.
+        assertThatThrownBy {
+            store.grant(tenant.id, self, MembershipEvent.Granted(self.toString(), at(1), TenantRole.ADMIN), provenance)
+        }.isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("segregation of duties")
+        assertThat(memberRows(tenant.id, self)).isZero()
+
+        // Granted by someone else, registration and grant land together.
+        store.grant(tenant.id, self, MembershipEvent.Granted(grantor, at(2), TenantRole.ANALYST), provenance)
+        assertThat(memberRows(tenant.id, self)).isEqualTo(1)
+        assertThat(store.tenantsOf(self)).containsExactly(TenantAccess(tenant.id, tenant.slug, TenantRole.ANALYST))
+
+        // Once registered, grant replays instead of registering again.
+        assertThatThrownBy {
+            store.grant(tenant.id, self, MembershipEvent.Granted(grantor, at(3), TenantRole.VIEWER), provenance)
+        }.isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("already has access")
+    }
+
+    @Test
     fun `the trigger refuses what a direct caller writes — no state machine required`() {
         val (tenant, userId) = newMember()
         store.append(tenant.id, userId, MembershipEvent.Granted(grantor, at(1), TenantRole.ANALYST), provenance)
@@ -173,6 +198,21 @@ class AccessStoreIT {
             connection.createStatement().use { it.execute(sql) }
         }
     }
+
+    private fun memberRows(
+        tenantId: UUID,
+        userId: UUID,
+    ): Int =
+        DriverManagerDataSource(postgres.jdbcUrl, postgres.username, postgres.password).connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement
+                    .executeQuery("select count(*) from octo.tenant_member where tenant_id = '$tenantId' and user_id = '$userId'")
+                    .use { rows ->
+                        rows.next()
+                        rows.getInt(1)
+                    }
+            }
+        }
 
     private companion object {
         /** SQLSTATE the V8 trigger's check_violation raises. */
