@@ -74,7 +74,7 @@ State of `main` on 2026-09-27. ✅ passes, ⚠️ acceptable for now, ❌ must f
 | Dependencies | api waits for what it needs | ⚠️ | `depends_on` covers the graph store only; PostgreSQL lives in another compose project, so readiness plus `start_period` is the real gate |
 | Auth | fails closed without a JWKS URL | ✅ | `SecurityConfig` |
 | Data | migrations run as a separate role; the runtime role cannot update or delete | ✅ | `DB_MIGRATION_*`, V3, `RuntimeRoleGrantsIT` |
-| Data | backups and point-in-time recovery | ⚠️ | ADR-0002 assigns it to the operator; [restore-runbook.md](restore-runbook.md) now covers the procedure — a rehearsed restore is still pending |
+| Data | backups and point-in-time recovery | ⚠️ | ADR-0002 assigns it to the operator; [restore-runbook.md](restore-runbook.md) now covers the procedure — a rehearsed restore is still pending, and blocked: the deployed DB has `archive_mode = off`, so there is no WAL archive to rehearse PITR from (#301) |
 | Release | rollback path for every migration | ⚠️ | each PR states one; none has been rehearsed. AGENTS.md requires a tested rollback for T2 |
 | Testing | integration tests run in CI | ❌ | CI is blocked by GitHub billing; the ITs run only on developer machines |
 
