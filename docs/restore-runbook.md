@@ -19,6 +19,16 @@ exists.
 | RTO | ≤ 4 h | One working session to fail over; quarterly review hours an outage starts in are not fixable, the 4 h ceiling is |
 | Rehearsal | quarterly, logged | reliability.md §4: an unrehearsed runbook is a missing runbook |
 
+### How RPO and RTO are measured
+
+A drill that does not measure these has not tested anything, so the arithmetic is fixed here rather than left to the operator. The record format is [drill-evidence-template.md](drill-evidence-template.md); `deploy/drill/restore-drill.sh` performs a local rehearsal and writes one.
+
+- **RPO** = (commit time of the last write before the loss, or the loss event itself) − (commit time of the newest committed row present after the restore). Take both timestamps from **one clock** and say which: audit `recorded_at` and `occurred_at` come from the database clock (V6), so use `recorded_at` for both sides. With continuous archiving the recovery point is whatever committed last before the chosen target, so the measured RPO is how far back that point sits — bounded above by the archive interval.
+- **RTO** = (readiness healthy **and** the §7 checklist passed) − (declared start of the drill). Flyway's boot-time validation at step 3 is part of the restore and belongs inside the number, as does repointing the application.
+- **Report the number you measured, and the overshoot if you miss.** A 6-hour RTO with a named cause is a usable record; a rounded-up claim is not.
+
+`docs/reliability.md` §4 records that no restore has been rehearsed. That stays true until a filled record exists, and the ADR-0002 acceptance box is ticked from that record — never from this procedure existing.
+
 ## 2. What lives where
 
 | Store | Service | Contents | Backup layer |
