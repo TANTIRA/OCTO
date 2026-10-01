@@ -11,13 +11,16 @@ a human outcome count toward volume but not agreement.
 Output: per-workflow agreement stats, the disagreement list (the review queue
 for threshold work), and eval-ready cases — each decided run exported as
 `expect_ship`, i.e. whether the artifact should have shipped, so a disputed
-verdict becomes a regression case for run_evals.py.
+verdict becomes a regression case for run_evals.py. Runs are referenced by id,
+never embedded: the platform rejects run outputs over 32 KB, so the output is
+hard-capped and marked `truncated` when detail had to be dropped (#496).
 
 The analysis is deterministic — no drafter, no judge. The run still records on
 the spine (workflow "calibration") and its own rows are excluded from analysis
 so calibrating never feeds back into its own stats.
 """
 
+import json
 from typing import Any, Literal
 
 from pydantic import BaseModel
@@ -35,6 +38,14 @@ AGREEMENT_FLOOR = 0.8
 AGREED = {"accepted", "approved", "confirmed"}
 DISAGREED = {"rejected", "overridden", "disagreed"}
 
+# The platform caps a run's output at 32_768 bytes (AgentRunsController
+# MAX_JSON_BYTES). Measured with json.dumps defaults — spaced separators and
+# ASCII escapes, never smaller than the platform's compact UTF-8 — and with
+# headroom on top.
+MAX_OUTPUT_BYTES = 30_000
+MAX_DISAGREEMENTS = 50
+MAX_EVAL_CASES = 100
+
 
 class WorkflowStats(BaseModel):
     runs: int
@@ -51,17 +62,17 @@ class Disagreement(BaseModel):
     subject: str
     status: str
     decision: str
-    verdict: Any
 
 
 class EvalCase(BaseModel):
     """A decided run re-exported for run_evals.py: `expect_ship` is whether the
     artifact should have shipped — accepted runs keep the machine's direction,
-    disagreed runs invert it."""
+    disagreed runs invert it. The run's input is read back by `run_id` rather
+    than copied here."""
 
     case: str
     workflow: str
-    state: Any
+    run_id: str
     expect_ship: bool
 
 
@@ -74,6 +85,69 @@ class CalibrationResult(BaseModel):
     disagreements: list[Disagreement]
     eval_cases: list[EvalCase]
     suggestions: list[str]
+    # Exact counts even when the lists above were capped to fit the run-output
+    # limit; `truncated` is True whenever any list or stats entry was dropped.
+    disagreements_total: int = 0
+    eval_cases_total: int = 0
+    truncated: bool = False
+
+
+def _output_bytes(result: CalibrationResult) -> int:
+    return len(json.dumps(result.model_dump()).encode("utf-8"))
+
+
+def _keep_prefix(result: CalibrationResult, items: list[Any], apply: Any) -> None:
+    """Applies the longest prefix of `items` (via `apply`) that keeps the output
+    within MAX_OUTPUT_BYTES — a binary search, so a 200-run history costs a few
+    serializations, not one per dropped entry."""
+    lo, hi = 0, len(items)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        apply(items[:mid])
+        if _output_bytes(result) <= MAX_OUTPUT_BYTES:
+            lo = mid
+        else:
+            hi = mid - 1
+    apply(items[:lo])
+
+
+def _fit(result: CalibrationResult) -> CalibrationResult:
+    """Caps the output so the run's own finish is never rejected for size.
+    Drops detail in order of least value: eval cases, then disagreements, then
+    suggestions, then the smallest workflows' stats."""
+    if len(result.eval_cases) > MAX_EVAL_CASES:
+        result.eval_cases = result.eval_cases[:MAX_EVAL_CASES]
+        result.truncated = True
+    if len(result.disagreements) > MAX_DISAGREEMENTS:
+        result.disagreements = result.disagreements[:MAX_DISAGREEMENTS]
+        result.truncated = True
+    if _output_bytes(result) <= MAX_OUTPUT_BYTES:
+        return result
+    result.truncated = True
+
+    def set_eval_cases(kept: list[EvalCase]) -> None:
+        result.eval_cases = kept
+
+    def set_disagreements(kept: list[Disagreement]) -> None:
+        result.disagreements = kept
+
+    def set_suggestions(kept: list[str]) -> None:
+        result.suggestions = kept
+
+    def set_stats(kept: list[tuple[str, WorkflowStats]]) -> None:
+        result.stats = dict(kept)
+
+    ranked_stats = sorted(result.stats.items(), key=lambda kv: kv[1].runs, reverse=True)
+    for items, apply in (
+        (result.eval_cases, set_eval_cases),
+        (result.disagreements, set_disagreements),
+        (result.suggestions, set_suggestions),
+        (ranked_stats, set_stats),
+    ):
+        if _output_bytes(result) <= MAX_OUTPUT_BYTES:
+            break
+        _keep_prefix(result, items, apply)
+    return result
 
 
 def _decision(run: dict[str, Any]) -> str | None:
@@ -145,7 +219,6 @@ def run_calibration(
                         subject=f"{run.get('subjectType')}:{run.get('subjectId')}",
                         status=str(run.get("status")),
                         decision=decision,
-                        verdict=run.get("verdict"),
                     )
                 )
             else:
@@ -156,7 +229,7 @@ def run_calibration(
                 EvalCase(
                     case=f"feedback:{run.get('id')}",
                     workflow=workflow,
-                    state=run.get("input"),
+                    run_id=str(run.get("id")),
                     expect_ship=expect_ship,
                 )
             )
@@ -186,7 +259,10 @@ def run_calibration(
             disagreements=disagreements,
             eval_cases=eval_cases,
             suggestions=suggestions,
+            disagreements_total=len(disagreements),
+            eval_cases_total=len(eval_cases),
         )
+        result = _fit(result)
         api.finish_run(run_id, status="completed", output=result.model_dump())
         return result
     except Exception as e:

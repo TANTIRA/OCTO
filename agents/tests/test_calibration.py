@@ -2,6 +2,7 @@
 Deterministic, no model calls; agreed runs keep their direction, overridden
 runs invert it and land in the disagreement queue plus eval cases."""
 
+import json
 from typing import Any
 
 from octo_agents.workflows.calibration import run_calibration
@@ -131,3 +132,61 @@ def test_replayed_run_returns_stored_output() -> None:
     result = run_calibration(api=api, tenant_id="t-1", run_key="cal:4", models={})
     assert result.analyzed == 9
     assert api.finished == {}
+
+
+# #496 — the platform rejects run outputs over 32 KB, so calibration references
+# runs by id and hard-caps its own output instead of failing its finish.
+PLATFORM_MAX_OUTPUT_BYTES = 32_768
+
+
+def _heavy_run(i: int, decision: str, workflow: str = "ic-memo") -> dict[str, Any]:
+    run = _run(f"run-{i:04d}-" + "x" * 30, workflow=workflow, decision=decision)
+    run["runKey"] = "k" * 200
+    run["subjectId"] = "s" * 200
+    run["input"] = {"prospect_id": "p-1", "notes": "n" * 20_000}
+    run["verdict"] = {"memo": "v" * 20_000}
+    return run
+
+
+def test_two_hundred_heavy_runs_fit_the_platform_output_cap() -> None:
+    runs = [_heavy_run(i, "rejected" if i % 2 else "accepted") for i in range(200)]
+    api = FakeApi(runs)
+    result = run_calibration(api=api, tenant_id="t-1", run_key="cal:6", models={})
+
+    serialized = json.dumps(api.finished["output"])
+    assert len(serialized.encode("utf-8")) < PLATFORM_MAX_OUTPUT_BYTES
+    assert "n" * 100 not in serialized  # no run input is embedded
+    assert "v" * 100 not in serialized  # no run verdict is embedded
+    assert result.truncated is True
+    # Totals and stats stay exact while the detail lists are capped.
+    assert result.decided == 200
+    assert result.disagreements_total == 100
+    assert result.eval_cases_total == 200
+    assert 0 < len(result.eval_cases) < 200
+    assert result.stats["ic-memo"].disagreed == 100
+
+
+def test_stats_are_trimmed_last_when_workflows_alone_overflow() -> None:
+    # 200 runs (the page bound) cannot overflow on stats alone; a larger page
+    # proves the cap still holds by dropping the least-run workflows.
+    busiest = "wf-000-" + "w" * 56
+    runs = [_heavy_run(i, "rejected", workflow=f"wf-{i:03d}-" + "w" * 56) for i in range(400)]
+    runs.append(_heavy_run(999, "accepted", workflow=busiest))
+    api = FakeApi(runs)
+    result = run_calibration(api=api, tenant_id="t-1", run_key="cal:7", models={})
+
+    serialized = json.dumps(api.finished["output"])
+    assert len(serialized.encode("utf-8")) < PLATFORM_MAX_OUTPUT_BYTES
+    assert result.truncated is True
+    assert result.eval_cases == [] and result.disagreements == []
+    assert 0 < len(result.stats) < 400
+    assert busiest in result.stats  # the busiest workflow is kept
+
+
+def test_small_history_is_not_truncated_and_references_runs_by_id() -> None:
+    api = FakeApi([_run("a", decision="accepted"), _run("c", decision="overridden")])
+    result = run_calibration(api=api, tenant_id="t-1", run_key="cal:8", models={})
+    assert result.truncated is False
+    assert {c.run_id for c in result.eval_cases} == {"a", "c"}
+    assert "verdict" not in api.finished["output"]["disagreements"][0]
+    assert "state" not in api.finished["output"]["eval_cases"][0]
