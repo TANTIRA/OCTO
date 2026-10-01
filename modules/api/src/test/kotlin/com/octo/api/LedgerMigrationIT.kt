@@ -73,6 +73,16 @@ class LedgerMigrationIT {
     }
 
     @Test
+    fun `a second correction of the same event is rejected`() {
+        val original = insert()
+        val first = insert(supersedesId = original, rationale = "Allocation revised.")
+        assertThatThrownBy { insert(supersedesId = original, rationale = "A competing revision.") }
+            .isInstanceOfSatisfying(java.sql.SQLException::class.java) { assertThat(it.sqlState).isEqualTo("23505") }
+        // The chain continues by correcting the correction, not by forking the original.
+        assertThat(insert(supersedesId = first, rationale = "Revised again.")).isNotNull()
+    }
+
+    @Test
     fun `update is rejected by the append-only trigger`() {
         val id = insert()
         assertThatThrownBy {
