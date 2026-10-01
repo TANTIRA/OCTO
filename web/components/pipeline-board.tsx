@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, UserPlus } from "lucide-react";
 import PanelHeader from "@/components/panel-header";
-import { getJson, messageFor, postJson } from "@/lib/api";
+import { ApiError, getJson, messageFor, postJson } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { useTenants } from "@/lib/use-tenants";
 
 /**
@@ -12,10 +13,33 @@ import { useTenants } from "@/lib/use-tenants";
  * forward transitions through `POST /api/v1/prospects/{id}/transition` — the
  * server's state machine owns what is legal; a 409 tells the user the move
  * was refused, nothing here pre-validates.
+ *
+ * IC review cards run the IC gate (#334): request the approval
+ * (`POST …/ic-review`), read it back (`GET …/ic-review`), let an approver or
+ * admin who did not request it decide (`POST …/tasks/{taskId}`), and once it
+ * is approved move to `invested` with that task id. The buttons only mirror
+ * what the API will accept; segregation of duties is enforced server-side.
  */
 
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
+
+type IcReview = {
+  taskId: string;
+  taskStatus: string;
+  requestedBy: string;
+  decidedBy: string | null;
+};
+
+// The rationale prompt open on one card: passing, rejecting the IC review, or
+// recording the investment — each needs a reason on the audit trail.
+type Prompt = { id: string; action: "pass" | "reject" | "invest" };
+
+const PROMPT_COPY: Record<Prompt["action"], { placeholder: string; confirm: string }> = {
+  pass: { placeholder: "Why pass? Recorded on the audit trail.", confirm: "Confirm pass" },
+  reject: { placeholder: "Why reject? Recorded on the IC task.", confirm: "Confirm reject" },
+  invest: { placeholder: "Investment rationale — recorded on the audit trail.", confirm: "Confirm invested" },
+};
 
 type Prospect = {
   id: string;
@@ -41,10 +65,9 @@ const NEXT: Record<string, string> = {
   "due-diligence": "ic-review",
 };
 
-// ic-review is terminal for the forward path: advancing to `invested` needs an
-// approved IC approval task id, which lives in the approvals flow, not here.
-// The reachable terminal move from any non-terminal stage is `passed` — it
-// only needs a rationale, so the pipeline is no longer a dead end (#36).
+// ic-review has no plain "advance": `invested` needs an approved IC approval
+// task id, so those cards run the IC gate below instead. `passed` stays
+// reachable from every non-terminal stage with a rationale (#36).
 
 const STAGE_TONE: Record<string, string> = {
   sourced: "bg-neutral-300 dark:bg-neutral-600",
@@ -54,7 +77,10 @@ const STAGE_TONE: Record<string, string> = {
 };
 
 export default function PipelineBoard() {
-  const { tenantId } = useTenants();
+  const { tenantId, tenants } = useTenants();
+  const role = tenants.find((t) => t.tenantId === tenantId)?.role;
+  const canWrite = role !== undefined && role !== "viewer";
+  const canDecide = role === "approver" || role === "admin";
   const [cols, setCols] = useState<Record<string, Prospect[]>>({});
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -63,9 +89,15 @@ export default function PipelineBoard() {
   const [moving, setMoving] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   const [name, setName] = useState("");
-  // The card being passed, and the rationale the state machine requires.
-  const [passing, setPassing] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [rationale, setRationale] = useState("");
+  // IC review per ic-review prospect: undefined until read, null when none exists.
+  const [ic, setIc] = useState<Record<string, IcReview | null>>({});
+  const [me, setMe] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase?.auth.getSession().then(({ data }) => setMe(data.session?.user.id ?? null));
+  }, []);
 
   const load = useCallback(async () => {
     if (!tenantId) return;
@@ -81,6 +113,18 @@ export default function PipelineBoard() {
         }),
       );
       setCols(Object.fromEntries(results));
+      const atIc = results.find(([stage]) => stage === "ic-review")?.[1] ?? [];
+      const reviews = await Promise.all(
+        atIc.map(async (p) => {
+          try {
+            return [p.id, await getJson<IcReview>(`/api/v1/prospects/${p.id}/ic-review`)] as const;
+          } catch (e) {
+            if (e instanceof ApiError && e.status === 404) return [p.id, null] as const;
+            throw e;
+          }
+        }),
+      );
+      setIc(Object.fromEntries(reviews));
       setLoaded(true);
     } catch (e) {
       setError(messageFor(e));
@@ -108,21 +152,49 @@ export default function PipelineBoard() {
     }
   };
 
-  const pass = async (p: Prospect) => {
-    const why = rationale.trim();
-    if (moving || !why) return;
+  // One write per card at a time; every outcome reloads from the server.
+  const act = async (p: Prospect, write: () => Promise<unknown>, done: string) => {
+    if (moving) return;
     setMoving(p.id);
     setNotice(null);
+    setError(null);
     try {
-      await postJson(`/api/v1/prospects/${p.id}/transition`, { to: "passed", rationale: why });
-      setPassing(null);
-      setNotice(`${p.name} passed.`);
+      await write();
+      setPrompt(null);
+      setNotice(done);
       await load();
     } catch (e) {
       setError(messageFor(e));
     } finally {
       setMoving(null);
     }
+  };
+
+  const confirmPrompt = (p: Prospect) => {
+    const why = rationale.trim();
+    if (!prompt || !why) return;
+    const review = ic[p.id];
+    if (prompt.action === "pass") {
+      act(p, () => postJson(`/api/v1/prospects/${p.id}/transition`, { to: "passed", rationale: why }), `${p.name} passed.`);
+    } else if (prompt.action === "reject" && review) {
+      act(
+        p,
+        () => postJson(`/api/v1/prospects/${p.id}/tasks/${review.taskId}`, { event: "rejected", rationale: why }),
+        `IC review for ${p.name} rejected.`,
+      );
+    } else if (prompt.action === "invest" && review) {
+      act(
+        p,
+        () =>
+          postJson(`/api/v1/prospects/${p.id}/transition`, { to: "invested", rationale: why, taskId: review.taskId }),
+        `${p.name} recorded as invested.`,
+      );
+    }
+  };
+
+  const openPrompt = (id: string, action: Prompt["action"]) => {
+    setRationale("");
+    setPrompt({ id, action });
   };
 
   const register = async () => {
@@ -234,38 +306,41 @@ export default function PipelineBoard() {
                     <p className="mt-1 truncate text-[11px] text-neutral-500">
                       {[p.sector, p.region, p.source].filter(Boolean).join(" · ") || "—"}
                     </p>
-                    {passing === p.id ? (
+                    {prompt?.id === p.id ? (
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
-                          pass(p);
+                          confirmPrompt(p);
                         }}
                         className="mt-1.5 space-y-1.5"
                       >
                         <input
                           autoFocus
-                          aria-label={`Reason for passing ${p.name}`}
+                          aria-label={`${PROMPT_COPY[prompt.action].confirm} — ${p.name}`}
                           value={rationale}
                           onChange={(e) => setRationale(e.target.value)}
-                          onKeyDown={(e) => e.key === "Escape" && setPassing(null)}
-                          placeholder="Why pass? Recorded on the audit trail."
+                          onKeyDown={(e) => e.key === "Escape" && setPrompt(null)}
+                          placeholder={PROMPT_COPY[prompt.action].placeholder}
                           className="h-7 w-full rounded-[var(--rb-r-sm,6px)] border border-neutral-200/70 bg-white px-2 text-[12px] text-neutral-900 placeholder:text-neutral-400 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
                         />
                         <div className="flex gap-1.5">
                           <button
                             type="submit"
                             disabled={!rationale.trim() || moving !== null}
-                            className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-red-600 px-2 text-[11px] font-medium text-white hover:bg-red-700 disabled:cursor-default disabled:opacity-50"
+                            className={cx(
+                              "inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] px-2 text-[11px] font-medium text-white disabled:cursor-default disabled:opacity-50",
+                              prompt.action === "invest" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700",
+                            )}
                           >
                             {moving === p.id ? (
                               <Loader2 aria-hidden className="h-3 w-3 animate-spin motion-reduce:animate-none" />
                             ) : (
-                              "Confirm pass"
+                              PROMPT_COPY[prompt.action].confirm
                             )}
                           </button>
                           <button
                             type="button"
-                            onClick={() => setPassing(null)}
+                            onClick={() => setPrompt(null)}
                             className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] px-2 text-[11px] font-medium text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                           >
                             Cancel
@@ -288,19 +363,37 @@ export default function PipelineBoard() {
                             )}
                           </button>
                         )}
+                        {p.stage === "ic-review" && canWrite && (
+                          <IcActions
+                            review={ic[p.id]}
+                            busy={moving !== null}
+                            canDecide={canDecide}
+                            me={me}
+                            onRequest={() =>
+                              act(p, () => postJson(`/api/v1/prospects/${p.id}/ic-review`, {}), `IC review requested for ${p.name}.`)
+                            }
+                            onApprove={(taskId) =>
+                              act(
+                                p,
+                                () => postJson(`/api/v1/prospects/${p.id}/tasks/${taskId}`, { event: "approved" }),
+                                `IC review for ${p.name} approved.`,
+                              )
+                            }
+                            onReject={() => openPrompt(p.id, "reject")}
+                            onInvest={() => openPrompt(p.id, "invest")}
+                          />
+                        )}
                         <button
                           type="button"
                           disabled={moving !== null}
-                          onClick={() => {
-                            setRationale("");
-                            setPassing(p.id);
-                          }}
+                          onClick={() => openPrompt(p.id, "pass")}
                           className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] px-2 text-[11px] font-medium text-neutral-500 hover:bg-neutral-100 hover:text-red-600 disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-red-400"
                         >
                           Pass
                         </button>
                       </div>
                     )}
+                    {p.stage === "ic-review" && <IcStatus review={ic[p.id]} me={me} />}
                   </li>
                 ))}
                 {loaded && !loading && rows.length === 0 && (
@@ -320,4 +413,91 @@ export default function PipelineBoard() {
       </div>
     </div>
   );
+}
+
+function IcStatus({ review, me }: { review: IcReview | null | undefined; me: string | null }) {
+  if (!review) return null;
+  return (
+    <p className="mt-1 text-[11px] text-neutral-500">
+      IC review: {review.taskStatus.replace("_", " ")}
+      {review.taskStatus === "open" && review.requestedBy === me && " — requested by you; another approver decides"}
+    </p>
+  );
+}
+
+const IC_BUTTON =
+  "inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] px-2 text-[11px] font-medium disabled:opacity-50";
+
+/**
+ * The IC gate's next step for one card. No review (or a rejected/cancelled
+ * one) → request it; an open review → approve/reject for an approver or admin
+ * who did not request it; an approved review → record the investment.
+ */
+function IcActions({
+  review,
+  busy,
+  canDecide,
+  me,
+  onRequest,
+  onApprove,
+  onReject,
+  onInvest,
+}: {
+  review: IcReview | null | undefined;
+  busy: boolean;
+  canDecide: boolean;
+  me: string | null;
+  onRequest: () => void;
+  onApprove: (taskId: string) => void;
+  onReject: () => void;
+  onInvest: () => void;
+}) {
+  if (review === undefined) return null;
+  if (review === null || review.taskStatus === "rejected" || review.taskStatus === "cancelled") {
+    return (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onRequest}
+        className={cx(IC_BUTTON, "bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700")}
+      >
+        Request IC approval
+      </button>
+    );
+  }
+  if (review.taskStatus === "approved") {
+    return (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onInvest}
+        className={cx(IC_BUTTON, "bg-emerald-600 text-white hover:bg-emerald-700")}
+      >
+        Mark invested
+      </button>
+    );
+  }
+  if (review.taskStatus === "open" && canDecide && review.requestedBy !== me) {
+    return (
+      <>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onApprove(review.taskId)}
+          className={cx(IC_BUTTON, "bg-emerald-600 text-white hover:bg-emerald-700")}
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onReject}
+          className={cx(IC_BUTTON, "text-neutral-500 hover:bg-neutral-100 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-neutral-800")}
+        >
+          Reject
+        </button>
+      </>
+    );
+  }
+  return null;
 }
