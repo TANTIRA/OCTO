@@ -21,8 +21,10 @@ private fun tx(
     err: String = "null",
     blockTime: Long? = 1_726_000_000,
     slot: Long = 250_000_000,
+    fee: Any? = null,
 ): String {
     val blockTimeField = blockTime?.let { "\n      \"blockTime\": $it," } ?: ""
+    val feeField = fee?.let { "\n            \"fee\": $it," } ?: ""
     return """
         {
           "slot": $slot,$blockTimeField
@@ -33,7 +35,7 @@ private fun tx(
               "accountKeys": [${accounts.joinToString(",") { """{"pubkey":"$it","signer":false}""" }}]
             }
           },
-          "meta": {
+          "meta": {$feeField
             "err": $err,
             "preBalances": [${preLamports.joinToString(",")}],
             "postBalances": [${postLamports.joinToString(",")}],
@@ -86,6 +88,73 @@ class HeliusTransferNormalizerTest {
         val leg = legs.single()
         assertEquals(TransferDirection.OUT, leg.direction)
         assertEquals(BigInteger("1000005000"), leg.amountRaw)
+    }
+
+    @Test
+    fun `the network fee is its own FEE leg, not part of the transfer-out`() {
+        val legs =
+            normalize(
+                tx(
+                    preLamports = listOf(2_000_000_000, 0),
+                    postLamports = listOf(999_995_000, 1_000_000_000),
+                    accounts = listOf(WALLET, "bob"),
+                    fee = 5_000,
+                ),
+            )
+        val out = legs.single { it.direction == TransferDirection.OUT }
+        val fee = legs.single { it.direction == TransferDirection.FEE }
+        assertEquals(2, legs.size)
+        assertEquals(BigInteger("1000000000"), out.amountRaw)
+        assertEquals(BigInteger("5000"), fee.amountRaw)
+        assertEquals(TransferKind.TRANSFER_OUT, fee.transferKind)
+        assertEquals("solana:$SIG:$WALLET:fee", fee.externalId)
+        assertEquals(null, fee.mintAddress)
+        // Legs still net to the wallet's lamport delta.
+        assertEquals(BigInteger("-1000005000"), -out.amountRaw - fee.amountRaw)
+    }
+
+    @Test
+    fun `an SPL send stages only the fee for native SOL, never a dust transfer-out`() {
+        val accounts = listOf(WALLET, "tAcct")
+        val pre = """[${tokenEntry(1, MINT, WALLET, "400", 6)}]"""
+        val post = """[${tokenEntry(1, MINT, WALLET, "100", 6)}]"""
+        val legs =
+            normalize(
+                tx(
+                    preLamports = listOf(10_000, 0),
+                    postLamports = listOf(5_000, 0),
+                    accounts = accounts,
+                    preTokens = pre,
+                    postTokens = post,
+                    fee = 5_000,
+                ),
+            )
+        assertEquals(2, legs.size)
+        assertEquals(BigInteger("5000"), legs.single { it.mintAddress == null }.amountRaw)
+        assertEquals(TransferDirection.FEE, legs.single { it.mintAddress == null }.direction)
+        assertEquals(BigInteger("300"), legs.single { it.mintAddress == MINT }.amountRaw)
+    }
+
+    @Test
+    fun `a wallet that does not pay the fee keeps its whole delta`() {
+        val legs =
+            normalize(
+                tx(
+                    preLamports = listOf(9_000, 1_000),
+                    postLamports = listOf(3_000, 2_000),
+                    accounts = listOf("payer", WALLET),
+                    fee = 5_000,
+                ),
+            )
+        assertEquals(TransferDirection.IN, legs.single().direction)
+        assertEquals(BigInteger("1000"), legs.single().amountRaw)
+    }
+
+    @Test
+    fun `a malformed fee skips the native leg rather than guessing the split`() {
+        val parsed = parse(tx(preLamports = listOf(10_000), postLamports = listOf(5_000), accounts = listOf(WALLET), fee = "\"oops\""))
+        assertTrue(parsed.legs.isEmpty())
+        assertEquals(listOf("bal:0 (malformed fee)"), parsed.skipped)
     }
 
     @Test

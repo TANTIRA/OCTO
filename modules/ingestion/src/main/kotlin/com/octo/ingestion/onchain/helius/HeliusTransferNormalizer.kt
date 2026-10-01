@@ -22,9 +22,14 @@ import java.time.Instant
  * fabricate a full-balance transfer that never happened. A missing `blockTime` falls back to
  * [observedAt] (the convention `HeliusStakingNormalizer` established) instead of epoch 0.
  *
+ * When the watched wallet pays the fee (`accountKeys[0]`), `meta.fee` is staged as its own
+ * `direction = fee` leg and removed from the native SOL leg, so legs still net to the wallet's
+ * lamport delta. An absent `fee` is treated as zero (the whole delta stays one leg); a present but
+ * malformed one skips the native leg.
+ *
  * Deterministic identity: `externalId = "solana:<sig>:<account>:<leg>"` where leg is
- * `bal:<accountIndex>` for native SOL or `tok:<accountIndex>` for SPL — the same transaction
- * normalized by poller or webhook produces the same ids.
+ * `bal:<accountIndex>` for native SOL, `fee` for the network fee, or `tok:<accountIndex>` for
+ * SPL — the same transaction normalized by poller or webhook produces the same ids.
  */
 class HeliusTransferNormalizer {
     fun normalize(
@@ -69,7 +74,43 @@ class HeliusTransferNormalizer {
                 skipped += "bal:$i (non-numeric balance)"
                 continue
             }
-            val delta = after - before
+            // accountKeys[0] is the fee payer. Its lamport delta includes `meta.fee`; split that out
+            // into its own leg so the network fee is never booked as part of a transfer.
+            val fee =
+                if (i == 0) {
+                    val feeNode = meta.path("fee")
+                    when {
+                        feeNode.isMissingNode || feeNode.isNull -> BigInteger.ZERO
+                        feeNode.isIntegralNumber && feeNode.bigIntegerValue().signum() >= 0 -> feeNode.bigIntegerValue()
+                        else -> {
+                            skipped += "bal:$i (malformed fee)"
+                            continue
+                        }
+                    }
+                } else {
+                    BigInteger.ZERO
+                }
+            if (fee.signum() > 0) {
+                legs +=
+                    OnchainTransfer(
+                        externalId = "$CHAIN_SOLANA:$signature:$account:fee",
+                        signature = signature,
+                        slot = slot,
+                        blockHash = blockHash,
+                        blockTime = blockTime,
+                        wallet = wallet,
+                        counterparty = null,
+                        tokenAccount = null,
+                        mintAddress = null,
+                        amountRaw = fee,
+                        decimals = SOL_DECIMALS,
+                        direction = TransferDirection.FEE,
+                        // There is no fee flow type; a fee leaves the wallet, so it debits the
+                        // position exactly like any other outflow.
+                        transferKind = TransferKind.TRANSFER_OUT,
+                    )
+            }
+            val delta = after - before + fee
             if (delta == BigInteger.ZERO) continue
             legs +=
                 OnchainTransfer(
