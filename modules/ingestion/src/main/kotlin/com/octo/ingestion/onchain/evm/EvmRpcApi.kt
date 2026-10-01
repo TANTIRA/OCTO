@@ -7,6 +7,8 @@ import java.math.BigInteger
 class EvmException(
     message: String,
     val status: Int? = null,
+    /** The JSON-RPC `error.code` when the node answered with an error object, else null. */
+    val rpcCode: Int? = null,
 ) : RuntimeException(message)
 
 /**

@@ -113,6 +113,21 @@ class EvmRpcClientTest {
         // An empty return payload means the method does not exist.
         val empty = FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"result":"0x"}"""))
         assertNull(client(empty).decimals("0xeoa"))
+        // geth's other revert shape: -32000 with the revert in the message.
+        val gethRevert = okJson("""{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"execution reverted"}}""")
+        assertNull(client(FakeTransport(gethRevert)).decimals("0xnotatoken"))
+    }
+
+    @Test
+    fun `a non-revert JSON-RPC error on eth_call propagates instead of reading as not-a-token`() {
+        for (error in listOf(
+            """{"code":-32005,"message":"rate limit exceeded"}""",
+            """{"code":-32000,"message":"missing trie node"}""",
+            """{"code":-32000,"message":"header not found"}""",
+        )) {
+            val transport = FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"error":$error}"""))
+            assertFailsWith<EvmException> { client(transport).decimals("0xusdc") }
+        }
     }
 
     @Test
