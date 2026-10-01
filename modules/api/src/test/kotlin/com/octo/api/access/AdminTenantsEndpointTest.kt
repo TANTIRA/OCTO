@@ -137,6 +137,7 @@ class AdminTenantsEndpointTest {
                 .andExpect(status().isConflict)
                 .andExpect(status().reason(containsString("segregation of duties")))
             assertThat(access.events).isEmpty()
+            assertThat(access.memberships).isEmpty()
         }
     }
 
@@ -164,7 +165,6 @@ class AdminTenantsEndpointTest {
                 .memberEvent(tenantAdmin, body = """{"type":"granted","role":"analyst"}""")
                 .andExpect(status().isConflict)
             access.nextError = null
-            access.registered = false
             mvc
                 .memberEvent(tenantAdmin, body = """{"type":"role-changed","role":"approver"}""")
                 .andExpect(status().isNotFound)
@@ -174,6 +174,34 @@ class AdminTenantsEndpointTest {
             mvc
                 .memberEvent(tenantAdmin, body = """{"type":"revoked"}""")
                 .andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `member state persists across changes and rejected grants leave it intact`() {
+        val member = UUID.randomUUID()
+        val otherMember = UUID.randomUUID()
+        run { mvc ->
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"granted","role":"analyst"}""")
+                .andExpect(status().isOk)
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"granted","role":"admin"}""")
+                .andExpect(status().isConflict)
+            assertThat(access.memberships[tenantId to member]?.role).isEqualTo(TenantRole.ANALYST)
+            mvc
+                .memberEvent(tenantAdmin, user = otherMember, body = """{"type":"granted","role":"viewer"}""")
+                .andExpect(status().isOk)
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"role-changed","role":"approver"}""")
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.role").value("approver"))
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"revoked","rationale":"left firm"}""")
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("revoked"))
+            assertThat(access.memberships[tenantId to otherMember]?.role).isEqualTo(TenantRole.VIEWER)
+            assertThat(access.events).hasSize(4)
         }
     }
 
@@ -311,11 +339,11 @@ class AdminTenantsEndpointTest {
         }
     }
 
-    /** Minimal in-memory administration: records calls, replays a one-member state machine. */
+    /** In-memory administration: commits validated state independently for each tenant/member pair. */
     private class FakeAccess : AccessAdministration {
         val provisioned = mutableListOf<Tenant>()
         val events = mutableListOf<MembershipEvent>()
-        var registered = true
+        val memberships = mutableMapOf<Pair<UUID, UUID>, MembershipState>()
         var nextError: IllegalArgumentException? = null
 
         override fun provisionTenant(
@@ -328,7 +356,10 @@ class AdminTenantsEndpointTest {
             // Same validation as JdbcAccessStore.provisionTenant; a refused grant provisions nothing.
             registered(tenant.id, adminUserId, registeredAt)
                 .next(MembershipEvent.Granted(grantor, registeredAt, TenantRole.ADMIN))
-                .also { provisioned += tenant }
+                .also {
+                    provisioned += tenant
+                    memberships[tenant.id to adminUserId] = it
+                }
 
         /** Like the real store: a rejected grant registers nothing. */
         override fun grant(
@@ -338,8 +369,11 @@ class AdminTenantsEndpointTest {
             provenance: AccessProvenance,
         ): MembershipState {
             nextError?.let { throw it }
-            registered = true
-            return append(tenantId, userId, event, provenance)
+            val before = memberships[tenantId to userId] ?: registered(tenantId, userId, event.at)
+            return before.next(event).also {
+                memberships[tenantId to userId] = it
+                events += event
+            }
         }
 
         override fun append(
@@ -348,9 +382,12 @@ class AdminTenantsEndpointTest {
             event: MembershipEvent,
             provenance: AccessProvenance,
         ): MembershipState {
-            val before = load(tenantId, userId) ?: throw NoSuchElementException("no member")
+            val before = memberships[tenantId to userId] ?: throw NoSuchElementException("no member")
             nextError?.let { throw it }
-            return before.next(event).also { events += event }
+            return before.next(event).also {
+                memberships[tenantId to userId] = it
+                events += event
+            }
         }
     }
 }
