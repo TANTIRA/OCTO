@@ -449,12 +449,12 @@ class ProspectController(
         prospectId: UUID,
         taskId: UUID,
     ): Boolean =
-        tasks.state(taskId)?.let {
-            it.status == TaskStatus.APPROVED &&
-                it.task.kind == TaskKind.APPROVAL &&
-                it.task.subjectType == "prospect" &&
-                it.task.subjectId == prospectId.toString()
-        } == true
+        // Only the latest IC review counts: once a decided review is followed by a fresh one, the
+        // older approval is history and cannot authorize `invested` against the IC's current call.
+        tasks
+            .listForSubject("prospect", prospectId.toString())
+            .lastOrNull { it.task.kind == TaskKind.APPROVAL }
+            ?.let { it.task.id == taskId && it.status == TaskStatus.APPROVED } == true
 
     @PostMapping("/api/v1/prospects/{id}/ic-review")
     fun requestIcReview(

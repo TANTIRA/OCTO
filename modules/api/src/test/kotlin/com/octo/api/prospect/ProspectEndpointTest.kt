@@ -383,6 +383,43 @@ class ProspectEndpointTest {
     }
 
     @Test
+    fun `an approval superseded by a later IC review no longer authorizes invested`() {
+        run { mvc ->
+            val id = mvc.registered()
+            for (stage in listOf("screening", "due-diligence", "ic-review")) {
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/transition")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"to":"$stage"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+            }
+            val stale = UUID.randomUUID().also { tasks.openAt(it, id) }
+            tasks.approve(stale)
+            val latest = UUID.randomUUID().also { tasks.openAt(it, id) } // re-review, still undecided
+
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"invested","rationale":"corridor thesis","taskId":"$stale"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isConflict) // the IC's current call is the re-review, not the old approval
+
+            tasks.approve(latest)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"invested","rationale":"corridor thesis","taskId":"$latest"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.stage").value("invested"))
+        }
+    }
+
+    @Test
     fun `an IC task is decided by an approver, never its requester, never an analyst`() {
         run { mvc ->
             val id = mvc.registered()
