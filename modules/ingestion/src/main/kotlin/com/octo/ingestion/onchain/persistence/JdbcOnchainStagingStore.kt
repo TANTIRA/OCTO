@@ -329,7 +329,10 @@ class JdbcOnchainStagingStore(
     }
 
     // The observation's identity: an identical report in the same second is the same fact;
-    // a different amount or a second source is a different observation worth keeping.
-    private fun snapshotExternalId(b: OnchainBalance): String =
-        "${b.chain}:${b.wallet}:${b.mintAddress ?: "native"}:balance:${b.source.db}:${b.asOf.epochSecond}:${b.amountRaw}"
+    // a different amount or a second source is a different observation worth keeping. Stake
+    // accounts share a wallet and (null) mint, so a row with a token account is keyed by it too;
+    // rows without one keep their original id so existing data stays deduplicated.
+    internal fun snapshotExternalId(b: OnchainBalance): String =
+        "${b.chain}:${b.wallet}:${b.mintAddress ?: "native"}${b.tokenAccount?.let { ":$it" } ?: ""}" +
+            ":balance:${b.source.db}:${b.asOf.epochSecond}:${b.amountRaw}"
 }

@@ -1,5 +1,6 @@
 package com.octo.ingestion.onchain.helius
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.ingestion.http.HttpTransport
@@ -31,7 +32,8 @@ class HeliusWalletClient(
         },
     private val retry: RetryPolicy = RetryPolicy(),
     private val sleeper: (Duration) -> Unit = { Thread.sleep(it) },
-    private val mapper: ObjectMapper = ObjectMapper(),
+    // Balances are decimals; BigDecimal parsing keeps a large holding exact instead of rounding it through double.
+    private val mapper: ObjectMapper = ObjectMapper().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS),
 ) : HeliusWalletApi {
     override fun balances(
         address: String,

@@ -198,4 +198,73 @@ class OnchainBalanceCollectorTest {
         assertEquals(1, report.snapshotsInserted)
         assertEquals(WALLET2, store.snapshots.single().wallet)
     }
+
+    @Test
+    fun `a holding that empties gets a zero snapshot, while stake rows and still-held mints are left alone`() {
+        val store = FakeSnapshotStore(WALLET)
+        store.snapshots += held(USDC, "5000000", decimals = 6)
+        store.snapshots += held(BONK, "10", decimals = 5)
+        store.snapshots += held(null, "9", decimals = 9, tokenAccount = "StakeAcct111")
+        val walletApi = StubWalletApi(mapOf((WALLET to 1) to balancesPage(false, BONK to "1")))
+
+        val report = OnchainBalanceCollector(store, walletApi, null).collect(asOf = AS_OF)
+
+        val written = store.snapshots.filter { it.asOf == AS_OF }
+        assertEquals(2, report.snapshotsInserted)
+        val zero = written.single { it.mintAddress == USDC }
+        assertEquals(BigInteger.ZERO, zero.amountRaw)
+        assertEquals(6, zero.decimals)
+        assertEquals(BalanceSource.WALLET_API, zero.source)
+        assertTrue(written.none { it.tokenAccount != null }, "stake accounts are the staking collector's")
+    }
+
+    @Test
+    fun `a mint the wallet api could not read is not zeroed`() {
+        val store = FakeSnapshotStore(WALLET)
+        store.snapshots += held(USDC, "5000000", decimals = 6)
+        val unreadable =
+            ObjectMapper().readTree(
+                """{"balances":[{"mint":"$USDC","balance":null,"decimals":6}],"pagination":{"hasMore":false}}""",
+            )
+        val walletApi = StubWalletApi(mapOf((WALLET to 1) to unreadable))
+
+        val report = OnchainBalanceCollector(store, walletApi, null).collect(asOf = AS_OF)
+
+        assertEquals(0, report.snapshotsInserted)
+        assertEquals(listOf(USDC), report.skippedTokens)
+    }
+
+    @Test
+    fun `an emptied native balance on the rpc fallback lands as an rpc zero`() {
+        val store = FakeSnapshotStore(WALLET)
+        store.snapshots += held(null, "2000000000", decimals = 9)
+        val walletApi = StubWalletApi(emptyMap(), failures = setOf(WALLET))
+
+        OnchainBalanceCollector(store, walletApi, StubRpc(lamports = 0)).collect(asOf = AS_OF)
+
+        val zero = store.snapshots.single { it.asOf == AS_OF }
+        assertEquals(null, zero.mintAddress)
+        assertEquals(BigInteger.ZERO, zero.amountRaw)
+        assertEquals(BalanceSource.RPC, zero.source)
+    }
 }
+
+private const val USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+private const val BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+
+private fun held(
+    mint: String?,
+    raw: String,
+    decimals: Int,
+    tokenAccount: String? = null,
+) = OnchainBalance(
+    wallet = WALLET,
+    tokenAccount = tokenAccount,
+    mintAddress = mint,
+    amountRaw = BigInteger(raw),
+    decimals = decimals,
+    usdValue = null,
+    source = BalanceSource.WALLET_API,
+    slot = null,
+    asOf = AS_OF.minusSeconds(3600),
+)
