@@ -61,9 +61,17 @@ class EvmBalanceCollector(
         for (watch in wallets) {
             val wallet = watch.address.lowercase()
             try {
+                // Zero balances stay unsnapshotted (a sparse table), except where the latest snapshot
+                // still shows a holding: there a zero must land, or recon keeps reading the stale amount.
+                val held =
+                    store
+                        .latestSnapshots(config.chain, wallet)
+                        .filter { it.amountRaw.signum() > 0 }
+                        .map { it.mintAddress?.lowercase() }
+                        .toSet()
                 val balances = mutableListOf<OnchainBalance>()
                 val native = rpc.nativeBalance(wallet)
-                if (native.signum() > 0) {
+                if (native.signum() > 0 || null in held) {
                     balances += snapshot(wallet, null, native, NATIVE_DECIMALS, head, asOf)
                 }
                 for (contract in contracts) {
@@ -72,7 +80,7 @@ class EvmBalanceCollector(
                         skippedCalls++
                         continue
                     }
-                    if (balance.signum() > 0) {
+                    if (balance.signum() > 0 || contract.mintAddress.lowercase() in held) {
                         balances += snapshot(wallet, contract.mintAddress.lowercase(), balance, contract.decimals, head, asOf)
                     }
                 }
