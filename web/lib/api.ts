@@ -69,16 +69,22 @@ export function messageFor(err: unknown): string {
 /** The caller's tenant memberships drive every tenant-scoped picker in the app. */
 export type Tenant = { tenantId: string; slug: string; role: string };
 
-export async function myAccess(): Promise<Tenant[]> {
+export type Access = { tenants: Tenant[]; platformAdmin: boolean };
+
+export async function myAccess(): Promise<Access> {
   // The whole app shell waits on this read: bound it so a hung request turns
   // into the retryable error state instead of an endless spinner.
   const body = await getJson<{ tenants: Tenant[] }>("/api/v1/me/access", {
     signal: AbortSignal.timeout(15_000),
   });
-  return body.tenants;
+  return { tenants: body.tenants, platformAdmin: isPlatformAdmin(body) };
 }
 
-/** Platform-admin verdict for the ops surface (#312). Any failure is "no". */
+/**
+ * Platform-admin verdict for the ops surface (#312). Any failure is "no".
+ * Standalone read for /admin, which has no TenantProvider; inside the app
+ * shell the verdict comes from the provider's single myAccess() read.
+ */
 export async function amPlatformAdmin(): Promise<boolean> {
   try {
     return isPlatformAdmin(await getJson<unknown>("/api/v1/me/access"));
