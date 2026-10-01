@@ -158,8 +158,9 @@ class AccessStoreIT {
                 holder.autoCommit = false
                 // The key JdbcAccessStore.replayLocked takes.
                 holder
-                    .prepareStatement("select pg_advisory_xact_lock(hashtextextended('octo.tenant_member:' || ?::text || ':' || ?::text, 0))")
-                    .use { statement ->
+                    .prepareStatement(
+                        "select pg_advisory_xact_lock(hashtextextended('octo.tenant_member:' || ?::text || ':' || ?::text, 0))",
+                    ).use { statement ->
                         statement.setObject(1, tenant.id)
                         statement.setObject(2, userId)
                         statement.executeQuery().close()

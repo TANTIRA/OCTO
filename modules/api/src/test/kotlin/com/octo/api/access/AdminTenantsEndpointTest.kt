@@ -342,6 +342,16 @@ class AdminTenantsEndpointTest {
             return append(tenantId, userId, event, provenance)
         }
 
+        private fun load(
+            tenantId: UUID,
+            userId: UUID,
+        ): MembershipState? =
+            if (registered) {
+                MembershipState(tenantId, userId, MembershipStatus.NONE, null, Instant.EPOCH)
+            } else {
+                null
+            }
+
         override fun append(
             tenantId: UUID,
             userId: UUID,
