@@ -60,12 +60,11 @@ class ClaimVerifier(
                 ClaimComparator.AT_LEAST -> if (observed >= declared.value) ClaimVerdict.SUPPORTED else ClaimVerdict.REFUTED
                 ClaimComparator.AT_MOST -> if (observed <= declared.value) ClaimVerdict.SUPPORTED else ClaimVerdict.REFUTED
                 ClaimComparator.EQUALS -> {
-                    val tolerance =
-                        declared
-                            .value
-                            .abs()
-                            .multiply(BigDecimal.valueOf(equalityTolerance))
-                            .max(BigDecimal.ONE)
+                    // Purely relative, no absolute floor: a floor of 1 swallowed every 0..1 share
+                    // (holder concentration) and every small count. The other kinds are integer
+                    // raw units (base units, lamports/wei, tx counts), so a small value must match
+                    // exactly — which is what an "exactly N" claim means.
+                    val tolerance = declared.value.abs().multiply(BigDecimal.valueOf(equalityTolerance))
                     if (observed.subtract(declared.value).abs() <= tolerance) {
                         ClaimVerdict.SUPPORTED
                     } else {
