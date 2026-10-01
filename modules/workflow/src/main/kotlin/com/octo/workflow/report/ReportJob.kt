@@ -4,17 +4,26 @@ import com.octo.persistence.TenantScope
 import java.time.Instant
 import java.util.UUID
 
-/** The report types of #6 slice 7. Each maps to an engine in `analytics` or `lookthrough`. */
+/**
+ * The report types of #6 slice 7. Each maps to an engine in `analytics` or `lookthrough`. Every wire value
+ * must be in report_job's `report_job_type_known` check, and every [schedulable] one in report_schedule's
+ * `report_schedule_type_known` — ReportJobMigrationIT enforces both (#488).
+ */
 enum class ReportType(
     val wireValue: String,
+    /** False for types whose input is the current event set: a schedule's fixed template would replay stale data. */
+    val schedulable: Boolean = true,
 ) {
     PERFORMANCE("performance"),
     EXPOSURE("exposure"),
     ATTRIBUTION("attribution"),
-    GL_EXPORT("gl-export"),
+    GL_EXPORT("gl-export", schedulable = false),
 
-    /** Agent-drafted LP letter — the sidecar narrates the job's own parameters; release still gates it. */
-    LP_REPORT("lp-report"),
+    /**
+     * Agent-drafted LP letter — the sidecar narrates the job's own inline parameters; release still gates it.
+     * On-demand only: a schedule would re-narrate the same figures every period.
+     */
+    LP_REPORT("lp-report", schedulable = false),
     ;
 
     companion object {

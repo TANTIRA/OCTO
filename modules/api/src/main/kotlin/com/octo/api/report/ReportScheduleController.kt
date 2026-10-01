@@ -88,9 +88,9 @@ class ReportScheduleController(
 
     /** Cron is validated here so a bad expression can never reach the table. */
     private fun ScheduleBody.toSchedule(id: UUID): ReportSchedule? {
-        // GL export is on-demand only: a schedule holds a fixed template, but a journal needs the current
-        // event set each run, and V28 widened the type check on report_job, not report_schedule.
-        val type = ReportType.entries.firstOrNull { it.wireValue == this.type && it != ReportType.GL_EXPORT } ?: return null
+        // GL export and LP reports are on-demand only (ReportType.schedulable): a schedule holds a fixed
+        // template, but both need the current data each run, and report_schedule's type check excludes them.
+        val type = ReportType.entries.firstOrNull { it.wireValue == this.type && it.schedulable } ?: return null
         val next =
             try {
                 CronExpression.parse(cron).next(ZonedDateTime.now(ZoneOffset.UTC))?.let { Instant.from(it) }

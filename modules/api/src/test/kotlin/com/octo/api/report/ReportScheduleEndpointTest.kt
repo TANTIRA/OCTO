@@ -115,6 +115,16 @@ class ReportScheduleEndpointTest {
                         .content(body().replace("performance", "alchemy"))
                         .with(jwt().jwt { it.subject(analyst.toString()) }),
                 ).andExpect(status().isBadRequest)
+            // On-demand only types (#488): report_schedule's type check would reject them at insert.
+            for (onDemand in listOf("gl-export", "lp-report")) {
+                mvc
+                    .perform(
+                        post("/api/v1/report-schedules")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body().replace("performance", onDemand))
+                            .with(jwt().jwt { it.subject(analyst.toString()) }),
+                    ).andExpect(status().isBadRequest)
+            }
             mvc
                 .perform(
                     post("/api/v1/report-schedules")
