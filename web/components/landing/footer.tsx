@@ -17,8 +17,6 @@ const COLUMNS = [
   {
     title: "Build",
     links: [
-      ["API reference", "https://api-octo.mesta.click"],
-      ["Status", "https://admin-octo.mesta.click"],
       ["GitHub", "https://github.com/TANTIRA"],
     ],
   },

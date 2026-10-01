@@ -248,7 +248,7 @@ export default function PipelineBoard() {
                 <span className="text-[11px] tabular-nums text-neutral-500">
                   {rows.length}
                 </span>
-                {stage.id === "sourced" && (
+                {stage.id === "sourced" && canWrite && (
                   <button
                     type="button"
                     onClick={() => setComposing((v) => !v)}
@@ -260,7 +260,7 @@ export default function PipelineBoard() {
                 )}
               </div>
 
-              {composing && stage.id === "sourced" && (
+              {composing && canWrite && stage.id === "sourced" && (
                 <div className="mb-1 rounded-[var(--rb-r-lg,10px)] border border-neutral-200/70 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900">
                   <input
                     autoFocus
@@ -347,7 +347,9 @@ export default function PipelineBoard() {
                           </button>
                         </div>
                       </form>
-                    ) : (
+                    ) : canWrite ? (
+                      // Viewers get no write actions: the API answers every
+                      // prospect write from a VIEWER with 404 (#506).
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {NEXT[p.stage] && (
                           <button
@@ -363,7 +365,7 @@ export default function PipelineBoard() {
                             )}
                           </button>
                         )}
-                        {p.stage === "ic-review" && canWrite && (
+                        {p.stage === "ic-review" && (
                           <IcActions
                             review={ic[p.id]}
                             busy={moving !== null}
@@ -392,7 +394,7 @@ export default function PipelineBoard() {
                           Pass
                         </button>
                       </div>
-                    )}
+                    ) : null}
                     {p.stage === "ic-review" && <IcStatus review={ic[p.id]} me={me} />}
                   </li>
                 ))}
