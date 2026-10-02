@@ -27,13 +27,26 @@ class HeliusWebhookController(
         @RequestBody payload: JsonNode,
         @RequestHeader("X-Helius-Webhook-Id", required = false) deliveryId: String?,
     ): ResponseEntity<Map<String, Int>> {
-        val inserted =
+        val result =
             webhookService.ingest(
                 payload = payload,
                 ingestionRunId = UUID.randomUUID(),
                 correlationId = deliveryId?.let(::parseUuid) ?: UUID.randomUUID(),
             )
-        return ResponseEntity.ok(mapOf("inserted" to inserted))
+        val body =
+            mapOf(
+                "inserted" to result.staged,
+                "deferred" to result.deferred,
+                "rejected" to result.rejected,
+            )
+        // A signature the bounded re-check set could not hold is the only outcome where a
+        // redelivery might succeed — answer 503 so Helius retries it, rather than
+        // acknowledging a drop it cannot see (#483).
+        return if (result.rejected > 0) {
+            ResponseEntity.status(503).body(body)
+        } else {
+            ResponseEntity.ok(body)
+        }
     }
 
     private fun parseUuid(value: String): UUID =

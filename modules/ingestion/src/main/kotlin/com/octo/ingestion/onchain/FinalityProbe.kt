@@ -8,8 +8,8 @@ import com.octo.ingestion.onchain.helius.HeliusRpcClient
 /**
  * Verifies observed finality — the webhook path's honesty gate (#167). A delivery arrives
  * before finalization, so a signature is only safe to stage once the chain reports it
- * `finalized`; anything else (confirmed, processed, unknown) stays out and the poller's
- * finalized-only scan picks the transaction up when it gets there.
+ * `finalized`; anything else (confirmed, processed, unknown) stays out and the webhook
+ * service's deferred re-check set retries it until it finalizes or expires (#483).
  */
 fun interface FinalityProbe {
     /** The subset of [signatures] the chain reports as `finalized` right now. */

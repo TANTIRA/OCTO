@@ -126,11 +126,23 @@ class OnchainIngestionConfiguration {
         }
 
     @Bean
+    @ConditionalOnMissingBean(OnchainWebhookService::class)
     fun onchainWebhookService(
         store: OnchainStagingStore,
         finality: FinalityProbe,
         transactions: TransactionFetcher,
     ) = OnchainWebhookService(store, finality, transactions)
+
+    /**
+     * Re-checks webhook deliveries held for finality on `octo.onchain.webhook.recheck-ms`
+     * (default 5 s) (#483). Runs unless `octo.onchain.webhook.recheck.enabled` is false.
+     */
+    @Bean
+    @ConditionalOnProperty("octo.onchain.webhook.recheck.enabled", havingValue = "true", matchIfMissing = true)
+    fun onchainWebhookRecheckRunner(
+        webhookService: OnchainWebhookService,
+        meters: ObjectProvider<MeterRegistry>,
+    ) = OnchainWebhookRecheckRunner(webhookService, meters.getIfAvailable())
 
     /** The token-ledger store, lazy like [onchainStagingStore] so datasource-less contexts still boot. */
     @Bean

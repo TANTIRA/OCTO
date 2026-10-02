@@ -7,6 +7,7 @@ import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
+import com.octo.ingestion.onchain.OnchainWebhookService
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.TransactionFetcher
 import com.octo.ingestion.onchain.WatchSource
@@ -140,7 +141,7 @@ class HeliusWebhookTest {
     }
 
     @Test
-    fun `a delivery that is not yet finalized stages nothing`() {
+    fun `a delivery that is not yet finalized is held and acknowledged`() {
         val store = RecordingStore()
         contextRunner
             .withPropertyValues("HELIUS_WEBHOOK_SECRET=$SECRET")
@@ -148,6 +149,26 @@ class HeliusWebhookTest {
             .withBean(FinalityProbe::class.java, { FinalityProbe { emptySet() } })
             .run { context ->
                 postDelivery(context).andExpect(status().isOk)
+                assertThat(store.transfers).isEmpty()
+            }
+    }
+
+    @Test
+    fun `a delivery refused by a full re-check set answers 503 so Helius retries`() {
+        val store = RecordingStore()
+        val fullSetService =
+            OnchainWebhookService(
+                store,
+                FinalityProbe { emptySet() },
+                canonicalFetcher,
+                maxDeferred = 0,
+            )
+        contextRunner
+            .withPropertyValues("HELIUS_WEBHOOK_SECRET=$SECRET")
+            .withBean(OnchainStagingStore::class.java, { store })
+            .withBean(OnchainWebhookService::class.java, { fullSetService })
+            .run { context ->
+                postDelivery(context).andExpect(status().isServiceUnavailable)
                 assertThat(store.transfers).isEmpty()
             }
     }

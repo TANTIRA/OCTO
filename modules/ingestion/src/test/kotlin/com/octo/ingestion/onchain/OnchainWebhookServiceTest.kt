@@ -3,6 +3,10 @@ package com.octo.ingestion.onchain
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.math.BigInteger
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -120,15 +124,36 @@ private class FakeWebhookStore : OnchainStagingStore {
     ): Int = evidence.size
 }
 
+/** A clock tests can move, so deferred-entry expiry is asserted rather than slept through. */
+private class MutableClock(
+    private var now: Instant,
+) : Clock() {
+    override fun instant(): Instant = now
+
+    override fun getZone(): ZoneId = ZoneId.of("UTC")
+
+    override fun withZone(zone: ZoneId): Clock = this
+
+    fun advance(by: Duration) {
+        now = now.plus(by)
+    }
+}
+
 class OnchainWebhookServiceTest {
     private val mapper = ObjectMapper()
     private val store = FakeWebhookStore()
     private var finalized: Set<String>? = null
+    private val clock = MutableClock(Instant.parse("2026-10-02T00:00:00Z"))
 
     /** Signature -> the chain's "own copy". Auto-filled from each delivery unless a test overrides it first. */
     private val canonical = mutableMapOf<String, JsonNode>()
-    private val service =
-        OnchainWebhookService(store, FinalityProbe { finalized ?: it.toSet() }, TransactionFetcher { canonical[it] })
+    private var service =
+        OnchainWebhookService(
+            store,
+            FinalityProbe { finalized ?: it.toSet() },
+            TransactionFetcher { canonical[it] },
+            clock = clock,
+        )
 
     private fun ingest(json: String): Int {
         val tree = mapper.readTree(json)
@@ -142,7 +167,7 @@ class OnchainWebhookServiceTest {
                     ?.let { sig -> canonical.putIfAbsent(sig, tx) }
             }
         }
-        return service.ingest(tree, UUID.randomUUID(), UUID.randomUUID())
+        return service.ingest(tree, UUID.randomUUID(), UUID.randomUUID()).staged
     }
 
     @Test
@@ -215,13 +240,89 @@ class OnchainWebhookServiceTest {
     }
 
     @Test
-    fun `a delivery that is not yet finalized stages nothing`() {
+    fun `a delivery that is not yet finalized is held and stages on re-check`() {
         store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
         finalized = emptySet()
         val json = delivery(listOf(WH_WALLET), pre = listOf(1_000), post = listOf(2_000))
 
-        assertEquals(0, ingest(json))
+        val result = service.ingest(mapper.readTree(json), UUID.randomUUID(), UUID.randomUUID())
+        assertEquals(0, result.staged)
+        assertEquals(1, result.deferred)
         assertTrue(store.inserted.isEmpty())
+
+        // The chain finalizes between deliveries; the re-check pass stages it.
+        finalized = setOf(WH_SIG)
+        canonical[WH_SIG] = mapper.readTree(json)[0]
+        val recheck = service.recheckDeferred()
+
+        assertEquals(1, recheck.staged)
+        assertEquals(0, recheck.pending)
+        assertEquals(BigInteger.valueOf(1_000), store.inserted.single().amountRaw)
+    }
+
+    @Test
+    fun `a deferred signature that never finalizes expires instead of retrying forever`() {
+        store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
+        finalized = emptySet()
+        val json = delivery(listOf(WH_WALLET), pre = listOf(1_000), post = listOf(2_000))
+
+        val result = service.ingest(mapper.readTree(json), UUID.randomUUID(), UUID.randomUUID())
+        assertEquals(1, result.deferred)
+
+        clock.advance(Duration.ofMinutes(6))
+        val recheck = service.recheckDeferred()
+
+        assertEquals(1, recheck.expired)
+        assertEquals(0, recheck.pending)
+        assertTrue(store.inserted.isEmpty())
+    }
+
+    @Test
+    fun `a full re-check set rejects further signatures so the caller can ask for a retry`() {
+        service =
+            OnchainWebhookService(
+                store,
+                FinalityProbe { finalized ?: it.toSet() },
+                TransactionFetcher { canonical[it] },
+                clock = clock,
+                maxDeferred = 1,
+            )
+        store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
+        finalized = emptySet()
+        val tx2 = mapper.readTree(delivery(listOf(WH_WALLET), pre = listOf(1_000), post = listOf(2_000)))[0]
+        (tx2.path("transaction") as com.fasterxml.jackson.databind.node.ObjectNode)
+            .putArray("signatures")
+            .add("5wHuPkQ" + "x".repeat(80))
+        val twoPending =
+            mapper
+                .createArrayNode()
+                .add(mapper.readTree(delivery(listOf(WH_WALLET), pre = listOf(1_000), post = listOf(2_000)))[0])
+                .add(tx2)
+
+        val result = service.ingest(twoPending, UUID.randomUUID(), UUID.randomUUID())
+
+        assertEquals(1, result.deferred)
+        assertEquals(1, result.rejected)
+        assertEquals(1, service.deferredSize())
+    }
+
+    @Test
+    fun `a finalized signature that cannot be fetched is held and stages once fetchable`() {
+        store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
+        val json = delivery(listOf(WH_WALLET), pre = listOf(1_000), post = listOf(2_000))
+        // Call the service directly, bypassing ingest()'s auto-fill, so the fetcher returns null for WH_SIG.
+        val result = service.ingest(mapper.readTree(json), UUID.randomUUID(), UUID.randomUUID())
+
+        assertEquals(0, result.staged)
+        assertEquals(1, result.deferred)
+        assertTrue(store.inserted.isEmpty())
+
+        canonical[WH_SIG] = mapper.readTree(json)[0]
+        val recheck = service.recheckDeferred()
+
+        assertEquals(1, recheck.staged)
+        assertEquals(0, recheck.pending)
+        assertEquals(1, store.inserted.size)
     }
 
     @Test
@@ -245,17 +346,6 @@ class OnchainWebhookServiceTest {
         val forged = delivery(listOf(WH_WALLET, WH_OTHER), pre = listOf(1_000, 5_000), post = listOf(2_000_000_000, 4_000))
 
         assertEquals(0, ingest(forged))
-        assertTrue(store.inserted.isEmpty())
-    }
-
-    @Test
-    fun `a finalized signature that cannot be fetched stages nothing`() {
-        store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
-        val json = delivery(listOf(WH_WALLET), pre = listOf(1_000), post = listOf(2_000))
-        // Call the service directly, bypassing ingest()'s auto-fill, so the fetcher returns null for WH_SIG.
-        val written = service.ingest(mapper.readTree(json), UUID.randomUUID(), UUID.randomUUID())
-
-        assertEquals(0, written)
         assertTrue(store.inserted.isEmpty())
     }
 }
