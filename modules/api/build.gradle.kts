@@ -58,6 +58,8 @@ dependencies {
     implementation(libs.micrometer.tracing.otel)
     runtimeOnly(libs.opentelemetry.exporter.otlp)
     implementation(libs.micrometer.core)
+    // Graph projection writer (ADR-0004 amendment, #308); Apache-2.0.
+    implementation(libs.neo4j.driver)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.security)
     implementation(libs.spring.boot.starter.oauth2.rs)
@@ -86,6 +88,8 @@ dependencies {
 // daemon, not this forked JVM.
 tasks.test {
     maxHeapSize = "2g"
+    // GraphProjectionIT applies the canonical Cypher schema to its Neo4j container.
+    systemProperty("ontology.dir", rootProject.file("ontology").absolutePath)
 }
 
 tasks.processResources {

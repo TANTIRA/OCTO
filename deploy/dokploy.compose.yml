@@ -27,8 +27,14 @@ services:
       - AUTH_ISSUER=${AUTH_ISSUER}
       - AUTH_JWKS_URL=${AUTH_JWKS_URL}
       - AUTH_AUDIENCE=${AUTH_AUDIENCE:-authenticated}
-      # No SUPABASE_* or NEO4J_* here: nothing in the api reads them (#340). A feature that needs
-      # storage or the graph adds the credential it actually reads in its own PR.
+      # No SUPABASE_* here: nothing in the api reads them (#340). A feature that needs storage adds
+      # the credential it actually reads in its own PR.
+      # Graph projection (ADR-0004, #308): bare pass-throughs — set NEO4J_URI (bolt://octo-neo4j-db:7687
+      # on dokploy-network) to start the projector; unset, the outbox just accumulates.
+      - NEO4J_URI
+      - NEO4J_DATABASE
+      - NEO4J_USER
+      - NEO4J_PASSWORD
       - OPENROUTER_API_KEY
       - DECISION_MODEL
       - DECISION_MODEL_ENDPOINT

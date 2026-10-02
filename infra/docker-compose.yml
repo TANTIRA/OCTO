@@ -28,9 +28,14 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_MIGRATION_USER: ${DB_MIGRATION_USER}
       DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD}
-      # No SUPABASE_* or NEO4J_* here: nothing in the api reads them (#340). The service key bypasses
-      # RLS, so holding it only widens the blast radius; a feature that needs storage or the graph adds
-      # the narrow credential it actually reads (user-JWT passthrough, scoped key, graph user) in its own PR.
+      # No SUPABASE_* here: nothing in the api reads them (#340). The service key bypasses RLS, so
+      # holding it only widens the blast radius; a feature that needs storage adds the narrow
+      # credential it actually reads (user-JWT passthrough or a scoped key) in its own PR.
+      # Graph projection (ADR-0004, #308): a blank NEO4J_URI leaves the projector off (the outbox waits).
+      NEO4J_URI: ${NEO4J_URI:-}
+      NEO4J_DATABASE: ${NEO4J_DATABASE:-}
+      NEO4J_USER: ${NEO4J_USER:-}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-}
       AUTH_ISSUER: ${AUTH_ISSUER}
       AUTH_JWKS_URL: ${AUTH_JWKS_URL}
       AUTH_AUDIENCE: ${AUTH_AUDIENCE:-authenticated}
