@@ -188,9 +188,9 @@ export default function Authentication3() {
     }
   };
 
-  // Non-enumerating: the response is identical whether or not the account
-  // exists. Delivery depends on deployment SMTP (self-hosted mailer may be
-  // a catch-all until configured) — the flow is honest either way.
+  // Non-enumerating: the success response is identical whether or not the
+  // account exists. Errors mean transport/SMTP/config or rate-limit failure —
+  // delivery never happened — so they surface instead of faking success.
   const recover = async () => {
     if (!supabase || recovering || pending) return;
     if (!email) {
@@ -200,10 +200,15 @@ export default function Authentication3() {
     setRecovering(true);
     setError(null);
     setNotice(null);
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login/reset`,
-    });
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      email,
+      { redirectTo: `${window.location.origin}/login/reset` },
+    );
     setRecovering(false);
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
     setNotice(
       "If an account exists for that address, a reset link is on its way.",
     );
