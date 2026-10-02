@@ -2,6 +2,7 @@ package com.octo.ontology
 
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.GraphDatabase
+import org.neo4j.driver.exceptions.ClientException
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -9,6 +10,7 @@ import org.testcontainers.utility.DockerImageName
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -71,6 +73,32 @@ class Neo4jSchemaIT {
                     "every CREATE CONSTRAINT in the schema must be visible after apply",
                 )
                 assertTrue(applied.any { it == "instrument_instrument_id_key" }, "instrument key constraint missing")
+
+                // Tenant-owned keys are per tenant (ADR-0004, ontology 2.0.0): two tenants may hold the
+                // same fund, one tenant may not hold it twice, and an octoId is unique across tenants.
+                val a = "00000000-0000-4000-8000-00000000000a"
+                val b = "00000000-0000-4000-8000-00000000000b"
+                session
+                    .run(
+                        "CREATE (:Fund {tenantId: '$a', legalName: 'Same Fund LP', octoId: '00000000-0000-4000-8000-000000000001'})",
+                    ).consume()
+                session
+                    .run(
+                        "CREATE (:Fund {tenantId: '$b', legalName: 'Same Fund LP', octoId: '00000000-0000-4000-8000-000000000002'})",
+                    ).consume()
+                assertEquals(2L, session.run("MATCH (n:Fund) RETURN count(n) AS c").single()["c"].asLong())
+                assertFailsWith<ClientException> {
+                    session
+                        .run(
+                            "CREATE (:Fund {tenantId: '$a', legalName: 'Same Fund LP', octoId: '00000000-0000-4000-8000-000000000003'})",
+                        ).consume()
+                }
+                assertFailsWith<ClientException> {
+                    session
+                        .run(
+                            "CREATE (:Fund {tenantId: '$b', legalName: 'Other Fund LP', octoId: '00000000-0000-4000-8000-000000000001'})",
+                        ).consume()
+                }
             }
         }
     }

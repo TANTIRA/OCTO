@@ -18,7 +18,7 @@ class CypherSchemaTest {
 
     @Test
     fun `parses every declared attribute`() {
-        assertEquals(49, schema.attributes.size)
+        assertEquals(51, schema.attributes.size)
         assertEquals(
             listOf(
                 "contribution",
@@ -34,6 +34,25 @@ class CypherSchemaTest {
         assertEquals("^[A-Z]{3}$", schema.attributes.getValue("currency-code").regex)
         assertEquals("0", schema.attributes.getValue("decimals").rangeMin)
         assertEquals("255", schema.attributes.getValue("decimals").rangeMax)
+        val uuid = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        assertEquals(uuid, schema.attributes.getValue("tenant-id").regex)
+        assertEquals(uuid, schema.attributes.getValue("octo-id").regex)
+    }
+
+    @Test
+    fun `tenant-owned entities own tenant-id and a unique octo-id, reference data owns neither`() {
+        val tenantOwned = listOf("party", "fund", "deal", "investment", "document", "wallet", "evm-wallet")
+        for (name in tenantOwned) {
+            val owns = schema.entities.getValue(name).owns
+            assertTrue(owns.any { it.attribute == "tenant-id" && !it.key }, "$name must own tenant-id")
+            assertTrue(owns.single { it.attribute == "octo-id" }.unique, "$name must own octo-id @unique")
+        }
+        val owners =
+            schema.entities.values
+                .filter { type -> type.owns.any { it.attribute == "tenant-id" } }
+                .map { it.name }
+                .toSet()
+        assertEquals(tenantOwned.toSet(), owners)
     }
 
     @Test
