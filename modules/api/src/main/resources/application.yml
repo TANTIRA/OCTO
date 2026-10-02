@@ -6,9 +6,10 @@ spring:
       pool:
         # Boot's default scheduler has one thread, so a long EVM scan stalled report runs, schedules and
         # onchain promotion behind it (#493). One thread per @Scheduled job (EvmSyncRunner,
-        # OnchainPromotionRunner, ReportRunner, ReportScheduleRunner, GraphProjector); all are fixed-delay,
+        # OnchainPromotionRunner, OnchainWebhookRecheckRunner, ReportRunner, ReportScheduleRunner,
+        # GraphProjector); all are fixed-delay,
         # so none overlaps itself. SchedulingPoolTest fails when a new job outgrows this default.
-        size: ${SCHEDULING_POOL_SIZE:5}
+        size: ${SCHEDULING_POOL_SIZE:6}
   autoconfigure:
     # SecurityConfig owns the only Redis factory (REDIS_HOST, short timeouts). Boot's would mint a
     # localhost:6379 client when REDIS_HOST is unset, failing every quota call (#321); the
