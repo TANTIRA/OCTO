@@ -44,8 +44,6 @@ class OnchainIngestionConfiguration {
                 wallet: String,
             ): Long? = delegate.newestSlot(chain, wallet)
 
-            override fun watchedTokenAccounts(chain: String): Map<String, String> = delegate.watchedTokenAccounts(chain)
-
             override fun newestStagedSlot(chain: String): Long? = delegate.newestStagedSlot(chain)
 
             override fun tokenContracts(chain: String): List<TokenContract> = delegate.tokenContracts(chain)

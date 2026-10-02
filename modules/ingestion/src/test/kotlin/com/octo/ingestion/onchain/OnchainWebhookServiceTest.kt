@@ -76,7 +76,6 @@ private fun ataDelivery(
 
 private class FakeWebhookStore : OnchainStagingStore {
     var watched: List<WatchSource> = emptyList()
-    var tokenOwners: Map<String, String> = emptyMap()
     val inserted = mutableListOf<OnchainTransfer>()
     var actorSeen: String? = null
 
@@ -86,8 +85,6 @@ private class FakeWebhookStore : OnchainStagingStore {
         chain: String,
         wallet: String,
     ): Long? = null
-
-    override fun watchedTokenAccounts(chain: String): Map<String, String> = tokenOwners
 
     override fun newestStagedSlot(chain: String): Long? = null
 
@@ -215,7 +212,8 @@ class OnchainWebhookServiceTest {
     @Test
     fun `a delivery touching only a watched wallet ATA resolves to the owner`() {
         store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_WALLET, tenantId = null, label = null))
-        store.tokenOwners = mapOf(WH_ATA to WH_WALLET)
+        // No token-owner snapshot map exists — the wallet is matched as the token
+        // balance's owner straight from the transaction's own meta (#484).
         val json = ataDelivery(WH_ATA, WH_WALLET, pre = 1_000, post = 5_000)
 
         assertEquals(1, ingest(json))
@@ -226,7 +224,6 @@ class OnchainWebhookServiceTest {
     @Test
     fun `an ATA whose owner is not watched stages nothing`() {
         store.watched = listOf(WatchSource(chain = CHAIN_SOLANA, address = WH_OTHER, tenantId = null, label = null))
-        store.tokenOwners = mapOf(WH_ATA to WH_WALLET) // WH_WALLET is unwatched
         val json = ataDelivery(WH_ATA, WH_WALLET, pre = 1_000, post = 5_000)
 
         assertEquals(0, ingest(json))

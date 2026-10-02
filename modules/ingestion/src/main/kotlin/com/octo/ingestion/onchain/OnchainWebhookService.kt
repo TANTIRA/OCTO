@@ -92,7 +92,6 @@ class OnchainWebhookService(
         if (!payload.isArray || payload.isEmpty) return WebhookIngest(0, 0, 0)
         val watched = store.activeWatchedAddresses(chain).mapTo(hashSetOf()) { it.address }
         if (watched.isEmpty()) return WebhookIngest(0, 0, 0)
-        val tokenOwners = store.watchedTokenAccounts(chain)
 
         val signatures = payload.mapNotNull(::signatureOf)
         val unsigned = payload.size() - signatures.size
@@ -126,7 +125,7 @@ class OnchainWebhookService(
             log.warning("could not fetch canonical content for ${notFetched.size} finalized signatures; held for re-check")
         }
 
-        val parses = parseAll(canonical.values, watched, tokenOwners, clock.instant())
+        val parses = parseAll(canonical.values, watched, clock.instant())
         val staged = store.insertTransfers(parses.flatMap { it.legs }, ingestionRunId, correlationId, actor)
         return WebhookIngest(staged, heldNow, rejected)
     }
@@ -164,13 +163,12 @@ class OnchainWebhookService(
         if (canonical.isEmpty()) return WebhookRecheck(0, expired, synchronized(deferredLock) { deferred.size })
 
         val watched = store.activeWatchedAddresses(chain).mapTo(hashSetOf()) { it.address }
-        val tokenOwners = store.watchedTokenAccounts(chain)
         val observedAt = clock.instant()
         val ingestionRunId = UUID.randomUUID()
         var staged = 0
         val done = mutableSetOf<String>()
         for ((sig, tx) in canonical) {
-            val legs = parseAll(listOf(tx), watched, tokenOwners, observedAt).flatMap { it.legs }
+            val legs = parseAll(listOf(tx), watched, observedAt).flatMap { it.legs }
             staged += store.insertTransfers(legs, ingestionRunId, due.getValue(sig), actor)
             done += sig
         }
@@ -200,12 +198,11 @@ class OnchainWebhookService(
     private fun parseAll(
         canonical: Collection<JsonNode>,
         watched: Set<String>,
-        tokenOwners: Map<String, String>,
         observedAt: Instant,
     ): List<TransferParse> {
         val parses =
             canonical.flatMap { tx ->
-                watchedAccounts(tx, watched, tokenOwners).map { normalizer.normalize(tx, it, observedAt) }
+                watchedAccounts(tx, watched).map { normalizer.normalize(tx, it, observedAt) }
             }
         val skipped = parses.flatMap { it.skipped }
         if (skipped.isNotEmpty()) {
@@ -225,24 +222,35 @@ class OnchainWebhookService(
             ?.takeIf(String::isNotBlank)
 
     /**
-     * Watched wallets this transaction is relevant to: an `accountKeys` entry either is a
-     * watched address itself or is a token account owned by one. Entries are plain strings
-     * in the json encoding and `{"pubkey": ...}` objects in jsonParsed — accept both.
-     * A wallet with two ATAs in one transaction still normalizes once — the deterministic
-     * external ids keep a second normalization from writing anything new.
+     * Watched wallets this transaction is relevant to. An `accountKeys` entry that is a
+     * watched address matches directly — entries are plain strings in the json encoding and
+     * `{"pubkey": ...}` objects in jsonParsed, so accept both. An inbound SPL transfer never
+     * lists the recipient wallet among `accountKeys` — only its token account — so the wallet
+     * is matched as the `owner` of a `preTokenBalances`/`postTokenBalances` entry instead, the
+     * same field the normalizer filters token legs on (#484). A wallet with two ATAs in one
+     * transaction still normalizes once — the deterministic external ids keep a second
+     * normalization from writing anything new.
      */
     private fun watchedAccounts(
         tx: JsonNode,
         watched: Set<String>,
-        tokenOwners: Map<String, String>,
-    ): List<String> =
-        tx
-            .path("transaction")
-            .path("message")
-            .path("accountKeys")
-            .mapNotNull { key -> if (key.isTextual) key.asText() else key.path("pubkey").asText(null) }
-            .mapNotNull { account -> if (account in watched) account else tokenOwners[account]?.takeIf { it in watched } }
-            .distinct()
+    ): List<String> {
+        val fromKeys =
+            tx
+                .path("transaction")
+                .path("message")
+                .path("accountKeys")
+                .mapNotNull { key -> if (key.isTextual) key.asText() else key.path("pubkey").asText(null) }
+                .filter { it in watched }
+        val meta = tx.path("meta")
+        val fromOwners =
+            meta
+                .path("preTokenBalances")
+                .mapNotNull { it.path("owner").asText(null) }
+                .plus(meta.path("postTokenBalances").mapNotNull { it.path("owner").asText(null) })
+                .filter { it in watched }
+        return (fromKeys + fromOwners).distinct()
+    }
 
     companion object {
         const val DEFAULT_MAX_DEFERRED = 10_000

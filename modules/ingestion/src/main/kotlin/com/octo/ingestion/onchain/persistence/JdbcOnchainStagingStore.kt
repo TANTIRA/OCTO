@@ -105,27 +105,6 @@ class JdbcOnchainStagingStore(
                 }
         }
 
-    override fun watchedTokenAccounts(chain: String): Map<String, String> =
-        dataSource.scoped(TenantScope.All) { c ->
-            c
-                .prepareStatement(
-                    """
-                    select token_account, wallet
-                      from octo.onchain_balance_snapshot
-                     where chain = ? and token_account is not null
-                    """.trimIndent(),
-                ).use { s ->
-                    s.setString(1, chain)
-                    s.executeQuery().use { r ->
-                        buildMap {
-                            while (r.next()) {
-                                put(r.getString("token_account"), r.getString("wallet"))
-                            }
-                        }
-                    }
-                }
-        }
-
     override fun newestStagedSlot(chain: String): Long? =
         dataSource.scoped(TenantScope.All) { c ->
             c

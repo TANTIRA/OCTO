@@ -88,8 +88,6 @@ private class ScanFakeStore(
         wallet: String,
     ): Long? = cursor
 
-    override fun watchedTokenAccounts(chain: String): Map<String, String> = emptyMap()
-
     override fun newestStagedSlot(chain: String): Long? = cursor
 
     override fun tokenContracts(chain: String): List<TokenContract> = contracts
