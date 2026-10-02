@@ -28,10 +28,30 @@ Unchanged from ADR-0003: Supabase PostgreSQL owns the append-only IBOR ledger, w
 
 - Schema lives in `ontology/octo-investment.cypher` and deploys via the migration pipeline — never ad-hoc in Browser.
 - Target is Community Edition: `IS UNIQUE` constraints only. `NODE KEY`, property-existence, and relationship-type constraints are Enterprise-only and must not appear in the schema file.
-- TypeQL `entity` maps to a node label; `sub` maps to multiple labels (a subtype instance carries every ancestor label). `@key`/`@unique` map to `IS UNIQUE` constraints.
+- TypeQL `entity` maps to a node label; `sub` maps to multiple labels (a subtype instance carries every ancestor label). `@key`/`@unique` map to `IS UNIQUE` constraints — composite `(tenantId, <key>)` on tenant-owned entities, global on reference data (see *Tenant-scoped keys* below).
 - Two-role relations map to relationship types; relations with three or more roles are reified as nodes with labeled edges.
 - Constraints Neo4j cannot express (`@values`, `@regex`, `@range`, `@card`) are preserved as machine-readable `// type: ... | name: ... | ...` comment lines and enforced by SHACL at write time.
 - Application queries go through `modules/api` service code — no client-supplied Cypher reaches the database.
+
+### Dual-write: transactional outbox (amendment, #308)
+
+PostgreSQL stays the ledger of record and the graph stays derived, so graph writes never join a ledger transaction:
+
+- **Not 2PC.** Neo4j Community has no XA participant, and a coordinator would make every ledger write depend on graph availability.
+- **Not "write Postgres, then Neo4j".** A crash or a Neo4j error between the two loses the graph update with nothing left to retry it.
+- **Transactional outbox.** The store call that writes a domain row also inserts an `octo.graph_outbox` row on the same scoped connection, so both commit or roll back together. A projector in `modules/api` claims pending rows (`for update skip locked` plus a lease, the `report_job` pattern) and applies each one with an idempotent `MERGE` keyed by `octoId`. Retries back off. Rows that keep failing become `failed`, are counted in metrics, and are reported — never skipped.
+- **"Atomic failure semantics"** therefore means the ledger write and the intent to update the graph are one fact. If Neo4j is down, ledger writes still succeed and the outbox drains on recovery. API readiness does not depend on the graph.
+- **Reconciliation** compares the source tables with the graph per tenant — missing, stale, orphaned, stuck — and opens evidence-request tasks for discrepancies. It is what proves the graph never diverges undetected.
+
+### Tenant-scoped keys (amendment, #308 — ontology 2.0.0)
+
+The graph holds every tenant in one database (Community Edition has a single user database), so a global `@key` makes one tenant's data block another's: two tenants registering the same fund would collide. Tenant-owned entities (`party` and its subtypes, `fund`, `deal`, `investment`, `document`, `wallet`, `evm-wallet`) therefore own `tenant-id` and `octo-id`:
+
+- Their business key is the composite `(tenantId, <key>) IS UNIQUE`, which Community Edition supports.
+- `octoId` — the Postgres row id, or for superseding rows the lineage-root id, so a correction updates the same node — is globally `IS UNIQUE`.
+- Reference data (`sector`, `country`, `instrument` and its mints/contracts) keeps global keys.
+
+Every graph read filters on `tenantId`. This changes what `@key` means for those entities, so the ontology moves to **2.0.0** (SemVer MAJOR). Existing graphs drop the replaced global constraints (`fund_legal_name_key`, `deal_display_name_key`, `investment_display_name_key`, `document_file_name_key`, `person_email_unique`, `wallet_solana_address_key`, `evm_wallet_evm_address_key`) before applying the schema. Production holds no projected data yet, so nothing needs to be rekeyed.
 
 ## Consequences
 

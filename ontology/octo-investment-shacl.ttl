@@ -23,7 +23,9 @@ inv:PartyShape a sh:NodeShape ;
     sh:targetClass inv:Party ;
     sh:property [ sh:path inv:legalName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "A party must have a legalName (mirrors 'owns legal-name @key')."@en ] ;
     sh:property [ sh:path inv:externalId ; sh:datatype xsd:string ; sh:message "externalId must be a string."@en ] ;
-    sh:property [ sh:path inv:description ; sh:datatype xsd:string ; sh:message "description must be a string."@en ] .
+    sh:property [ sh:path inv:description ; sh:datatype xsd:string ; sh:message "description must be a string."@en ] ;
+    sh:property [ sh:path inv:tenantId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "tenantId must be a lowercase UUID."@en ] ;
+    sh:property [ sh:path inv:octoId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "octoId must be a lowercase UUID."@en ] .
 
 inv:OrganizationShape a sh:NodeShape ;
     sh:targetClass inv:Organization ;
@@ -57,19 +59,25 @@ inv:FundShape a sh:NodeShape ;
     sh:property [ sh:path inv:vintageYear ; sh:datatype xsd:integer ; sh:minInclusive 1900 ; sh:maxInclusive 2100 ; sh:message "vintageYear must be within 1900..2100."@en ] ;
     sh:property [ sh:path inv:fundStatus ; sh:datatype xsd:string ; sh:in ( "fundraising" "investing" "harvesting" "winding-down" "closed" ) ; sh:message "fundStatus must be one of the fund-status @values."@en ] ;
     sh:property [ sh:path inv:currencyCode ; sh:datatype xsd:string ; sh:pattern "^[A-Z]{3}$" ; sh:message "currencyCode must match ^[A-Z]{3}$."@en ] ;
-    sh:property [ sh:path inv:committedAmount ; sh:datatype xsd:decimal ; sh:message "committedAmount must be a decimal."@en ] .
+    sh:property [ sh:path inv:committedAmount ; sh:datatype xsd:decimal ; sh:message "committedAmount must be a decimal."@en ] ;
+    sh:property [ sh:path inv:tenantId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "tenantId must be a lowercase UUID."@en ] ;
+    sh:property [ sh:path inv:octoId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "octoId must be a lowercase UUID."@en ] .
 
 inv:DealShape a sh:NodeShape ;
     sh:targetClass inv:Deal ;
     sh:property [ sh:path inv:displayName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "A deal must have a displayName (mirrors 'owns display-name @key')."@en ] ;
     sh:property [ sh:path inv:dealSource ; sh:datatype xsd:string ; sh:in ( "founder" "auction" "limited-auction" "referral" "intermediary" "proprietary" "other" ) ; sh:message "dealSource must be one of the deal-source @values."@en ] ;
     sh:property [ sh:path inv:dealStatus ; sh:datatype xsd:string ; sh:in ( "intake" "screening" "analyst-review" "due-diligence" "ic-preparation" "ic-review" "approved" "declined" "invested" "realized" ) ; sh:message "dealStatus must be one of the deal-status @values."@en ] ;
-    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] .
+    sh:property [ sh:path inv:effectiveDate ; sh:datatype xsd:date ; sh:message "effectiveDate must be an xsd:date."@en ] ;
+    sh:property [ sh:path inv:tenantId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "tenantId must be a lowercase UUID."@en ] ;
+    sh:property [ sh:path inv:octoId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "octoId must be a lowercase UUID."@en ] .
 
 inv:InvestmentShape a sh:NodeShape ;
     sh:targetClass inv:Investment ;
     sh:property [ sh:path inv:displayName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "An investment must have a displayName (mirrors 'owns display-name @key')."@en ] ;
-    sh:property [ sh:path inv:investmentStatus ; sh:datatype xsd:string ; sh:in ( "unrealized" "partially-realized" "realized" ) ; sh:message "investmentStatus must be one of the investment-status @values."@en ] .
+    sh:property [ sh:path inv:investmentStatus ; sh:datatype xsd:string ; sh:in ( "unrealized" "partially-realized" "realized" ) ; sh:message "investmentStatus must be one of the investment-status @values."@en ] ;
+    sh:property [ sh:path inv:tenantId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "tenantId must be a lowercase UUID."@en ] ;
+    sh:property [ sh:path inv:octoId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "octoId must be a lowercase UUID."@en ] .
 
 inv:LedgerEventShape a sh:NodeShape ;
     sh:targetClass inv:LedgerEvent ;
@@ -93,7 +101,9 @@ inv:DocumentShape a sh:NodeShape ;
     sh:property [ sh:path inv:fileName ; sh:datatype xsd:string ; sh:minCount 1 ; sh:message "A document must have a fileName (mirrors 'owns file-name @key')."@en ] ;
     sh:property [ sh:path inv:documentType ; sh:datatype xsd:string ; sh:in ( "pitch-deck" "ddq" "financials" "icap-report" "memo" "legal" "lp-report" "tear-sheet" "other" ) ; sh:message "documentType must be one of the document-type @values."@en ] ;
     sh:property [ sh:path inv:documentSha256 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{64}$" ; sh:message "documentSha256 must match ^[0-9a-f]{64}$."@en ] ;
-    sh:property [ sh:path inv:recordedAt ; sh:datatype xsd:dateTime ; sh:message "recordedAt must be an xsd:dateTime."@en ] .
+    sh:property [ sh:path inv:recordedAt ; sh:datatype xsd:dateTime ; sh:message "recordedAt must be an xsd:dateTime."@en ] ;
+    sh:property [ sh:path inv:tenantId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "tenantId must be a lowercase UUID."@en ] ;
+    sh:property [ sh:path inv:octoId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "octoId must be a lowercase UUID."@en ] .
 
 inv:ExtractedClaimShape a sh:NodeShape ;
     sh:targetClass inv:ExtractedClaim ;
@@ -254,12 +264,16 @@ inv:EvmContractShape a sh:NodeShape ;
 inv:WalletShape a sh:NodeShape ;
     sh:targetClass inv:Wallet ;
     sh:property [ sh:path inv:solanaAddress ; sh:datatype xsd:string ; sh:minCount 1 ; sh:pattern "^[1-9A-HJ-NP-Za-km-z]{32,44}$" ; sh:message "A wallet must have a solanaAddress matching ^[1-9A-HJ-NP-Za-km-z]{32,44}$ (mirrors 'owns solana-address @key')."@en ] ;
-    sh:property [ sh:path inv:chainId ; sh:datatype xsd:string ; sh:message "chainId must be a string."@en ] .
+    sh:property [ sh:path inv:chainId ; sh:datatype xsd:string ; sh:message "chainId must be a string."@en ] ;
+    sh:property [ sh:path inv:tenantId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "tenantId must be a lowercase UUID."@en ] ;
+    sh:property [ sh:path inv:octoId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "octoId must be a lowercase UUID."@en ] .
 
 inv:EvmWalletShape a sh:NodeShape ;
     sh:targetClass inv:EvmWallet ;
     sh:property [ sh:path inv:evmAddress ; sh:datatype xsd:string ; sh:minCount 1 ; sh:pattern "^0x[0-9a-f]{40}$" ; sh:message "An evm-wallet must have an evmAddress matching ^0x[0-9a-f]{40}$ (mirrors 'owns evm-address @key')."@en ] ;
-    sh:property [ sh:path inv:chainId ; sh:datatype xsd:string ; sh:message "chainId must be a string."@en ] .
+    sh:property [ sh:path inv:chainId ; sh:datatype xsd:string ; sh:message "chainId must be a string."@en ] ;
+    sh:property [ sh:path inv:tenantId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "tenantId must be a lowercase UUID."@en ] ;
+    sh:property [ sh:path inv:octoId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "octoId must be a lowercase UUID."@en ] .
 
 inv:InstrumentFlowShape a sh:NodeShape ;
     sh:targetClass inv:InstrumentFlow ;

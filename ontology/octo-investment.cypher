@@ -18,7 +18,14 @@
 //                      :Organization and :Party. Writers must set the full chain.
 //   @key / @unique  -> IS UNIQUE constraint (community edition — NODE KEY and
 //                      existence constraints are Enterprise-only; required-ness
-//                      is enforced by the SHACL mirror, not the store)
+//                      is enforced by the SHACL mirror, not the store).
+//                      Tenant-owned entities (those that own tenant-id) are
+//                      keyed per tenant: the constraint is the composite
+//                      (tenantId, <key>) IS UNIQUE, so two tenants may hold the
+//                      same fund or wallet. Their octo-id (the Postgres row or
+//                      lineage-root id the graph projection writes from) is
+//                      globally unique. Reference data (sector, country,
+//                      instrument and its mints/contracts) keeps global keys.
 //   relation, 2 roles   -> relationship type, kebab-to-snake
 //                      (fund-sector -> :FUND_SECTOR); direction = declaration
 //                      order (first role's player -> second role's player)
@@ -33,6 +40,8 @@
 // type: attribute | name: legal-name | value: string
 // type: attribute | name: display-name | value: string
 // type: attribute | name: external-id | value: string
+// type: attribute | name: tenant-id | value: string | @regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+// type: attribute | name: octo-id | value: string | @regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 // type: attribute | name: lei | value: string | @regex("^[A-Z0-9]{20}$")
 // type: attribute | name: description | value: string
 // type: attribute | name: email | value: string | @regex(".*@.*")
@@ -103,8 +112,12 @@
 // Entities — parties
 // ============================================================
 // type: entity | name: party | abstract: true
-// owns: legal-name @key, external-id, description
+// owns: legal-name @key, external-id, description, tenant-id, octo-id @unique
 // plays: contact-for:party-side
+CREATE CONSTRAINT party_tenant_legal_name_key IF NOT EXISTS
+FOR (n:Party) REQUIRE (n.tenantId, n.legalName) IS UNIQUE;
+CREATE CONSTRAINT party_octo_id_unique IF NOT EXISTS
+FOR (n:Party) REQUIRE n.octoId IS UNIQUE;
 
 // type: entity | name: organization | sub: party
 // owns: website
@@ -127,8 +140,8 @@
 // type: entity | name: person | sub: party
 // owns: email @unique, phone, job-title
 // plays: employment:employee, board-seat:member, contact-for:contact-side
-CREATE CONSTRAINT person_email_unique IF NOT EXISTS
-FOR (n:Person) REQUIRE n.email IS UNIQUE;
+CREATE CONSTRAINT person_tenant_email_unique IF NOT EXISTS
+FOR (n:Person) REQUIRE (n.tenantId, n.email) IS UNIQUE;
 
 // ============================================================
 // Entities — structure and reference
@@ -146,22 +159,28 @@ CREATE CONSTRAINT country_iso_country_code_key IF NOT EXISTS
 FOR (n:Country) REQUIRE n.isoCountryCode IS UNIQUE;
 
 // type: entity | name: fund
-// owns: legal-name @key, vintage-year, fund-status, currency-code, committed-amount
+// owns: legal-name @key, vintage-year, fund-status, currency-code, committed-amount, tenant-id, octo-id @unique
 // plays: fund-management:vehicle, commitment:vehicle, fund-investment:vehicle, fund-sector:fund-side, fund-domicile:fund-side, cash-flow-attribution:vehicle-side
-CREATE CONSTRAINT fund_legal_name_key IF NOT EXISTS
-FOR (n:Fund) REQUIRE n.legalName IS UNIQUE;
+CREATE CONSTRAINT fund_tenant_legal_name_key IF NOT EXISTS
+FOR (n:Fund) REQUIRE (n.tenantId, n.legalName) IS UNIQUE;
+CREATE CONSTRAINT fund_octo_id_unique IF NOT EXISTS
+FOR (n:Fund) REQUIRE n.octoId IS UNIQUE;
 
 // type: entity | name: deal
-// owns: display-name @key, deal-source, deal-status, effective-date
+// owns: display-name @key, deal-source, deal-status, effective-date, tenant-id, octo-id @unique
 // plays: deal-subject:deal-side, fund-investment:deal-side, document-about:deal-side, screening-of:deal-side
-CREATE CONSTRAINT deal_display_name_key IF NOT EXISTS
-FOR (n:Deal) REQUIRE n.displayName IS UNIQUE;
+CREATE CONSTRAINT deal_tenant_display_name_key IF NOT EXISTS
+FOR (n:Deal) REQUIRE (n.tenantId, n.displayName) IS UNIQUE;
+CREATE CONSTRAINT deal_octo_id_unique IF NOT EXISTS
+FOR (n:Deal) REQUIRE n.octoId IS UNIQUE;
 
 // type: entity | name: investment
-// owns: display-name @key, investment-status
+// owns: display-name @key, investment-status, tenant-id, octo-id @unique
 // plays: fund-investment:position, valuation-of:subject-side, cash-flow-attribution:position-side
-CREATE CONSTRAINT investment_display_name_key IF NOT EXISTS
-FOR (n:Investment) REQUIRE n.displayName IS UNIQUE;
+CREATE CONSTRAINT investment_tenant_display_name_key IF NOT EXISTS
+FOR (n:Investment) REQUIRE (n.tenantId, n.displayName) IS UNIQUE;
+CREATE CONSTRAINT investment_octo_id_unique IF NOT EXISTS
+FOR (n:Investment) REQUIRE n.octoId IS UNIQUE;
 
 // ============================================================
 // Entities — ledger events and documents
@@ -177,10 +196,12 @@ FOR (n:Investment) REQUIRE n.displayName IS UNIQUE;
 // plays: valuation-of:valuation-side, supersedes:replacement, supersedes:original, source-attribution:data-side
 
 // type: entity | name: document
-// owns: file-name @key, document-type, document-sha256, recorded-at
+// owns: file-name @key, document-type, document-sha256, recorded-at, tenant-id, octo-id @unique
 // plays: document-about:document-side, extraction-source:document-side, source-attribution:data-side
-CREATE CONSTRAINT document_file_name_key IF NOT EXISTS
-FOR (n:Document) REQUIRE n.fileName IS UNIQUE;
+CREATE CONSTRAINT document_tenant_file_name_key IF NOT EXISTS
+FOR (n:Document) REQUIRE (n.tenantId, n.fileName) IS UNIQUE;
+CREATE CONSTRAINT document_octo_id_unique IF NOT EXISTS
+FOR (n:Document) REQUIRE n.octoId IS UNIQUE;
 
 // type: entity | name: extracted-claim
 // owns: description, confidence-level, model-version, external-id, recorded-at
@@ -215,20 +236,24 @@ CREATE CONSTRAINT evm_contract_evm_address_unique IF NOT EXISTS
 FOR (n:EvmContract) REQUIRE n.evmAddress IS UNIQUE;
 
 // type: entity | name: wallet
-// owns: solana-address @key, chain-id
+// owns: solana-address @key, chain-id, tenant-id, octo-id @unique
 // plays: instrument-flow-of:wallet-side, wallet-custody:wallet-side
-CREATE CONSTRAINT wallet_solana_address_key IF NOT EXISTS
-FOR (n:Wallet) REQUIRE n.solanaAddress IS UNIQUE;
+CREATE CONSTRAINT wallet_tenant_solana_address_key IF NOT EXISTS
+FOR (n:Wallet) REQUIRE (n.tenantId, n.solanaAddress) IS UNIQUE;
+CREATE CONSTRAINT wallet_octo_id_unique IF NOT EXISTS
+FOR (n:Wallet) REQUIRE n.octoId IS UNIQUE;
 
 // The EVM wallet is a separate entity rather than a widened `wallet`: rekeying
 // `wallet` would be a MAJOR change, and a parallel entity is additive
 // (arbitrum-ingestion-design.md §Ontology). A multi-chain wallet supertype is
 // deferred to the second EVM chain, when the shared shape is known.
 // type: entity | name: evm-wallet
-// owns: evm-address @key, chain-id
+// owns: evm-address @key, chain-id, tenant-id, octo-id @unique
 // plays: instrument-flow-of:wallet-side, wallet-custody:wallet-side
-CREATE CONSTRAINT evm_wallet_evm_address_key IF NOT EXISTS
-FOR (n:EvmWallet) REQUIRE n.evmAddress IS UNIQUE;
+CREATE CONSTRAINT evm_wallet_tenant_evm_address_key IF NOT EXISTS
+FOR (n:EvmWallet) REQUIRE (n.tenantId, n.evmAddress) IS UNIQUE;
+CREATE CONSTRAINT evm_wallet_octo_id_unique IF NOT EXISTS
+FOR (n:EvmWallet) REQUIRE n.octoId IS UNIQUE;
 
 // Append-only token-denominated flows. Fiat flows stay on ledger-event; token
 // positions are derived from these, never stored.
