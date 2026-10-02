@@ -48,8 +48,12 @@ Set in the Dokploy compose environment (never committed). Keys mirror
   the result into the standalone routes manifest, so a runtime env var can
   never reach it. Hardcoded `http://api:8080` in the compose `build.args`
   (compose-network service name, not a secret).
-- No `SUPABASE_*` or `NEO4J_*` on the api: nothing reads them (#340). The graph
-  writer (ADR-0004, #308) reintroduces the `NEO4J_*` variables it reads.
+- No `SUPABASE_*` on the api: nothing reads them (#340).
+- `NEO4J_URI` (`bolt://octo-neo4j-db:7687`), `NEO4J_USER`, `NEO4J_PASSWORD`, optional
+  `NEO4J_DATABASE` (default `neo4j`) — the graph projector (ADR-0004, #308). Unset or
+  blank `NEO4J_URI` keeps it off and `octo.graph_outbox` accumulates; health and
+  readiness never depend on Neo4j. Before the first run against a graph that took
+  ontology 1.0.0, drop the seven global constraints listed in ADR-0004.
 - Optional vendor keys (`HELIUS_*`, `ALPHA_VANTAGE_*`, `ARBITRUM_*`, `OPENROUTER_*`, `DECISION_MODEL*`) are declared as **bare pass-throughs** in the compose `environment:` list — they reach the container only when set in the Dokploy env. Do not give them empty defaults: Spring's `@ConditionalOnProperty` treats a present-but-empty value as *configured* and the api crash-loops (`rpcBaseUrl must be https`).
 
 ## Live domains
