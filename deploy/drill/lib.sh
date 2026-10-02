@@ -169,6 +169,42 @@ migration_top() {
   printf '%s' "$((10#$ver))"
 }
 
+# The lowest version the rehearsal helpers can run against: the migration that adds
+# ledger_event.tenant_id, which every seeded ledger row must stamp (and which only exists
+# after the mesta -> octo schema move). Derived from the migration files rather than
+# pinned, so the floor follows the schema instead of drifting stale.
+rehearsal_floor() {
+  local f ver
+  while IFS= read -r f; do
+    if grep -qE 'alter table[[:space:]]+(octo|mesta)\.ledger_event' "$(repo_root)/${MIGRATION_DIR}/${f}" \
+       && grep -qE 'add column[[:space:]]+tenant_id' "$(repo_root)/${MIGRATION_DIR}/${f}"; then
+      ver="${f#V}"; ver="${ver%%__*}"
+      printf '%s' "$((10#$ver))"
+      return 0
+    fi
+  done < <(migration_files)
+  return 1
+}
+
+# Rehearsal-window guard (#302): a V(n-1) -> V(n) rehearsal is only meaningful inside the
+# range the helpers can actually build. Below the floor the seed inserts have no
+# ledger_event.tenant_id to stamp; above the newest file the drill would apply everything
+# yet label the evidence with a version that does not exist; and TO must be strictly
+# greater than FROM or the second apply_migrations call has nothing to do.
+validate_rehearsal_window() {
+  local from="$1" to="$2" floor top
+  [[ "$from" =~ ^[0-9]+$ ]] || die "FROM_VERSION must be a migration number, got '${from}'"
+  [[ "$to" =~ ^[0-9]+$ ]]   || die "TO_VERSION must be a migration number, got '${to}'"
+  floor="$(rehearsal_floor)" || die "could not derive the rehearsal floor from $MIGRATION_DIR"
+  top="$(migration_top)" || die "no migrations found under $MIGRATION_DIR"
+  (( 10#$from >= floor )) \
+    || die "FROM_VERSION=V${from} is below the rehearsal floor V${floor} — the helpers need ledger_event.tenant_id, added there"
+  (( 10#$to > 10#$from )) \
+    || die "TO_VERSION (V${to}) must be greater than FROM_VERSION (V${from})"
+  (( 10#$to <= top )) \
+    || die "TO_VERSION=V${to} exceeds the newest migration on disk (V${top})"
+}
+
 # Empty the audit log. Only safe while both triggers are off: audit_event.seq is a plain bigint
 # assigned by audit_event_chain (V6) — not an identity column, as the sibling
 # tenant_member_event is (V8) — so there is no sequence to restart, and a cleared table cannot
@@ -228,6 +264,20 @@ apply_migrations() {
   local rank applied_through
   rank="$(sql_scalar "$c" "$PG_DB" "select coalesce(max(installed_rank), 0) from octo.flyway_schema_history")"
   applied_through="$(sql_scalar "$c" "$PG_DB" "select coalesce(max(version::int), 0) from octo.flyway_schema_history")"
+
+  # stop_at must name a real, not-yet-applied version (#302): without these guards a
+  # TO_VERSION beyond the newest file applied everything but labelled the evidence with
+  # a version that does not exist, and a TO_VERSION equal to the applied head died later
+  # and less clearly on "no migrations found".
+  if [[ -n "$stop_at" ]]; then
+    local top
+    top="$(migration_top)" || die "no migrations found under $MIGRATION_DIR"
+    [[ "$stop_at" =~ ^[0-9]+$ ]] || die "stop_at must be a migration number, got '${stop_at}'"
+    (( 10#$stop_at <= 10#$top )) \
+      || die "requested V${stop_at} but the newest migration on disk is V${top}"
+    (( 10#$stop_at > 10#$applied_through )) \
+      || die "requested V${stop_at} but ${PG_DB} is already at V${applied_through}"
+  fi
 
   local f name ver desc
   for f in "${files[@]}"; do

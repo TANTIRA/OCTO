@@ -107,6 +107,15 @@ filter by id/seq rather than truncate-and-reload. Tables guarded by
 `reject_mutation` triggers (V1, V7) can never receive UPDATE/DELETE — corrupted
 append-only rows are corrected by superseding rows, matching the domain model.
 
+**Applied migrations are never rolled back in place.** For V5–V7 specifically a
+pre-V5 state is not a recovery target: it drops every `workflow_task` and
+`workflow_task_event`, the entire `audit_event` hash chain, and the IC/report
+approvals recorded on top of them, while leaving dangling `task_id` references
+in V13–V19 rows — and the V5–V7 files cannot be inverted as written because
+V28, V37 and V43 have since moved and replaced their objects (#302). A bad
+applied migration is corrected by a forward migration; restore-from-backup is
+reserved for data loss.
+
 ## 6. Neo4j backup and restore
 
 The graph store (`octo-neo4j-db`, its own Dokploy project per `infra/README.md`)

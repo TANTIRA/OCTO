@@ -15,6 +15,11 @@
 #
 #   FROM_VERSION=41 TO_VERSION=42 deploy/drill/rollback-rehearsal.sh
 #
+# The window is guarded: versions must be numeric, TO must be strictly greater than FROM,
+# FROM must be at or above the rehearsal floor (the migration that adds
+# ledger_event.tenant_id — below it the helpers cannot seed), and TO may not exceed the
+# newest migration on disk. Both bounds are derived from db/migrations/, not pinned.
+#
 # Scope note: on a *fresh* database the V28 rewrite already leaves the function body in the
 # state V40 pins, so the upgrade is a no-op in effect and the rehearsal asserts convergence
 # rather than a visible change. That is a property of the migration, not a gap in the drill.
@@ -108,6 +113,9 @@ membership_rule_enforced() {
 }
 
 # --- rehearsal -----------------------------------------------------------------------
+
+# Fail fast on an impossible window before any container is started.
+validate_rehearsal_window "$FROM_VERSION" "$TO_VERSION"
 
 require_docker
 say "rehearsal start (V${FROM_VERSION} -> V${TO_VERSION}, image ${PG_IMAGE}, commit $(cd "$(repo_root)" && git rev-parse --short HEAD))"

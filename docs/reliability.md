@@ -85,7 +85,7 @@ State of `main` on 2026-09-27. ✅ passes, ⚠️ acceptable for now, ❌ must f
 3. ~~Dockerfile and image build~~ — done in #76.
 4. ~~Backup and restore runbook~~ — `docs/restore-runbook.md`; the rehearsed restore half is still open.
 5. ~~Compose follow-ups~~ — healthcheck on readiness and `MaxRAMPercentage` in #76; the OTEL variable returns with the collector (#306).
-6. **Migration rollback rehearsal** for V5–V7 on staging, as AGENTS.md requires for T2.
+6. **Migration rollback policy for V5–V7** — decision recorded from the #302 dependency inventory: a pre-V5 state is not a recovery target (it loses every `workflow_task*`, the whole `audit_event` chain, and all approvals, while leaving dangling `task_id` references), and the V5–V7 files cannot be inverted because V28/V37/V43 have since moved and replaced their objects. So applied migrations are answered by a corrective forward migration; restore-from-backup is reserved for data loss. The rehearsal harness now guards the version window (`validate_rehearsal_window` in `deploy/drill/lib.sh`, with floor and top derived from `db/migrations/`), keeping V(n−1)→V(n) rehearsals executable for later migrations.
 7. **Timeouts on outbound calls.** `JdkHttpTransport` has a 30-second request timeout. No running service calls the decision model yet: `DocumentClassifier` and `ClaimSupportAssessor` are not wired into any service, and only `DecisionModelEvalTest` constructs the client. The PR that wires that call into a running service adds the circuit breaker, so that a slow vendor fails fast instead of stalling the caller (#305).
 8. **Burn-rate alerts.** ~~OTEL collector~~ ships (#306) and metrics flow into it; next is a backend behind `OTELCOL_EXPORT=otlphttp` that stores them and evaluates §3.
 
