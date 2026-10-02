@@ -1,0 +1,12 @@
+# Trivy suppressions for the octo-api image scan (.github/workflows/ci.yml, docker-scan job).
+# Each entry needs a statement and an expired_at, so it drops back into the Security tab for re-triage.
+vulnerabilities:
+  - id: CVE-2026-35371
+    purls:
+      - "pkg:deb/ubuntu/rust-coreutils"
+    statement: >-
+      False positive. Ubuntu still lists 26.04 as "needs fix", but upstream fixed uu_id in 0.6.0
+      (GitLab advisory for cargo/uu_id) and the base image ships rust-coreutils 0.8.0-0ubuntu3, whose
+      src/uu/id/src/id.rs looks up the effective user with geteuid(). CVSS 3.3, local only, and the
+      api container never calls id. Code scanning alert #81.
+    expired_at: 2027-01-31
