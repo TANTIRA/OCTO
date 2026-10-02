@@ -89,7 +89,9 @@ wait_accepting() {
 
 cleanup_container() {
   local c="$1"
-  docker rm -f "$c" >/dev/null 2>&1 || true
+  # -v: the postgres image declares VOLUME /var/lib/postgresql/data, so every container
+  # also creates an anonymous volume alongside the named ones; without -v it leaks.
+  docker rm -f -v "$c" >/dev/null 2>&1 || true
 }
 
 cleanup_volume() {
@@ -149,6 +151,24 @@ substitute_placeholders() {
   sed "s/\${runtime_role}/${RUNTIME_ROLE}/g"
 }
 
+# Migration filenames on disk, in version order (sort -V puts V2 before V10).
+migration_files() {
+  local root; root="$(repo_root)"
+  (cd "$root" && git ls-files "$MIGRATION_DIR") \
+    | grep -E '/V[0-9]+__[^/]*\.sql$' \
+    | sed 's#^.*/##' \
+    | sort -V
+}
+
+# Highest migration version on disk.
+migration_top() {
+  local name ver
+  name="$(migration_files | tail -1)"
+  [[ -n "$name" ]] || return 1
+  ver="${name#V}"; ver="${ver%%__*}"
+  printf '%s' "$((10#$ver))"
+}
+
 # Empty the audit log. Only safe while both triggers are off: audit_event.seq is a plain bigint
 # assigned by audit_event_chain (V6) — not an identity column, as the sibling
 # tenant_member_event is (V8) — so there is no sequence to restart, and a cleared table cannot
@@ -179,10 +199,7 @@ apply_migrations() {
   local root; root="$(repo_root)"
   local files
   # Version order, not lexicographic: sort -V puts V2 before V10.
-  mapfile -t files < <(cd "$root" && git ls-files "$MIGRATION_DIR" \
-    | grep -E '/V[0-9]+__[^/]*\.sql$' \
-    | sed 's#^.*/##' \
-    | sort -V)
+  mapfile -t files < <(migration_files)
 
   # Flyway's history table lives in the domain schema. On a fresh database Flyway creates
   # `octo` for it first (application.yml `flyway.schemas: octo`), V1-V27 then populate

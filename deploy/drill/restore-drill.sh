@@ -106,7 +106,7 @@ docker volume create "$ARCHIVE_VOL" >/dev/null
 prepare_volumes "$SHARED_VOL" "$ARCHIVE_VOL"
 start_primary "$PRIMARY" "$SHARED_VOL" "$ARCHIVE_VOL" "$PASSWORD"
 
-say "step 2/9 apply the real migration chain (V1..V40)"
+say "step 2/9 apply the real migration chain (V1..V$(migration_top))"
 apply_migrations "$PRIMARY"
 
 # The drill grades a restore with the SQL mirror of verifyAuditChain, so the mirror has to be
@@ -206,7 +206,11 @@ wait_archive_caught_up || warn "no WAL segment reached the archive; continuing"
 PRE_LEDGER="$(sql_scalar "$PRIMARY" "$PG_DB" "select count(*) from octo.ledger_event")"
 PRE_AUDIT="$(sql_scalar "$PRIMARY" "$PG_DB" "select count(*) from octo.audit_event")"
 PRE_FLYWAY="$(sql_scalar "$PRIMARY" "$PG_DB" "select coalesce(max(installed_rank),0) from octo.flyway_schema_history")"
-say "pre-loss high-water marks: ledger=${PRE_LEDGER} audit=${PRE_AUDIT} flyway_rank=${PRE_FLYWAY}"
+# The whole history set, not just its head: a high-water mark passes whether a middle
+# row was deleted or an early script rewritten. The md5 over the ordered
+# installed_rank|version|script set detects both.
+PRE_FLYWAY_MD5="$(sql_scalar "$PRIMARY" "$PG_DB" "select md5(string_agg(installed_rank::text || '|' || version || '|' || script, E'\n' order by installed_rank)) from octo.flyway_schema_history")"
+say "pre-loss high-water marks: ledger=${PRE_LEDGER} audit=${PRE_AUDIT} flyway_rank=${PRE_FLYWAY} history_md5=${PRE_FLYWAY_MD5}"
 
 say "step 6/9 write post-loss data that the restore must NOT bring back"
 psql_c "$PRIMARY" "$PG_DB" -c "
@@ -245,9 +249,8 @@ if ! wait_accepting "$RESTORED" "$PG_DB" 600; then
   fail_drill "restored instance never reached 'ready'"
   exit 1
 fi
-RTO_MS=$(( $(date -u +%s%3N) - RTO_START ))
-RTO_SECONDS=$(( RTO_MS / 1000 ))
-say "restored instance reached 'ready' in ${RTO_MS} ms (${RTO_SECONDS}s wall clock)"
+READY_MS=$(( $(date -u +%s%3N) - RTO_START ))
+say "restored instance reached 'ready' in ${READY_MS} ms"
 RESTORED_LAST="$(sql_scalar "$RESTORED" "$PG_DB" "select to_char(max(occurred_at) at time zone 'UTC','YYYY-MM-DD HH24:MI:SS.US') from octo.ledger_event")"
 PRIMARY_LAST="$(sql_scalar "$PRIMARY" "$PG_DB" "select to_char(max(occurred_at) at time zone 'UTC','YYYY-MM-DD HH24:MI:SS.US') from octo.ledger_event where id <> '${POST_LOSS_ID}'")"
 say "newest ledger row: restored=${RESTORED_LAST} expected=${PRIMARY_LAST}"
@@ -273,10 +276,12 @@ say "step 9/9 run the post-restore checklist (restore-runbook §7)"
   printf '| Check | Result |\n| --- | --- |\n'
 } >> "$BODY"
 
-# §7.1 flyway_schema_history verifies — no failed rows, expected high-water mark
+# §7.1 flyway_schema_history verifies — no failed rows, and the full
+# installed_rank|version|script set matches the pre-loss baseline, so a deleted middle
+# row or a rewritten early script fails rather than hiding behind the high-water mark.
 {
   printf '| `flyway_schema_history` verifies | %s |\n' \
-    "$(sql_scalar "$RESTORED" "$PG_DB" "select case when count(*) filter (where not success)=0 and coalesce(max(installed_rank),0)>=${PRE_FLYWAY} then 'PASS' else 'FAIL' end from octo.flyway_schema_history")"
+    "$(sql_scalar "$RESTORED" "$PG_DB" "select case when count(*) filter (where not success)=0 and md5(string_agg(installed_rank::text || '|' || version || '|' || script, E'\n' order by installed_rank)) = '${PRE_FLYWAY_MD5}' then 'PASS' else 'FAIL' end from octo.flyway_schema_history")"
 } >> "$BODY"
 
 # §7.2 audit chain verification passes
@@ -309,14 +314,14 @@ COUNT_VERDICT="FAIL"
 # §7.4 append-only controls and role separation survived. Queried as individual scalars
 # rather than one wide row, so the evidence reads as named checks instead of a delimited dump.
 check_sql() { psql_c "$RESTORED" "$PG_DB" -tAc "$1"; }
-LEDGER_TRIG="$(check_sql "select count(*) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='octo' and c.relname='ledger_event' and t.tgname='ledger_event_append_only' and not t.tgisinternal")"
-AUDIT_TRIG="$(check_sql "select count(*) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='octo' and c.relname='audit_event' and t.tgname='audit_event_append_only' and not t.tgisinternal")"
+LEDGER_TRIG="$(check_sql "select count(*) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='octo' and c.relname='ledger_event' and t.tgname='ledger_event_append_only' and not t.tgisinternal and t.tgenabled in ('O','A')")"
+AUDIT_TRIG="$(check_sql "select count(*) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='octo' and c.relname='audit_event' and t.tgname='audit_event_append_only' and not t.tgisinternal and t.tgenabled in ('O','A')")"
 MUTATION_FN="$(check_sql "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='octo' and p.proname='ledger_event_reject_mutation'")"
 ROLE_OK="$(check_sql "select case when exists (select 1 from pg_roles where rolname='${RUNTIME_ROLE}' and not rolsuper) then 'present and not superuser' else 'MISSING OR SUPERUSER' end")"
 {
-  printf '| Ledger append-only trigger survived | %s |\n' \
+  printf '| Ledger append-only trigger survived (enabled) | %s |\n' \
     "$([[ "$LEDGER_TRIG" == "1" ]] && echo PASS || echo FAIL)"
-  printf '| Audit append-only trigger survived | %s |\n' \
+  printf '| Audit append-only trigger survived (enabled) | %s |\n' \
     "$([[ "$AUDIT_TRIG" == "1" ]] && echo PASS || echo FAIL)"
   printf '| Append-only enforcement function present | %s |\n' \
     "$([[ "$MUTATION_FN" == "1" ]] && echo PASS || echo FAIL)"
@@ -329,6 +334,7 @@ ROLE_OK="$(check_sql "select case when exists (select 1 from pg_roles where roln
 CHECK_ROW="$(cat "$(repo_root)/deploy/drill/sql/post-restore-check.sql" \
   | dexec "$RESTORED" psql -U "$PG_USER" -d "$PG_DB" -X -q -tA -v ON_ERROR_STOP=1 \
       -v exp_ledger="$PRE_LEDGER" -v exp_audit="$PRE_AUDIT" -v exp_flyway="$PRE_FLYWAY" \
+      -v exp_flyway_md5="$PRE_FLYWAY_MD5" \
       -v runtime_role="$RUNTIME_ROLE" -f - | head -1)"
 VERDICT="${CHECK_ROW%%|*}"
 {
@@ -336,17 +342,25 @@ VERDICT="${CHECK_ROW%%|*}"
     "$([[ "$VERDICT" == "PASS" ]] && echo PASS || echo FAIL)" "$VERDICT"
 } >> "$BODY"
 
-# RPO: with continuous archiving the recovery window is the archive interval, so the recovery
-# point is whatever committed last before the loss — measured here as the boundary row's
-# presence. RPO is the loss window, bounded above by the archive interval.
+# Per the runbook, RTO ends when the restored instance is ready *and* the §7 checklist
+# has passed — the timer that stopped at the first query understated it.
+RTO_MS=$(( $(date -u +%s%3N) - RTO_START ))
+say "post-restore checklist complete at ${RTO_MS} ms after restored-instance start (RTO)"
+
+# RPO and RTO. The drill proves point-in-time fidelity — the boundary row committed
+# before the target came back, the post-loss row did not — which is not the same as a
+# measured RPO under a real archive interval: here the loss window is bounded above by
+# the archive_timeout this drill configures (30 s), and the real number is measured on
+# staging under its own interval. RTO is readiness plus the §7 checklist, per the
+# runbook's definition, not merely the first answered query.
 {
   echo
   echo "## Measurements"
   echo
   echo "| Metric | Target | Measured in this drill | How it was derived |"
   echo "| --- | --- | --- | --- |"
-  echo "| RPO | ≤ 15 min (restore-runbook §1) | 0 s data loss at this point in time | the boundary row committed before the target time is present; the row committed after it is absent, so recovery landed exactly on the chosen point |"
-  echo "| RTO | ≤ 4 h (restore-runbook §1) | ${RTO_MS} ms | wall clock from container start to the first successful query in the restored instance |"
+  echo "| RPO | ≤ 15 min (restore-runbook §1) | recovery landed exactly on the target: boundary row present, post-loss row absent | point-in-time fidelity; the loss window is bounded by archive_timeout (30 s in this drill), so the measured RPO on staging is bounded by its real archive interval |"
+  echo "| RTO | ≤ 4 h (restore-runbook §1) | ${RTO_MS} ms (of which ${READY_MS} ms to first query) | wall clock from restored-instance start until the §7 checklist completed |"
   echo
   echo "Local container timings are not staging evidence. The RTO figure here bounds the"
   echo "*procedure*, not production, which also carries backup download, verification, and"

@@ -32,7 +32,7 @@ chk() {
 
 echo "############ A. Audit chain check detects tampering ############"
 source deploy/drill/lib.sh
-docker rm -f octo-v >/dev/null 2>&1
+docker rm -f -v octo-v >/dev/null 2>&1
 docker volume rm -f octo-v-v octo-v-w >/dev/null 2>&1
 docker volume create octo-v-v >/dev/null
 docker volume create octo-v-w >/dev/null
@@ -70,14 +70,21 @@ g=$(state)
 [ "$g" = "INTACT" ] && ok "tail truncated to the genesis row -> INTACT (V6's documented ceiling)" \
                     || bad "genesis-anchored single row -> '$g', expected INTACT"
 
-# The anchor itself. Keep one row but make its prev_hash a non-genesis value, which is what a
-# log looks like after the rows before it were removed. The seq walk used to verify this
-# happily and report the truncated log intact, so this is the regression test for that fix.
+# The anchor itself, isolated: keep one row, set its prev_hash to a non-genesis value AND
+# recompute hash over it, so the row is internally consistent. The old fixture changed
+# prev_hash without recomputing, so hash mismatch alone reported BROKEN — a regression in
+# the anchor condition could never have been caught by it. With the hash honest, the only
+# thing left that can flag this row is the genesis anchor.
 run "alter table octo.audit_event disable trigger audit_event_append_only;
-     update octo.audit_event set prev_hash = decode(repeat('aa',32),'hex') where seq = 1;
+     update octo.audit_event
+        set prev_hash = decode(repeat('aa',32),'hex'),
+            hash = sha256(decode(repeat('aa',32),'hex')
+                   || octo.audit_event_canonical(seq,occurred_at,recorded_at,actor,action,
+                                                 subject_type,subject_id,correlation_id,details))
+      where seq = 1;
      alter table octo.audit_event enable trigger audit_event_append_only;" >/dev/null
 g=$(state)
-[ "$g" = "BROKEN" ] && ok "first row not anchored at genesis -> BROKEN" \
+[ "$g" = "BROKEN" ] && ok "first row not anchored at genesis (honest hash) -> BROKEN" \
                     || bad "unanchored first row -> '$g', expected BROKEN"
 
 echo
@@ -100,17 +107,30 @@ g=$(state)
 # Section A already provides the positive control (a clean chain reads INTACT), so no
 # extra hand-built row is needed here — an earlier attempt used a NOT NULL hash placeholder
 # and died on the constraint rather than testing anything.
-docker rm -f octo-v >/dev/null 2>&1 || true
+docker rm -f -v octo-v >/dev/null 2>&1 || true
 docker volume rm -f octo-v-v octo-v-w >/dev/null 2>&1 || true
 
 echo
 echo "############ C. Evidence records ############"
-chk "restore evidence exists and is non-empty" "test -s deploy/drill/evidence/restore.md"
-chk "rollback evidence exists and is non-empty" "test -s deploy/drill/evidence/rollback.md"
-chk "restore record has no FAIL row"     "{ ! grep -q '| FAIL' deploy/drill/evidence/restore.md; }"
-chk "rollback record has no FAIL row"    "{ ! grep -q '| FAIL' deploy/drill/evidence/rollback.md; }"
-chk "restore record measures RPO and RTO" "grep -q '| RPO |' deploy/drill/evidence/restore.md && grep -q '| RTO |' deploy/drill/evidence/restore.md"
-chk "restore record states local != staging" "grep -qi 'not staging evidence' deploy/drill/evidence/restore.md"
+# The drills write timestamped files under a gitignored directory, so a fresh checkout has
+# none — missing evidence is a SKIP (run the drills), never a silent pass, and never the
+# fresh-checkout failure this section used to produce by demanding fixed file names.
+RESTORE_EV="$(ls -t deploy/drill/evidence/restore-*.md deploy/drill/evidence/restore.md 2>/dev/null | head -1 || true)"
+ROLLBACK_EV="$(ls -t deploy/drill/evidence/rollback-*.md deploy/drill/evidence/rollback.md 2>/dev/null | head -1 || true)"
+if [ -n "$RESTORE_EV" ]; then
+  chk "restore evidence ($RESTORE_EV) is non-empty"  "test -s '$RESTORE_EV'"
+  chk "restore record has no FAIL row"                "test -s '$RESTORE_EV' && ! grep -q '| FAIL' '$RESTORE_EV'"
+  chk "restore record measures RPO and RTO"           "grep -q '| RPO |' '$RESTORE_EV' && grep -q '| RTO |' '$RESTORE_EV'"
+  chk "restore record states local != staging"        "grep -qi 'not staging evidence' '$RESTORE_EV'"
+else
+  echo "  SKIP  no restore evidence — run deploy/drill/restore-drill.sh to produce one"
+fi
+if [ -n "$ROLLBACK_EV" ]; then
+  chk "rollback evidence ($ROLLBACK_EV) is non-empty" "test -s '$ROLLBACK_EV'"
+  chk "rollback record has no FAIL row"               "test -s '$ROLLBACK_EV' && ! grep -q '| FAIL' '$ROLLBACK_EV'"
+else
+  echo "  SKIP  no rollback evidence — run deploy/drill/rollback-rehearsal.sh to produce one"
+fi
 
 echo
 echo "############ D. Corrected: no ADR-0002 acceptance box ticked ############"
@@ -160,7 +180,16 @@ chk "V6 defines the audit chain trigger"      "grep -q 'create trigger audit_eve
 chk "V6 defines audit_event_canonical"        "grep -q 'create function mesta.audit_event_canonical' db/migrations/V6__audit_event.sql"
 chk "V1 defines ledger append-only trigger"   "grep -q 'create trigger ledger_event_append_only' db/migrations/V1__init.sql"
 chk "Flyway placeholder is runtime_role"      "grep -q 'runtime_role' modules/api/src/main/resources/application.yml"
-chk "migrations are V1..V40 contiguous"       "test \$(git ls-files db/migrations | grep -cE '/V[0-9]+__.*\.sql$') -eq 40"
+# Contiguity, not a hard-coded count: extract every version, and the sorted unique list
+# must equal seq 1..top. A file-count check stays green forever and notices nothing.
+migrations_contiguous() {
+  local v top
+  v="$(git ls-files db/migrations | sed -nE 's#.*/V([0-9]+)__[^/]*\.sql$#\1#p' | sort -n | uniq)"
+  [ -n "$v" ] || return 1
+  top="$(printf '%s\n' "$v" | tail -1)"
+  [ "$v" = "$(seq 1 "$top")" ]
+}
+chk "migrations are contiguous V1..latest" "migrations_contiguous"
 chk "README documents forward-only migrations" "grep -q 'forward-only' deploy/README.md"
 
 echo
