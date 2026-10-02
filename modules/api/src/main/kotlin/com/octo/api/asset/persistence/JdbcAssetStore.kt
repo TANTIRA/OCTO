@@ -6,6 +6,7 @@ import com.octo.api.asset.AssetRecord
 import com.octo.api.asset.AssetStore
 import com.octo.api.asset.AssetType
 import com.octo.api.asset.Identifier
+import com.octo.api.graph.enqueueGraphUpsert
 import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
 import java.sql.Connection
@@ -17,7 +18,11 @@ import javax.sql.DataSource
 class JdbcAssetStore(
     private val dataSource: DataSource,
 ) : AssetStore {
-    /** Stores [asset] and its new [identifiers] in one transaction. Identifiers of the rows it supersedes are inherited, not copied. */
+    /**
+     * Stores [asset] and its new [identifiers] in one transaction. Identifiers of the rows it supersedes are inherited,
+     * not copied. The same transaction enqueues the graph upsert for the asset's lineage (ADR-0004 amendment, #308), so
+     * the row and its projection intent commit together.
+     */
     fun create(
         asset: Asset,
         identifiers: List<Identifier>,
@@ -55,6 +60,39 @@ class JdbcAssetStore(
                     statement.addBatch()
                 }
                 statement.executeBatch()
+            }
+            // The ontology key each asset type projects to (octo-investment.cypher): funds and operating companies are
+            // keyed by legal name, investments by display name. A correction upserts the lineage's one node.
+            val key = if (asset.type == AssetType.INVESTMENT) "displayName" else "legalName"
+            enqueueGraphUpsert(
+                connection,
+                asset.tenantId,
+                "asset",
+                lineageRoot(connection, asset),
+                mapOf("kind" to asset.type.wireValue, "properties" to mapOf(key to asset.displayName)),
+            )
+        }
+    }
+
+    /** The first row of [asset]'s lineage — the graph node's octoId, stable across every correction. */
+    private fun lineageRoot(
+        connection: Connection,
+        asset: Asset,
+    ): UUID {
+        val supersedes = asset.supersedesId ?: return asset.id
+        val sql =
+            """
+            with recursive lineage as (
+                select id, supersedes_id from octo.asset where id = ?
+                union
+                select a.id, a.supersedes_id from octo.asset a join lineage l on a.id = l.supersedes_id)
+            select id from lineage where supersedes_id is null
+            """.trimIndent()
+        return connection.prepareStatement(sql).use { statement ->
+            statement.setObject(1, supersedes)
+            statement.executeQuery().use { rows ->
+                check(rows.next()) { "asset ${asset.id} supersedes $supersedes, whose lineage has no root" }
+                rows.getObject("id", UUID::class.java)
             }
         }
     }
