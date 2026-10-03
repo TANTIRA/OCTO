@@ -9,7 +9,7 @@
 #   docker buildx imagetools inspect eclipse-temurin:21.0.12.1_1-jdk --format '{{.Manifest.Digest}}'
 # A digest without its matching tag is unreviewable, and a tag without its digest still floats.
 
-FROM eclipse-temurin:21.0.12.1_1-jdk@sha256:4d06038800655fe1211760cd561de70ef2ed7a47f5d69255e9834414602b7026 AS build
+FROM eclipse-temurin:21.0.12.1_1-jdk@sha256:3e3c176ffed168beb42c607be9bc1639b466cf00261a0fb04425562c9d0c5c2b AS build
 WORKDIR /src
 COPY gradlew gradle.properties settings.gradle.kts build.gradle.kts ./
 COPY gradle ./gradle
@@ -20,7 +20,7 @@ COPY ontology ./ontology
 RUN ./gradlew --no-daemon :modules:api:bootJar -x test \
     && cp modules/api/build/libs/api-*-SNAPSHOT.jar /src/app.jar
 
-FROM eclipse-temurin:21.0.12.1_1-jre@sha256:d7051a45dd955e4d5d1db4d3f4269fe13d1c6dff8cc6b7ef89fc8577b96c1982
+FROM eclipse-temurin:21.0.12.1_1-jre@sha256:cff19e6215689161eb6162c11b86b0c60ddf802164f2eaf48d570f8fb79a36c5
 # curl: infra/docker-compose.yml's healthcheck calls it inside the container.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
