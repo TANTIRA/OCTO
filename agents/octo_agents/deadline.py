@@ -9,6 +9,7 @@ the failure in a short grace window. The budget plus the grace window stays
 under 120 s, so the run is recorded `failed` before the platform gives up.
 """
 
+import contextlib
 import contextvars
 import threading
 import time
@@ -143,6 +144,54 @@ class _DeadlineCallback(BaseCallbackHandler):
 
     def on_tool_start(self, *args: Any, **kwargs: Any) -> None:
         self._deadline.check("drafter tool call")
+
+
+class DeadlineTransport(httpx.BaseTransport):
+    """An httpx transport that bounds each request — headers and body — to the
+    run deadline (#554).
+
+    `invoke_within_deadline` stops waiting at the deadline but the abandoned
+    thread's in-flight model call kept running — and billing — through the
+    SDK's own retries. Here each send runs on a daemon thread waited on only
+    for the budget left; on expiry the inner pool is closed so the abandoned
+    request's socket dies with it, and every later attempt fails the instant
+    `check` runs. Nothing keeps spending once the run has failed.
+    """
+
+    def __init__(self, inner: httpx.BaseTransport | None = None) -> None:
+        self._inner = inner or httpx.HTTPTransport()
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        current = _current.get()
+        if current is None:
+            return self._inner.handle_request(request)
+        current.check("model request")
+        outcome: dict[str, Any] = {}
+        done = threading.Event()
+
+        def target() -> None:
+            try:
+                response = self._inner.handle_request(request)
+                # The body is lazy — read it inside the budget or a truncated
+                # generation would stream on after the run failed.
+                response.read()
+                outcome["response"] = response
+            except BaseException as e:  # noqa: BLE001 - re-raised on the caller
+                outcome["error"] = e
+            finally:
+                done.set()
+
+        threading.Thread(target=target, name="octo-model-request", daemon=True).start()
+        if done.wait(timeout=current.remaining()):
+            if "error" in outcome:
+                raise outcome["error"]
+            return outcome["response"]
+        with contextlib.suppress(Exception):
+            self._inner.close()
+        raise DeadlineExceeded("model request completed")
+
+    def close(self) -> None:
+        self._inner.close()
 
 
 def invoke_within_deadline(runnable: Any, payload: Any) -> Any:

@@ -1,6 +1,7 @@
 """#486 — one end-to-end run deadline gates every outbound attempt and drafter
 step, caps in-flight HTTP timeouts, and still lets the run land `failed`.
-#555 — the budget counts the time a request spent queued, not just work."""
+#554/#555 — abandoned model calls die at the socket, and the budget
+counts the time a request spent queued, not just work."""
 
 import threading
 import time
@@ -15,6 +16,7 @@ from octo_agents.api_client import OctoApiClient
 from octo_agents.deadline import (
     Deadline,
     DeadlineExceeded,
+    DeadlineTransport,
     _DeadlineCallback,
     invoke_within_deadline,
     run_deadline,
@@ -161,3 +163,49 @@ def test_deadline_is_measured_from_the_request_arrival() -> None:
         deadline.clear_arrival(token)
     with run_deadline(100, clock=clock) as d3:
         assert d3.remaining() == 100  # no stamp: measured from pickup as before
+
+
+class _FakeInner(httpx.BaseTransport):
+    """An inner transport whose send can hang past the deadline."""
+
+    def __init__(self) -> None:
+        self.closed = False
+        self.calls = 0
+        self.slow = False
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        self.calls += 1
+        if self.slow:
+            time.sleep(2)
+        return httpx.Response(200, json={"ok": True})
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_deadline_transport_passes_a_response_inside_the_budget() -> None:
+    inner = _FakeInner()
+    transport = DeadlineTransport(inner)
+    with run_deadline(10):
+        response = transport.handle_request(httpx.Request("POST", "http://m.test"))
+    assert response.json() == {"ok": True}
+    assert inner.calls == 1 and not inner.closed
+
+
+def test_deadline_transport_kills_the_in_flight_request_at_expiry() -> None:
+    inner = _FakeInner()
+    inner.slow = True
+    transport = DeadlineTransport(inner)
+    started = time.monotonic()
+    with run_deadline(0.2), pytest.raises(DeadlineExceeded, match="model request"):
+        transport.handle_request(httpx.Request("POST", "http://m.test"))
+    assert time.monotonic() - started < 1
+    assert inner.closed  # the abandoned socket dies with the pool (#554)
+
+
+def test_deadline_transport_refuses_a_send_after_expiry() -> None:
+    inner = _FakeInner()
+    transport = DeadlineTransport(inner)
+    with run_deadline(0), pytest.raises(DeadlineExceeded, match="model request"):
+        transport.handle_request(httpx.Request("POST", "http://m.test"))
+    assert inner.calls == 0  # no spend after the run has failed
