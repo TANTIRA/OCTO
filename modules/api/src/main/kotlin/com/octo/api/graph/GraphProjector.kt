@@ -21,16 +21,18 @@ internal data class GraphWrite(
 )
 
 /** The labels a projected kind carries (the full `sub` chain) and the ontology properties it must have. */
-private data class Projection(
+internal data class Projection(
     val labels: String,
     val properties: List<String>,
-)
+) {
+    val labelSet: Set<String> get() = labels.split(':').filter(String::isNotEmpty).toSet()
+}
 
 /**
  * Every node shape the projector may write, keyed by outbox `aggregate_type` and payload `kind`. Labels cannot be
  * Cypher parameters, so they come only from this table — a payload can never inject a label.
  */
-private val PROJECTIONS =
+internal val PROJECTIONS =
     mapOf(
         ("asset" to "fund") to Projection(":Fund", listOf("legalName")),
         ("asset" to "investment") to Projection(":Investment", listOf("displayName")),
