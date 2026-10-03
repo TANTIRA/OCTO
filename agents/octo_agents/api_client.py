@@ -32,6 +32,19 @@ class OctoApiError(RuntimeError):
         self.body = body
 
 
+class PlatformWriteOutcomeUnknown(deadline.DeadlineExceeded):
+    """A non-idempotent write began and the run deadline cut its response off —
+    the platform may already have opened the task. Raised instead of a plain
+    DeadlineExceeded only once a send actually fired, so the workflow can
+    record the write as "requested, outcome unknown" on the failed run instead
+    of the record omitting a task that may exist (#548). Still a
+    DeadlineExceeded, so the run fails and answers 504 as before."""
+
+    def __init__(self, path: str) -> None:
+        super().__init__(f"platform write to {path} confirmed")
+        self.path = path
+
+
 class OctoApiClient:
     def __init__(
         self,
@@ -77,14 +90,29 @@ class OctoApiClient:
     ) -> Any:
         """Most POSTs open platform workflows, so a resend could duplicate one —
         only endpoints the server dedupes pass idempotent=True (see retry.py)."""
-        r = send_with_retry(
-            lambda: self._client.post(
+        sent = False
+
+        def send() -> httpx.Response:
+            nonlocal sent
+            sent = True
+            return self._client.post(
                 path, json=body or {}, timeout=deadline.http_timeout(self._client)
-            ),
-            retries=self._retries,
-            backoff_s=self._backoff_s,
-            idempotent=idempotent,
-        )
+            )
+
+        try:
+            r = send_with_retry(
+                send,
+                retries=self._retries,
+                backoff_s=self._backoff_s,
+                idempotent=idempotent,
+            )
+        except deadline.DeadlineExceeded as e:
+            # A DeadlineExceeded raised before any send means nothing reached
+            # the platform — that propagates as-is. Once a send fired the
+            # outcome is genuinely unknown: the task may already exist (#548).
+            if sent and not idempotent:
+                raise PlatformWriteOutcomeUnknown(path) from e
+            raise
         if r.status_code not in range(200, 300):
             raise OctoApiError(r.status_code, r.text[:512])
         return r.json() if r.text else {}

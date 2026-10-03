@@ -283,6 +283,7 @@ def test_failed_close_after_screening_opened_records_the_task(
     assert failed["output"] == {
         "screening_requested": True,
         "screening_response": {"verdict": "review"},
+        "screening_outcome_unknown": False,
     }
 
 

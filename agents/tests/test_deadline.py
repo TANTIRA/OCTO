@@ -1,7 +1,7 @@
 """#486 — one end-to-end run deadline gates every outbound attempt and drafter
 step, caps in-flight HTTP timeouts, and still lets the run land `failed`.
-#554/#555 — abandoned model calls die at the socket, and the budget
-counts the time a request spent queued, not just work."""
+#548/#554/#555 — ambiguous task writes are recorded as unknown, abandoned
+model calls are killed at the socket, and the budget counts queue time."""
 
 import threading
 import time
@@ -12,7 +12,7 @@ import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from octo_agents import deadline
-from octo_agents.api_client import OctoApiClient
+from octo_agents.api_client import OctoApiClient, PlatformWriteOutcomeUnknown
 from octo_agents.deadline import (
     Deadline,
     DeadlineExceeded,
@@ -209,3 +209,69 @@ def test_deadline_transport_refuses_a_send_after_expiry() -> None:
     with run_deadline(0), pytest.raises(DeadlineExceeded, match="model request"):
         transport.handle_request(httpx.Request("POST", "http://m.test"))
     assert inner.calls == 0  # no spend after the run has failed
+
+
+def test_a_sent_write_cut_at_the_deadline_is_ambiguous() -> None:
+    """#548 — once the request fired, a deadline-cut answer is not "no task"."""
+    clock = FakeClock()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        clock.now += 200  # the answer would arrive after the budget ran out
+        raise httpx.ReadTimeout("timed out")
+
+    api = OctoApiClient(
+        "http://api.test:8080",
+        "tok",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    with run_deadline(100, clock=clock), pytest.raises(
+        PlatformWriteOutcomeUnknown, match="prospects/p-1/screen"
+    ):
+        api.request_screening("p-1")
+
+
+def test_a_task_write_cut_at_the_deadline_records_outcome_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#548 — the failed run must not omit a task the platform may have opened."""
+
+    class MemoAgent:
+        def invoke(self, payload: Any, config: Any) -> Any:
+            return {"messages": [type("M", (), {"content": "memo"})()]}
+
+    monkeypatch.setattr(screening_dd, "create_deep_agent", lambda **_: MemoAgent())
+
+    class LateScreeningApi(FakeApi):
+        def request_screening(self, prospect_id: str) -> Any:
+            self.screening_requests.append(prospect_id)
+            raise PlatformWriteOutcomeUnknown(f"/api/v1/prospects/{prospect_id}/screen")
+
+    api = LateScreeningApi(events=[{"note": "deck"}])
+    with run_deadline(100), pytest.raises(PlatformWriteOutcomeUnknown):
+        run_screening_dd(
+            agent_model=None,
+            judge=fake_judge(preflight=0.9, scores=[5.0], advance=0.95),
+            api=api,
+            prospect_id="p-1",
+            tenant_id="t-1",
+            run_key="rk-1",
+            models={"drafter": "d", "judge": "j"},
+        )
+    assert api.finished[0]["status"] == "failed"
+    assert api.finished[0]["output"]["screening_outcome_unknown"] is True
+
+
+def test_a_task_write_never_sent_fails_plain() -> None:
+    """#548 — a send refused before it fired is not an ambiguous write."""
+    clock = FakeClock()
+    api = OctoApiClient(
+        "http://api.test:8080",
+        "tok",
+        client=httpx.Client(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200, json={}))
+        ),
+    )
+    with run_deadline(0, clock=clock):
+        with pytest.raises(DeadlineExceeded) as exc:
+            api.request_screening("p-1")
+        assert not isinstance(exc.value, PlatformWriteOutcomeUnknown)

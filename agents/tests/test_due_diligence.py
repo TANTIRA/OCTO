@@ -249,7 +249,12 @@ def test_crash_mid_task_opening_persists_tasks_already_opened(
     assert failed["status"] == "failed"
     assert "edge down" in failed["error"]
     assert failed["output"]["tasks"] == [
-        {"workstream": "market", "task_id": "task-market", "opened": True}
+        {
+            "workstream": "market",
+            "task_id": "task-market",
+            "opened": True,
+            "outcome_unknown": False,
+        }
     ]
     # Opening stopped at the crash — legal was never attempted.
     assert api.evidence_requests == [("p-1", "market")]

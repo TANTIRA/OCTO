@@ -19,7 +19,7 @@ from typing import Any, Literal
 from deepagents import SubAgent, create_deep_agent
 from pydantic import BaseModel
 
-from ..api_client import OctoApiClient, OctoApiError
+from ..api_client import OctoApiClient, OctoApiError, PlatformWriteOutcomeUnknown
 from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, ScoreQuestion
 from ..tools import read_tools
@@ -83,6 +83,9 @@ class DdTask(BaseModel):
     workstream: str
     task_id: str | None
     opened: bool
+    # The evidence write was sent but its answer died with the run budget —
+    # the task may exist; never record it as simply absent (#548).
+    outcome_unknown: bool = False
 
 
 class DdResult(BaseModel):
@@ -256,6 +259,18 @@ def run_due_diligence(
                 resp = api.open_dd_evidence(
                     prospect_id, band.workstream, dossier[:2000]
                 )
+            except PlatformWriteOutcomeUnknown:
+                # The write may have opened the task before the deadline cut
+                # its response off — record it as ambiguous, then fail (#548).
+                tasks.append(
+                    DdTask(
+                        workstream=band.workstream,
+                        task_id=None,
+                        opened=False,
+                        outcome_unknown=True,
+                    )
+                )
+                raise
             except OctoApiError as e:
                 if e.status_code != 409:
                     # Keep the platform's reason, not just the code (#343).

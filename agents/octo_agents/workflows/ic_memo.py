@@ -18,7 +18,7 @@ from typing import Any, Literal
 from deepagents import create_deep_agent
 from pydantic import BaseModel
 
-from ..api_client import OctoApiClient, OctoApiError
+from ..api_client import OctoApiClient, OctoApiError, PlatformWriteOutcomeUnknown
 from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import read_tools
@@ -69,6 +69,9 @@ class IcMemoResult(BaseModel):
     verdict: MemoVerdict | None = None
     ic_review_requested: bool = False
     ic_review_task_id: str | None = None
+    # The ic-review write was sent but its answer died with the budget — the
+    # task may exist; never record it as simply absent (#548).
+    ic_review_outcome_unknown: bool = False
     # Set when the gate passed but the prospect is not at ic-review — the memo
     # is a judged draft and a human moves the pipeline.
     stage_note: str | None = None
@@ -164,6 +167,7 @@ def run_ic_memo(
     # still records it on the failed run (#497, mirrors due_diligence #330).
     review_requested = False
     task_id = None
+    review_outcome_unknown = False
     try:
         if replayed is not None:
             return IcMemoResult.model_validate(replayed)
@@ -235,6 +239,11 @@ def run_ic_memo(
                 # 'asked and accepted' must not read as 'not asked').
                 review_requested = True
                 task_id = review.get("taskId") or review.get("task_id")
+            except PlatformWriteOutcomeUnknown:
+                # The request may have opened the task before the deadline cut
+                # its response off — the failed run must still record it (#548).
+                review_outcome_unknown = True
+                raise
             except OctoApiError as e:
                 if e.status_code == 409:
                     stage_note = (
@@ -251,6 +260,7 @@ def run_ic_memo(
             verdict=verdict,
             ic_review_requested=review_requested,
             ic_review_task_id=task_id,
+            ic_review_outcome_unknown=review_outcome_unknown,
             stage_note=stage_note,
         )
         api.finish_run(
@@ -268,8 +278,12 @@ def run_ic_memo(
         return result
     except Exception as e:
         partial = (
-            {"ic_review_requested": True, "ic_review_task_id": task_id}
-            if review_requested
+            {
+                "ic_review_requested": review_requested,
+                "ic_review_task_id": task_id,
+                "ic_review_outcome_unknown": review_outcome_unknown,
+            }
+            if review_requested or review_outcome_unknown
             else None
         )
         finish_failed(api, run_id, e, output=partial)

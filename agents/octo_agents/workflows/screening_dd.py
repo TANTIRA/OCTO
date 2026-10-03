@@ -26,7 +26,7 @@ from deepagents import create_deep_agent
 from pydantic import BaseModel
 
 from .. import deadline
-from ..api_client import OctoApiClient, OctoApiError
+from ..api_client import OctoApiClient, OctoApiError, PlatformWriteOutcomeUnknown
 from ..deadline import invoke_within_deadline
 from ..judge import ChoiceQuestion, JudgeClient, NoulQuestion, ScoreQuestion
 from ..tools import load_in_tenant, read_tools
@@ -95,6 +95,9 @@ class ScreeningResult(BaseModel):
     verdict: ScreeningVerdict | None = None
     screening_requested: bool = False
     screening_response: Any = None
+    # The screening write was sent but its answer died with the budget — the
+    # task may exist; never record it as simply absent (#548).
+    screening_outcome_unknown: bool = False
     stage_note: str | None = None
 
 
@@ -453,6 +456,7 @@ def run_screening_dd(
     # still records it on the failed run (#497, mirrors due_diligence #330).
     screening_requested = False
     screening_response: Any = None
+    screening_outcome_unknown = False
     try:
         # Replay validation lives inside the guard: a stored output that no
         # longer validates is a corrupt record — mark the run failed instead of
@@ -524,6 +528,11 @@ def run_screening_dd(
             try:
                 screening_response = api.request_screening(prospect_id)
                 screening_requested = True
+            except PlatformWriteOutcomeUnknown:
+                # The request may have opened the task before the deadline cut
+                # its response off — the failed run must still record it (#548).
+                screening_outcome_unknown = True
+                raise
             except OctoApiError as e:
                 if e.status_code != 409:
                     raise
@@ -542,6 +551,7 @@ def run_screening_dd(
             verdict=verdict,
             screening_requested=screening_requested,
             screening_response=screening_response,
+            screening_outcome_unknown=screening_outcome_unknown,
             stage_note=stage_note,
         )
         api.finish_run(
@@ -559,8 +569,12 @@ def run_screening_dd(
         # The run's bookkeeping must not hide its failure — a crashed run lands
         # `failed` with the error text so F4 sees it, then the error propagates.
         partial = (
-            {"screening_requested": True, "screening_response": screening_response}
-            if screening_requested
+            {
+                "screening_requested": screening_requested,
+                "screening_response": screening_response,
+                "screening_outcome_unknown": screening_outcome_unknown,
+            }
+            if screening_requested or screening_outcome_unknown
             else None
         )
         finish_failed(api, run_id, e, output=partial)
