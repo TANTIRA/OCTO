@@ -2,10 +2,15 @@ package com.octo.api.report
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.octo.api.TaskEventRequest
+import com.octo.api.TaskView
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.api.isGateDecision
+import com.octo.api.taskView
 import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
+import com.octo.workflow.TaskEvent
 import com.octo.workflow.TaskKind
 import com.octo.workflow.TaskState
 import com.octo.workflow.TaskStatus
@@ -20,11 +25,12 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 import java.util.UUID
 
-/** The workflow tasks the release gate opens and reads; `JdbcTaskStore` behind it in production. */
+/** The workflow tasks the release gate opens, reads, and decides; `JdbcTaskStore` behind it in production. */
 interface ReleaseTasks {
     /** The subject's already-open task of this kind, or [task] freshly opened — two racers never mint two. */
     fun openUnlessOpen(
@@ -33,6 +39,13 @@ interface ReleaseTasks {
     ): TaskState
 
     fun state(taskId: UUID): TaskState?
+
+    /** Applies [event] to the task through its state machine — the same validation `JdbcTaskStore.append` gets. */
+    fun append(
+        taskId: UUID,
+        event: TaskEvent,
+        provenance: TaskProvenance,
+    ): TaskState
 }
 
 /**
@@ -75,6 +88,44 @@ class ReleaseController(
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(attached.release(openedTask))
+    }
+
+    /**
+     * `POST /api/v1/reports/{id}/tasks/{taskId}` — applies one task event to a task whose subject
+     * is this report job: an approver decides the release's `approval` task. Same contract as the
+     * prospect route — the machine holds every rule (nobody decides an approval they requested,
+     * terminal tasks accept nothing) and the edge adds the governance bar: gate decisions need
+     * `approver`, and a task on any other subject is 404 so the route never reveals it exists (#489).
+     */
+    @PostMapping("/api/v1/reports/{id}/tasks/{taskId}")
+    fun taskEvent(
+        @PathVariable id: UUID,
+        @PathVariable taskId: UUID,
+        @RequestBody body: TaskEventRequest,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<TaskView> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, job) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        val bound =
+            tasks
+                .state(taskId)
+                ?.takeIf { it.task.subjectType == "report-job" && it.task.subjectId == id.toString() }
+                ?: return ResponseEntity.notFound().build()
+        val event = body.toEvent(jwt.subject!!) ?: return ResponseEntity.badRequest().build()
+        if (bound.task.kind == TaskKind.APPROVAL && event.isGateDecision() && role != TenantRole.APPROVER) {
+            return ResponseEntity.notFound().build()
+        }
+        val after =
+            try {
+                tasks.append(taskId, event, TaskProvenance("api", body.correlationId ?: UUID.randomUUID()))
+            } catch (_: NoSuchElementException) {
+                return ResponseEntity.notFound().build()
+            } catch (_: IllegalArgumentException) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build()
+            }
+        return ResponseEntity.ok(after.taskView())
     }
 
     @GetMapping("/api/v1/reports/{id}/release")

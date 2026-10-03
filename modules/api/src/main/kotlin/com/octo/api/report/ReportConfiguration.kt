@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.api.agents.AgentsClient
 import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
+import com.octo.workflow.TaskEvent
 import com.octo.workflow.persistence.JdbcTaskStore
 import com.octo.workflow.persistence.TaskProvenance
 import com.octo.workflow.report.JdbcReportJobStore
@@ -81,6 +82,12 @@ class ReportConfiguration {
             ) = store.openUnlessOpen(task, provenance)
 
             override fun state(taskId: UUID) = store.load(taskId)
+
+            override fun append(
+                taskId: UUID,
+                event: TaskEvent,
+                provenance: TaskProvenance,
+            ) = store.append(taskId, event, provenance)
         }
     }
 

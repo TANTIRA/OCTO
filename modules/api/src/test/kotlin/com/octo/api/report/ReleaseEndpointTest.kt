@@ -22,19 +22,20 @@ import org.springframework.boot.test.context.runner.WebApplicationContextRunner
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
-import java.time.Instant
 import java.util.UUID
 import java.util.function.Supplier
 
 /** The release gate end to end with in-memory stores: a task is opened once for a done job, and the result shows only after approval. */
 class ReleaseEndpointTest {
     private val analyst = UUID.randomUUID()
+    private val approver = UUID.randomUUID()
     private val viewer = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val jobs = FakeReportJobs()
@@ -53,6 +54,15 @@ class ReleaseEndpointTest {
                     } ?: opened(task).also { taskStates[task.id] = it }
 
             override fun state(taskId: UUID) = taskStates[taskId]
+
+            override fun append(
+                taskId: UUID,
+                event: TaskEvent,
+                provenance: TaskProvenance,
+            ): TaskState {
+                val before = taskStates[taskId] ?: throw NoSuchElementException("no task $taskId")
+                return before.next(event).also { taskStates[taskId] = it }
+            }
         }
 
     private val contextRunner =
@@ -64,6 +74,7 @@ class ReleaseEndpointTest {
                     TenantDirectory { id ->
                         when (id) {
                             analyst -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
+                            approver -> listOf(TenantAccess(tenantId, "acme", TenantRole.APPROVER))
                             viewer -> listOf(TenantAccess(tenantId, "acme", TenantRole.VIEWER))
                             else -> emptyList()
                         }
@@ -129,7 +140,14 @@ class ReleaseEndpointTest {
 
             val taskId = jobs.load(id, TenantScope.All)!!.approvalTaskId!!
             assertThat(taskStates.getValue(taskId).task.requestedBy).isEqualTo(analyst.toString())
-            taskStates[taskId] = taskStates.getValue(taskId).next(TaskEvent.Approved("approver-1", Instant.now()))
+            mvc
+                .perform(
+                    post("/api/v1/reports/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event": "approved"}""")
+                        .with(asUser(approver)),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("approved"))
             mvc
                 .perform(get("/api/v1/reports/$id/release").with(asUser(viewer)))
                 .andExpect(status().isOk)
@@ -190,6 +208,64 @@ class ReleaseEndpointTest {
             mvc.perform(get("/api/v1/reports/${UUID.randomUUID()}/release").with(asUser(analyst))).andExpect(status().isNotFound)
             mvc.perform(post("/api/v1/reports/$done/release")).andExpect(status().isForbidden)
             assertThat(taskStates).isEmpty()
+        }
+    }
+
+    @Test
+    fun `the release task is decidable only by an approver who did not request it`() {
+        run { mvc ->
+            val id = doneJob()
+            mvc.perform(post("/api/v1/reports/$id/release").with(asUser(analyst))).andExpect(status().isAccepted)
+            val taskId = jobs.load(id, TenantScope.All)!!.approvalTaskId!!
+
+            fun decide(
+                user: UUID,
+                event: String,
+            ) = mvc.perform(
+                post("/api/v1/reports/$id/tasks/$taskId")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(event)
+                    .with(asUser(user)),
+            )
+
+            // A viewer, a non-approver and the requester are all refused before the machine runs.
+            decide(viewer, """{"event": "approved"}""").andExpect(status().isNotFound)
+            decide(analyst, """{"event": "approved"}""").andExpect(status().isNotFound)
+            // Missing rationale and unknown events are 400 before a decision is attempted.
+            decide(approver, """{"event": "rejected"}""").andExpect(status().isBadRequest)
+            decide(approver, """{"event": "sideways"}""").andExpect(status().isBadRequest)
+            // A task that does not exist — or is not this job's — is 404, never revealed.
+            mvc
+                .perform(
+                    post("/api/v1/reports/$id/tasks/${UUID.randomUUID()}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event": "approved"}""")
+                        .with(asUser(approver)),
+                ).andExpect(status().isNotFound)
+
+            decide(approver, """{"event": "approved", "rationale": "numbers reviewed"}""")
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("approved"))
+                .andExpect(jsonPath("$.decidedBy").value(approver.toString()))
+            // A terminal task accepts nothing more.
+            decide(approver, """{"event": "rejected", "rationale": "changed my mind"}""").andExpect(status().isConflict)
+        }
+    }
+
+    @Test
+    fun `an approver who requested the release cannot decide it`() {
+        run { mvc ->
+            val id = doneJob()
+            mvc.perform(post("/api/v1/reports/$id/release").with(asUser(approver))).andExpect(status().isAccepted)
+            val taskId = jobs.load(id, TenantScope.All)!!.approvalTaskId!!
+            // Segregation of duties lives in the machine: the role check passes, the append throws.
+            mvc
+                .perform(
+                    post("/api/v1/reports/$id/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event": "approved"}""")
+                        .with(asUser(approver)),
+                ).andExpect(status().isConflict)
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.octo.api.prospect
 
+import com.octo.api.TaskEventRequest
+import com.octo.api.TaskView
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.api.agents.AgentsCallException
@@ -21,6 +23,8 @@ import com.octo.dealsourcing.persistence.PIPELINE_PAGE_LIMIT
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
+import com.octo.api.isGateDecision
+import com.octo.api.taskView
 import com.octo.dealsourcing.registered
 import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
@@ -562,7 +566,7 @@ class ProspectController(
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
         counter("deal.prospects.task_events", "event", body.event)?.increment()
-        return ResponseEntity.ok(after.view())
+        return ResponseEntity.ok(after.taskView())
     }
 
     /**
@@ -874,14 +878,6 @@ class ProspectController(
 
     private fun String?.fits() = this == null || length <= FIELD_LIMIT
 
-    /**
-     * The events that end or redirect an approval task — the gate decisions only `approver`/`admin`
-     * may post. `assigned` routes the task and `resubmitted` is already requester-locked by the
-     * machine, so neither is a decision.
-     */
-    private fun TaskEvent.isGateDecision() =
-        this is TaskEvent.Approved || this is TaskEvent.Rejected || this is TaskEvent.ReworkRequested || this is TaskEvent.Cancelled
-
     private fun roleIn(
         userId: UUID,
         tenantId: UUID,
@@ -901,15 +897,6 @@ class ProspectController(
             recordedAt = recordedAt,
             correlationId = correlationId,
             taskId = taskId,
-        )
-
-    private fun TaskState.view() =
-        TaskView(
-            taskId = task.id,
-            kind = task.kind.wireValue,
-            status = status.name.lowercase(),
-            assignee = assignee,
-            decidedBy = decidedBy,
         )
 
     private fun ProspectState.view() =
@@ -982,39 +969,10 @@ class ProspectController(
      * `assignee` is required by `assigned`; `rationale` by `rejected`, `rework-requested` and
      * `cancelled`; anything else missing answers 400 before the state machine sees it.
      */
-    data class TaskEventRequest(
-        val event: String,
-        val rationale: String? = null,
-        val assignee: String? = null,
-        val correlationId: UUID? = null,
-    ) {
-        fun toEvent(actor: String): TaskEvent? {
-            val at = Instant.now()
-            return when (event) {
-                "assigned" -> assignee?.takeIf { it.isNotBlank() }?.let { TaskEvent.Assigned(actor, at, it) }
-                "approved" -> TaskEvent.Approved(actor, at, rationale)
-                "rejected" -> rationale?.takeIf { it.isNotBlank() }?.let { TaskEvent.Rejected(actor, at, it) }
-                "rework-requested" -> rationale?.takeIf { it.isNotBlank() }?.let { TaskEvent.ReworkRequested(actor, at, it) }
-                "resubmitted" -> TaskEvent.Resubmitted(actor, at)
-                "completed" -> TaskEvent.Completed(actor, at, rationale)
-                "cancelled" -> rationale?.takeIf { it.isNotBlank() }?.let { TaskEvent.Cancelled(actor, at, it) }
-                else -> null
-            }
-        }
-    }
-
     data class DdEvidenceRequest(
         val workstream: String,
         val summary: String,
         val correlationId: UUID? = null,
-    )
-
-    data class TaskView(
-        val taskId: UUID,
-        val kind: String,
-        val status: String,
-        val assignee: String?,
-        val decidedBy: String?,
     )
 
     data class RuleRequest(
