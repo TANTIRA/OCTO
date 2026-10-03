@@ -39,13 +39,14 @@ class WorkflowMigrationIT {
     }
 
     @Test
-    fun `V43 pins the trigger and RLS bodies to octo, whichever path V28 took`() {
+    fun `V43 and V46 pin trigger and RLS bodies to octo, whichever path V28 took`() {
         val expected =
             mapOf(
                 "octo.workflow_task_event_segregation()" to "search_path=pg_catalog, pg_temp",
                 "octo.audit_event_chain()" to "search_path=pg_catalog, pg_temp",
                 "octo.rls_is_member(uuid,uuid)" to "search_path=octo, pg_temp",
                 "octo.rls_admits(uuid)" to "search_path=octo, pg_temp",
+                "octo.tracked_address_event_rules()" to "search_path=pg_catalog, pg_temp",
             )
         dataSource.connection.use { connection ->
             for ((function, searchPath) in expected) {
@@ -65,6 +66,8 @@ class WorkflowMigrationIT {
         }
         // The workflow trigger's lock key is the one JdbcTaskStore takes.
         assertThat(count("select count(*) from pg_proc where prosrc like '%''octo.workflow_task:''%'")).isEqualTo(1)
+        // V46: the watch trigger locks on the octo key, not the pre-rename mesta key (#546).
+        assertThat(count("select count(*) from pg_proc where prosrc like '%''octo.tracked_address:''%'")).isEqualTo(1)
     }
 
     @Test
