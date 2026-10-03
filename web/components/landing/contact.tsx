@@ -59,8 +59,6 @@ export function Contact() {
   async function send(form: HTMLFormElement): Promise<string> {
     const data = new FormData(form);
     const text = (key: string) => String(data.get(key) ?? "").trim();
-    // The honeypot sits outside the <form> so WebMCP never offers it to agents as a parameter.
-    const honeypot = form.ownerDocument.getElementById("contact-website") as HTMLInputElement | null;
     setStatus("pending");
     try {
       const res = await fetch("/api/v1/contact", {
@@ -75,7 +73,7 @@ export function Contact() {
           aumBand: text("aumBand"),
           phone: text("phone") || undefined,
           message: text("message") || undefined,
-          website: honeypot?.value.trim() || undefined,
+          website: text("website") || undefined,
         }),
       });
       if (res.ok) form.reset();
@@ -113,6 +111,7 @@ export function Contact() {
         </div>
 
         <form
+          id="contact-form"
           data-anim
           onSubmit={onSubmit}
           toolname="request_access"
@@ -195,10 +194,12 @@ export function Contact() {
           </button>
         </form>
 
-        {/* Honeypot — hidden from humans and outside the form, so agents never see it; bots that fill it get a silent 202. */}
+        {/* Honeypot — outside the <form> in the DOM so WebMCP never offers it to agents as a
+            field, but form-associated and named so form.elements- and name-based fillers
+            find it and FormData submits it (#556); bots that fill it get a silent 202. */}
         <div className="hidden" aria-hidden="true">
           <label htmlFor="contact-website">Website</label>
-          <input id="contact-website" type="text" tabIndex={-1} autoComplete="off" />
+          <input id="contact-website" name="website" type="text" form="contact-form" tabIndex={-1} autoComplete="off" />
         </div>
       </Reveal>
     </section>
