@@ -1,4 +1,12 @@
-# OCTO by Mesta
+import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import { requestHost } from "@/lib/request-host";
+
+// What llms.txt may advertise (#557): only pages robots.txt allows on the
+// public host. The API root publishes no documentation (#516) and /login is
+// disallowed, so neither is listed. The file is not served on admin-* hosts
+// at all — robots.txt disallows the whole ops surface there.
+const BODY = `# OCTO by Mesta
 
 > One book of record for private markets. OCTO puts funds, deals, portfolio companies, and LP reporting on one shared, self-hosted record for private-equity firms and allocators. It is in private beta.
 
@@ -13,8 +21,12 @@
 
 - [Landing page](https://octo.mesta.click/): product overview, platform, ontology, security, and FAQ
 - [Request access](https://octo.mesta.click/#contact): form to book a working session; a specialist follows up by email
+`;
 
-## Optional
-
-- [Sign in](https://octo.mesta.click/login): for existing OCTO customers only
-- [API](https://api-octo.mesta.click): authenticated API for OCTO customers
+export async function GET(): Promise<Response> {
+  const host = requestHost(await headers());
+  if (host.startsWith("admin-")) return new NextResponse(null, { status: 404 });
+  return new NextResponse(BODY, {
+    headers: { "content-type": "text/plain; charset=utf-8" },
+  });
+}
