@@ -1,4 +1,4 @@
--- V47__evm_scan_checkpoint.sql
+-- V48__evm_scan_checkpoint.sql
 -- Per-chain high-water mark for the EVM poller (#494).
 --
 -- The scan used to resume at max(onchain_transfer.slot) + 1. A finished range that staged
