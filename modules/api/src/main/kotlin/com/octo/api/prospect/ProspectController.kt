@@ -5,6 +5,8 @@ import com.octo.api.access.TenantRole
 import com.octo.api.agents.AgentsCallException
 import com.octo.api.agents.AgentsClient
 import com.octo.api.agents.AgentsUnavailableException
+import com.octo.api.decideTask
+import com.octo.api.mayPost
 import com.octo.dealsourcing.Prospect
 import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectSource
@@ -520,9 +522,9 @@ class ProspectController(
      * completes the evidence checklist due-diligence raised, the requester resubmits after rework.
      * The task state machine holds every rule — nobody decides an approval they requested, only the
      * requester resubmits, terminal tasks accept nothing — and the edge adds the governance bar the
-     * role model states: gate decisions on an `approval` task (approve, reject, rework, cancel)
-     * need `approver` or `admin`, like compliance-rule writes (ComplianceController). A task on any
-     * other subject is 404: the route never reveals it exists.
+     * role model states: gate decisions on an `approval` task (approve, reject, rework, cancel) are
+     * the `approver` role's alone (`mayPost`); admins are segregated from approval duties. A task
+     * on any other subject is 404: the route never reveals it exists.
      */
     @PostMapping("/api/v1/prospects/{id}/tasks/{taskId}")
     fun taskEvent(
@@ -546,23 +548,11 @@ class ProspectController(
                         (it.task.subjectId == id.toString() || it.task.subjectId.startsWith("$id:dd:"))
                 } ?: return ResponseEntity.notFound().build()
         val event = body.toEvent(jwt.subject!!) ?: return ResponseEntity.badRequest().build()
-        // A gate decision on an approval task is the APPROVER's duty alone. ADMIN is segregated from
-        // approval duties (TenantRole.ADMIN; data-security-governance.md: administration vs approval):
-        // an admin who also controls membership must not be able to decide the IC gate. Routing the
-        // task (assigned) or the requester resubmitting after rework stays a working action.
-        if (bound.task.kind == TaskKind.APPROVAL && event.isGateDecision() && role != TenantRole.APPROVER) {
-            return ResponseEntity.notFound().build()
+        if (!role.mayPost(bound.task.kind, event)) return ResponseEntity.notFound().build()
+        return decideTask(taskId, event, body.correlationId, tasks::append) { after ->
+            counter("deal.prospects.task_events", "event", body.event)?.increment()
+            after.view()
         }
-        val after =
-            try {
-                tasks.append(taskId, event, TaskProvenance("api", body.correlationId ?: UUID.randomUUID()))
-            } catch (_: NoSuchElementException) {
-                return ResponseEntity.notFound().build()
-            } catch (_: IllegalArgumentException) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).build()
-            }
-        counter("deal.prospects.task_events", "event", body.event)?.increment()
-        return ResponseEntity.ok(after.view())
     }
 
     /**
@@ -873,14 +863,6 @@ class ProspectController(
             sector.fits() && region.fits() && sourceRef.fits() && (description == null || description.length <= DESCRIPTION_LIMIT)
 
     private fun String?.fits() = this == null || length <= FIELD_LIMIT
-
-    /**
-     * The events that end or redirect an approval task — the gate decisions only `approver`/`admin`
-     * may post. `assigned` routes the task and `resubmitted` is already requester-locked by the
-     * machine, so neither is a decision.
-     */
-    private fun TaskEvent.isGateDecision() =
-        this is TaskEvent.Approved || this is TaskEvent.Rejected || this is TaskEvent.ReworkRequested || this is TaskEvent.Cancelled
 
     private fun roleIn(
         userId: UUID,

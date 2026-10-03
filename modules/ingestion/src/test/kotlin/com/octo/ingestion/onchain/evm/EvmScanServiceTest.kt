@@ -2,6 +2,8 @@ package com.octo.ingestion.onchain.evm
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.octo.ingestion.http.FakeTransport
+import com.octo.ingestion.http.okJson
 import com.octo.ingestion.onchain.CHAIN_ARBITRUM_ONE
 import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
@@ -290,6 +292,43 @@ class EvmScanServiceTest {
 
         assertEquals(1, report.legsStaged)
         assertEquals(listOf("0xunknowncontract0000000000000000000000"), report.skippedContracts)
+    }
+
+    @Test
+    fun `a contract whose decimals hit an invalid opcode is skipped and the scan continues`() {
+        val hostile = "0x00000000000000000000000000000000000000fe"
+        val page =
+            logs(
+                transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "0xbad", block = 8, contract = hostile),
+                transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "0xgood", logIndex = 1, block = 8),
+            ).toString()
+        val six = "0x" + "0".repeat(62) + "06"
+        val transport =
+            FakeTransport(
+                okJson("""{"jsonrpc":"2.0","id":1,"result":"0xa4b1"}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"result":{"number":"0x9","hash":"0xhead","timestamp":"0x66000000"}}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"result":[]}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"result":$page}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"invalid opcode: INVALID"}}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"result":"$six"}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"result":{"number":"0x8","timestamp":"0x65f00000"}}"""),
+            )
+        val rpc =
+            EvmRpcClient(
+                EvmConfig("https://rpc.example", CHAIN_ARBITRUM_ONE, SW_CHAIN_ID),
+                transport = transport,
+                sleeper = {},
+            )
+        val store = ScanFakeStore(SW_WALLET)
+
+        val report = service(rpc, store, window = 10).scan()
+
+        assertEquals(0, report.windowShrinks)
+        assertEquals(1, report.windowsScanned)
+        assertEquals(listOf(hostile), report.skippedContracts)
+        assertEquals(1, report.legsStaged)
+        assertEquals(6, store.transfers.single().decimals)
+        assertEquals("$CHAIN_ARBITRUM_ONE:0xgood:$SW_WALLET:log:1", store.transfers.single().externalId)
     }
 
     @Test
