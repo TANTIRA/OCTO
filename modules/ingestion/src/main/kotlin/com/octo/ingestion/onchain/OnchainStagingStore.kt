@@ -20,11 +20,28 @@ interface OnchainStagingStore {
     ): Long?
 
     /**
-     * The highest staged slot on [chain] — the EVM scanner's resume cursor. Derived from
-     * staging like [newestSlot]: a crashed window re-scans idempotently because the
-     * unique (source_system, external_id) key refuses duplicates.
+     * The highest staged slot on [chain]. The EVM scanner reads this only to bootstrap a
+     * deployment that staged rows before V47's [scanCheckpoint] existed — after that the
+     * stored checkpoint is the resume cursor (#494).
      */
     fun newestStagedSlot(chain: String): Long?
+
+    /**
+     * The highest block the EVM scan finished on [chain], or null before the first pass
+     * completes. Stored, never derived: block ranges with no watched transfers still advance
+     * it, so a quiet period is never rescanned (#494).
+     */
+    fun scanCheckpoint(chain: String): Long?
+
+    /**
+     * Marks [block] as fully scanned on [chain]; the cursor never moves backward. Called
+     * only after a window's legs are staged — a crash before the save re-scans the window
+     * and the unique (source_system, external_id) key deduplicates it.
+     */
+    fun saveScanCheckpoint(
+        chain: String,
+        block: Long,
+    )
 
     /**
      * Registered non-native instruments on [chain] — contract address + decimals. The EVM

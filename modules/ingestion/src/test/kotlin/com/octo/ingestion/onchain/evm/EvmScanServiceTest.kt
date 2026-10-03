@@ -80,6 +80,7 @@ private class ScanFakeStore(
     var cursor: Long? = null
     var contracts: List<TokenContract> = emptyList()
     val transfers = mutableListOf<OnchainTransfer>()
+    val checkpoints = mutableMapOf<String, Long>()
 
     override fun activeWatchedAddresses(chain: String) = watched.filter { it.chain == chain }
 
@@ -89,6 +90,15 @@ private class ScanFakeStore(
     ): Long? = cursor
 
     override fun newestStagedSlot(chain: String): Long? = cursor
+
+    override fun scanCheckpoint(chain: String): Long? = checkpoints[chain]
+
+    override fun saveScanCheckpoint(
+        chain: String,
+        block: Long,
+    ) {
+        checkpoints[chain] = maxOf(checkpoints[chain] ?: block, block)
+    }
 
     override fun tokenContracts(chain: String): List<TokenContract> = contracts
 
@@ -183,6 +193,40 @@ class EvmScanServiceTest {
             ),
             rpc.logCalls,
         )
+    }
+
+    @Test
+    fun `each poll resumes after the last finished window, not the last staged transfer`() {
+        // #494: a watched wallet with no recent transfers used to make every poll rescan
+        // the whole gap since the last staged row. The stored checkpoint records what the
+        // scan finished — including empty ranges — so a second poll over the same head does
+        // no RPC work at all, and a higher head scans only the new blocks.
+        val rpc = ScanFakeRpc(head = 24)
+        val store = ScanFakeStore(SW_WALLET)
+
+        service(rpc, store).scan()
+        assertEquals(24L, store.checkpoints[CHAIN_ARBITRUM_ONE])
+        assertEquals(3, rpc.logCalls.map { it.first }.distinct().size)
+
+        rpc.logCalls.clear()
+        service(rpc, store).scan()
+        assertTrue(rpc.logCalls.isEmpty())
+
+        val grown = ScanFakeRpc(head = 30)
+        service(grown, store).scan()
+        assertEquals(listOf(Triple(25L, 30L, true), Triple(25L, 30L, false)), grown.logCalls)
+        assertEquals(30L, store.checkpoints[CHAIN_ARBITRUM_ONE])
+    }
+
+    @Test
+    fun `a deployment without a checkpoint falls back to the staged cursor once`() {
+        val rpc = ScanFakeRpc(head = 9)
+        val store = ScanFakeStore(SW_WALLET).apply { cursor = 5 }
+
+        service(rpc, store).scan()
+
+        assertEquals(Triple(6L, 9L, true), rpc.logCalls.first())
+        assertEquals(9L, store.checkpoints[CHAIN_ARBITRUM_ONE])
     }
 
     @Test

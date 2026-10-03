@@ -120,6 +120,43 @@ class JdbcOnchainStagingStore(
                 }
         }
 
+    override fun scanCheckpoint(chain: String): Long? =
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    select through_block
+                      from octo.onchain_scan_checkpoint
+                     where chain = ?
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.executeQuery().use { r -> if (r.next()) r.getLong(1) else null }
+                }
+        }
+
+    override fun saveScanCheckpoint(
+        chain: String,
+        block: Long,
+    ) {
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    insert into octo.onchain_scan_checkpoint (chain, through_block)
+                    values (?, ?)
+                    on conflict (chain) do update
+                       set through_block = greatest(octo.onchain_scan_checkpoint.through_block, excluded.through_block),
+                           updated_at = now()
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.setLong(2, block)
+                    s.executeUpdate()
+                }
+        }
+    }
+
     override fun tokenContracts(chain: String): List<TokenContract> =
         dataSource.scoped(TenantScope.All) { c ->
             c

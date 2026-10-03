@@ -81,6 +81,14 @@ private class StakingFakeStore : OnchainStagingStore {
 
     override fun newestStagedSlot(chain: String): Long? = null
 
+    override fun scanCheckpoint(chain: String): Long? = null
+
+    override fun saveScanCheckpoint(
+        chain: String,
+        block: Long,
+    ) {
+    }
+
     override fun tokenContracts(chain: String): List<TokenContract> = emptyList()
 
     override fun insertTransfers(

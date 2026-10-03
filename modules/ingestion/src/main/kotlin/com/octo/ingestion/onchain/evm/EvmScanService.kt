@@ -24,10 +24,14 @@ data class EvmScanReport(
  * `eth_getLogs` scan covers every watched address at once — two topic-filtered queries per
  * block window (senders and recipients), merged by `(txHash, logIndex)`.
  *
- * The scan runs `newestStagedSlot + 1 -> finalized head` in bounded windows. The cursor is
- * derived from staging, never stored: a crashed window re-scans and the
- * `(source_system, external_id)` key refuses duplicates. A provider that rejects the range
- * (its own cap, not the protocol's) shrinks the window rather than failing the run.
+ * The scan runs `checkpoint + 1 -> finalized head` in bounded windows. The cursor is stored
+ * per chain (V47's `onchain_scan_checkpoint`, #494): a window's checkpoint is written only
+ * after its legs are staged, so a crashed window re-scans and the `(source_system,
+ * external_id)` key refuses duplicates — while quiet ranges with no watched transfers still
+ * count as scanned instead of being re-walked every poll. Deployments that staged rows
+ * before the checkpoint existed bootstrap from `newestStagedSlot`, the old cursor. A
+ * provider that rejects the range (its own cap, not the protocol's) shrinks the window
+ * rather than failing the run.
  *
  * Known limitation, by design: the cursor is per chain, so a wallet watched *after* the
  * cursor passed its history sees only forward movement. Backfill is a startBlock reset or
@@ -70,7 +74,11 @@ class EvmScanService(
         val skippedContracts = linkedSetOf<String>()
         val malformedLogs = linkedSetOf<String>()
 
-        var from = maxOf((store.newestStagedSlot(config.chain) ?: -1L) + 1, config.startBlock)
+        // The stored checkpoint is the resume cursor: it covers quiet ranges the staged-data
+        // floor cannot see (#494). Only a deployment with no checkpoint yet falls back to
+        // the pre-V47 staged-data cursor; startBlock stays the cold-start floor.
+        val cursor = store.scanCheckpoint(config.chain) ?: store.newestStagedSlot(config.chain)
+        var from = maxOf((cursor ?: -1L) + 1, config.startBlock)
         var window = config.maxBlockWindow
         while (from <= head) {
             val to = minOf(from + window - 1, head)
@@ -81,6 +89,7 @@ class EvmScanService(
                 legsStaged += store.insertTransfers(outcome.legs, runId, correlationId, actor)
                 skippedContracts += outcome.skippedContracts
                 malformedLogs += outcome.malformedLogs
+                store.saveScanCheckpoint(config.chain, to)
                 from = to + 1
             } catch (e: EvmException) {
                 if (e.status != null || window <= 1L) throw e
