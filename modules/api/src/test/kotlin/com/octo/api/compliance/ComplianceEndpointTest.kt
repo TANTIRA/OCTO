@@ -88,6 +88,31 @@ class ComplianceEndpointTest {
             "coverage": {"currency": "USD", "scenario": "base", "ratio": null}}"""
 
     @Test
+    fun `a rule name at the limit is stored and one character over is refused`() {
+        val atLimit = "n".repeat(SUBJECT_LIMIT)
+        val over = "n".repeat(SUBJECT_LIMIT + 1)
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rule().replace("Concentration", over))
+                        .with(asUser(approver)),
+                ).andExpect(status().isBadRequest)
+            assertThat(store.rules).isEmpty()
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rule().replace("Concentration", atLimit))
+                        .with(asUser(approver)),
+                ).andExpect(status().isCreated)
+                .andExpect(jsonPath("$.name").value(atLimit))
+            assertThat(store.rules.getValue(tenantId).single().first.name).hasSize(SUBJECT_LIMIT)
+        }
+    }
+
+    @Test
     fun `an approver defines rules, anyone lists them, and an analyst's evaluation opens the review task`() {
         run { mvc ->
             mvc

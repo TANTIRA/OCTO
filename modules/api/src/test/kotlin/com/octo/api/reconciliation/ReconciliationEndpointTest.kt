@@ -165,4 +165,25 @@ class ReconciliationEndpointTest {
                 .andExpect(jsonPath("$.breaks[1].ledgerEventId").value(kept.id.toString()))
         }
     }
+
+    @Test
+    fun `source system and external id at the limit are accepted and one character over is refused`() {
+        val atLimit = "s".repeat(SOURCE_FIELD_LIMIT)
+        val over = "s".repeat(SOURCE_FIELD_LIMIT + 1)
+        fun record(
+            sourceSystem: String,
+            externalId: String,
+        ) = """{"sourceSystem": "$sourceSystem", "externalId": "$externalId", "amount": "1", "currency": "USD", "date": "2026-06-30"}"""
+        run { mvc ->
+            mvc.perform(post(analyst, body(record(over, "t-9")))).andExpect(status().isBadRequest)
+            mvc.perform(post(analyst, body(record("admin-a", over)))).andExpect(status().isBadRequest)
+            assertThat(store.rows).isEmpty()
+            assertThat(opened).isEmpty()
+            mvc
+                .perform(post(analyst, body(record(atLimit, atLimit))))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.breaks.length()").value(1))
+            assertThat(store.rows).hasSize(1)
+        }
+    }
 }
