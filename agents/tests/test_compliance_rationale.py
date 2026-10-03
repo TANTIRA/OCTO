@@ -19,6 +19,7 @@ class FakeApi(StrictFake):
     def __init__(self) -> None:
         self.finished: dict[str, Any] = {}
         self.calls: list[str] = []
+        self.recorded_inputs: list[Any] = []
 
     def __getattr__(self, name: str) -> Any:
         if name in ("record_run", "finish_run"):
@@ -40,6 +41,7 @@ class FakeApi(StrictFake):
         thresholds: Any = None,
         request_ids: Any = None,
     ) -> Any:
+        self.recorded_inputs.append(input)
         return {"id": "run-1"}
 
     def finish_run(
@@ -154,3 +156,20 @@ def test_no_outcomes_refuses_without_a_drafter_call() -> None:
     assert result.status == "refused"
     assert "no rule outcomes" in (result.note or "")
     assert api.finished["status"] == "refused"
+
+
+def test_oversized_outcome_sets_record_a_bounded_input() -> None:
+    """#551 — a tenant with many rules serializes past the platform's 32 KiB
+    input cap; the run must still record, as a digest of the same outcomes."""
+    api = FakeApi()
+    big = [{"rule_id": f"r-{i}", "explanation": "x" * 400} for i in range(100)]
+    result = run(api, fake_judge(cited=0.9, complete=0.9), outcomes=big)
+    assert result.status == "completed"  # the run recorded and narrated
+    recorded = api.recorded_inputs[0]
+    outcomes = recorded["outcomes"]
+    assert outcomes["truncated"] is True
+    assert outcomes["count"] == 100
+    assert len(outcomes["sha256"]) == 64
+    import json
+
+    assert len(json.dumps(recorded).encode()) < 32_768
