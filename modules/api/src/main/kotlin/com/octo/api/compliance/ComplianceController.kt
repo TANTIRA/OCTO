@@ -1,5 +1,6 @@
 package com.octo.api.compliance
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.analytics.CoverageReport
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
@@ -7,13 +8,18 @@ import com.octo.api.agents.AgentRunsController
 import com.octo.api.agents.AgentsCallException
 import com.octo.api.agents.AgentsClient
 import com.octo.api.agents.AgentsUnavailableException
+import com.octo.api.isBoundedObject
 import com.octo.lookthrough.ExposureReport
 import com.octo.persistence.TenantScope
 import com.octo.recon.compliance.ComplianceCheck
 import com.octo.recon.compliance.ComplianceInputs
 import com.octo.recon.compliance.ComplianceRule
+import com.octo.recon.compliance.Evaluation
+import com.octo.recon.compliance.Result
+import com.octo.recon.compliance.evaluate
 import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
+import com.octo.recon.compliance.persistence.EVALUATION_RULE_LIMIT
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.springframework.http.HttpStatus
@@ -33,6 +39,9 @@ import java.util.UUID
 
 private const val SUBJECT_LIMIT = 300
 
+/** `UUID.toString()` is 36 characters; a breach task id is never longer, and hyphens are not escaped. */
+private const val WORST_CASE_TASK_ID = "00000000-0000-0000-0000-000000000000"
+
 /**
  * Mirrors `compliance_rule_id_shape` in V14 so a malformed id is answered 400 at the edge.
  * The CHECK constraint stays the authority; this only keeps its violation out of the 500 path.
@@ -49,6 +58,7 @@ class ComplianceController(
     private val runner: ComplianceRunner,
     private val tenants: TenantDirectory,
     private val agents: AgentsClient,
+    private val json: ObjectMapper,
 ) {
     @PostMapping("/api/v1/compliance/rules")
     fun defineRule(
@@ -153,11 +163,9 @@ class ComplianceController(
         val role = roleIn(userId, body.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
         val inputs = body.inputs() ?: return ResponseEntity.badRequest().build()
-        // The sidecar records the run under subject_id "{subject}/{as_of}"; reject what the run
-        // spine would refuse before the engine records outcomes and opens breach tasks (#501).
-        if ("${body.subject}/${body.asOf}".length > AgentRunsController.MAX_SUBJECT_ID_LENGTH) {
-            return ResponseEntity.badRequest().build()
-        }
+        // The sidecar records subject_id "{subject}/{as_of}" and every outcome as the run input.
+        // Refuse either bound before the engine records outcomes and opens breach tasks (#501, #551).
+        if (runSpineWouldRefuse(body, inputs)) return ResponseEntity.badRequest().build()
         val outcomes =
             try {
                 runner.run(body.tenantId, inputs, jwt.subject!!, UUID.randomUUID())
@@ -193,6 +201,40 @@ class ComplianceController(
     ): TenantRole? = tenants.tenantsOf(userId).firstOrNull { it.tenantId == tenantId }?.role
 
     private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
+
+    /**
+     * True when recording the rationale run would 400. A tenant over [EVALUATION_RULE_LIMIT] is
+     * left to [ComplianceRunner], which answers 409 before it writes. Breach task ids do not
+     * exist yet, so each breach is sized as a 36-character id with `recorded=false` — one byte
+     * over a first-time breach (`recorded=true`) and equal to a re-run, so the check never
+     * accepts an input the spine will reject.
+     */
+    private fun runSpineWouldRefuse(
+        body: EvaluationBody,
+        inputs: ComplianceInputs,
+    ): Boolean {
+        if ("${body.subject}/${body.asOf}".length > AgentRunsController.MAX_SUBJECT_ID_LENGTH) return true
+        val rules = store.activeRules(body.tenantId, TenantScope.Tenants(listOf(body.tenantId)))
+        if (rules.size > EVALUATION_RULE_LIMIT) return false
+        return !json.isBoundedObject(rationaleRunInput(body.subject, body.asOf.toString(), evaluate(rules, inputs)))
+    }
+
+    /** The object `compliance_rationale._record_run` stores as `agent_run.input`. */
+    private fun rationaleRunInput(
+        subject: String,
+        asOf: String,
+        evaluations: List<Evaluation>,
+    ): Map<String, Any> =
+        mapOf(
+            "subject" to subject,
+            "as_of" to asOf,
+            "outcomes" to evaluations.map { it.rationaleOutcomeUpperBound() },
+        )
+
+    private fun Evaluation.rationaleOutcomeUpperBound(): Map<String, Any> {
+        val breach = result == Result.BREACH
+        return wire(taskId = if (breach) WORST_CASE_TASK_ID else "", recorded = if (breach) "false" else "true")
+    }
 
     /** `type` is `concentration-limit`, `currency-exposure-limit` or `coverage-floor`; the other fields depend on it. */
     data class CheckBody(
@@ -300,15 +342,20 @@ class ComplianceController(
         )
 
     /** The shape the sidecar narrates — only what the engine produced, nothing more. */
-    private fun Outcome.wire() =
+    private fun Outcome.wire() = evaluation.wire(taskId?.toString() ?: "", recorded.toString())
+
+    private fun Evaluation.wire(
+        taskId: String,
+        recorded: String,
+    ): Map<String, Any> =
         mapOf(
-            "rule_id" to evaluation.rule.id,
-            "version" to evaluation.rule.version.toString(),
-            "result" to evaluation.result.wireValue,
-            "measured" to evaluation.measured,
-            "explanation" to evaluation.explanation,
-            "task_id" to (taskId?.toString() ?: ""),
-            "recorded" to recorded.toString(),
+            "rule_id" to rule.id,
+            "version" to rule.version.toString(),
+            "result" to result.wireValue,
+            "measured" to measured,
+            "explanation" to explanation,
+            "task_id" to taskId,
+            "recorded" to recorded,
         )
 
     private fun ComplianceRule.view() =
