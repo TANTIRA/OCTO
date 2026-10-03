@@ -828,6 +828,46 @@ class ProspectController(
         return ResponseEntity.ok(result)
     }
 
+    /**
+     * `POST /api/v1/prospects/{id}/agent-due-diligence` — runs the parallel DD workstreams
+     * (ADR-0005 F3). The sidecar bands market, financial, legal, and operational findings and
+     * opens one `EVIDENCE_REQUEST` task per high-or-blocker stream through the platform's own
+     * `/dd-evidence` route. Same auth and sidecar error contract as [agentIcMemo]: members of
+     * the prospect's tenant, viewers and outsiders 404, sidecar down or flag-off 503, any other
+     * sidecar failure 502.
+     */
+    @PostMapping("/api/v1/prospects/{id}/agent-due-diligence")
+    fun agentDueDiligence(
+        @PathVariable id: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<Any> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val current =
+            prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        val result =
+            try {
+                agents.run(
+                    "due-diligence",
+                    mapOf(
+                        "prospect_id" to id.toString(),
+                        "tenant_id" to current.prospect.tenantId.toString(),
+                        "run_key" to UUID.randomUUID().toString(),
+                    ),
+                )
+            } catch (e: AgentsUnavailableException) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
+            } catch (e: AgentsCallException) {
+                return ResponseEntity
+                    .status(
+                        if (e.statusCode == 503) HttpStatus.SERVICE_UNAVAILABLE else HttpStatus.BAD_GATEWAY,
+                    ).build()
+            }
+        counter("deal.prospects.agent_due_diligence")?.increment()
+        return ResponseEntity.ok(result)
+    }
+
     private fun screen(
         prospect: Prospect,
         scope: TenantScope,

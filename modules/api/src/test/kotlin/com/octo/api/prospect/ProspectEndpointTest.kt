@@ -4,6 +4,7 @@ import com.octo.api.OctoApplication
 import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
+import com.octo.api.agents.AgentsCallException
 import com.octo.api.agents.AgentsClient
 import com.octo.api.agents.AgentsUnavailableException
 import com.octo.dealsourcing.Prospect
@@ -247,6 +248,64 @@ class ProspectEndpointTest {
                     post("/api/v1/prospects/$id/agent-ic-memo")
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isServiceUnavailable)
+        }
+    }
+
+    @Test
+    fun `agent-due-diligence calls the due-diligence workflow for members and maps sidecar failures`() {
+        run { mvc ->
+            val id = mvc.registered()
+            var calls = 0
+            agentsBehavior = { workflow, payload ->
+                calls += 1
+                mapOf(
+                    "workflow_seen" to workflow,
+                    "prospect_seen" to payload.getValue("prospect_id"),
+                    "tenant_seen" to payload.getValue("tenant_id"),
+                    "status" to "completed",
+                )
+            }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-due-diligence")
+                        .with(jwt().jwt { it.subject(viewer.toString()) }),
+                ).andExpect(status().isNotFound)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-due-diligence")
+                        .with(jwt().jwt { it.subject(UUID.randomUUID().toString()) }),
+                ).andExpect(status().isNotFound)
+            assertThat(calls).isZero()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-due-diligence")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.workflow_seen").value("due-diligence"))
+                .andExpect(jsonPath("$.prospect_seen").value(id.toString()))
+                .andExpect(jsonPath("$.tenant_seen").value(tenantId.toString()))
+            assertThat(calls).isEqualTo(1)
+
+            agentsBehavior = { _, _ -> throw AgentsUnavailableException(java.io.IOException("down")) }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-due-diligence")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isServiceUnavailable)
+
+            agentsBehavior = { _, _ -> throw AgentsCallException(503, "flag off") }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-due-diligence")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isServiceUnavailable)
+
+            agentsBehavior = { _, _ -> throw AgentsCallException(500, "model registry miss") }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/agent-due-diligence")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadGateway)
         }
     }
 
