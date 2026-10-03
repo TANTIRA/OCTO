@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  armRecoveryFor,
+  clearRecoveryPending,
+  recoveryPendingFor,
+} from "@/lib/password-reset";
 
 /**
  * Client-side session gate for the app shell.
@@ -35,7 +40,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       .then(({ data }) => {
         if (!mounted) return;
         if (data.session) {
-          setAllowed(true);
+          // A reset-link session is a full session — until its password is set the
+          // only place it may go is the set-new-password form (#549).
+          if (recoveryPendingFor(window.localStorage, data.session.user.id)) {
+            window.location.replace("/login/reset");
+          } else {
+            setAllowed(true);
+          }
         } else {
           window.location.replace("/login");
         }
@@ -47,8 +58,15 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") window.location.replace("/login");
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" && session) {
+        armRecoveryFor(window.localStorage, session.user.id);
+        window.location.replace("/login/reset");
+      }
+      if (event === "SIGNED_OUT") {
+        clearRecoveryPending(window.localStorage);
+        window.location.replace("/login");
+      }
     });
 
     return () => {

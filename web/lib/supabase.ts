@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { isRecoveryCallback } from "./password-reset";
+import { isRecoveryCallback, markRecoveryPending } from "./password-reset";
 
 /**
  * Browser Supabase client for the OCTO app.
@@ -18,6 +18,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
  */
 export const landedFromRecoveryLink: boolean =
   typeof window !== "undefined" && isRecoveryCallback(window.location.href);
+
+// Arm "recovery pending" before the client is created: it consumes the link's
+// tokens on init, and the gate must see the marker on the very next read (#549).
+if (landedFromRecoveryLink) markRecoveryPending(window.localStorage);
 
 export const supabase: SupabaseClient | null =
   supabaseUrl && supabaseAnonKey

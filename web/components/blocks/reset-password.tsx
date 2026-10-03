@@ -6,6 +6,11 @@ import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { MIN_PASSWORD_LENGTH, newPasswordError } from "@/lib/password-reset";
 import {
+  armRecoveryFor,
+  clearRecoveryPending,
+  recoveryPendingFor,
+} from "@/lib/password-reset";
+import {
   btnPrimary,
   cx,
   field,
@@ -44,7 +49,16 @@ export default function ResetPassword() {
     supabase.auth
       .getSession()
       .then(({ data }) => {
-        if (active) setPhase(data.session ? "ready" : "invalid");
+        if (!active) return;
+        const session = data.session;
+        // The form is only for a session that came from a reset link — any other
+        // signed-in session would be a password change without the current one (#549).
+        if (session && recoveryPendingFor(window.localStorage, session.user.id)) {
+          armRecoveryFor(window.localStorage, session.user.id);
+          setPhase("ready");
+        } else {
+          setPhase("invalid");
+        }
       })
       .catch(() => {
         if (active) setPhase("invalid");
@@ -72,6 +86,8 @@ export default function ResetPassword() {
       setPending(false);
       return;
     }
+    // The password is set — the recovery gate lifts for this and every other tab.
+    clearRecoveryPending(window.localStorage);
     window.location.replace("/app");
   };
 
