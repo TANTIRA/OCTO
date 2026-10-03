@@ -61,6 +61,15 @@ private val MC = MathContext.DECIMAL64
 private const val XIRR_FLOOR = -0.999999
 private const val XIRR_CAP = 1e6
 
+/**
+ * Roots below this bound sit in the near-total-loss fringe. Extending the search from −99% down to
+ * [XIRR_FLOOR] made an extra NPV zero visible there whenever a fund's last flow is a small capital
+ * call (about one-millionth to one percent of the preceding distribution). That zero is not an
+ * economically meaningful alternative when a root at or above this bound also exists (methodology §2.1).
+ * A pattern whose only root is in the fringe still reports that near-total loss.
+ */
+private const val XIRR_MEANINGFUL_FLOOR = -0.99
+
 private fun ratio(
     numerator: BigDecimal,
     denominator: BigDecimal,
@@ -104,31 +113,41 @@ fun pool(series: List<CashFlowSeries>): CashFlowSeries {
 /**
  * XIRR with an actual/365 year fraction (methodology §2.1).
  *
- * Returns null when the NPV curve does not cross zero exactly once over (-99.9999%, +100,000,000%). A
- * pattern with several roots has no single meaningful rate, so the function reports none instead of
- * picking one.
+ * Returns null when (−99.9999%, +100,000,000%] contains no economically meaningful root, or more than
+ * one. A root below −99% does not compete with a root at or above −99%: it is the extra zero a small
+ * terminal contribution creates. Two roots at or above −99% are both meaningful, so the function
+ * reports none instead of picking one.
  */
 fun xirr(flows: List<CashFlow>): Double? {
     val nonZero = flows.filter { it.amount.signum() != 0 }
     if (nonZero.none { it.amount.signum() < 0 } || nonZero.none { it.amount.signum() > 0 }) return null
     val d0 = nonZero.minOf { it.date }
     val points = nonZero.map { ChronoUnit.DAYS.between(d0, it.date) / 365.0 to it.amount.toDouble() }
-    val npv = { r: Double -> points.sumOf { (t, c) -> c / (1 + r).pow(t) } }
-
-    // ponytail: fixed grid scan, two roots closer than one grid step read as none; refine the grid if that bites.
-    // Cubic spacing packs points near -100% (near-total losses); the doubling tail past +10,000% reaches
-    // short-dated large gains, capped where no fund return is plausible.
-    val grid =
-        (0..400).map { XIRR_FLOOR + (101.0 - XIRR_FLOOR) * (it / 400.0).pow(3) } +
-            generateSequence(203.0) { 2 * it + 1 }.takeWhile { it <= XIRR_CAP }
-    val crossings = grid.zipWithNext().filter { (a, b) -> npv(a) == 0.0 || npv(a) * npv(b) < 0 }
-    if (crossings.size != 1) return null
-    var (lo, hi) = crossings.single()
-    repeat(200) {
-        val mid = (lo + hi) / 2
-        if (npv(lo) * npv(mid) <= 0) hi = mid else lo = mid
+    val roots = xirrRoots { r -> points.sumOf { (t, c) -> c / (1 + r).pow(t) } }
+    val meaningful = roots.filter { it >= XIRR_MEANINGFUL_FLOOR }
+    return when (meaningful.size) {
+        1 -> meaningful.single()
+        0 -> roots.singleOrNull()
+        else -> null
     }
-    return (lo + hi) / 2
+}
+
+// ponytail: fixed grid scan, two roots closer than one grid step read as none; refine the grid if that bites.
+// Cubic spacing packs points near -100% (near-total losses). Doubling (1 + r) past +10,000% reaches
+// short-dated large gains and finishes on the +100,000,000% cap.
+private fun xirrRoots(npv: (Double) -> Double): List<Double> {
+    val head = (0..400).map { XIRR_FLOOR + (101.0 - XIRR_FLOOR) * (it / 400.0).pow(3) }
+    val tail = generateSequence(203.0) { 2 * it + 1 }.takeWhile { it < XIRR_CAP }.toList()
+    val grid = head + tail + XIRR_CAP
+    return grid.zipWithNext().filter { (a, b) -> npv(a) == 0.0 || npv(a) * npv(b) < 0 }.map { (lo0, hi0) ->
+        var lo = lo0
+        var hi = hi0
+        repeat(200) {
+            val mid = (lo + hi) / 2
+            if (npv(lo) * npv(mid) <= 0) hi = mid else lo = mid
+        }
+        (lo + hi) / 2
+    }
 }
 
 /**

@@ -81,6 +81,20 @@ class PerformanceTest {
         assertNull(xirr(flows))
     }
 
+    @Test
+    fun `a fund that ends with a small capital call still reports its irr`() {
+        // Wind-down: −100, +150, −1, NAV 0. Actual/365 (2020 is a leap year) has a rate near 49.2%
+        // and an economically meaningless root near −99.3%.
+        val series =
+            CashFlowSeries(
+                currency = USD,
+                flows = listOf(flow("2020-01-01", "-100"), flow("2021-01-01", "150"), flow("2022-01-01", "-1")),
+                nav = BigDecimal.ZERO,
+                valuationDate = LocalDate.parse("2022-01-01"),
+            )
+        assertEquals(0.491660919781, assertNotNull(performance(series).irr), 1e-9)
+    }
+
     // Two flows have a closed form: r = (CF1 / -CF0)^(365 / days) - 1.
 
     @Test
@@ -103,6 +117,15 @@ class PerformanceTest {
         // 103 back on 100 after 5 days: r = 1.03^73 - 1, about 765%.
         val irr = xirr(listOf(flow("2020-01-01", "-100"), flow("2020-01-06", "103")))
         val expected = 1.03.pow(365.0 / 5) - 1
+        assertEquals(expected, assertNotNull(irr), expected * 1e-9)
+    }
+
+    @Test
+    fun `xirr searches through the documented 100 million percent cap`() {
+        // Closed form sits between the last doubling step (~835,583) and r = 1e6.
+        val expected = 900_000.0
+        val repaid = BigDecimal((expected + 1).pow(5.0 / 365.0) * 100)
+        val irr = xirr(listOf(flow("2020-01-01", "-100"), CashFlow(LocalDate.parse("2020-01-06"), repaid)))
         assertEquals(expected, assertNotNull(irr), expected * 1e-9)
     }
 

@@ -370,7 +370,7 @@ classDiagram
   Performance ..> CommitmentStatus
 ```
 
-- **XIRR.** Uses actual/365. The NPV is scanned on a 401-point grid over (−99.9999%, +10,000%), extended by doubling (1 + r) up to +100,000,000% so near-total losses and short-dated large gains are reachable; the result is defined only if the NPV crosses zero exactly once, and is then refined by bisection. Several roots give `null`.
+- **XIRR.** Uses actual/365. The NPV is scanned on a 401-point grid over (−99.9999%, +10,000%), extended by doubling (1 + r) through +100,000,000% so near-total losses and short-dated large gains are reachable; each sign change is refined by bisection. A root below −99% is the extra zero a small terminal contribution creates and is not a second meaningful rate when another root exists at or above −99%. A lone root below −99% is still reported. Two or more roots at or above −99% give `null`.
 - **Guards.** Cash flows after `valuationDate` are rejected, and NAV must not be negative. A zero denominator returns `null`.
 
 ### 3.5 `lookthrough` 🟡
