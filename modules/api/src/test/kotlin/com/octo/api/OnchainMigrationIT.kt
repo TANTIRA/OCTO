@@ -165,12 +165,13 @@ class OnchainMigrationIT {
     fun `V46 repairs a watch trigger that still names the mesta schema`() {
         val installed =
             connection.createStatement().use { statement ->
-                statement.executeQuery(
-                    "select pg_get_functiondef('octo.tracked_address_event_rules()'::regprocedure)",
-                ).use { rows ->
-                    check(rows.next())
-                    rows.getString(1)
-                }
+                statement
+                    .executeQuery(
+                        "select pg_get_functiondef('octo.tracked_address_event_rules()'::regprocedure)",
+                    ).use { rows ->
+                        check(rows.next())
+                        rows.getString(1)
+                    }
             }
         assertThat(installed).doesNotContain("mesta.")
 
@@ -208,12 +209,13 @@ class OnchainMigrationIT {
 
         val repaired =
             connection.createStatement().use { statement ->
-                statement.executeQuery(
-                    "select pg_get_functiondef('octo.tracked_address_event_rules()'::regprocedure)",
-                ).use { rows ->
-                    check(rows.next())
-                    rows.getString(1)
-                }
+                statement
+                    .executeQuery(
+                        "select pg_get_functiondef('octo.tracked_address_event_rules()'::regprocedure)",
+                    ).use { rows ->
+                        check(rows.next())
+                        rows.getString(1)
+                    }
             }
         assertThat(repaired).doesNotContain("mesta.")
         assertThat(repaired).contains("octo.tracked_address_event")
