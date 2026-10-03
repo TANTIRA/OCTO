@@ -19,8 +19,9 @@ data class SyncResult(
  * newest-first via `getTransactionsForAddress` — the `tokenAccounts: "balanceChanged"` filter
  * makes Helius resolve the wallet's ATAs server-side, so a transfer that touches only a token
  * account (the wallet never appears in `accountKeys`) is still ingested and attributed to the
- * owner by the normalizer's `owner` field. Idempotent end to end — the staging unique key is
- * the only dedupe, so a re-run or a webhook overlapping the same signatures inserts nothing twice.
+ * owner by the normalizer's `owner` field. Idempotent end to end — the staging unique key refuses
+ * a second copy of the same leg, and a network fee already folded into a legacy balance leg is
+ * not staged again.
  *
  * Cursor: the highest staged slot, passed as `filters.slot.gt` — derived from staging, never
  * stored. A crashed pass restarts safely because staging rows are already facts.
