@@ -39,17 +39,40 @@ data class StagedTransfer(
     val correlationId: UUID,
 )
 
+/**
+ * One `(chain, mint)` whose staged transfers cannot promote — no registered instrument —
+ * with the count of rows waiting on it (#495). Reported per pass without loading the rows.
+ */
+data class QuarantinedMint(
+    val chain: String,
+    val mintAddress: String?,
+    val staged: Long,
+)
+
 /** What [InstrumentFlowPromoter.promote] did in one pass. */
 data class PromotionReport(
     val promoted: Int,
-    val quarantined: List<StagedTransfer>,
+    val quarantined: List<QuarantinedMint>,
     val deferred: List<StagedTransfer>,
 )
 
 /** Storage the promoter needs; the JDBC implementation lives in `persistence`. */
 interface InstrumentFlowStore {
-    /** Staging rows with no `instrument_flow` counterpart yet, in `recorded_at` order. */
-    fun unpromotedTransfers(): List<StagedTransfer>
+    /**
+     * Up to [limit] finalized staging rows that can promote now — the `(chain, mint)` has a
+     * registered instrument and no `instrument_flow` counterpart exists yet — in
+     * `recorded_at` order. Rows waiting on an unregistered mint are excluded and surface
+     * through [quarantinedMints] instead, so a backlog of spam airdrops never becomes the
+     * pass's working set (#495). [limit] bounds the pass; the remainder promotes on later
+     * ticks.
+     */
+    fun promotableTransfers(limit: Int): List<StagedTransfer>
+
+    /**
+     * Unpromotable staged rows grouped by their `(chain, mint)` — the quarantine summary a
+     * pass reports without loading the rows themselves (#495).
+     */
+    fun quarantinedMints(): List<QuarantinedMint>
 
     /** Every registered instrument keyed by `(chain, mint)`; a null mint is the native asset. */
     fun instrumentIds(): Map<InstrumentKey, UUID>
@@ -84,21 +107,22 @@ interface InstrumentFlowStore {
  * unknown mints are quarantined for review instead of silently becoming instruments, a
  * correction waits until the fact it supersedes exists (a dangling `supersedes_id` would break
  * `resolveCurrent`), and `external_id` identity makes any replay a no-op.
+ *
+ * A pass is bounded to [batchSize] rows (#495): quarantined mints are counted without being
+ * loaded, so promotion cost tracks new work, not the growing history of unpromotable rows.
  */
 class InstrumentFlowPromoter(
     private val store: InstrumentFlowStore,
+    private val batchSize: Int = 500,
 ) {
     fun promote(now: Instant = Instant.now()): PromotionReport {
         val instruments = store.instrumentIds()
-        val quarantined = mutableListOf<StagedTransfer>()
         val deferred = mutableListOf<StagedTransfer>()
         var promoted = 0
-        for (row in store.unpromotedTransfers()) {
-            val instrumentId = instruments[InstrumentKey(row.chain, row.mintAddress)]
-            if (instrumentId == null) {
-                quarantined += row
-                continue
-            }
+        for (row in store.promotableTransfers(batchSize)) {
+            // promotableTransfers already filtered to registered mints; a null here means a
+            // store that does not honor that contract — skip rather than invent an instrument.
+            val instrumentId = instruments[InstrumentKey(row.chain, row.mintAddress)] ?: continue
             val supersedes = row.supersedesId?.let(store::flowIdForStaging)
             if (row.supersedesId != null && supersedes == null) {
                 deferred += row
@@ -124,6 +148,6 @@ class InstrumentFlowPromoter(
                 )
             if (store.insertFlow(flow, row.sourceSystem, row.ingestionRunId, row.correlationId)) promoted++
         }
-        return PromotionReport(promoted, quarantined, deferred)
+        return PromotionReport(promoted, store.quarantinedMints(), deferred)
     }
 }

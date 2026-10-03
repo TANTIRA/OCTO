@@ -155,7 +155,9 @@ class OnchainIngestionConfiguration {
     fun instrumentFlowStore(dataSource: ObjectProvider<DataSource>): InstrumentFlowStore {
         val delegate by lazy { JdbcInstrumentFlowStore(dataSource.getObject()) }
         return object : InstrumentFlowStore {
-            override fun unpromotedTransfers() = delegate.unpromotedTransfers()
+            override fun promotableTransfers(limit: Int) = delegate.promotableTransfers(limit)
+
+            override fun quarantinedMints() = delegate.quarantinedMints()
 
             override fun instrumentIds() = delegate.instrumentIds()
 
@@ -177,7 +179,13 @@ class OnchainIngestionConfiguration {
     }
 
     @Bean
-    fun instrumentFlowPromoter(store: InstrumentFlowStore) = InstrumentFlowPromoter(store)
+    fun instrumentFlowPromoter(
+        store: InstrumentFlowStore,
+        env: Environment,
+    ) = InstrumentFlowPromoter(
+        store,
+        batchSize = env.getProperty("octo.onchain.promotion.batch-size", Int::class.java, 500),
+    )
 
     /** Staging → `instrument_flow` promotion (#310); runs unless `octo.onchain.promotion.enabled` is false. */
     @Bean

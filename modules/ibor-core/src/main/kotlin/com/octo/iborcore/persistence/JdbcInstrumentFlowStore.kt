@@ -5,6 +5,7 @@ import com.octo.iborcore.InstrumentFlowStore
 import com.octo.iborcore.InstrumentFlowType
 import com.octo.iborcore.InstrumentKey
 import com.octo.iborcore.PROMOTION_ACTOR
+import com.octo.iborcore.QuarantinedMint
 import com.octo.iborcore.StagedTransfer
 import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
@@ -31,7 +32,13 @@ import javax.sql.DataSource
 class JdbcInstrumentFlowStore(
     private val dataSource: DataSource,
 ) : InstrumentFlowStore {
-    override fun unpromotedTransfers(): List<StagedTransfer> =
+    /**
+     * Only rows that can promote in this pass are loaded: the instrument join keeps staged
+     * transfers of unregistered mints — spam airdrops accumulate them without bound — out of
+     * the working set (#495). `is not distinct from` matches the instrument table's
+     * `nulls not distinct` unique key, so the native asset joins on its null mint.
+     */
+    override fun promotableTransfers(limit: Int): List<StagedTransfer> =
         dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
@@ -43,13 +50,19 @@ class JdbcInstrumentFlowStore(
                            s.ingestion_run_id, s.correlation_id
                       from octo.onchain_transfer s
                      where s.commitment = 'finalized'
+                       and exists (
+                           select 1 from octo.instrument i
+                            where i.chain = s.chain
+                              and i.mint_address is not distinct from s.mint_address)
                        and not exists (
                            select 1 from octo.instrument_flow f
                             where f.source_system = s.source_system
                               and f.external_id = s.external_id)
                      order by s.recorded_at, s.id
+                     limit ?
                     """.trimIndent(),
                 ).use { s ->
+                    s.setInt(1, limit)
                     s.executeQuery().use { r ->
                         buildList {
                             while (r.next()) {
@@ -73,6 +86,42 @@ class JdbcInstrumentFlowStore(
                                         sourceSystem = r.getString("source_system"),
                                         ingestionRunId = r.uuid("ingestion_run_id")!!,
                                         correlationId = r.uuid("correlation_id")!!,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                }
+        }
+
+    override fun quarantinedMints(): List<QuarantinedMint> =
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    select s.chain, s.mint_address, count(*) as staged
+                      from octo.onchain_transfer s
+                     where s.commitment = 'finalized'
+                       and not exists (
+                           select 1 from octo.instrument i
+                            where i.chain = s.chain
+                              and i.mint_address is not distinct from s.mint_address)
+                       and not exists (
+                           select 1 from octo.instrument_flow f
+                            where f.source_system = s.source_system
+                              and f.external_id = s.external_id)
+                     group by s.chain, s.mint_address
+                     order by staged desc
+                    """.trimIndent(),
+                ).use { s ->
+                    s.executeQuery().use { r ->
+                        buildList {
+                            while (r.next()) {
+                                add(
+                                    QuarantinedMint(
+                                        chain = r.getString("chain"),
+                                        mintAddress = r.getString("mint_address"),
+                                        staged = r.getLong("staged"),
                                     ),
                                 )
                             }

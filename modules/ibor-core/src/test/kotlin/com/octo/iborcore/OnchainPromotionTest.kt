@@ -21,10 +21,19 @@ private class FakeStore : InstrumentFlowStore {
 
     fun stage(rows: List<StagedTransfer>) = staged.addAll(rows)
 
-    override fun unpromotedTransfers() =
+    override fun promotableTransfers(limit: Int) =
         staged
             .filter { s -> flows.none { it.externalId == s.externalId } }
+            .filter { s -> instruments.containsKey(InstrumentKey(s.chain, s.mintAddress)) }
             .sortedWith(compareBy({ it.recordedAt }, { it.id }))
+            .take(limit)
+
+    override fun quarantinedMints() =
+        staged
+            .filter { s -> flows.none { it.externalId == s.externalId } }
+            .filter { s -> !instruments.containsKey(InstrumentKey(s.chain, s.mintAddress)) }
+            .groupBy { InstrumentKey(it.chain, it.mintAddress) }
+            .map { (key, rows) -> QuarantinedMint(key.chain, key.mintAddress, rows.size.toLong()) }
 
     override fun instrumentIds() = instruments
 
@@ -109,6 +118,24 @@ class OnchainPromotionTest {
         assertEquals(1, report.promoted)
         assertEquals(listOf(unknownMint), report.quarantined.map { it.mintAddress })
         assertTrue(store.flows.none { it.externalId == "solana:s1:w:tok:1" })
+    }
+
+    @Test
+    fun `a pass loads at most batchSize rows and never loads quarantined ones`() {
+        // #495: staged rows waiting on an unregistered mint are excluded in the query, so
+        // the working set tracks promotable work — not the growing backlog of spam mints.
+        val store = FakeStore()
+        store.stage(
+            listOf(staged("solana:s1:w:tok:1", "transfer-in", mint = "unregistered-mint")) +
+                List(10) { staged("solana:s$it:w:bal:0", "transfer-in") },
+        )
+        val promoter = InstrumentFlowPromoter(store, batchSize = 4)
+
+        val first = promoter.promote(now)
+
+        assertEquals(4, first.promoted)
+        assertEquals(1, first.quarantined.single().staged)
+        assertEquals(6, store.promotableTransfers(100).size)
     }
 
     @Test

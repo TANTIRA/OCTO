@@ -4,6 +4,7 @@ import com.octo.iborcore.InstrumentFlow
 import com.octo.iborcore.InstrumentFlowPromoter
 import com.octo.iborcore.InstrumentFlowStore
 import com.octo.iborcore.InstrumentKey
+import com.octo.iborcore.QuarantinedMint
 import com.octo.iborcore.StagedTransfer
 import com.octo.persistence.TenantScope
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
@@ -22,10 +23,19 @@ class OnchainPromotionRunnerTest {
         val flows = mutableListOf<InstrumentFlow>()
         var down = false
 
-        override fun unpromotedTransfers(): List<StagedTransfer> {
+        override fun promotableTransfers(limit: Int): List<StagedTransfer> {
             check(!down) { "database down" }
-            return rows.filter { r -> flows.none { it.externalId == r.externalId } }
+            return rows
+                .filter { r -> flows.none { it.externalId == r.externalId } }
+                .filter { it.mintAddress == null }
+                .take(limit)
         }
+
+        override fun quarantinedMints() =
+            rows
+                .filter { r -> flows.none { it.externalId == r.externalId } }
+                .filter { it.mintAddress != null }
+                .map { QuarantinedMint(it.chain, it.mintAddress, 1) }
 
         override fun instrumentIds() = mapOf(InstrumentKey("solana", null) to native)
 
