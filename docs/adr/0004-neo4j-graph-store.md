@@ -76,7 +76,7 @@ Every graph read filters on `tenantId`. This changes what `@key` means for those
 ## Acceptance criteria
 
 - [x] `ontology/octo-investment.cypher` validates against a live Neo4j Community instance in CI (`Neo4jSchemaIT`, pinned image `neo4j:2025.12.1-community`)
-- [ ] Dual-write ingestion path with atomic failure semantics implemented
-- [ ] Graph-ledger reconciliation report passes on seeded test data
+- [x] Dual-write ingestion path with atomic failure semantics implemented — transactional outbox (V45, #559) drained by `GraphProjector` (#560); `GraphOutboxStoreIT`, `GraphProjectionIT`. Assets are the first projected aggregate; their write path has no production caller yet, so the first live projection is `instrument_flow`.
+- [x] Graph-ledger reconciliation report passes on seeded test data — `GraphReconciler` (#308): missing, stale, orphan, forked, failed and stuck, per tenant; `GraphReconciliationIT`
 - [x] Neo4j backup/restore and upgrade runbooks exist (`restore-runbook.md` §6, `runbooks/neo4j-upgrade.md`, #308)
 - [x] Performance test: look-through aggregation over 5-level hierarchy within reporting SLA (`modules/lookthrough/src/test/kotlin/com/octo/lookthrough/ExposurePerfTest.kt`, #308)
