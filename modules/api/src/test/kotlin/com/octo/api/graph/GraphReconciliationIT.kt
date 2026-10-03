@@ -174,14 +174,26 @@ class GraphReconciliationIT {
     fun `a promoted flow reconciles clean and every drift in its wiring is reported`() {
         val tenantId = tenant()
         val wallet =
-            "7VVV" + UUID.randomUUID().toString().replace("-", "").replace(Regex("[0OIl]"), "A").take(39)
+            "7VVV" +
+                UUID
+                    .randomUUID()
+                    .toString()
+                    .replace("-", "")
+                    .replace(Regex("[0OIl]"), "A")
+                    .take(39)
         val instrumentId = UUID.randomUUID()
         sql(
             "insert into octo.tracked_address (chain, address, tenant_id, source_system, correlation_id) " +
                 "values ('solana', '$wallet', '$tenantId', 'it', '${UUID.randomUUID()}')",
         )
         val mint =
-            "7VVV" + UUID.randomUUID().toString().replace("-", "").replace(Regex("[0OIl]"), "A").take(39)
+            "7VVV" +
+                UUID
+                    .randomUUID()
+                    .toString()
+                    .replace("-", "")
+                    .replace(Regex("[0OIl]"), "A")
+                    .take(39)
         sql(
             "insert into octo.instrument (id, external_key, chain, mint_address, instrument_kind, decimals, symbol, " +
                 "source_system, actor, ingestion_run_id, correlation_id) values " +

@@ -7,6 +7,8 @@ import com.octo.api.access.TenantRole
 import com.octo.api.agents.AgentsCallException
 import com.octo.api.agents.AgentsClient
 import com.octo.api.agents.AgentsUnavailableException
+import com.octo.api.isGateDecision
+import com.octo.api.taskView
 import com.octo.dealsourcing.Prospect
 import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectSource
@@ -23,8 +25,6 @@ import com.octo.dealsourcing.persistence.PIPELINE_PAGE_LIMIT
 import com.octo.dealsourcing.persistence.ProspectProvenance
 import com.octo.dealsourcing.persistence.ProspectStore
 import com.octo.dealsourcing.persistence.ScreeningRuleRow
-import com.octo.api.isGateDecision
-import com.octo.api.taskView
 import com.octo.dealsourcing.registered
 import com.octo.persistence.TenantScope
 import com.octo.workflow.Task

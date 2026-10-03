@@ -79,7 +79,8 @@ class ReportController(
     ): ResponseEntity<JobView> {
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
-        val access = tenants.tenantsOf(userId).firstOrNull { it.tenantId == job.request.tenantId } ?: return ResponseEntity.notFound().build()
+        val access =
+            tenants.tenantsOf(userId).firstOrNull { it.tenantId == job.request.tenantId } ?: return ResponseEntity.notFound().build()
         val task = job.approvalTaskId?.let(tasks::state)
         // An approver reads the sealed draft so they can decide the gate; everyone else waits
         // for the release (#552). The `released` flag still reports the true gate state.

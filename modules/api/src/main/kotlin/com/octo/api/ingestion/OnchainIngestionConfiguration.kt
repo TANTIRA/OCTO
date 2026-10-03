@@ -1,9 +1,9 @@
 package com.octo.api.ingestion
 
+import com.octo.api.graph.enqueueInstrumentFlowProjection
 import com.octo.iborcore.InstrumentFlow
 import com.octo.iborcore.InstrumentFlowPromoter
 import com.octo.iborcore.InstrumentFlowStore
-import com.octo.api.graph.enqueueInstrumentFlowProjection
 import com.octo.iborcore.persistence.JdbcInstrumentFlowStore
 import com.octo.ingestion.onchain.FinalityProbe
 import com.octo.ingestion.onchain.OnchainBalance

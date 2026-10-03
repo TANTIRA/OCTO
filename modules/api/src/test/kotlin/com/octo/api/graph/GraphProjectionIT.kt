@@ -202,14 +202,26 @@ class GraphProjectionIT {
      */
     private fun promoteFlow(tenantId: UUID): InstrumentFlow {
         val wallet =
-            "7VVV" + UUID.randomUUID().toString().replace("-", "").replace(Regex("[0OIl]"), "A").take(39)
+            "7VVV" +
+                UUID
+                    .randomUUID()
+                    .toString()
+                    .replace("-", "")
+                    .replace(Regex("[0OIl]"), "A")
+                    .take(39)
         val instrumentId = UUID.randomUUID()
         sql(
             "insert into octo.tracked_address (chain, address, tenant_id, source_system, correlation_id) " +
                 "values ('solana', '$wallet', '$tenantId', 'it', '${UUID.randomUUID()}')",
         )
         val mint =
-            "7VVV" + UUID.randomUUID().toString().replace("-", "").replace(Regex("[0OIl]"), "A").take(39)
+            "7VVV" +
+                UUID
+                    .randomUUID()
+                    .toString()
+                    .replace("-", "")
+                    .replace(Regex("[0OIl]"), "A")
+                    .take(39)
         sql(
             "insert into octo.instrument (id, external_key, chain, mint_address, instrument_kind, decimals, symbol, " +
                 "source_system, actor, ingestion_run_id, correlation_id) values " +
@@ -287,12 +299,22 @@ class GraphProjectionIT {
         driver().use { driver -> projector(driver).drain() }
         driver().use { driver ->
             assertThat(
-                driver.executableQuery("MATCH (f:InstrumentFlow {octoId: \$id}) RETURN count(*) AS n")
-                    .withParameters(mapOf("id" to flow.id.toString())).execute().records().single()["n"].asInt(),
+                driver
+                    .executableQuery("MATCH (f:InstrumentFlow {octoId: \$id}) RETURN count(*) AS n")
+                    .withParameters(mapOf("id" to flow.id.toString()))
+                    .execute()
+                    .records()
+                    .single()["n"]
+                    .asInt(),
             ).isEqualTo(1)
             assertThat(
-                driver.executableQuery("MATCH (r:InstrumentFlowOf {flowOctoId: \$id})-[e]->() RETURN count(e) AS n")
-                    .withParameters(mapOf("id" to flow.id.toString())).execute().records().single()["n"].asInt(),
+                driver
+                    .executableQuery("MATCH (r:InstrumentFlowOf {flowOctoId: \$id})-[e]->() RETURN count(e) AS n")
+                    .withParameters(mapOf("id" to flow.id.toString()))
+                    .execute()
+                    .records()
+                    .single()["n"]
+                    .asInt(),
             ).isEqualTo(3)
         }
     }

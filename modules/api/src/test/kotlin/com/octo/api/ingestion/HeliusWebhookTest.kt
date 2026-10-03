@@ -7,8 +7,8 @@ import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
-import com.octo.ingestion.onchain.SyncFrontier
 import com.octo.ingestion.onchain.OnchainWebhookService
+import com.octo.ingestion.onchain.SyncFrontier
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.TransactionFetcher
 import com.octo.ingestion.onchain.WatchSource

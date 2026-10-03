@@ -91,13 +91,21 @@ class GraphReconciliationRunnerTest {
         assertThat(opener.opened).hasSize(2) // openUnlessOpen collapses them in production
         assertThat(opener.opened.map { it.subjectId }.distinct()).hasSize(1)
         assertThat(
-            meters.get("graph.reconciliation.discrepancies").tags("kind", "orphan").gauge().value(),
+            meters
+                .get("graph.reconciliation.discrepancies")
+                .tags("kind", "orphan")
+                .gauge()
+                .value(),
         ).isEqualTo(1.0)
 
         drift = false
         runner.reconcileTenant(tenantId)
         assertThat(
-            meters.get("graph.reconciliation.discrepancies").tags("kind", "orphan").gauge().value(),
+            meters
+                .get("graph.reconciliation.discrepancies")
+                .tags("kind", "orphan")
+                .gauge()
+                .value(),
         ).isZero()
     }
 
