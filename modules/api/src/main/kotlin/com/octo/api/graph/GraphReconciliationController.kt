@@ -1,6 +1,7 @@
 package com.octo.api.graph
 
 import com.octo.api.access.PlatformAdmin
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
@@ -38,10 +39,12 @@ private fun GraphReconciliation.view() =
  * `GET /api/v1/admin/graph/reconciliation?tenantId=…` — a live reconciliation for one tenant,
  * platform admins only (#564). The call is the same disposition the scheduled pass gives drift:
  * reading the report also opens the deduplicated evidence-request tasks, so an admin never sees
- * a discrepancy the workflow does not know about. Registered only when `NEO4J_URI` is set — with
- * no graph there is nothing to reconcile — see [GraphConfiguration].
+ * a discrepancy the workflow does not know about. The component is scanned in only when
+ * `NEO4J_URI` is set — with no graph there is nothing to reconcile, and no [GraphReconciliationRunner]
+ * bean would exist to satisfy it.
  */
 @RestController
+@ConditionalOnExpression("!'\${NEO4J_URI:}'.isBlank()")
 class GraphReconciliationController(
     private val runner: GraphReconciliationRunner,
     private val platform: PlatformAdmin,

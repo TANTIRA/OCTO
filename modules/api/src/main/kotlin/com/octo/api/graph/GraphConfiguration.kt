@@ -74,11 +74,4 @@ class GraphConfiguration {
             meters.getIfAvailable(),
         )
     }
-
-    @Bean
-    @ConditionalOnExpression("!'\${NEO4J_URI:}'.isBlank()")
-    fun graphReconciliationController(
-        runner: GraphReconciliationRunner,
-        platform: PlatformAdmin,
-    ) = GraphReconciliationController(runner, platform)
 }
