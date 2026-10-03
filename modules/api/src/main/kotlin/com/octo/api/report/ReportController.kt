@@ -6,6 +6,7 @@ import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.api.isBoundedObject
 import com.octo.persistence.TenantScope
+import com.octo.workflow.TaskState
 import com.octo.workflow.report.PENDING_REPORT_LIMIT
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
@@ -78,8 +79,11 @@ class ReportController(
     ): ResponseEntity<JobView> {
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
-        if (tenants.tenantsOf(userId).none { it.tenantId == job.request.tenantId }) return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(job.view(released = releases(job.approvalTaskId?.let(tasks::state))))
+        val access = tenants.tenantsOf(userId).firstOrNull { it.tenantId == job.request.tenantId } ?: return ResponseEntity.notFound().build()
+        val task = job.approvalTaskId?.let(tasks::state)
+        // An approver reads the sealed draft so they can decide the gate; everyone else waits
+        // for the release (#552). The `released` flag still reports the true gate state.
+        return ResponseEntity.ok(job.view(task, showDraft = access.role == TenantRole.APPROVER))
     }
 
     private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
@@ -95,7 +99,10 @@ class ReportController(
 
     /**
      * [result] is the job's result object; it is opaque here and typed by the report's engine adapter. It and
-     * [artifactSha256] are null until the job is released (#482).
+     * [artifactSha256] are null until the job is released — or the reader is an approver reviewing the
+     * draft (#482, #552). [approvalTaskId], [taskStatus], [taskRequestedBy] and [released] carry the
+     * release gate's state so a queue can tell "release pending" from "not yet requested" and show the
+     * artifact once approved (#490).
      */
     data class JobView(
         val id: UUID,
@@ -108,25 +115,35 @@ class ReportController(
         val result: JsonNode?,
         val error: String?,
         val artifactSha256: String?,
+        val approvalTaskId: UUID?,
+        val taskStatus: String?,
+        val taskRequestedBy: String?,
+        val released: Boolean,
         val createdAt: Instant,
         val updatedAt: Instant,
     )
 
-    private fun ReportJob.view(released: Boolean = false) =
-        JobView(
-            id = id,
-            tenantId = request.tenantId,
-            type = request.type.wireValue,
-            positionSourceType = request.positionSourceType,
-            positionSourceId = request.positionSourceId,
-            measures = request.measures,
-            status = status.wireValue,
-            result = if (released) result?.let { json.readTree(it) } else null,
-            error = error,
-            artifactSha256 = if (released) artifactSha256 else null,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
-        )
+    private fun ReportJob.view(
+        task: TaskState? = null,
+        showDraft: Boolean = false,
+    ) = JobView(
+        id = id,
+        tenantId = request.tenantId,
+        type = request.type.wireValue,
+        positionSourceType = request.positionSourceType,
+        positionSourceId = request.positionSourceId,
+        measures = request.measures,
+        status = status.wireValue,
+        result = if (releases(task) || showDraft) result?.let { json.readTree(it) } else null,
+        error = error,
+        artifactSha256 = if (releases(task) || showDraft) artifactSha256 else null,
+        approvalTaskId = approvalTaskId,
+        taskStatus = task?.status?.name?.lowercase(),
+        taskRequestedBy = task?.task?.requestedBy,
+        released = releases(task),
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+    )
 
     private companion object {
         val JSON =

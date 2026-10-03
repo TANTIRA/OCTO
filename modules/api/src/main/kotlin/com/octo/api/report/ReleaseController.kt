@@ -135,8 +135,8 @@ class ReleaseController(
     ): ResponseEntity<ReleaseView> {
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
-        roleIn(userId, job) ?: return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(job.release(job.approvalTaskId?.let(tasks::state)))
+        val role = roleIn(userId, job) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(job.release(job.approvalTaskId?.let(tasks::state), showDraft = role == TenantRole.APPROVER))
     }
 
     private fun roleIn(
@@ -157,7 +157,10 @@ class ReleaseController(
         val artifactSha256: String?,
     )
 
-    private fun ReportJob.release(task: TaskState?): ReleaseView {
+    private fun ReportJob.release(
+        task: TaskState?,
+        showDraft: Boolean = false,
+    ): ReleaseView {
         val released = releases(task)
         return ReleaseView(
             jobId = id,
@@ -165,8 +168,9 @@ class ReleaseController(
             approvalTaskId = approvalTaskId,
             taskStatus = task?.status?.name?.lowercase(),
             released = released,
-            result = if (released) result?.let { json.readTree(it) } else null,
-            artifactSha256 = if (released) artifactSha256 else null,
+            // An approver reads the sealed draft to decide the gate; everyone else waits (#552).
+            result = if (released || showDraft) result?.let { json.readTree(it) } else null,
+            artifactSha256 = if (released || showDraft) artifactSha256 else null,
         )
     }
 }

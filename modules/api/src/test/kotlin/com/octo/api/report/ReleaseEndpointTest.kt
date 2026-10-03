@@ -137,6 +137,19 @@ class ReleaseEndpointTest {
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.result").doesNotExist())
                 .andExpect(jsonPath("$.artifactSha256").doesNotExist())
+                .andExpect(jsonPath("$.taskStatus").value("open"))
+                .andExpect(jsonPath("$.released").value(false))
+            // The approver reads the sealed draft they are being asked to release (#552).
+            mvc
+                .perform(get("/api/v1/reports/$id").with(asUser(approver)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+            mvc
+                .perform(get("/api/v1/reports/$id/release").with(asUser(approver)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
 
             val taskId = jobs.load(id, TenantScope.All)!!.approvalTaskId!!
             assertThat(taskStates.getValue(taskId).task.requestedBy).isEqualTo(analyst.toString())
