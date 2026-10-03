@@ -5,6 +5,7 @@ import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
+import com.octo.ingestion.onchain.SolanaHistoryCursor
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.TransferKind
 import com.octo.ingestion.onchain.WatchSource
@@ -12,6 +13,7 @@ import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
 import java.math.BigDecimal
 import java.sql.Timestamp
+import java.sql.Types
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -104,6 +106,64 @@ class JdbcOnchainStagingStore(
                     }
                 }
         }
+
+    override fun historyCursor(
+        chain: String,
+        wallet: String,
+    ): SolanaHistoryCursor? =
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    select floor_slot, resume_token, pending_tip_slot
+                      from octo.solana_history_cursor
+                     where chain = ? and address = ?
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.setString(2, wallet)
+                    s.executeQuery().use { r ->
+                        if (!r.next()) {
+                            null
+                        } else {
+                            SolanaHistoryCursor(
+                                floorSlot = r.getLong("floor_slot").takeIf { !r.wasNull() },
+                                resumeToken = r.getString("resume_token"),
+                                pendingTipSlot = r.getLong("pending_tip_slot").takeIf { !r.wasNull() },
+                            )
+                        }
+                    }
+                }
+        }
+
+    override fun saveHistoryCursor(
+        chain: String,
+        wallet: String,
+        cursor: SolanaHistoryCursor,
+    ) {
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    insert into octo.solana_history_cursor
+                        (chain, address, floor_slot, resume_token, pending_tip_slot, updated_at)
+                    values (?, ?, ?, ?, ?, now())
+                    on conflict (chain, address) do update
+                        set floor_slot = excluded.floor_slot,
+                            resume_token = excluded.resume_token,
+                            pending_tip_slot = excluded.pending_tip_slot,
+                            updated_at = now()
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.setString(2, wallet)
+                    if (cursor.floorSlot == null) s.setNull(3, Types.BIGINT) else s.setLong(3, cursor.floorSlot)
+                    s.setString(4, cursor.resumeToken)
+                    if (cursor.pendingTipSlot == null) s.setNull(5, Types.BIGINT) else s.setLong(5, cursor.pendingTipSlot)
+                    s.executeUpdate()
+                }
+        }
+    }
 
     override fun newestStagedSlot(chain: String): Long? =
         dataSource.scoped(TenantScope.All) { c ->

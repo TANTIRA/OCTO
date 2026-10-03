@@ -10,6 +10,7 @@ import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
 import com.octo.ingestion.onchain.OnchainWebhookService
+import com.octo.ingestion.onchain.SolanaHistoryCursor
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.TransactionFetcher
 import com.octo.ingestion.onchain.WatchSource
@@ -45,6 +46,17 @@ class OnchainIngestionConfiguration {
             ): Long? = delegate.newestSlot(chain, wallet)
 
             override fun newestStagedSlot(chain: String): Long? = delegate.newestStagedSlot(chain)
+
+            override fun historyCursor(
+                chain: String,
+                wallet: String,
+            ): SolanaHistoryCursor? = delegate.historyCursor(chain, wallet)
+
+            override fun saveHistoryCursor(
+                chain: String,
+                wallet: String,
+                cursor: SolanaHistoryCursor,
+            ) = delegate.saveHistoryCursor(chain, wallet, cursor)
 
             override fun tokenContracts(chain: String): List<TokenContract> = delegate.tokenContracts(chain)
 
