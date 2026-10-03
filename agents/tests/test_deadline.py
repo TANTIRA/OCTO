@@ -1,5 +1,6 @@
 """#486 — one end-to-end run deadline gates every outbound attempt and drafter
-step, caps in-flight HTTP timeouts, and still lets the run land `failed`."""
+step, caps in-flight HTTP timeouts, and still lets the run land `failed`.
+#555 — the budget counts the time a request spent queued, not just work."""
 
 import threading
 import time
@@ -11,8 +12,13 @@ from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from octo_agents import deadline
 from octo_agents.api_client import OctoApiClient
-from octo_agents.deadline import Deadline, DeadlineExceeded, _DeadlineCallback
-from octo_agents.deadline import invoke_within_deadline, run_deadline
+from octo_agents.deadline import (
+    Deadline,
+    DeadlineExceeded,
+    _DeadlineCallback,
+    invoke_within_deadline,
+    run_deadline,
+)
 from octo_agents.retry import send_with_retry
 from octo_agents.workflows import screening_dd
 from octo_agents.workflows.screening_dd import finish_failed, run_screening_dd
@@ -136,3 +142,22 @@ def test_screening_out_of_time_after_drafting_opens_no_task_and_fails(
     assert api.screening_requests == []  # no task opened after the deadline
     assert [f["status"] for f in api.finished] == ["failed"]
     assert "deadline" in api.finished[0]["error"]
+
+
+def test_deadline_is_measured_from_the_request_arrival() -> None:
+    """#555 — queue time behind a busy worker counts against the budget."""
+    clock = FakeClock()
+    token = deadline.request_arrived(clock.now)
+    try:
+        clock.now += 30  # 30 s queued for a threadpool slot
+        with run_deadline(100, clock=clock) as d:
+            assert d.remaining() == 70
+        token2 = deadline.request_arrived(clock.now)
+        clock.now += 30  # the next request queued too
+        with run_deadline(100, clock=clock) as d2:
+            assert d2.remaining() == 70  # its budget measures from its own arrival
+        deadline.clear_arrival(token2)
+    finally:
+        deadline.clear_arrival(token)
+    with run_deadline(100, clock=clock) as d3:
+        assert d3.remaining() == 100  # no stamp: measured from pickup as before

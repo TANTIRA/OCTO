@@ -6,6 +6,7 @@ flag; /healthz is open for the compose healthcheck only.
 """
 
 import hmac
+import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import date
@@ -22,7 +23,12 @@ from pydantic import BaseModel, Field
 from .api_client import OctoApiClient
 from .chat import drafter_model
 from .config import Settings, get_settings
-from .deadline import DeadlineExceeded, run_deadline
+from .deadline import (
+    DeadlineExceeded,
+    clear_arrival,
+    request_arrived,
+    run_deadline,
+)
 from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
 from .tools import SubjectNotInTenantError
@@ -59,6 +65,28 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 _bearer = HTTPBearer(auto_error=False)
+
+
+class _ArrivalStampMiddleware:
+    """Stamps when the request was received, before FastAPI queues the sync
+    endpoint behind a busy threadpool. The run budget is measured from that
+    stamp so a queued run still ends before the platform's own timeout (#555)."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        token = request_arrived(time.monotonic())
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            clear_arrival(token)
+
+
+app.add_middleware(_ArrivalStampMiddleware)
 
 
 # Tenant/subject binding (#318): a subject outside the body's tenant answers 404

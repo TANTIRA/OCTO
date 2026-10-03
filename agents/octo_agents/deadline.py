@@ -32,9 +32,17 @@ class DeadlineExceeded(TimeoutError):
 
 
 class Deadline:
-    def __init__(self, budget_s: float, *, clock: Callable[[], float] = time.monotonic) -> None:
+    def __init__(
+        self,
+        budget_s: float,
+        *,
+        clock: Callable[[], float] = time.monotonic,
+        started_at: float | None = None,
+    ) -> None:
         self.clock = clock
-        self._expires_at = clock() + budget_s
+        # The platform's own timeout starts when the request arrives, so the
+        # budget must too — including any time spent queued for a worker (#555).
+        self._expires_at = (started_at if started_at is not None else clock()) + budget_s
 
     def remaining(self) -> float:
         return max(0.0, self._expires_at - self.clock())
@@ -47,6 +55,21 @@ class Deadline:
 _current: contextvars.ContextVar[Deadline | None] = contextvars.ContextVar(
     "octo_run_deadline", default=None
 )
+
+# Stamped by the ASGI layer the moment the request is received — before any
+# threadpool queue — so `run_deadline` can measure from arrival, not pickup.
+_arrived_at: contextvars.ContextVar[float | None] = contextvars.ContextVar(
+    "octo_request_arrived_at", default=None
+)
+
+
+def request_arrived(now: float) -> contextvars.Token[float | None]:
+    """Stamps the receipt instant for the in-flight request; reset with the token."""
+    return _arrived_at.set(now)
+
+
+def clear_arrival(token: contextvars.Token[float | None]) -> None:
+    _arrived_at.reset(token)
 
 
 @contextmanager
@@ -62,8 +85,11 @@ def _active(deadline: Deadline | None) -> Iterator[None]:
 def run_deadline(
     budget_s: float, *, clock: Callable[[], float] = time.monotonic
 ) -> Iterator[Deadline]:
-    """Holds a fresh deadline of `budget_s` for everything run inside the block."""
-    deadline = Deadline(budget_s, clock=clock)
+    """Holds a fresh deadline of `budget_s` for everything run inside the block.
+    When the ASGI layer stamped the request's arrival the budget is measured
+    from it, so a run queued behind a busy worker pool cannot outlive the
+    platform's own timeout (#555)."""
+    deadline = Deadline(budget_s, clock=clock, started_at=_arrived_at.get())
     with _active(deadline):
         yield deadline
 
