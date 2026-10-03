@@ -5,6 +5,7 @@ import com.octo.persistence.scoped
 import org.neo4j.driver.Driver
 import org.neo4j.driver.QueryConfig
 import java.time.Duration
+import java.time.OffsetDateTime
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -71,7 +72,8 @@ class GraphReconciler(
 
     fun reconcile(tenantId: UUID): GraphReconciliation {
         val scope = TenantScope.Tenants(listOf(tenantId))
-        val (expected, forked) = expectedAssets(tenantId, scope)
+        val (assetExpected, forked) = expectedAssets(tenantId, scope)
+        val flows = expectedInstrumentFlows(tenantId, scope)
         val inFlight = inFlight(tenantId, scope)
         val actual = graphNodes(tenantId)
         val discrepancies = mutableListOf<GraphDiscrepancy>()
@@ -91,6 +93,13 @@ class GraphReconciler(
             }
         }
         val awaiting = inFlight.map { it.aggregateId }.toSet()
+        // Asset lineage roots, the tenant's flows, and the wallets those flows touch all carry
+        // octoId, so the same missing/stale/orphan accounting covers them (#565). The reified
+        // relation and the global instrument carry none — they are checked per flow below.
+        val expected =
+            assetExpected +
+                flows.mapValues { it.value.node } +
+                flows.values.associate { it.wallet.octoId to it.wallet }
         for (node in expected.values) {
             if (node.octoId in awaiting) continue
             val found = actual[node.octoId]
@@ -106,11 +115,40 @@ class GraphReconciler(
                         )
             }
         }
+        val activeFlows = flows.values.filter { it.node.octoId !in awaiting }
+        val instrumentIds = activeFlows.map { it.instrumentId }.toSet()
+        absentInstruments(instrumentIds).forEach { id ->
+            discrepancies += GraphDiscrepancy(GraphDiscrepancyKind.MISSING, "instrument", id, "endpoint node absent")
+        }
+        val wiring = flowWiring(tenantId, activeFlows.map { it.node.octoId })
+        for (flow in activeFlows) {
+            if (actual[flow.node.octoId] == null) continue // the flow's missing report already carries it
+            val ends = wiring[flow.node.octoId]
+            val broken =
+                when {
+                    ends == null -> listOf("relation")
+                    else ->
+                        buildList {
+                            if (!ends.related) add("relation")
+                            if (ends.instrumentId != flow.instrumentId.toString()) add("instrument-side")
+                            if (ends.walletAddress != flow.walletAddress || ends.walletLabels != flow.wallet.labels) add("wallet-side")
+                        }
+                }
+            if (broken.isNotEmpty()) {
+                discrepancies +=
+                    GraphDiscrepancy(
+                        GraphDiscrepancyKind.STALE,
+                        INSTRUMENT_FLOW_AGGREGATE,
+                        flow.node.octoId,
+                        "instrument-flow-of missing ${broken.joinToString("+")}",
+                    )
+            }
+        }
         val accounted = expected.keys + forked.keys + awaiting
         actual.values.filter { it.octoId !in accounted }.forEach {
             discrepancies += GraphDiscrepancy(GraphDiscrepancyKind.ORPHAN, "unknown", it.octoId, "labels ${it.labels}")
         }
-        return GraphReconciliation(tenantId, expected.size + forked.size, discrepancies)
+        return GraphReconciliation(tenantId, expected.size + forked.size + instrumentIds.size, discrepancies)
     }
 
     /** Each asset lineage's current row, keyed by lineage root; lineages with more than one current row come back as forks. */
@@ -163,6 +201,135 @@ class GraphReconciler(
                     )
             }
         return expected to forked.associate { (root, rows) -> root to rows.map { it.second } }
+    }
+
+    /** A promoted flow as its source row says it should look, with the endpoints its edges need. */
+    private data class ExpectedFlow(
+        val node: ExpectedNode,
+        val instrumentId: UUID,
+        val wallet: ExpectedNode,
+        val walletAddress: String,
+    )
+
+    /**
+     * The tenant's promoted `instrument_flow` rows (#565). Tenant derivation mirrors the RLS
+     * policy — the wallet's `tracked_address` row — stated explicitly so the read does not
+     * depend on policy internals. A chain [walletSelector] cannot map is skipped: its outbox row
+     * already failed, and that is the discrepancy that reports it.
+     */
+    private fun expectedInstrumentFlows(
+        tenantId: UUID,
+        scope: TenantScope,
+    ): Map<UUID, ExpectedFlow> {
+        val sql =
+            """
+            select f.id, f.external_id, f.flow_type, f.amount_raw, f.decimals,
+                   f.occurred_at, f.recorded_at, f.slot, f.signature, f.token_account,
+                   f.instrument_id, f.chain, f.wallet
+              from octo.instrument_flow f
+              join octo.tracked_address t on t.chain = f.chain and t.address = f.wallet
+             where t.tenant_id = ?
+             order by f.recorded_at, f.id
+            """.trimIndent()
+        return dataSource
+            .scoped(scope) { connection ->
+                connection.prepareStatement(sql).use { statement ->
+                    statement.setObject(1, tenantId)
+                    statement.executeQuery().use { rows ->
+                        buildList {
+                            while (rows.next()) {
+                                val props =
+                                    flowGraphProperties(
+                                        rows.getString(2),
+                                        rows.getString(3),
+                                        rows.getBigDecimal(4).toPlainString(),
+                                        rows.getInt(5),
+                                        rows.getObject(6, OffsetDateTime::class.java).toInstant(),
+                                        rows.getObject(7, OffsetDateTime::class.java).toInstant(),
+                                        rows.getLong(8).takeIf { !rows.wasNull() },
+                                        rows.getString(9),
+                                        rows.getString(10),
+                                    )
+                                val instrumentId = rows.getObject(11, UUID::class.java)
+                                val chain = rows.getString(12)
+                                val address = rows.getString(13)
+                                val selector = runCatching { walletSelector(chain) }.getOrNull() ?: continue
+                                val flow =
+                                    ExpectedNode(
+                                        rows.getObject(1, UUID::class.java),
+                                        INSTRUMENT_FLOW_AGGREGATE,
+                                        setOf("InstrumentFlow"),
+                                        props + ("tenantId" to tenantId.toString()),
+                                    )
+                                val wallet =
+                                    ExpectedNode(
+                                        walletOctoId(tenantId, chain, address),
+                                        "wallet",
+                                        setOf(selector.first.removePrefix(":")),
+                                        mapOf(selector.second to address, "tenantId" to tenantId.toString()),
+                                    )
+                                add(flow.octoId to ExpectedFlow(flow, instrumentId, wallet, address))
+                            }
+                        }
+                    }
+                }
+            }.toMap()
+    }
+
+    /** The ids in [instrumentIds] that have no `:Instrument` node — global reference data, checked once per tenant that needs it. */
+    private fun absentInstruments(instrumentIds: Set<UUID>): List<UUID> {
+        if (instrumentIds.isEmpty()) return emptyList()
+        return driver
+            .executableQuery(
+                "UNWIND \$ids AS iid OPTIONAL MATCH (i:Instrument {instrumentId: iid}) RETURN iid AS id, i IS NULL AS absent",
+            ).withParameters(mapOf("ids" to instrumentIds.map { it.toString() }))
+            .withConfig(config)
+            .execute()
+            .records()
+            .filter { it["absent"].asBoolean() }
+            .map { UUID.fromString(it["id"].asString()) }
+    }
+
+    /** What one expected flow's relation wiring actually looks like in the graph. */
+    private data class Wiring(
+        val related: Boolean,
+        val instrumentId: String?,
+        val walletAddress: String?,
+        val walletLabels: Set<String>,
+    )
+
+    /** For each expected flow: does an `:InstrumentFlowOf` relate it to the right instrument and wallet? */
+    private fun flowWiring(
+        tenantId: UUID,
+        flowIds: List<UUID>,
+    ): Map<UUID, Wiring> {
+        if (flowIds.isEmpty()) return emptyMap()
+        return driver
+            .executableQuery(
+                """
+                UNWIND ${'$'}flowIds AS flowId
+                OPTIONAL MATCH (f:InstrumentFlow {octoId: flowId, tenantId: ${'$'}tenantId})
+                OPTIONAL MATCH (r:InstrumentFlowOf)-[:INSTRUMENT_FLOW_OF__FLOW_SIDE]->(f)
+                OPTIONAL MATCH (r)-[:INSTRUMENT_FLOW_OF__INSTRUMENT_SIDE]->(i:Instrument)
+                OPTIONAL MATCH (r)-[:INSTRUMENT_FLOW_OF__WALLET_SIDE]->(w)
+                RETURN flowId AS flowId, r IS NOT NULL AS related,
+                       i.instrumentId AS instrumentId,
+                       coalesce(w.solanaAddress, w.evmAddress) AS walletAddress,
+                       labels(w) AS walletLabels
+                """.trimIndent(),
+            ).withParameters(mapOf("flowIds" to flowIds.map { it.toString() }, "tenantId" to tenantId.toString()))
+            .withConfig(config)
+            .execute()
+            .records()
+            .associate { record ->
+                UUID.fromString(record["flowId"].asString()) to
+                    Wiring(
+                        record["related"].asBoolean(),
+                        record["instrumentId"].takeIf { !it.isNull }?.asString(),
+                        record["walletAddress"].takeIf { !it.isNull }?.asString(),
+                        record["walletLabels"].takeIf { !it.isNull }?.asList { it.asString() }?.toSet() ?: emptySet(),
+                    )
+            }
     }
 
     private data class InFlight(

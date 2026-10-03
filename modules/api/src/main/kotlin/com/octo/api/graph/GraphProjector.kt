@@ -46,6 +46,7 @@ private val json = ObjectMapper()
  * projected state. Replaying a row, or applying an older and a newer upsert of one node, leaves the newest state.
  */
 internal fun graphWrite(row: OutboxRow): GraphWrite {
+    if (row.aggregateType == INSTRUMENT_FLOW_AGGREGATE) return instrumentFlowGraphWrite(row)
     val payload = json.readTree(row.payload)
     val kind = payload.path("kind").asText()
     val projection =

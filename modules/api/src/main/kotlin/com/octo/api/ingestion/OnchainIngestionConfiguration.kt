@@ -3,6 +3,7 @@ package com.octo.api.ingestion
 import com.octo.iborcore.InstrumentFlow
 import com.octo.iborcore.InstrumentFlowPromoter
 import com.octo.iborcore.InstrumentFlowStore
+import com.octo.api.graph.enqueueInstrumentFlowProjection
 import com.octo.iborcore.persistence.JdbcInstrumentFlowStore
 import com.octo.ingestion.onchain.FinalityProbe
 import com.octo.ingestion.onchain.OnchainBalance
@@ -166,7 +167,11 @@ class OnchainIngestionConfiguration {
     @Bean
     @ConditionalOnMissingBean(InstrumentFlowStore::class)
     fun instrumentFlowStore(dataSource: ObjectProvider<DataSource>): InstrumentFlowStore {
-        val delegate by lazy { JdbcInstrumentFlowStore(dataSource.getObject()) }
+        val delegate by lazy {
+            // #565: the flow's graph upsert rides the promotion transaction — the outbox row and
+            // the ledger insert commit or roll back together.
+            JdbcInstrumentFlowStore(dataSource.getObject(), ::enqueueInstrumentFlowProjection)
+        }
         return object : InstrumentFlowStore {
             override fun promotableTransfers(limit: Int) = delegate.promotableTransfers(limit)
 

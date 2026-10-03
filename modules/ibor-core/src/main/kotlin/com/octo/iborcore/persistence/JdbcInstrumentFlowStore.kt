@@ -9,6 +9,7 @@ import com.octo.iborcore.QuarantinedMint
 import com.octo.iborcore.StagedTransfer
 import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
+import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Timestamp
 import java.time.OffsetDateTime
@@ -31,6 +32,12 @@ import javax.sql.DataSource
  */
 class JdbcInstrumentFlowStore(
     private val dataSource: DataSource,
+    /**
+     * Called with the just-inserted [InstrumentFlow] on the same connection — the transaction
+     * that writes the domain row — so a graph outbox enqueue (or nothing, the default) commits
+     * or rolls back with it (#565). Wired by the api's ingestion configuration.
+     */
+    private val graphEnqueue: (Connection, InstrumentFlow) -> Unit = { _, _ -> },
 ) : InstrumentFlowStore {
     /**
      * Only rows that can promote in this pass are loaded: the instrument join keeps staged
@@ -199,6 +206,8 @@ class JdbcInstrumentFlowStore(
                     s.setObject(18, ingestionRunId)
                     s.setObject(19, correlationId)
                     s.executeUpdate() == 1
+                }.also { inserted ->
+                    if (inserted) graphEnqueue(c, flow)
                 }
         }
 

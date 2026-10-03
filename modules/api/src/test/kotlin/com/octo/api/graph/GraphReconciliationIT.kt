@@ -7,6 +7,9 @@ import com.octo.api.asset.Asset
 import com.octo.api.asset.AssetProvenance
 import com.octo.api.asset.AssetType
 import com.octo.api.asset.persistence.JdbcAssetStore
+import com.octo.iborcore.InstrumentFlow
+import com.octo.iborcore.InstrumentFlowType
+import com.octo.iborcore.persistence.JdbcInstrumentFlowStore
 import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.flywaydb.core.Flyway
@@ -22,6 +25,8 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.DockerImageName
 import java.io.File
+import java.math.BigInteger
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -157,6 +162,100 @@ class GraphReconciliationIT {
         store(tenantId, AssetType.FUND, "Fund In Flight")
         driver().use { driver ->
             assertThat(GraphReconciler(dataSource, driver, "neo4j").reconcile(tenantId).clean).isTrue()
+        }
+    }
+
+    /**
+     * #565: a promoted flow projects its nodes and relation edges, reconciles clean, and every
+     * broken piece — the relation's wallet-side edge, a missing instrument endpoint, a missing
+     * flow node — reports against the source row.
+     */
+    @Test
+    fun `a promoted flow reconciles clean and every drift in its wiring is reported`() {
+        val tenantId = tenant()
+        val wallet =
+            "7VVV" + UUID.randomUUID().toString().replace("-", "").replace(Regex("[0OIl]"), "A").take(39)
+        val instrumentId = UUID.randomUUID()
+        sql(
+            "insert into octo.tracked_address (chain, address, tenant_id, source_system, correlation_id) " +
+                "values ('solana', '$wallet', '$tenantId', 'it', '${UUID.randomUUID()}')",
+        )
+        val mint =
+            "7VVV" + UUID.randomUUID().toString().replace("-", "").replace(Regex("[0OIl]"), "A").take(39)
+        sql(
+            "insert into octo.instrument (id, external_key, chain, mint_address, instrument_kind, decimals, symbol, " +
+                "source_system, actor, ingestion_run_id, correlation_id) values " +
+                "('$instrumentId', 'solana:mint:$mint', 'solana', '$mint', 'spl-token', 6, 'TST', " +
+                "'it', 'it', '${UUID.randomUUID()}', '${UUID.randomUUID()}')",
+        )
+        val flow =
+            InstrumentFlow(
+                id = UUID.randomUUID(),
+                externalId = "sig-1:$wallet:bal:0",
+                instrumentId = instrumentId,
+                chain = "solana",
+                wallet = wallet,
+                tokenAccount = null,
+                flowType = InstrumentFlowType.TRANSFER_IN,
+                amountRaw = BigInteger("500000"),
+                decimals = 6,
+                occurredAt = Instant.parse("2026-01-01T00:00:00Z"),
+                recordedAt = Instant.parse("2026-01-01T00:00:05Z"),
+                slot = 123_456L,
+                signature = "sig-1",
+            )
+        JdbcInstrumentFlowStore(dataSource, ::enqueueInstrumentFlowProjection)
+            .insertFlow(flow, "it", UUID.randomUUID(), UUID.randomUUID())
+
+        driver().use { driver ->
+            GraphProjector(JdbcGraphOutboxStore(dataSource), driver, "neo4j", null).drain()
+            val reconciler = GraphReconciler(dataSource, driver, "neo4j")
+
+            val seeded = reconciler.reconcile(tenantId)
+            assertThat(seeded.discrepancies).isEmpty()
+            assertThat(seeded.checked).isEqualTo(3) // flow, wallet endpoint, instrument endpoint
+
+            // Dropping the wallet-side edge is a wiring drift against the flow, not a node drift.
+            cypher(
+                driver,
+                "MATCH (r:InstrumentFlowOf {flowOctoId: \$id})-[e:INSTRUMENT_FLOW_OF__WALLET_SIDE]->() DELETE e",
+                mapOf("id" to flow.id.toString()),
+            )
+            assertThat(reconciler.reconcile(tenantId).discrepancies)
+                .containsExactly(
+                    GraphDiscrepancy(
+                        GraphDiscrepancyKind.STALE,
+                        "instrument-flow",
+                        flow.id,
+                        "instrument-flow-of missing wallet-side",
+                    ),
+                )
+            assertThat(reconciler.reconcile(tenant()).clean).`as`("another tenant sees nothing").isTrue()
+
+            // Deleting the flow's whole relation reports every role it carried.
+            cypher(driver, "MATCH (r:InstrumentFlowOf {flowOctoId: \$id}) DETACH DELETE r", mapOf("id" to flow.id.toString()))
+            assertThat(reconciler.reconcile(tenantId).discrepancies.single())
+                .isEqualTo(
+                    GraphDiscrepancy(
+                        GraphDiscrepancyKind.STALE,
+                        "instrument-flow",
+                        flow.id,
+                        "instrument-flow-of missing relation+instrument-side+wallet-side",
+                    ),
+                )
+
+            // The global endpoint's absence reports as a missing instrument, not a flow problem.
+            cypher(driver, "MATCH (i:Instrument {instrumentId: \$id}) DETACH DELETE i", mapOf("id" to instrumentId.toString()))
+            assertThat(reconciler.reconcile(tenantId).discrepancies)
+                .containsExactlyInAnyOrder(
+                    GraphDiscrepancy(GraphDiscrepancyKind.MISSING, "instrument", instrumentId, "endpoint node absent"),
+                    GraphDiscrepancy(
+                        GraphDiscrepancyKind.STALE,
+                        "instrument-flow",
+                        flow.id,
+                        "instrument-flow-of missing relation+instrument-side+wallet-side",
+                    ),
+                )
         }
     }
 
