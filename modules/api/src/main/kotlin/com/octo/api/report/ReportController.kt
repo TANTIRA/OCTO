@@ -146,4 +146,4 @@ internal fun reportInputsBounded(
     json: ObjectMapper,
     measures: List<String>,
     parameters: Map<String, Any?>?,
-): Boolean = measures.none { it.length > MAX_REPORT_FIELD_LENGTH } && json.isBoundedObject(parameters)
+): Boolean = measures.none { it.isBlank() || it.length > MAX_REPORT_FIELD_LENGTH } && json.isBoundedObject(parameters)

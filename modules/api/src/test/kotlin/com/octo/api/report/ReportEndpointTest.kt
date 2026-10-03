@@ -156,6 +156,8 @@ class ReportEndpointTest {
                 body().replace("[\"tvpi\"]", "[$many]"),
                 body().replace("\"tvpi\"", "\"$big\""),
                 body().replace("\"fund-1\"", "\"$big\""),
+                // #487: a whitespace-only measure is a validation error, not a 500 from the request rule.
+                body().replace("\"tvpi\"", "\" \""),
             )) {
                 mvc.perform(post(analyst, oversized)).andExpect(status().isBadRequest)
             }

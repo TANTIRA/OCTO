@@ -47,7 +47,17 @@ class ReportScheduleRunner(
             log.warn("report schedule {} deferred: tenant {} queue is full", schedule.id, schedule.tenantId)
             return
         }
-        jobs.submit(schedule.toRequest(UUID.randomUUID()), scope)
+        // A template that cannot build a request is broken the same way every pass — park it
+        // like a bad cron instead of retrying once per lease forever (#487). Transient submit
+        // failures still bubble to the poll, where the lease covers the retry.
+        val request =
+            try {
+                schedule.toRequest(UUID.randomUUID())
+            } catch (e: IllegalArgumentException) {
+                disable(schedule, e.message ?: "malformed request template")
+                return
+            }
+        jobs.submit(request, scope)
         schedules.markRun(schedule.id, next)
         log.info("report schedule {} fired; next run {}", schedule.id, next)
     }
@@ -65,7 +75,7 @@ class ReportScheduleRunner(
         schedule: ReportSchedule,
         reason: String,
     ): Instant? {
-        log.error("report schedule {} parked: cron '{}' {}", schedule.id, schedule.cron, reason)
+        log.error("report schedule {} parked: {} — {}", schedule.id, schedule.cron, reason)
         schedules.markRun(schedule.id, Instant.now().plus(100L * 365, ChronoUnit.DAYS))
         return null
     }
