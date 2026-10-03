@@ -222,7 +222,8 @@ class EvmScanServiceTest {
 
         service(rpc, store).scan()
         assertEquals(24L, store.checkpoints[CHAIN_ARBITRUM_ONE])
-        assertEquals(3, rpc.logCalls.map { it.first }.distinct().size)
+        val distinctLogs = rpc.logCalls.map { it.first }.distinct()
+        assertEquals(3, distinctLogs.size)
 
         rpc.logCalls.clear()
         service(rpc, store).scan()
