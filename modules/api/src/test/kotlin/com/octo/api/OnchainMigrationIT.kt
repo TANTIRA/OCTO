@@ -162,6 +162,70 @@ class OnchainMigrationIT {
     }
 
     @Test
+    fun `V46 repairs a watch trigger that still names the mesta schema`() {
+        val installed =
+            connection.createStatement().use { statement ->
+                statement.executeQuery(
+                    "select pg_get_functiondef('octo.tracked_address_event_rules()'::regprocedure)",
+                ).use { rows ->
+                    check(rows.next())
+                    rows.getString(1)
+                }
+            }
+        assertThat(installed).doesNotContain("mesta.")
+
+        // The schema-rename path never rewrote this body: mesta was already octo, so V28 returned
+        // before its loop. Put that leftover back, then re-apply V46 and prove a watch insert works.
+        connection.createStatement().use { statement ->
+            statement.execute(
+                """
+                create or replace function octo.tracked_address_event_rules() returns trigger
+                    language plpgsql
+                as ${'$'}${'$'}
+                declare
+                    latest_type text;
+                    latest_at   timestamptz;
+                begin
+                    perform pg_advisory_xact_lock(
+                        hashtextextended('mesta.tracked_address:' || new.chain || ':' || new.address, 0));
+                    select e.event_type, e.occurred_at
+                      into latest_type, latest_at
+                      from mesta.tracked_address_event e
+                     where e.chain = new.chain and e.address = new.address
+                     order by e.seq desc
+                     limit 1;
+                    return new;
+                end;
+                ${'$'}${'$'}
+                """.trimIndent(),
+            )
+        }
+        val migration =
+            checkNotNull(
+                javaClass.classLoader.getResource("db/migration/V46__pin_tracked_address_event_rules.sql"),
+            ) { "V46 migration is not on the test classpath" }
+        connection.createStatement().use { it.execute(migration.readText()) }
+
+        val repaired =
+            connection.createStatement().use { statement ->
+                statement.executeQuery(
+                    "select pg_get_functiondef('octo.tracked_address_event_rules()'::regprocedure)",
+                ).use { rows ->
+                    check(rows.next())
+                    rows.getString(1)
+                }
+            }
+        assertThat(repaired).doesNotContain("mesta.")
+        assertThat(repaired).contains("octo.tracked_address_event")
+
+        // Not trackedAddress(): that helper is one fixed key, and the unwatch test inserts it too.
+        val address = "8${"W".repeat(3)}${"B".repeat(39)}"
+        insertTrackedAddress(address)
+        insertWatchEvent(address, "watched")
+        assertThat(count("select count(*) from octo.tracked_address_event where address = '$address'")).isEqualTo(1)
+    }
+
+    @Test
     fun `an unwatch before any watch is rejected`() {
         val address = trackedAddress()
         insertTrackedAddress(address)
