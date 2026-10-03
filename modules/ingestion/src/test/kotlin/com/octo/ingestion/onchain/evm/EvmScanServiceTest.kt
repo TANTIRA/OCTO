@@ -239,6 +239,48 @@ class EvmScanServiceTest {
     }
 
     @Test
+    fun `a contract whose decimals hit an invalid opcode is skipped and the scan continues`() {
+        val hostile = "0xhostilecontract000000000000000000000000"
+        val delegate = ScanFakeRpc(head = 10)
+        delegate.logPages[Triple(0L, 9L, false)] =
+            logs(
+                transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "0xbad", block = 8, contract = hostile),
+                transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "0xgood", logIndex = 1, block = 9),
+            )
+        val rpc =
+            object : EvmRpcApi by delegate {
+                override fun decimals(contract: String): Int? {
+                    if (contract == hostile) {
+                        throw EvmException("evm rpc eth_call error: invalid opcode: INVALID", rpcCode = -32000)
+                    }
+                    return 6
+                }
+            }
+        val store = ScanFakeStore(SW_WALLET)
+
+        val report = service(rpc, store).scan()
+
+        assertEquals(0, report.windowShrinks)
+        assertEquals(2, report.windowsScanned)
+        assertEquals(1, report.legsStaged)
+        assertEquals("0xgood", store.transfers.single().signature)
+        assertEquals(listOf(hostile), report.skippedContracts)
+    }
+
+    @Test
+    fun `a provider error while reading decimals still fails the scan`() {
+        val delegate = ScanFakeRpc(head = 0)
+        delegate.logPages[Triple(0L, 0L, false)] = logs(transferLog(from = SW_OTHER, to = SW_WALLET, block = 0))
+        val rpc =
+            object : EvmRpcApi by delegate {
+                override fun decimals(contract: String): Int? =
+                    throw EvmException("evm rpc eth_call error: missing trie node", rpcCode = -32000)
+            }
+
+        assertFailsWith<EvmException> { service(rpc, ScanFakeStore(SW_WALLET), window = 1).scan() }
+    }
+
+    @Test
     fun `unregistered contracts fall back to a decimals call`() {
         val rpc = ScanFakeRpc(head = 10).apply { decimals[SW_CONTRACT] = 18 }
         rpc.logPages[Triple(0L, 9L, false)] = logs(transferLog(from = SW_OTHER, to = SW_WALLET, block = 8))

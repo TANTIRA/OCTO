@@ -107,11 +107,14 @@ class EvmRpcClient(
             ?: throw EvmException("evm rpc eth_getTransactionCount returned a malformed quantity for $address")
 
     /**
-     * `eth_call` at `finalized`; returns the hex return-data string, or null when the call
-     * reverts or the contract does not implement the method. Any other failure propagates — a
-     * transport error after retries, or a JSON-RPC error that is not a revert (rate limit,
-     * "header not found", "missing trie node"): that is an outage, and treating it as "not a
-     * token" would skip the contract's transfers while the cursor moves past them.
+     * `eth_call` at `finalized`; returns the hex return-data string, or null when the contract
+     * cannot answer: a revert, empty return data, or a deterministic VM failure (invalid opcode,
+     * out of gas, invalid jump). Those last ones are properties of the bytecode, common in old
+     * and hostile contracts, and reading them as a provider outage stalls the scan on that block
+     * forever (#545). A transport error after retries, or a node error that is not the contract
+     * (rate limit, "header not found", "missing trie node"), still propagates: that is an outage,
+     * and treating it as "not a token" would skip the contract's transfers while the cursor
+     * moves past them.
      */
     private fun ethCall(
         contract: String,
@@ -126,7 +129,7 @@ class EvmRpcClient(
             try {
                 rpc("eth_call", mapper.createArrayNode().add(call).add("finalized"))
             } catch (e: EvmException) {
-                if (e.isRevert()) return null
+                if (e.isUnreadableContract()) return null
                 throw e
             }
         return result.asText().takeIf { it != "0x" }
@@ -226,7 +229,17 @@ internal fun String.toQuantity(): BigInteger = BigInteger(removePrefix("0x"), 16
 internal fun String.toQuantityOrNull(): BigInteger? = runCatching { toQuantity() }.getOrNull()
 
 /**
- * A node-reported revert: geth-style code 3, or a revert message (code -32000 "execution reverted",
- * "VM Exception ... revert"). Only a JSON-RPC error object qualifies; an HTTP failure never does.
+ * The contract itself cannot answer this call. A revert (geth code 3, or "execution reverted"),
+ * or a deterministic VM error the node does not label as a revert: invalid opcode, out of gas,
+ * invalid jump. An HTTP failure never qualifies, nor does a provider error such as a rate limit
+ * or a missing trie node — those must be retried, not skipped (#545).
  */
-private fun EvmException.isRevert(): Boolean = status == null && (rpcCode == 3 || message.orEmpty().contains("revert", ignoreCase = true))
+internal fun EvmException.isUnreadableContract(): Boolean {
+    if (status != null) return false
+    if (rpcCode == 3) return true
+    val msg = message.orEmpty()
+    if (msg.contains("revert", ignoreCase = true)) return true
+    return UNREADABLE_CONTRACT_FAILURES.any { msg.contains(it, ignoreCase = true) }
+}
+
+private val UNREADABLE_CONTRACT_FAILURES = listOf("invalid opcode", "out of gas", "invalid jump")

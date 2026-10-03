@@ -135,7 +135,17 @@ class EvmScanService(
                 malformed += describe(log)
                 continue
             }
-            val resolved = decimals.resolve(contract)
+            // A contract that cannot report decimals is skipped and named in the report. A
+            // deterministic VM failure (invalid opcode, out of gas, invalid jump) is that case,
+            // not a provider outage: shrinking the window and then failing the run would pin the
+            // cursor on this block and stop ingestion for every watched wallet on the chain (#545).
+            val resolved =
+                try {
+                    decimals.resolve(contract)
+                } catch (e: EvmException) {
+                    if (!e.isUnreadableContract()) throw e
+                    null
+                }
             if (resolved == null) {
                 skipped += contract
                 continue

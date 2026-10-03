@@ -131,6 +131,15 @@ class EvmRpcClientTest {
     }
 
     @Test
+    fun `a deterministic VM failure reads as an unreadable contract, not a provider outage`() {
+        for (message in listOf("invalid opcode: INVALID", "out of gas", "invalid jump destination")) {
+            val transport =
+                FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"$message"}}"""))
+            assertNull(client(transport).decimals("0xhostile"))
+        }
+    }
+
+    @Test
     fun `decimals reads the uint8 and rejects nonsense`() {
         val six = "0x" + "0".repeat(62) + "06"
         val transport = FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"result":"$six"}"""))
