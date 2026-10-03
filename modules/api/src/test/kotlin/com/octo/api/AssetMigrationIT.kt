@@ -66,6 +66,16 @@ class AssetMigrationIT {
     }
 
     @Test
+    fun `a row is corrected at most once — a second superseder is refused`() {
+        val id = asset()
+        asset(supersedes = id, rationale = "first correction")
+        // #566: asset joins V44's one-correction rule; the unique partial index refuses the fork.
+        assertThatThrownBy { asset(supersedes = id, rationale = "conflicting correction") }
+            .isInstanceOf(SQLException::class.java)
+            .hasMessageContaining("asset_supersedes_unique")
+    }
+
+    @Test
     fun `an identifier names one lineage and a LEI has its shape`() {
         val a = asset()
         val b = asset()
