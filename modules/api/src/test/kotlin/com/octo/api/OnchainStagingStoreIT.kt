@@ -81,8 +81,26 @@ class OnchainStagingStoreIT {
             UUID.randomUUID(),
             "helius-poller",
         )
-        assertThat(store.newestSlot(CHAIN_SOLANA, wallet)).isEqualTo(250_000_009L)
-        assertThat(store.newestSlot(CHAIN_SOLANA, addr())).isNull()
+        assertThat(store.newestSlot(CHAIN_SOLANA, wallet, "helius-poller")).isEqualTo(250_000_009L)
+        assertThat(store.newestSlot(CHAIN_SOLANA, addr(), "helius-poller")).isNull()
+    }
+
+    @Test
+    fun `newestSlot is scoped to the writer's actor so webhook rows cannot move the poller cursor`() {
+        // #509: a webhook-delivered transaction used to advance the same cursor, so the
+        // poller's first pass skipped the wallet's history below it.
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+        store.insertTransfers(
+            listOf(transfer(wallet, "webhook", 250_000_900L)),
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "helius-webhook",
+        )
+
+        assertThat(store.newestSlot(CHAIN_SOLANA, wallet, "helius-webhook")).isEqualTo(250_000_900L)
+        assertThat(store.newestSlot(CHAIN_SOLANA, wallet, "helius-poller")).isNull()
     }
 
     @Test
@@ -91,8 +109,13 @@ class OnchainStagingStoreIT {
         track(wallet)
         event(wallet, "watched")
         store.insertTransfers(
+            listOf(transfer(wallet, "scanned", 250_000_001L)),
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "helius-poller",
+        )
+        store.insertTransfers(
             listOf(
-                transfer(wallet, "scanned", 250_000_001L),
                 transfer(wallet, "reward:700:stake", 250_000_900L).copy(
                     externalId = "solana:700:stake-$wallet",
                     direction = TransferDirection.IN,
@@ -103,7 +126,7 @@ class OnchainStagingStoreIT {
             UUID.randomUUID(),
             "helius-staking",
         )
-        assertThat(store.newestSlot(CHAIN_SOLANA, wallet)).isEqualTo(250_000_001L)
+        assertThat(store.newestSlot(CHAIN_SOLANA, wallet, "helius-poller")).isEqualTo(250_000_001L)
     }
 
     @Test
@@ -131,6 +154,56 @@ class OnchainStagingStoreIT {
             "evm-poller",
         )
         assertThat(store.newestStagedSlot(CHAIN_ARBITRUM_ONE)).isEqualTo(777_777_777L)
+    }
+
+    @Test
+    fun `sync frontier persists per wallet until cleared`() {
+        // #509: a wallet whose history exceeds the page budget resumes from this frontier on the
+        // next poll instead of restarting from the newest cursor.
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+
+        assertThat(store.syncFrontier(CHAIN_SOLANA, wallet)).isNull()
+        store.saveSyncFrontier(
+            com.octo.ingestion.onchain.SyncFrontier(
+                chain = CHAIN_SOLANA,
+                address = wallet,
+                floorSlot = 250_000_010L,
+                ceilingSlot = 250_000_090L,
+            ),
+        )
+        assertThat(store.syncFrontier(CHAIN_SOLANA, wallet))
+            .isEqualTo(
+                com.octo.ingestion.onchain.SyncFrontier(
+                    chain = CHAIN_SOLANA,
+                    address = wallet,
+                    floorSlot = 250_000_010L,
+                    ceilingSlot = 250_000_090L,
+                ),
+            )
+        // A second partial descent overwrites the frontier in place.
+        store.saveSyncFrontier(
+            com.octo.ingestion.onchain.SyncFrontier(
+                chain = CHAIN_SOLANA,
+                address = wallet,
+                floorSlot = 250_000_010L,
+                ceilingSlot = 250_000_050L,
+            ),
+        )
+        assertThat(store.syncFrontier(CHAIN_SOLANA, wallet)?.ceilingSlot).isEqualTo(250_000_050L)
+        store.clearSyncFrontier(CHAIN_SOLANA, wallet)
+        assertThat(store.syncFrontier(CHAIN_SOLANA, wallet)).isNull()
+    }
+
+    @Test
+    fun `scan checkpoint persists per chain`() {
+        // #494: the EVM cursor lives in the checkpoint table, not in staged rows, so quiet
+        // ranges still advance the resume point.
+        store.saveScanCheckpoint(CHAIN_ARBITRUM_ONE, 123L)
+        assertThat(store.scanCheckpoint(CHAIN_ARBITRUM_ONE)).isEqualTo(123L)
+        store.saveScanCheckpoint(CHAIN_ARBITRUM_ONE, 456L)
+        assertThat(store.scanCheckpoint(CHAIN_ARBITRUM_ONE)).isEqualTo(456L)
     }
 
     @Test

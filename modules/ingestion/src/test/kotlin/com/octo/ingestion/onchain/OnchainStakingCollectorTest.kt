@@ -37,6 +37,7 @@ private class StakingStubRpc(
         limit: Int,
         paginationToken: String?,
         slotGt: Long?,
+        slotLte: Long?,
     ): JsonNode = throw UnsupportedOperationException()
 
     override fun balance(address: String) = 0L
@@ -77,7 +78,22 @@ private class StakingFakeStore : OnchainStagingStore {
     override fun newestSlot(
         chain: String,
         wallet: String,
+        actor: String,
     ): Long? = null
+
+    override fun syncFrontier(
+        chain: String,
+        wallet: String,
+    ): SyncFrontier? = null
+
+    override fun saveSyncFrontier(frontier: SyncFrontier) {
+    }
+
+    override fun clearSyncFrontier(
+        chain: String,
+        wallet: String,
+    ) {
+    }
 
     override fun newestStagedSlot(chain: String): Long? = null
 

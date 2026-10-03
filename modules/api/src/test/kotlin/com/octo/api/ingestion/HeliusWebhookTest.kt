@@ -7,6 +7,7 @@ import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
+import com.octo.ingestion.onchain.SyncFrontier
 import com.octo.ingestion.onchain.OnchainWebhookService
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.TransactionFetcher
@@ -57,7 +58,22 @@ private class RecordingStore : OnchainStagingStore {
     override fun newestSlot(
         chain: String,
         wallet: String,
+        actor: String,
     ): Long? = null
+
+    override fun syncFrontier(
+        chain: String,
+        wallet: String,
+    ): SyncFrontier? = null
+
+    override fun saveSyncFrontier(frontier: SyncFrontier) {
+    }
+
+    override fun clearSyncFrontier(
+        chain: String,
+        wallet: String,
+    ) {
+    }
 
     override fun newestStagedSlot(chain: String): Long? = null
 

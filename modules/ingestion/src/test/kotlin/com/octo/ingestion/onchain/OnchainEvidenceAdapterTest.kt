@@ -30,6 +30,7 @@ private class EvidenceStubRpc : HeliusRpcApi {
         limit: Int,
         paginationToken: String?,
         slotGt: Long?,
+        slotLte: Long?,
     ): JsonNode = mapper.createObjectNode()
 
     override fun balance(address: String) = 6_000_000_000_000L

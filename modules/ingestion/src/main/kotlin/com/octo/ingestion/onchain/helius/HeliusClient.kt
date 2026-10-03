@@ -36,7 +36,8 @@ interface HeliusRpcApi {
      *
      * [slotGt] is the incremental cursor — only slots above the newest staged slot return —
      * and `paginationToken` ("slot:position") pages backward, so two transactions in the same
-     * slot cannot hide each other the way a signature `until` cursor can. Returns the raw
+     * slot cannot hide each other the way a signature `until` cursor can. [slotLte] bounds the
+     * descent below — the resumed walk of a stored [SyncFrontier] (#509). Returns the raw
      * `result` node: `data` holds `getTransaction`-shaped objects, `paginationToken` is absent
      * when the scan is exhausted.
      */
@@ -45,6 +46,7 @@ interface HeliusRpcApi {
         limit: Int = 100,
         paginationToken: String? = null,
         slotGt: Long? = null,
+        slotLte: Long? = null,
     ): JsonNode
 
     /** `getBalance` — native SOL lamports. */

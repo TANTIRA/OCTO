@@ -11,13 +11,35 @@ interface OnchainStagingStore {
     fun activeWatchedAddresses(chain: String): List<WatchSource>
 
     /**
-     * The highest staged slot for this wallet — the incremental-sync `filters.slot.gt` cursor.
-     * Derived, never stored: replaying history can only strengthen it.
+     * The highest slot [actor] staged for this wallet — the incremental-sync `filters.slot.gt`
+     * cursor. Scoped to the caller's own writes (#509): rows a different pipeline staged (the
+     * webhook's `helius-webhook` actor) must not move the poller's cursor, or a newly watched
+     * wallet's history below a delivered transaction would be skipped forever.
      */
     fun newestSlot(
         chain: String,
         wallet: String,
+        actor: String,
     ): Long?
+
+    /**
+     * The in-progress history descent for one watched address, or null when none is open
+     * (#509). A frontier outranks the incremental cursor: until the gap closes, passes
+     * continue the descent below [SyncFrontier.ceilingSlot].
+     */
+    fun syncFrontier(
+        chain: String,
+        wallet: String,
+    ): SyncFrontier?
+
+    /** Records where a truncated descent stopped; the next pass resumes below its ceiling. */
+    fun saveSyncFrontier(frontier: SyncFrontier)
+
+    /** Clears the descent — its walk reached the floor (or genesis); the gap is closed. */
+    fun clearSyncFrontier(
+        chain: String,
+        wallet: String,
+    )
 
     /**
      * The highest staged slot on [chain]. The EVM scanner reads this only to bootstrap a

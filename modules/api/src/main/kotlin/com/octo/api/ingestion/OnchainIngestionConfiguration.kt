@@ -42,7 +42,20 @@ class OnchainIngestionConfiguration {
             override fun newestSlot(
                 chain: String,
                 wallet: String,
-            ): Long? = delegate.newestSlot(chain, wallet)
+                actor: String,
+            ): Long? = delegate.newestSlot(chain, wallet, actor)
+
+            override fun syncFrontier(
+                chain: String,
+                wallet: String,
+            ) = delegate.syncFrontier(chain, wallet)
+
+            override fun saveSyncFrontier(frontier: com.octo.ingestion.onchain.SyncFrontier) = delegate.saveSyncFrontier(frontier)
+
+            override fun clearSyncFrontier(
+                chain: String,
+                wallet: String,
+            ) = delegate.clearSyncFrontier(chain, wallet)
 
             override fun newestStagedSlot(chain: String): Long? = delegate.newestStagedSlot(chain)
 

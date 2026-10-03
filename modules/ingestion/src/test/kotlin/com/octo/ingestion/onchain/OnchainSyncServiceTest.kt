@@ -16,7 +16,14 @@ private val MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 private class FakeRpc(
     private val pages: List<Pair<List<JsonNode>, String?>>,
 ) : HeliusRpcApi {
-    val txCalls = mutableListOf<Triple<String, String?, Long?>>()
+    data class PageCall(
+        val address: String,
+        val token: String?,
+        val slotGt: Long?,
+        val slotLte: Long?,
+    )
+
+    val txCalls = mutableListOf<PageCall>()
 
     override fun signaturesForAddress(
         address: String,
@@ -32,8 +39,9 @@ private class FakeRpc(
         limit: Int,
         paginationToken: String?,
         slotGt: Long?,
+        slotLte: Long?,
     ): JsonNode {
-        txCalls += Triple(address, paginationToken, slotGt)
+        txCalls += PageCall(address, paginationToken, slotGt, slotLte)
         val (txs, next) = pages.getOrNull(txCalls.size - 1) ?: (emptyList<JsonNode>() to null)
         return ObjectMapper().createObjectNode().apply {
             set<JsonNode>("data", ObjectMapper().createArrayNode().apply { txs.forEach { add(it) } })
@@ -69,6 +77,8 @@ private class FakeRpc(
 private open class FakeStore : OnchainStagingStore {
     var watched = listOf(WatchSource(CHAIN_SOLANA, WALLET, null, null))
     var cursorSlot: Long? = null
+    var frontier: SyncFrontier? = null
+    val newestSlotActors = mutableListOf<String>()
     val batches = mutableListOf<List<String>>()
 
     override fun activeWatchedAddresses(chain: String): List<WatchSource> = watched
@@ -76,7 +86,27 @@ private open class FakeStore : OnchainStagingStore {
     override fun newestSlot(
         chain: String,
         wallet: String,
-    ): Long? = cursorSlot
+        actor: String,
+    ): Long? {
+        newestSlotActors += actor
+        return cursorSlot
+    }
+
+    override fun syncFrontier(
+        chain: String,
+        wallet: String,
+    ): SyncFrontier? = frontier
+
+    override fun saveSyncFrontier(frontier: SyncFrontier) {
+        this.frontier = frontier
+    }
+
+    override fun clearSyncFrontier(
+        chain: String,
+        wallet: String,
+    ) {
+        frontier = null
+    }
 
     override fun newestStagedSlot(chain: String): Long? = null
 
@@ -125,10 +155,11 @@ private fun solTx(
     wallet: String,
     pre: Long,
     post: Long,
+    slot: Long = 250000001,
 ): JsonNode =
     ObjectMapper().readTree(
         """
-        {"slot":250000001,"blockTime":1726000000,
+        {"slot":$slot,"blockTime":1726000000,
          "transaction":{"signatures":["$sig"],"message":{"accountKeys":[{"pubkey":"$wallet"}]}},
          "meta":{"err":null,"preBalances":[$pre],"postBalances":[$post],"preTokenBalances":[],"postTokenBalances":[]}}
         """.trimIndent(),
@@ -170,7 +201,7 @@ class OnchainSyncServiceTest {
         assertEquals(1, results.size)
         assertEquals(2, results[0].signaturesSeen)
         assertEquals(2, results[0].transfersStaged)
-        assertEquals(null, rpc.txCalls[0].third) // no slot filter on a cold wallet
+        assertEquals(null, rpc.txCalls[0].slotGt) // no slot filter on a cold wallet
         assertEquals(2, store.batches.single().size)
     }
 
@@ -181,7 +212,7 @@ class OnchainSyncServiceTest {
         val service = OnchainSyncService(rpc, normalizer, store, pageLimit = 100)
 
         service.syncAll()
-        assertEquals(250_000_010L, rpc.txCalls[0].third)
+        assertEquals(250_000_010L, rpc.txCalls[0].slotGt)
     }
 
     @Test
@@ -198,7 +229,7 @@ class OnchainSyncServiceTest {
 
         val result = service.syncAll().single()
         assertEquals(3, result.signaturesSeen)
-        assertEquals("100:2", rpc.txCalls[1].second)
+        assertEquals("100:2", rpc.txCalls[1].token)
     }
 
     @Test
@@ -259,5 +290,65 @@ class OnchainSyncServiceTest {
         OnchainSyncService(rpc, normalizer, store).syncAll()
         val id = store.batches.single().single()
         assertEquals("solana:sigX:$WALLET:bal:0", id)
+    }
+
+    @Test
+    fun `a truncated descent stores a frontier and the next pass resumes below its ceiling`() {
+        // #509: more new transactions than the page budget used to strand the gap's low end
+        // forever — the pass resumes where it stopped instead of restarting at the top.
+        val rpc =
+            FakeRpc(
+                listOf(
+                    listOf(solTx("sigNew", WALLET, 0, 5, slot = 250000090)) to "tok1",
+                    listOf(solTx("sigMid", WALLET, 5, 9, slot = 250000060)) to null,
+                ),
+            )
+        val store = FakeStore().apply { cursorSlot = 250_000_010L }
+        val service = OnchainSyncService(rpc, normalizer, store, pageLimit = 100, maxPages = 1)
+
+        service.syncAll()
+
+        val frontier = store.frontier
+        assertEquals(SyncFrontier(CHAIN_SOLANA, WALLET, floorSlot = 250_000_010L, ceilingSlot = 250_000_090L), frontier)
+
+        service.syncAll()
+
+        // The resumed pass descends inside the recorded bounds — it does not re-ask for the top.
+        assertEquals(250_000_010L, rpc.txCalls[1].slotGt)
+        assertEquals(250_000_090L, rpc.txCalls[1].slotLte)
+        assertEquals(null, rpc.txCalls[1].token)
+        assertEquals(null, store.frontier)
+    }
+
+    @Test
+    fun `a cold wallet that keeps paging descends to genesis across passes`() {
+        val rpc =
+            FakeRpc(
+                listOf(
+                    listOf(solTx("sigHi", WALLET, 0, 5, slot = 250000090)) to "tok1",
+                    listOf(solTx("sigLo", WALLET, 5, 9, slot = 250000001)) to null,
+                ),
+            )
+        val store = FakeStore()
+        val service = OnchainSyncService(rpc, normalizer, store, pageLimit = 100, maxPages = 1)
+
+        service.syncAll()
+        service.syncAll()
+
+        // floorSlot stays null: the descent of a wallet the poller never synced is unbounded below.
+        assertEquals(null, rpc.txCalls[1].slotGt)
+        assertEquals(250_000_090L, rpc.txCalls[1].slotLte)
+        assertEquals(null, store.frontier)
+    }
+
+    @Test
+    fun `the incremental cursor is scoped to the poller's own actor`() {
+        // #509: webhook-staged rows must not move the poller's cursor — newestSlot answers
+        // for the actor the pass writes with, not the newest staged slot overall.
+        val rpc = FakeRpc(listOf(listOf(solTx("sigNew", WALLET, 0, 50)) to null))
+        val store = FakeStore().apply { cursorSlot = 250_000_010L }
+        OnchainSyncService(rpc, normalizer, store).syncAddress(store.watched.single(), actor = "helius-poller")
+
+        assertEquals(listOf("helius-poller"), store.newestSlotActors)
     }
 }

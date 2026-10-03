@@ -5,6 +5,7 @@ import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
+import com.octo.ingestion.onchain.SyncFrontier
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.TransferKind
 import com.octo.ingestion.onchain.WatchSource
@@ -68,7 +69,11 @@ class JdbcOnchainStagingStore(
         }
 
     /**
-     * The newest staged slot for a chain/wallet, or null when nothing is staged.
+     * The newest slot this writer staged for a chain/wallet, or null when it staged nothing.
+     *
+     * The [actor] filter scopes the cursor to the caller's own pipeline (#509): rows written
+     * by the webhook must not move the poller's `slot.gt` cursor, or a transaction delivered
+     * before the first poll would skip the wallet's whole history below it.
      *
      * Staking rewards are excluded: they are staged at the reward's `effectiveSlot` by the staking
      * collector, not by the transaction scan, so counting them would move the poller's `slot.gt`
@@ -81,6 +86,7 @@ class JdbcOnchainStagingStore(
     override fun newestSlot(
         chain: String,
         wallet: String,
+        actor: String,
     ): Long? =
         dataSource.scoped(TenantScope.All) { c ->
             c
@@ -88,12 +94,13 @@ class JdbcOnchainStagingStore(
                     """
                     select max(slot)
                       from octo.onchain_transfer
-                     where chain = ? and wallet = ? and transfer_kind <> ?
+                     where chain = ? and wallet = ? and actor = ? and transfer_kind <> ?
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
                     s.setString(2, wallet)
-                    s.setString(3, TransferKind.STAKING_REWARD.db)
+                    s.setString(3, actor)
+                    s.setString(4, TransferKind.STAKING_REWARD.db)
                     s.executeQuery().use { r ->
                         if (r.next()) {
                             val slot = r.getLong(1)
@@ -104,6 +111,77 @@ class JdbcOnchainStagingStore(
                     }
                 }
         }
+
+    override fun syncFrontier(
+        chain: String,
+        wallet: String,
+    ): SyncFrontier? =
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    select floor_slot, ceiling_slot
+                      from octo.onchain_sync_frontier
+                     where chain = ? and address = ?
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.setString(2, wallet)
+                    s.executeQuery().use { r ->
+                        if (r.next()) {
+                            SyncFrontier(
+                                chain = chain,
+                                address = wallet,
+                                floorSlot = r.getLong("floor_slot").takeIf { !r.wasNull() },
+                                ceilingSlot = r.getLong("ceiling_slot"),
+                            )
+                        } else {
+                            null
+                        }
+                    }
+                }
+        }
+
+    override fun saveSyncFrontier(frontier: SyncFrontier) {
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    insert into octo.onchain_sync_frontier (chain, address, floor_slot, ceiling_slot)
+                    values (?, ?, ?, ?)
+                    on conflict (chain, address) do update
+                       set ceiling_slot = excluded.ceiling_slot,
+                           floor_slot = excluded.floor_slot,
+                           updated_at = now()
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, frontier.chain)
+                    s.setString(2, frontier.address)
+                    frontier.floorSlot?.let { s.setLong(3, it) } ?: s.setNull(3, java.sql.Types.BIGINT)
+                    s.setLong(4, frontier.ceilingSlot)
+                    s.executeUpdate()
+                }
+        }
+    }
+
+    override fun clearSyncFrontier(
+        chain: String,
+        wallet: String,
+    ) {
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    delete from octo.onchain_sync_frontier
+                     where chain = ? and address = ?
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.setString(2, wallet)
+                    s.executeUpdate()
+                }
+        }
+    }
 
     override fun newestStagedSlot(chain: String): Long? =
         dataSource.scoped(TenantScope.All) { c ->
