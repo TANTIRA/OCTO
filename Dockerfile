@@ -24,6 +24,7 @@ FROM eclipse-temurin:21.0.12.1_1-jre@sha256:cff19e6215689161eb6162c11b86b0c60ddf
 # curl: infra/docker-compose.yml's healthcheck calls it inside the container.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
+    && apt-get purge -y wget \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 --home /app --shell /usr/sbin/nologin octo
 WORKDIR /app
