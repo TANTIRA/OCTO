@@ -6,6 +6,7 @@ import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.api.isBoundedObject
 import com.octo.persistence.TenantScope
+import com.octo.workflow.TaskState
 import com.octo.workflow.report.PENDING_REPORT_LIMIT
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
@@ -79,7 +80,7 @@ class ReportController(
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
         if (tenants.tenantsOf(userId).none { it.tenantId == job.request.tenantId }) return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(job.view(released = releases(job.approvalTaskId?.let(tasks::state))))
+        return ResponseEntity.ok(job.view(job.approvalTaskId?.let(tasks::state)))
     }
 
     private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
@@ -95,7 +96,8 @@ class ReportController(
 
     /**
      * [result] is the job's result object; it is opaque here and typed by the report's engine adapter. It and
-     * [artifactSha256] are null until the job is released (#482).
+     * [artifactSha256] are null until the job is released (#482). [released] and [taskStatus] carry the
+     * release gate's state so a queue can show a pending, decided or still-unrequested gate (#490).
      */
     data class JobView(
         val id: UUID,
@@ -108,12 +110,16 @@ class ReportController(
         val result: JsonNode?,
         val error: String?,
         val artifactSha256: String?,
+        val released: Boolean,
+        val approvalTaskId: UUID?,
+        val taskStatus: String?,
         val createdAt: Instant,
         val updatedAt: Instant,
     )
 
-    private fun ReportJob.view(released: Boolean = false) =
-        JobView(
+    private fun ReportJob.view(task: TaskState? = null): JobView {
+        val released = releases(task)
+        return JobView(
             id = id,
             tenantId = request.tenantId,
             type = request.type.wireValue,
@@ -124,9 +130,13 @@ class ReportController(
             result = if (released) result?.let { json.readTree(it) } else null,
             error = error,
             artifactSha256 = if (released) artifactSha256 else null,
+            released = released,
+            approvalTaskId = approvalTaskId,
+            taskStatus = task?.status?.name?.lowercase(),
             createdAt = createdAt,
             updatedAt = updatedAt,
         )
+    }
 
     private companion object {
         val JSON =

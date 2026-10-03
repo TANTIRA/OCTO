@@ -18,8 +18,9 @@ import { useTenants } from "@/lib/use-tenants";
  *
  * Submitted jobs are polled through `GET /api/v1/reports/{id}` until they
  * reach a terminal status; a `done` job can then open the release gate with
- * `POST /api/v1/reports/{id}/release`. The artifact stays sealed until the
- * approval task is approved — the UI shows `released` from the server.
+ * `POST /api/v1/reports/{id}/release`. The gate's `taskStatus` comes back on
+ * the same payload, so a job keeps polling while its approval is open and
+ * shows `released` plus the artifact once an approver decides (#489/#490).
  */
 
 const cx = (...c: (string | false | null | undefined)[]) =>
@@ -33,6 +34,9 @@ type Job = {
   result: unknown;
   error: string | null;
   artifactSha256: string | null;
+  released: boolean;
+  approvalTaskId: string | null;
+  taskStatus: string | null;
   createdAt: string;
 };
 
@@ -49,6 +53,22 @@ const STATUS_DOT: Record<Job["status"], string> = {
 type Flow = { date: string; amount: string };
 
 const isAmount = (v: string) => v.trim() !== "" && Number.isFinite(Number(v));
+
+// A done job with an undecided release task still has a live outcome — the
+// queue keeps it polling so the approver's decision lands without a refresh.
+const gatePending = (j: Job) =>
+  j.status === "done" && (j.taskStatus === "open" || j.taskStatus === "in_rework");
+
+// What the row shows under the job name — the release gate's verdict is part
+// of the job's state, not a separate concern the queue has to infer (#490).
+const doneDetail = (j: Job): string => {
+  if (j.status !== "done") return j.status;
+  if (j.released) return "released — artifact unsealed";
+  if (j.taskStatus === "rejected" || j.taskStatus === "cancelled")
+    return `release ${j.taskStatus} — artifact stays sealed`;
+  if (j.approvalTaskId) return "awaiting approval — sealed until the gate decides";
+  return "result ready (sealed until release)";
+};
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -125,7 +145,7 @@ export default function ReportQueue() {
   }, [jobsKey]);
 
   const refresh = useCallback(async () => {
-    const active = jobs.filter((j) => j.status === "new" || j.status === "executing");
+    const active = jobs.filter((j) => j.status === "new" || j.status === "executing" || gatePending(j));
     if (active.length === 0) return;
     setPolling(true);
     try {
@@ -138,9 +158,9 @@ export default function ReportQueue() {
     }
   }, [jobs]);
 
-  // Poll while any job is still running; stop once all are terminal.
+  // Poll while any job is still running or waiting on the release gate.
   useEffect(() => {
-    if (!jobs.some((j) => j.status === "new" || j.status === "executing")) return;
+    if (!jobs.some((j) => j.status === "new" || j.status === "executing" || gatePending(j))) return;
     const t = window.setTimeout(refresh, 3000);
     return () => window.clearTimeout(t);
   }, [jobs, refresh]);
@@ -185,9 +205,22 @@ export default function ReportQueue() {
     setError(null);
     setNotice(null);
     try {
-      const view = await postJson<{ released: boolean; taskStatus: string | null }>(
-        `/api/v1/reports/${id}/release`,
-        {},
+      const view = await postJson<{
+        approvalTaskId: string | null;
+        taskStatus: string | null;
+        released: boolean;
+      }>(`/api/v1/reports/${id}/release`, {});
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.id === id
+            ? {
+                ...j,
+                released: view.released,
+                approvalTaskId: view.approvalTaskId,
+                taskStatus: view.taskStatus,
+              }
+            : j,
+        ),
       );
       setNotice(
         view.released
@@ -348,10 +381,20 @@ export default function ReportQueue() {
                     {j.type} · {j.id.slice(0, 8)}
                   </span>
                   <span className="block truncate text-xs text-neutral-500">
-                    {j.error ?? (j.status === "done" ? "result ready (sealed until release)" : j.status)}
+                    {j.error ?? doneDetail(j)}
                   </span>
+                  {j.released && j.artifactSha256 && (
+                    <span className="block truncate font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
+                      sha256 {j.artifactSha256.slice(0, 16)}
+                    </span>
+                  )}
+                  {j.released && j.result != null && (
+                    <pre className="mt-1 max-h-40 overflow-auto rounded-[var(--rb-r-sm,6px)] bg-neutral-50 p-2 text-[11px] text-neutral-600 dark:bg-neutral-950 dark:text-neutral-400">
+                      {JSON.stringify(j.result, null, 2)}
+                    </pre>
+                  )}
                 </span>
-                {j.status === "done" && (
+                {j.status === "done" && j.approvalTaskId === null && (
                   <button
                     type="button"
                     onClick={() => release(j.id)}
@@ -361,7 +404,7 @@ export default function ReportQueue() {
                     Request release
                   </button>
                 )}
-                {j.status === "executing" && (
+                {(j.status === "executing" || gatePending(j)) && (
                   <Loader2
                     aria-hidden
                     className="h-4 w-4 shrink-0 animate-spin text-neutral-400 motion-reduce:animate-none"
