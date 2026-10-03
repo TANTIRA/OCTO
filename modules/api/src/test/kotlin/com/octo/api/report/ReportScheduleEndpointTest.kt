@@ -194,4 +194,20 @@ class ReportScheduleEndpointTest {
             assertThat(schedules.schedules).isEmpty()
         }
     }
+
+    @Test
+    fun `a whitespace-only measure is a validation error`() {
+        run { mvc ->
+            for (measures in listOf("[\" \"]", "[\"tvpi\", \" \"]")) {
+                mvc
+                    .perform(
+                        post("/api/v1/report-schedules")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body().replace("[\"tvpi\"]", measures))
+                            .with(jwt().jwt { it.subject(analyst.toString()) }),
+                    ).andExpect(status().isBadRequest)
+            }
+            assertThat(schedules.schedules).isEmpty()
+        }
+    }
 }
