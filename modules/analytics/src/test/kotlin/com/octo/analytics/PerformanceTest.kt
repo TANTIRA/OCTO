@@ -76,8 +76,35 @@ class PerformanceTest {
 
     @Test
     fun `xirr is undefined when the npv curve has two roots`() {
-        // +100, -230, +132 at yearly steps has roots at 10% and 20%.
+        // +100, -230, +132 at yearly steps has roots at 10% and 20% — both positive, so no
+        // single economically meaningful rate exists.
         val flows = listOf(flow("2019-01-01", "100"), flow("2020-01-01", "-230"), flow("2020-12-31", "132"))
+        assertNull(xirr(flows))
+    }
+
+    @Test
+    fun `xirr picks the meaningful root for a wind-down with a trailing capital call`() {
+        // #547: -100, +150, then a final -1 call has roots near +49.3% and -99.3%; only the
+        // positive one agrees with the +49 the flows actually earned.
+        val flows =
+            listOf(
+                flow("2020-01-01", "-100"),
+                flow("2021-01-01", "150"),
+                flow("2022-01-01", "-1"),
+            )
+        assertEquals(0.492, assertNotNull(xirr(flows)), 5e-3)
+    }
+
+    @Test
+    fun `xirr stays undefined when both wind-down roots share the net's sign`() {
+        // A heavier trailing call makes the net negative and both roots land below zero
+        // (about -13.8% and -36.2%) — neither is uniquely meaningful, so the result is null.
+        val flows =
+            listOf(
+                flow("2020-01-01", "-100"),
+                flow("2021-01-01", "150"),
+                flow("2022-01-01", "-55"),
+            )
         assertNull(xirr(flows))
     }
 
