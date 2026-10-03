@@ -66,6 +66,28 @@ class AssetMigrationIT {
     }
 
     @Test
+    fun `a second correction of the same asset is rejected`() {
+        assertThat(
+            count(
+                """
+                select count(*) from pg_indexes
+                where schemaname = 'octo' and indexname = 'asset_supersedes_unique'
+                  and indexdef ilike '%unique%' and indexdef ilike '%where (supersedes_id is not null)%'
+                """.trimIndent(),
+            ),
+        ).isEqualTo(1)
+        assertThat(
+            count("select count(*) from pg_indexes where schemaname = 'octo' and indexname = 'asset_supersedes_id_idx'"),
+        ).isZero()
+        val original = asset()
+        val first = asset(supersedes = original, rationale = "domicile corrected after KYC refresh")
+        assertThatThrownBy { asset(supersedes = original, rationale = "A competing correction.") }
+            .isInstanceOfSatisfying(SQLException::class.java) { assertThat(it.sqlState).isEqualTo("23505") }
+        // The chain continues by correcting the correction, not by forking the original.
+        assertThat(asset(supersedes = first, rationale = "Corrected again.")).isNotNull()
+    }
+
+    @Test
     fun `an identifier names one lineage and a LEI has its shape`() {
         val a = asset()
         val b = asset()
