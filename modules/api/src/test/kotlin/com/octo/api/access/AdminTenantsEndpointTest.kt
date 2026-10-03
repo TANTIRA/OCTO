@@ -225,7 +225,12 @@ class AdminTenantsEndpointTest {
                 .memberEvent(tenantAdmin, user = member, body = """{"type":"revoked","rationale":"$atLimit"}""")
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.status").value("revoked"))
-            assertThat(access.events.filterIsInstance<MembershipEvent.Revoked>().single().rationale).hasSize(MEMBER_RATIONALE_LIMIT)
+            assertThat(
+                access.events
+                    .filterIsInstance<MembershipEvent.Revoked>()
+                    .single()
+                    .rationale,
+            ).hasSize(MEMBER_RATIONALE_LIMIT)
         }
     }
 

@@ -108,7 +108,12 @@ class ComplianceEndpointTest {
                         .with(asUser(approver)),
                 ).andExpect(status().isCreated)
                 .andExpect(jsonPath("$.name").value(atLimit))
-            assertThat(store.rules.getValue(tenantId).single().first.name).hasSize(SUBJECT_LIMIT)
+            assertThat(
+                store.rules
+                    .getValue(tenantId)
+                    .single()
+                    .first.name,
+            ).hasSize(SUBJECT_LIMIT)
         }
     }
 

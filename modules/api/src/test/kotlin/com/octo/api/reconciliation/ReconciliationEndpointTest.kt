@@ -170,6 +170,7 @@ class ReconciliationEndpointTest {
     fun `source system and external id at the limit are accepted and one character over is refused`() {
         val atLimit = "s".repeat(SOURCE_FIELD_LIMIT)
         val over = "s".repeat(SOURCE_FIELD_LIMIT + 1)
+
         fun record(
             sourceSystem: String,
             externalId: String,

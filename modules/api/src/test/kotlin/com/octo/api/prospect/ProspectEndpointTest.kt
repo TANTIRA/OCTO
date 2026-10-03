@@ -361,7 +361,12 @@ class ProspectEndpointTest {
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.stage").value("passed"))
-            assertThat(store.eventRows.getValue(accepted).single().rationale).hasSize(RATIONALE_LIMIT)
+            assertThat(
+                store.eventRows
+                    .getValue(accepted)
+                    .single()
+                    .rationale,
+            ).hasSize(RATIONALE_LIMIT)
         }
     }
 

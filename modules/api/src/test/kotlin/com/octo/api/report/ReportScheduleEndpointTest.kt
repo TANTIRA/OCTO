@@ -216,7 +216,11 @@ class ReportScheduleEndpointTest {
                         .with(jwt().jwt { it.subject(analyst.toString()) }),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.name").value(atLimit))
-            assertThat(schedules.schedules.values.single().name).hasSize(MAX_SCHEDULE_NAME_LENGTH)
+            assertThat(
+                schedules.schedules.values
+                    .single()
+                    .name,
+            ).hasSize(MAX_SCHEDULE_NAME_LENGTH)
         }
     }
 }
