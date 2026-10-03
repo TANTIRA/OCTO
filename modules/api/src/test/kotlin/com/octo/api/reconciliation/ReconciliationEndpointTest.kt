@@ -144,6 +144,25 @@ class ReconciliationEndpointTest {
                         """{"tenantId": "$tenantId", "tolerance": {"amount": "-1", "days": 0}, "records": [${record("t-1", "-100")}]}""",
                     ),
                 ).andExpect(status().isBadRequest)
+            // #504: source keys, currencies and the zone are bounded short text, not unbounded blobs.
+            mvc
+                .perform(
+                    post(
+                        analyst,
+                        body(record("t-1", "-100").replace("\"admin-a\"", "\"${"x".repeat(201)}\"")),
+                    ),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post(analyst, body(record("t-1".padEnd(201, 'x'), "-100"))),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post(
+                        analyst,
+                        """{"tenantId": "$tenantId", "zone": "${"x".repeat(201)}", "records": [${record("t-1", "-100")}]}""",
+                    ),
+                ).andExpect(status().isBadRequest)
             assertThat(store.rows).isEmpty()
             assertThat(opened).isEmpty()
         }

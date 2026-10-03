@@ -330,6 +330,14 @@ class ProspectEndpointTest {
                         .content("""{"to":"passed","rationale":"  "}""")
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isBadRequest)
+            // #504: an oversized rationale is a 400, not a permanent resident of the event log.
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"passed","rationale":"${"x".repeat(10_001)}"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
             mvc
                 .perform(get("/api/v1/prospects/$id"))
                 .andExpect(status().isForbidden)
@@ -658,6 +666,21 @@ class ProspectEndpointTest {
                         .content("""{"event":"rejected"}""")
                         .with(jwt().jwt { it.subject(member.toString()) }),
                 ).andExpect(status().isBadRequest) // a rejection without a rationale is refused
+            // #504: oversized rationale and assignee are 400s, not permanent event-log rows.
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$other/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"rejected","rationale":"${"x".repeat(10_001)}"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$other/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"assigned","assignee":"${"x".repeat(201)}"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
         }
     }
 

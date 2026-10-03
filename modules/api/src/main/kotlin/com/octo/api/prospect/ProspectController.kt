@@ -308,6 +308,8 @@ class ProspectController(
         val to =
             runCatching { ProspectStage.fromWireValue(body.to) }.getOrNull()
                 ?: return ResponseEntity.badRequest().build()
+        // The rationale lands in the append-only event log — an oversized one can never be removed (#504).
+        if (body.rationale != null && body.rationale.length > DESCRIPTION_LIMIT) return ResponseEntity.badRequest().build()
         val at = Instant.now()
         val event =
             when (to) {

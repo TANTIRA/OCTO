@@ -1,5 +1,6 @@
 package com.octo.api.reconciliation
 
+import com.octo.api.SHORT_TEXT_LIMIT
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.recon.matching.SourceRecord
@@ -7,6 +8,7 @@ import com.octo.recon.matching.Tolerance
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
+import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -85,10 +87,10 @@ class ReconciliationController(
     }
 
     data class RecordBody(
-        @field:NotBlank val sourceSystem: String,
-        @field:NotBlank val externalId: String,
+        @field:NotBlank @field:Size(max = SHORT_TEXT_LIMIT) val sourceSystem: String,
+        @field:NotBlank @field:Size(max = SHORT_TEXT_LIMIT) val externalId: String,
         val amount: BigDecimal,
-        @field:NotBlank val currency: String,
+        @field:NotBlank @field:Size(max = SHORT_TEXT_LIMIT) val currency: String,
         val date: LocalDate,
     )
 
@@ -101,7 +103,7 @@ class ReconciliationController(
         val tenantId: UUID,
         @field:NotEmpty @field:Valid val records: List<RecordBody>,
         val tolerance: ToleranceBody? = null,
-        val zone: String = "UTC",
+        @field:Size(max = SHORT_TEXT_LIMIT) val zone: String = "UTC",
         val complete: Boolean = false,
     )
 

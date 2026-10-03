@@ -11,3 +11,9 @@ const val MAX_JSON_OBJECT_BYTES = 32_768
  */
 fun ObjectMapper.isBoundedObject(value: Any?): Boolean =
     value == null || (value is Map<*, *> && writeValueAsBytes(value).size <= MAX_JSON_OBJECT_BYTES)
+
+/** Bound on short caller-supplied text — names, keys, identifiers, assignees (#504). */
+const val SHORT_TEXT_LIMIT = 200
+
+/** Bound on long caller-supplied text — descriptions, rationales, summaries (#504). */
+const val LONG_TEXT_LIMIT = 10_000

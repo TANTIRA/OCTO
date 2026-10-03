@@ -259,6 +259,24 @@ class AdminTenantsEndpointTest {
     }
 
     @Test
+    fun `a setting key outside the column's shape is 400 and never reaches the store`() {
+        run { mvc ->
+            // #504: the key lands in an append-only audit — reject what the CHECK would reject.
+            for (badKey in listOf("", "Bad Key", "x".repeat(128), "key;drop")) {
+                mvc
+                    .perform(
+                        put("/api/v1/admin/tenants/$tenantId/settings")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(
+                                ObjectMapper().writeValueAsString(mapOf("key" to badKey, "value" to "\"1\"")),
+                            ).with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                    ).andExpect(status().isBadRequest)
+            }
+            assertThat(settings.rows).isEmpty()
+        }
+    }
+
+    @Test
     fun `tenant admins cannot create or overwrite their own rate limit`() {
         run { mvc ->
             fun attempt() =

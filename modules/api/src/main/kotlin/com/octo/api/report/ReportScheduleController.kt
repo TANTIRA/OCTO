@@ -120,13 +120,13 @@ class ReportScheduleController(
 
     data class ScheduleBody(
         val tenantId: UUID,
-        @field:NotBlank val name: String,
+        @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val name: String,
         @field:NotBlank val type: String,
         @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val positionSourceType: String,
         @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val positionSourceId: String,
         @field:Size(max = MAX_REPORT_MEASURES) val measures: List<String> = emptyList(),
         val parameters: Map<String, Any?>? = null,
-        @field:NotBlank val cron: String,
+        @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val cron: String,
         val active: Boolean = true,
     )
 

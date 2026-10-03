@@ -1,6 +1,7 @@
 package com.octo.api.compliance
 
 import com.octo.analytics.CoverageReport
+import com.octo.api.SHORT_TEXT_LIMIT
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.api.agents.AgentRunsController
@@ -16,6 +17,7 @@ import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -226,7 +228,7 @@ class ComplianceController(
         val tenantId: UUID,
         @field:NotBlank val ruleId: String,
         val version: Int? = null,
-        @field:NotBlank val name: String,
+        @field:NotBlank @field:Size(max = SUBJECT_LIMIT) val name: String,
         @field:Valid val check: CheckBody,
     )
 
@@ -249,7 +251,7 @@ class ComplianceController(
 
     data class CoverageBody(
         val currency: String,
-        val scenario: String,
+        @field:Size(max = SHORT_TEXT_LIMIT) val scenario: String,
         val ratio: BigDecimal?,
     )
 
@@ -259,7 +261,7 @@ class ComplianceController(
         val asOf: LocalDate,
         val exposure: ExposureBody? = null,
         val currencyExposure: Map<String, BigDecimal>? = null,
-        val coverage: CoverageBody? = null,
+        @field:Valid val coverage: CoverageBody? = null,
     ) {
         /** The engine's input shape; null when a field cannot parse or the subject is oversized (callers answer 400). */
         fun inputs(): ComplianceInputs? =

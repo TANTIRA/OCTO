@@ -19,6 +19,10 @@ data class TaskEventRequest(
     val correlationId: UUID? = null,
 ) {
     fun toEvent(actor: String): TaskEvent? {
+        // Rationale and assignee land in the append-only task-event log — an oversized one
+        // can never be removed, so it is refused here with a 400 (#504).
+        if (rationale != null && rationale.length > LONG_TEXT_LIMIT) return null
+        if (assignee != null && assignee.length > SHORT_TEXT_LIMIT) return null
         val at = Instant.now()
         return when (event) {
             "assigned" -> assignee?.takeIf { it.isNotBlank() }?.let { TaskEvent.Assigned(actor, at, it) }

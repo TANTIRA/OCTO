@@ -139,8 +139,10 @@ class AdminTenantsController(
         @RequestBody body: PutSetting,
     ): Map<String, String> {
         requireMemberAdmin(jwt, tenantId)
-        if (body.key.isBlank()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "setting key must not be blank")
+        // The key lands in the append-only setting audit — it must match the column's
+        // snake/dotted shape here, not as a database error (#504).
+        if (!body.key.matches(SETTING_KEY_SHAPE)) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "setting key must be a snake/dotted key")
         }
         if (body.key == TenantSettingKeys.RATE_LIMIT_PER_MINUTE) {
             requirePlatformAdmin(jwt)
@@ -250,5 +252,8 @@ class AdminTenantsController(
 
     private companion object {
         const val SOURCE = "admin-api"
+
+        /** Same snake/dotted shape the `tenant_setting` column's check enforces (V31). */
+        val SETTING_KEY_SHAPE = Regex("^[a-z0-9][a-z0-9_.-]{0,126}$")
     }
 }
