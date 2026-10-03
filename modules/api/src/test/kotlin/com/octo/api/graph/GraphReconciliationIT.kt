@@ -98,7 +98,7 @@ class GraphReconciliationIT {
         val a = tenant()
         val b = tenant()
         val fund = store(a, AssetType.FUND, "Same Fund LP")
-        val investment = store(a, AssetType.INVESTMENT, "Acme Series B")
+        store(a, AssetType.INVESTMENT, "Acme Series B")
         val company = store(a, AssetType.OPERATING_COMPANY, "PT Acme")
         store(a, AssetType.OPERATING_COMPANY, "PT Acme Logistik", supersedes = company.id)
         store(b, AssetType.FUND, "Same Fund LP")
@@ -125,9 +125,9 @@ class GraphReconciliationIT {
                     "t" to a.toString(),
                 ),
             )
-            // Two corrections of one row fork the lineage: asset supersession is not unique in V11.
-            store(a, AssetType.INVESTMENT, "Acme Series B-1", supersedes = investment.id)
-            store(a, AssetType.INVESTMENT, "Acme Series B-2", supersedes = investment.id)
+            // A fork — two corrections of one row — would plant the last kind, but V49 pinned
+            // supersedes_id unique (#566), so Postgres can no longer produce one; FORKED stays in
+            // the reconciler for lineages that predate the constraint.
             projector.drain()
             val failedId = UUID.randomUUID()
             val stuckId = UUID.randomUUID()
@@ -144,10 +144,9 @@ class GraphReconciliationIT {
                 .containsEntry(GraphDiscrepancyKind.MISSING, fund.id)
                 .containsEntry(GraphDiscrepancyKind.STALE, company.id)
                 .containsEntry(GraphDiscrepancyKind.ORPHAN, stray)
-                .containsEntry(GraphDiscrepancyKind.FORKED, investment.id)
                 .containsEntry(GraphDiscrepancyKind.FAILED, failedId)
                 .containsEntry(GraphDiscrepancyKind.STUCK, stuckId)
-                .hasSize(GraphDiscrepancyKind.entries.size)
+                .hasSize(GraphDiscrepancyKind.entries.size - 1)
             assertThat(reconciler.reconcile(b).clean).`as`("tenant B is untouched by tenant A's drift").isTrue()
         }
     }
