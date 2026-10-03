@@ -61,13 +61,20 @@ class HeliusBalanceNormalizer {
         )
     }
 
-    /** RPC fallback: `getBalance` lamports + `getTokenAccountsByOwner` grouped per mint. */
+    /**
+     * RPC fallback: `getBalance` lamports + `getTokenAccountsByOwner` grouped per mint.
+     * An account whose amount or decimals cannot be parsed marks its mint
+     * [RpcBalanceParse.unreadableMints] — like a wallet-API skip, the emptied-holdings
+     * pass leaves that mint alone. An account whose mint itself is unreadable cannot be
+     * attributed at all; those are counted in [RpcBalanceParse.unidentifiedAccounts] so the
+     * caller can suppress every emptied-holding write for the wallet (#550).
+     */
     fun fromRpc(
         lamports: Long,
         tokenAccounts: JsonNode,
         wallet: String,
         asOf: Instant,
-    ): List<OnchainBalance> {
+    ): RpcBalanceParse {
         val balances = mutableListOf<OnchainBalance>()
         if (lamports > 0) {
             balances +=
@@ -84,6 +91,8 @@ class HeliusBalanceNormalizer {
                 )
         }
         val perMint = linkedMapOf<String, Pair<BigInteger, Int>>()
+        val unreadableMints = mutableListOf<String>()
+        var unidentified = 0
         for (account in tokenAccounts.path("value")) {
             val info =
                 account
@@ -92,13 +101,19 @@ class HeliusBalanceNormalizer {
                     .path("parsed")
                     .path("info")
             val mint = info.path("mint").asText()
-            if (mint.isEmpty()) continue
+            if (mint.isEmpty()) {
+                unidentified++
+                continue
+            }
             val amount = info.path("tokenAmount").path("amount")
-            if (!amount.isTextual) continue
-            val raw = amount.asText().toBigIntegerOrNull() ?: continue
+            val decimals = info.path("tokenAmount").path("decimals")
+            val raw = if (amount.isTextual) amount.asText().toBigIntegerOrNull() else null
+            if (raw == null || !decimals.isInt) {
+                unreadableMints += mint
+                continue
+            }
             if (raw.signum() <= 0) continue
-            val decimals = info.path("tokenAmount").path("decimals").asInt()
-            perMint.merge(mint, raw to decimals) { (a, d), (b, _) -> a + b to d }
+            perMint.merge(mint, raw to decimals.asInt()) { (a, d), (b, _) -> a + b to d }
         }
         for ((mint, pair) in perMint) {
             balances +=
@@ -114,13 +129,20 @@ class HeliusBalanceNormalizer {
                     asOf = asOf,
                 )
         }
-        return balances
+        return RpcBalanceParse(balances, unreadableMints, unidentified)
     }
 
     data class BalanceParse(
         val balances: List<OnchainBalance>,
         val skipped: List<String>,
         val hasMore: Boolean,
+    )
+
+    /** RPC-path result: parsed balances plus what could not be read (#550). */
+    data class RpcBalanceParse(
+        val balances: List<OnchainBalance>,
+        val unreadableMints: List<String>,
+        val unidentifiedAccounts: Int,
     )
 
     companion object {

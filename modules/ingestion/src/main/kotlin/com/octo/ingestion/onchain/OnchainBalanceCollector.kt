@@ -43,14 +43,27 @@ class OnchainBalanceCollector(
         for (watch in wallets) {
             val skippedBefore = skipped.size
             val fallbacksBefore = fallbacks.size
-            val balances = collectWallet(watch.address, asOf, fallbacks, skipped, failed) ?: continue
+            val read = collectWallet(watch.address, asOf, fallbacks, skipped, failed) ?: continue
             val source = if (fallbacks.size > fallbacksBefore) BalanceSource.RPC else BalanceSource.WALLET_API
             val unreadable = skipped.subList(skippedBefore, skipped.size).map(::mintOf).toSet()
-            val emptied = emptiedHoldings(chain, watch.address, balances, unreadable, source, asOf)
-            snapshots += staging.insertSnapshots(balances + emptied, ingestionRunId, UUID.randomUUID(), ACTOR)
+            // An RPC-path account whose own mint is unreadable means any still-listed holding
+            // could be it — zeroing anything this pass could record a false zero (#550).
+            val emptied =
+                if (read.suppressEmptied) {
+                    emptyList()
+                } else {
+                    emptiedHoldings(chain, watch.address, read.balances, unreadable, source, asOf)
+                }
+            snapshots += staging.insertSnapshots(read.balances + emptied, ingestionRunId, UUID.randomUUID(), ACTOR)
         }
         return BalanceCollectionReport(wallets.size, snapshots, fallbacks, skipped, failed)
     }
+
+    /** One wallet's read: parsed balances, and whether an unidentified account forbids zeroing. */
+    private data class WalletRead(
+        val balances: List<OnchainBalance>,
+        val suppressEmptied: Boolean,
+    )
 
     private fun collectWallet(
         address: String,
@@ -58,7 +71,7 @@ class OnchainBalanceCollector(
         fallbacks: MutableList<String>,
         skipped: MutableList<String>,
         failed: MutableList<String>,
-    ): List<OnchainBalance>? {
+    ): WalletRead? {
         try {
             val all = mutableListOf<OnchainBalance>()
             var page = 1
@@ -66,7 +79,7 @@ class OnchainBalanceCollector(
                 val parsed = normalizer.fromWalletApi(walletApi.balances(address, page), address, asOf)
                 all += parsed.balances
                 skipped += parsed.skipped
-                if (!parsed.hasMore) return all
+                if (!parsed.hasMore) return WalletRead(all, suppressEmptied = false)
                 page++
             }
         } catch (e: HeliusException) {
@@ -76,8 +89,11 @@ class OnchainBalanceCollector(
                 return null
             }
             fallbacks += address
-            return runCatching { normalizer.fromRpc(client.balance(address), client.tokenAccountsByOwner(address), address, asOf) }
-                .onFailure { failed += address }
+            return runCatching {
+                val parsed = normalizer.fromRpc(client.balance(address), client.tokenAccountsByOwner(address), address, asOf)
+                skipped += parsed.unreadableMints
+                WalletRead(parsed.balances, suppressEmptied = parsed.unidentifiedAccounts > 0)
+            }.onFailure { failed += address }
                 .getOrNull()
         }
     }
@@ -85,7 +101,7 @@ class OnchainBalanceCollector(
     // Both sources omit empty holdings, so the table stays sparse — except where the latest
     // snapshot still shows a holding: there a zero must land, or recon keeps reading the stale
     // amount. Stake rows (token_account set) belong to the staking collector, and a mint this
-    // pass could not read is left alone rather than zeroed.
+    // pass could not read is left alone rather than zeroed — on either path (#550).
     private fun emptiedHoldings(
         chain: String,
         wallet: String,

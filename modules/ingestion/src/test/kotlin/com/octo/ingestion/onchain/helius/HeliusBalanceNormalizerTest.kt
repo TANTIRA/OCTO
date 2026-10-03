@@ -103,12 +103,32 @@ class HeliusBalanceNormalizerTest {
                 """.trimIndent(),
             )
 
-        val balances = normalizer.fromRpc(1_500_000_000, accounts, WALLET, AS_OF)
+        val parsed = normalizer.fromRpc(1_500_000_000, accounts, WALLET, AS_OF)
 
-        assertEquals(2, balances.size)
-        assertNull(balances[0].mintAddress)
-        assertEquals(BigInteger("1500000000"), balances[0].amountRaw)
-        assertEquals(BigInteger("350"), balances[1].amountRaw)
-        assertEquals(BalanceSource.RPC, balances[1].source)
+        assertEquals(2, parsed.balances.size)
+        assertNull(parsed.balances[0].mintAddress)
+        assertEquals(BigInteger("1500000000"), parsed.balances[0].amountRaw)
+        assertEquals(BigInteger("350"), parsed.balances[1].amountRaw)
+        assertEquals(BalanceSource.RPC, parsed.balances[1].source)
+    }
+
+    @Test
+    fun `rpc fallback marks unparsable amounts unreadable and counts unidentified accounts`() {
+        val accounts =
+            tree(
+                """
+                {"value":[
+                   {"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":"not-a-number","decimals":6}}}}}},
+                   {"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":"250"}}}}}},
+                   {"account":{"data":{"parsed":{"info":{"tokenAmount":{"amount":"5","decimals":6}}}}}},
+                   {"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":"250","decimals":6}}}}}}]}
+                """.trimIndent(),
+            )
+
+        val parsed = normalizer.fromRpc(0, accounts, WALLET, AS_OF)
+
+        assertEquals(BigInteger("250"), parsed.balances.single().amountRaw)
+        assertEquals(listOf(USDC, USDC), parsed.unreadableMints)
+        assertEquals(1, parsed.unidentifiedAccounts)
     }
 }

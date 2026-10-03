@@ -257,6 +257,39 @@ class OnchainBalanceCollectorTest {
     }
 
     @Test
+    fun `a holding the rpc fallback could not parse is left alone, never zeroed`() {
+        // #550: the emptied-holdings rule must not treat a dropped token account as gone.
+        val store = FakeSnapshotStore(WALLET)
+        store.snapshots += held(USDC, "5000000", decimals = 6)
+        val accounts =
+            ObjectMapper().readTree(
+                """{"value":[{"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":"oops","decimals":6}}}}}}]}""",
+            )
+        val walletApi = StubWalletApi(emptyMap(), failures = setOf(WALLET))
+
+        val report = OnchainBalanceCollector(store, walletApi, StubRpc(0, accounts)).collect(asOf = AS_OF)
+
+        assertEquals(0, report.snapshotsInserted)
+        assertEquals(listOf(USDC), report.skippedTokens)
+    }
+
+    @Test
+    fun `an rpc account whose mint is unreadable suppresses every emptied write`() {
+        val store = FakeSnapshotStore(WALLET)
+        store.snapshots += held(USDC, "5000000", decimals = 6)
+        store.snapshots += held(BONK, "10", decimals = 5)
+        val accounts =
+            ObjectMapper().readTree(
+                """{"value":[{"account":{"data":{"parsed":{"info":{"tokenAmount":{"amount":"5","decimals":6}}}}}}]}""",
+            )
+        val walletApi = StubWalletApi(emptyMap(), failures = setOf(WALLET))
+
+        val report = OnchainBalanceCollector(store, walletApi, StubRpc(0, accounts)).collect(asOf = AS_OF)
+
+        assertEquals(0, report.snapshotsInserted)
+    }
+
+    @Test
     fun `an emptied native balance on the rpc fallback lands as an rpc zero`() {
         val store = FakeSnapshotStore(WALLET)
         store.snapshots += held(null, "2000000000", decimals = 9)
