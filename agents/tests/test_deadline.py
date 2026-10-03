@@ -11,8 +11,19 @@ from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from octo_agents import deadline
 from octo_agents.api_client import OctoApiClient
-from octo_agents.deadline import Deadline, DeadlineExceeded, _DeadlineCallback
-from octo_agents.deadline import invoke_within_deadline, run_deadline
+from octo_agents.chat import drafter_model
+from octo_agents.config import Settings
+from octo_agents.deadline import (
+    Deadline,
+    DeadlineExceeded,
+    _DeadlineCallback,
+    _DeadlineTransport,
+    drafter_request_overrides,
+    invoke_within_deadline,
+    run_deadline,
+    track_model_client,
+)
+from octo_agents.registry import ApprovedModelRegistry
 from octo_agents.retry import send_with_retry
 from octo_agents.workflows import screening_dd
 from octo_agents.workflows.screening_dd import finish_failed, run_screening_dd
@@ -136,3 +147,121 @@ def test_screening_out_of_time_after_drafting_opens_no_task_and_fails(
     assert api.screening_requests == []  # no task opened after the deadline
     assert [f["status"] for f in api.finished] == ["failed"]
     assert "deadline" in api.finished[0]["error"]
+
+
+class _CountingTransport(httpx.BaseTransport):
+    """Records each send, then fails the way a slow provider times out."""
+
+    def __init__(self, clock: FakeClock) -> None:
+        self.clock = clock
+        self.timeouts: list[float] = []
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        timeout = request.extensions["timeout"]
+        self.timeouts.append(float(timeout.read))
+        self.clock.now += 60
+        raise httpx.ReadTimeout("slow provider")
+
+
+def test_model_attempt_is_capped_and_not_retried_after_the_deadline() -> None:
+    # #554 — a single-step drafter never reaches another callback, so the
+    # SDK's own retries used to run (and bill) for minutes after the run failed.
+    clock = FakeClock()
+    inner = _CountingTransport(clock)
+    transport = _DeadlineTransport(inner, owner=None)
+    request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+    request.extensions["timeout"] = httpx.Timeout(60.0)
+
+    def sdk_retry() -> None:
+        for _ in range(3):  # max_retries=2 → three attempts
+            try:
+                transport.handle_request(request)
+            except httpx.ReadTimeout:
+                continue
+            return
+
+    with run_deadline(10, clock=clock), pytest.raises(DeadlineExceeded, match="drafter model call"):
+        sdk_retry()
+    assert inner.timeouts == [10.0]
+
+
+def test_abandoned_drafter_closes_the_inflight_client() -> None:
+    closed = threading.Event()
+
+    class Client:
+        def close(self) -> None:
+            closed.set()
+
+    class Hung:
+        def invoke(self, payload: Any, config: Any) -> Any:
+            if not closed.wait(5):
+                raise AssertionError("in-flight model call was not cancelled")
+            return {"messages": []}
+
+    started = time.monotonic()
+    with run_deadline(0.2), pytest.raises(DeadlineExceeded):
+        track_model_client(Client())
+        invoke_within_deadline(Hung(), {})
+    assert closed.is_set()
+    assert time.monotonic() - started < 2
+
+
+def test_drafter_retry_budget_is_the_time_left_not_the_sdk_window() -> None:
+    assert drafter_request_overrides(60_000) == {}
+    clock = FakeClock()
+    with run_deadline(100, clock=clock):
+        clock.now += 40
+        limits = drafter_request_overrides(60_000)
+    assert limits["timeout_ms"] == 60_000  # configured attempt cap is tighter
+    assert limits["retries"].backoff.max_elapsed_time == 60_000
+    clock = FakeClock()
+    with run_deadline(100, clock=clock):
+        clock.now += 95
+        limits = drafter_request_overrides(60_000)
+    assert limits["timeout_ms"] == 5_000
+    assert limits["retries"].backoff.max_elapsed_time == 5_000
+    assert limits["retries"].backoff.max_interval == 5_000
+    with run_deadline(100, clock=clock), pytest.raises(DeadlineExceeded):
+        clock.now += 100
+        drafter_request_overrides(60_000)
+
+
+class _Completion:
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]:
+        return {
+            "model": "deepseek/deepseek-v4.1-flash",
+            "choices": [
+                {
+                    "message": {"role": "assistant", "content": "memo"},
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+
+
+def test_drafter_call_forwards_the_deadline_to_the_provider_client() -> None:
+    settings = Settings(
+        openrouter_api_key="k",
+        octo_agents_insecure_http=True,
+        request_timeout_s=60.0,
+    )
+    model = drafter_model(settings, ApprovedModelRegistry(settings.model_registry_path))
+    http = model.client.sdk_configuration.client
+    assert isinstance(http._transport, _DeadlineTransport)
+    seen: dict[str, Any] = {}
+
+    def send(**kwargs: Any) -> _Completion:
+        seen.update(kwargs)
+        return _Completion()
+
+    model.client.chat.send = send  # type: ignore[method-assign]
+    clock = FakeClock()
+    with run_deadline(100, clock=clock):
+        clock.now += 90
+        assert model.invoke("draft the letter").content == "memo"
+    assert seen["timeout_ms"] == 10_000
+    assert seen["retries"].backoff.max_elapsed_time == 10_000
+    with run_deadline(100, clock=clock), pytest.raises(DeadlineExceeded):
+        clock.now += 100
+        model.invoke("draft the letter")
+    assert seen["timeout_ms"] == 10_000  # the expired call never reached the provider
