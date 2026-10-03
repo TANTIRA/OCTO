@@ -5,9 +5,12 @@ import com.octo.iborcore.InstrumentFlowStore
 import com.octo.iborcore.InstrumentFlowType
 import com.octo.iborcore.InstrumentKey
 import com.octo.iborcore.PROMOTION_ACTOR
+import com.octo.iborcore.ProjectedInstrument
 import com.octo.iborcore.StagedTransfer
+import com.octo.iborcore.instrumentFlowProjection
 import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
+import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Timestamp
 import java.time.OffsetDateTime
@@ -119,39 +122,103 @@ class JdbcInstrumentFlowStore(
         correlationId: UUID,
     ): Boolean =
         dataSource.scoped(TenantScope.All) { c ->
-            c
-                .prepareStatement(
-                    """
-                    insert into octo.instrument_flow
-                        (id, external_id, instrument_id, chain, wallet, token_account, flow_type,
-                         amount_raw, decimals, occurred_at, recorded_at, slot, signature,
-                         supersedes_id, rationale, source_system, actor, ingestion_run_id, correlation_id)
-                    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    on conflict (source_system, external_id) do nothing
-                    """.trimIndent(),
-                ).use { s ->
-                    s.setObject(1, flow.id)
-                    s.setString(2, flow.externalId)
-                    s.setObject(3, flow.instrumentId)
-                    s.setString(4, flow.chain)
-                    s.setString(5, flow.wallet)
-                    s.setString(6, flow.tokenAccount)
-                    s.setString(7, flow.flowType.wireValue)
-                    s.setBigDecimal(8, flow.amountRaw.toBigDecimal())
-                    s.setInt(9, flow.decimals)
-                    s.setTimestamp(10, Timestamp.from(flow.occurredAt))
-                    s.setTimestamp(11, Timestamp.from(flow.recordedAt))
-                    s.setObject(12, flow.slot)
-                    s.setString(13, flow.signature)
-                    s.setObject(14, flow.supersedesId)
-                    s.setString(15, flow.rationale)
-                    s.setString(16, sourceSystem)
-                    s.setString(17, PROMOTION_ACTOR)
-                    s.setObject(18, ingestionRunId)
-                    s.setObject(19, correlationId)
-                    s.executeUpdate() == 1
-                }
+            val inserted =
+                c
+                    .prepareStatement(
+                        """
+                        insert into octo.instrument_flow
+                            (id, external_id, instrument_id, chain, wallet, token_account, flow_type,
+                             amount_raw, decimals, occurred_at, recorded_at, slot, signature,
+                             supersedes_id, rationale, source_system, actor, ingestion_run_id, correlation_id)
+                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        on conflict (source_system, external_id) do nothing
+                        """.trimIndent(),
+                    ).use { s ->
+                        s.setObject(1, flow.id)
+                        s.setString(2, flow.externalId)
+                        s.setObject(3, flow.instrumentId)
+                        s.setString(4, flow.chain)
+                        s.setString(5, flow.wallet)
+                        s.setString(6, flow.tokenAccount)
+                        s.setString(7, flow.flowType.wireValue)
+                        s.setBigDecimal(8, flow.amountRaw.toBigDecimal())
+                        s.setInt(9, flow.decimals)
+                        s.setTimestamp(10, Timestamp.from(flow.occurredAt))
+                        s.setTimestamp(11, Timestamp.from(flow.recordedAt))
+                        s.setObject(12, flow.slot)
+                        s.setString(13, flow.signature)
+                        s.setObject(14, flow.supersedesId)
+                        s.setString(15, flow.rationale)
+                        s.setString(16, sourceSystem)
+                        s.setString(17, PROMOTION_ACTOR)
+                        s.setObject(18, ingestionRunId)
+                        s.setObject(19, correlationId)
+                        s.executeUpdate() == 1
+                    }
+            if (inserted) project(c, flow)
+            inserted
         }
+
+    /**
+     * Enqueues the flow's graph upserts on [connection], after the ledger row is inserted, so both commit together.
+     * A wallet with no tenant (untracked, or a platform watch) stays in the ledger and is not projected: the outbox
+     * requires a tenant and the graph keys wallets per tenant.
+     */
+    private fun project(
+        connection: Connection,
+        flow: InstrumentFlow,
+    ) {
+        val tenantId =
+            connection.prepareStatement("select tenant_id from octo.tracked_address where chain = ? and address = ?").use { s ->
+                s.setString(1, flow.chain)
+                s.setString(2, flow.wallet)
+                s.executeQuery().use { r -> if (r.next()) r.getObject("tenant_id", UUID::class.java) else null }
+            } ?: return
+        val instrument =
+            connection
+                .prepareStatement(
+                    "select external_key, chain, mint_address, instrument_kind, decimals from octo.instrument where id = ?",
+                ).use { s ->
+                    s.setObject(1, flow.instrumentId)
+                    s.executeQuery().use { r ->
+                        check(r.next()) { "instrument ${flow.instrumentId} disappeared during promotion" }
+                        ProjectedInstrument(
+                            id = flow.instrumentId,
+                            externalKey = r.getString("external_key"),
+                            chain = r.getString("chain"),
+                            mintAddress = r.getString("mint_address"),
+                            kind = r.getString("instrument_kind"),
+                            decimals = r.getInt("decimals"),
+                        )
+                    }
+                }
+        for (spec in instrumentFlowProjection(tenantId, flow, lineageRoot(connection, flow), instrument)) {
+            enqueueGraphUpsert(connection, tenantId, spec.aggregateType, spec.aggregateId, spec.payload())
+        }
+    }
+
+    /** The first row of [flow]'s lineage — the graph node's octoId, stable across every correction. */
+    private fun lineageRoot(
+        connection: Connection,
+        flow: InstrumentFlow,
+    ): UUID {
+        if (flow.supersedesId == null) return flow.id
+        val sql =
+            """
+            with recursive lineage as (
+                select id, supersedes_id from octo.instrument_flow where id = ?
+                union all
+                select f.id, f.supersedes_id from octo.instrument_flow f join lineage l on f.id = l.supersedes_id)
+            select id from lineage where supersedes_id is null
+            """.trimIndent()
+        return connection.prepareStatement(sql).use { s ->
+            s.setObject(1, flow.id)
+            s.executeQuery().use { r ->
+                check(r.next()) { "flow ${flow.id} supersedes ${flow.supersedesId}, whose lineage has no root" }
+                r.getObject("id", UUID::class.java)
+            }
+        }
+    }
 
     override fun flowsFor(
         chain: String,

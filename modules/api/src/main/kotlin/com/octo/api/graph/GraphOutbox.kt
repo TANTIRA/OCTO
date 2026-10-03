@@ -1,9 +1,7 @@
 package com.octo.api.graph
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
-import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Duration
 import java.util.UUID
@@ -26,32 +24,6 @@ data class OutboxStats(
     val failed: Long,
     val oldestPendingSeconds: Double,
 )
-
-private val json = ObjectMapper()
-
-/**
- * Enqueues one graph upsert on the caller's [connection] — the transaction that writes the domain row — so the row
- * and the intent to project it commit or roll back together (ADR-0004 amendment, #308). [payload] is the full node
- * state; the projector derives labels from [aggregateType] and the payload's `kind`, never from caller text.
- */
-fun enqueueGraphUpsert(
-    connection: Connection,
-    tenantId: UUID,
-    aggregateType: String,
-    aggregateId: UUID,
-    payload: Map<String, Any?>,
-) {
-    connection
-        .prepareStatement(
-            "insert into octo.graph_outbox (tenant_id, aggregate_type, aggregate_id, op, payload) values (?, ?, ?, 'upsert', ?::jsonb)",
-        ).use { statement ->
-            statement.setObject(1, tenantId)
-            statement.setString(2, aggregateType)
-            statement.setObject(3, aggregateId)
-            statement.setString(4, json.writeValueAsString(payload))
-            statement.executeUpdate()
-        }
-}
 
 /**
  * The projector's side of `octo.graph_outbox`. Platform-wide (`TenantScope.All`) like the other pollers: it drains
