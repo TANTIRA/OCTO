@@ -1,5 +1,7 @@
 package com.octo.api.graph
 
+import com.octo.api.access.PlatformAdmin
+import com.octo.workflow.persistence.JdbcTaskStore
 import io.micrometer.core.instrument.MeterRegistry
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.Driver
@@ -41,4 +43,42 @@ class GraphConfiguration {
         env.getProperty("NEO4J_DATABASE")?.takeIf(String::isNotBlank) ?: "neo4j",
         meters.getIfAvailable(),
     )
+
+    private fun graphDatabase(env: Environment) = env.getProperty("NEO4J_DATABASE")?.takeIf(String::isNotBlank) ?: "neo4j"
+
+    @Bean
+    @ConditionalOnExpression("!'\${NEO4J_URI:}'.isBlank()")
+    fun graphReconciler(
+        driver: Driver,
+        dataSource: ObjectProvider<DataSource>,
+        env: Environment,
+    ) = GraphReconciler(dataSource.getObject(), driver, graphDatabase(env))
+
+    /**
+     * #564: the scheduled per-tenant pass and the admin endpoint it serves. Task opens go through
+     * `JdbcTaskStore.openUnlessOpen`, so a discrepancy key already under review is never doubled —
+     * the same deduplication `ReconciliationRunner` relies on for ledger breaks.
+     */
+    @Bean
+    @ConditionalOnExpression("!'\${NEO4J_URI:}'.isBlank()")
+    fun graphReconciliationRunner(
+        reconciler: GraphReconciler,
+        dataSource: ObjectProvider<DataSource>,
+        meters: ObjectProvider<MeterRegistry>,
+    ): GraphReconciliationRunner {
+        val tasks = JdbcTaskStore(dataSource.getObject())
+        return GraphReconciliationRunner(
+            dataSource.getObject(),
+            reconciler::reconcile,
+            GraphTaskOpener { task, provenance -> tasks.openUnlessOpen(task, provenance) },
+            meters.getIfAvailable(),
+        )
+    }
+
+    @Bean
+    @ConditionalOnExpression("!'\${NEO4J_URI:}'.isBlank()")
+    fun graphReconciliationController(
+        runner: GraphReconciliationRunner,
+        platform: PlatformAdmin,
+    ) = GraphReconciliationController(runner, platform)
 }
