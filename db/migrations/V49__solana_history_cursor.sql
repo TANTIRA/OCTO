@@ -1,4 +1,4 @@
--- V47__solana_history_cursor.sql
+-- V49__solana_history_cursor.sql
 -- Resume point for the Solana history walk (#509).
 --
 -- The walk is newest-first and bounded per run. The highest staged slot is the wrong
