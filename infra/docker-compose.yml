@@ -66,7 +66,8 @@ services:
       - dokploy-network
     healthcheck:
       # Readiness, not the aggregate: the database is in the readiness group (docs/reliability.md §4).
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/readiness"]
+      # bash, not curl: the API image does not ship curl (libp11-kit0, CVE-2026-13757).
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/readiness HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -qE '\"status\"[[:space:]]*:[[:space:]]*\"UP\"' <&3"]
       interval: 30s
       timeout: 5s
       retries: 5
