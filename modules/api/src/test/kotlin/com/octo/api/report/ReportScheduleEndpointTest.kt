@@ -174,7 +174,7 @@ class ReportScheduleEndpointTest {
 
     @Test
     fun `oversized parameters, too many or too long measures and an over-long position source are 400`() {
-        val big = "x".repeat(MAX_REPORT_FIELD_LENGTH + 1)
+        val big = "x".repeat(MAX_SCHEDULE_NAME_LENGTH + 1)
         val many = (0..MAX_REPORT_MEASURES).joinToString { "\"m$it\"" }
         run { mvc ->
             for (oversized in listOf(
