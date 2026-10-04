@@ -120,6 +120,46 @@ class JdbcOnchainStagingStore(
                 }
         }
 
+    override fun scannedThrough(chain: String): Long? =
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    select scanned_through
+                      from octo.evm_scan_checkpoint
+                     where chain = ?
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.executeQuery().use { r -> if (r.next()) r.getLong(1).takeIf { !r.wasNull() } else null }
+                }
+        }
+
+    override fun recordScannedThrough(
+        chain: String,
+        block: Long,
+    ) {
+        require(chain.isNotBlank()) { "chain required" }
+        require(block >= 0) { "scanned-through block must be >= 0" }
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    insert into octo.evm_scan_checkpoint (chain, scanned_through)
+                    values (?, ?)
+                    on conflict (chain) do update
+                       set scanned_through = greatest(octo.evm_scan_checkpoint.scanned_through, excluded.scanned_through),
+                           updated_at = now()
+                     where excluded.scanned_through > octo.evm_scan_checkpoint.scanned_through
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setString(1, chain)
+                    s.setLong(2, block)
+                    s.executeUpdate()
+                }
+        }
+    }
+
     override fun tokenContracts(chain: String): List<TokenContract> =
         dataSource.scoped(TenantScope.All) { c ->
             c

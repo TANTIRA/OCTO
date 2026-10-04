@@ -22,11 +22,42 @@ RUN ./gradlew --no-daemon :modules:api:bootJar -x test \
 
 FROM eclipse-temurin:21.0.12.1_1-jre@sha256:cff19e6215689161eb6162c11b86b0c60ddf802164f2eaf48d570f8fb79a36c5
 # curl: infra/docker-compose.yml's healthcheck calls it inside the container.
+# Ubuntu 26.04 has no patched package for the rust-coreutils, GNU tar, or shadow
+# alerts. GNU coreutils is already installed; switch the provider and delete the
+# rust package. tar is essential only because dpkg depends on it, and this image
+# never extracts archives after the build. CVE-2024-56433 is the default
+# subordinate UID range: disable it, create the system user, then remove the
+# shadow packages. Docker starts the process as that uid and does not invoke login.
+ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && apt-get purge -y wget \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --home /app --shell /usr/sbin/nologin octo
+    && apt-get install -y --no-install-recommends --allow-remove-essential \
+        curl \
+        coreutils-from-gnu \
+        coreutils-from-uutils- \
+    && apt-get purge -y --allow-remove-essential rust-coreutils wget \
+    && sed -i -E 's/^SUB_UID_COUNT[[:space:]].*/SUB_UID_COUNT\t\t0/' /etc/login.defs \
+    && sed -i -E 's/^SUB_GID_COUNT[[:space:]].*/SUB_GID_COUNT\t\t0/' /etc/login.defs \
+    && : > /etc/subuid \
+    && : > /etc/subgid \
+    && useradd --system --uid 10001 --home /app --shell /usr/bin/false octo \
+    && apt-get purge -y adduser passwd login login.defs gnupg \
+    && dpkg --purge --force-remove-essential --force-depends tar \
+# Ubuntu 26.04 has no newer package for several Trivy findings, so the runtime
+# layer drops binaries this process never uses:
+#   p11-kit and p11-kit-modules (CVE-2026-13757). libp11-kit0 stays; gnutls links it.
+#   passwd and login.defs (CVE-2024-56433), after useradd. /etc/subuid is removed
+#   so the image does not keep the default subordinate-uid range. adduser and gnupg
+#   come out with them; the API process does not call either.
+#   tar (CVE-2026-18477, CVE-2026-18508). It is Essential and dpkg depends on it;
+#   the entrypoint is java, so it is removed only after apt has finished.
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl \
+    && DEBIAN_FRONTEND=noninteractive apt-get purge -y wget p11-kit p11-kit-modules \
+    && useradd --system --uid 10001 --home /app --shell /usr/sbin/nologin octo \
+    && DEBIAN_FRONTEND=noninteractive apt-get purge -y --auto-remove passwd login.defs \
+    && rm -f /etc/subuid /etc/subgid \
+    && dpkg --remove --force-remove-essential --force-depends tar \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build --chown=octo:octo /src/app.jar /app/app.jar
 USER octo
