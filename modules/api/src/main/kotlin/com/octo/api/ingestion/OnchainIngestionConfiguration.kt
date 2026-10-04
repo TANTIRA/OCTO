@@ -57,6 +57,7 @@ class OnchainIngestionConfiguration {
                 wallet: String,
                 cursor: SolanaHistoryCursor,
             ) = delegate.saveHistoryCursor(chain, wallet, cursor)
+
             override fun scannedThrough(chain: String): Long? = delegate.scannedThrough(chain)
 
             override fun recordScannedThrough(

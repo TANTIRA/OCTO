@@ -1,4 +1,4 @@
--- V47__asset_unique_supersession.sql
+-- V48__asset_unique_supersession.sql
 -- One correction per asset row: a supersedes_id may appear at most once (#566).
 --
 -- V44 made supersedes_id unique for ledger_event, valuation_event, onchain_transfer and
