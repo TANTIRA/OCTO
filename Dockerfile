@@ -21,25 +21,52 @@ RUN ./gradlew --no-daemon :modules:api:bootJar -x test \
     && cp modules/api/build/libs/api-*-SNAPSHOT.jar /src/app.jar
 
 FROM eclipse-temurin:21.0.12.1_1-jre@sha256:cff19e6215689161eb6162c11b86b0c60ddf802164f2eaf48d570f8fb79a36c5
-# curl: infra/docker-compose.yml's healthcheck calls it inside the container.
-# Ubuntu 26.04 has no patched package for the rust-coreutils, GNU tar, or shadow
-# alerts. GNU coreutils is already installed; switch the provider and delete the
-# rust package. tar is essential only because dpkg depends on it, and this image
-# never extracts archives after the build. CVE-2024-56433 is the default
-# subordinate UID range: disable it, create the system user, then remove the
-# shadow packages. Docker starts the process as that uid and does not invoke login.
+# Readiness is a bash /dev/tcp read of /actuator/health/readiness
+# (infra/docker-compose.yml, deploy/dokploy.compose.yml). The Temurin base ships
+# curl, and that binary links libgnutls30t64 and libp11-kit0. apt-cache policy on
+# resolute offers only libp11-kit0 0.26.2-2. CVE-2026-13757 is fixed in upstream
+# 0.26.3, which resolute has not packaged. The API uses the JRE trust store, so
+# curl, GnuTLS, and libp11-kit0 are removed. Alerts #15, #62, #63.
+#
+# libexpat1 2.7.4-1ubuntu0.2 is the newest resolute build. CVE-2025-66382 has no
+# upstream fix (libexpat issue 1076 is still open; Debian sid is still
+# vulnerable). fontconfig is the only installed consumer, and this process does
+# not render text, so fontconfig and libexpat1 are removed. Alert #14.
+#
+# No resolute package contains the fix for the two libraries that must stay
+# (apt-cache candidate equals the installed version; 26.10 does not either):
+#   libc6 2.43-2ubuntu2.4 — CVE-2026-18374, glibc through 2.45. Alert #12.
+#   libpcre2-8-0 10.46-1build1 — CVE-2026-86145 and CVE-2026-89161, fixed in
+#   PCRE2 10.48. libselinux1 and grep link this library. Alerts #16 and #17.
+#
+# rust-coreutils, GNU tar, and shadow have no patched Ubuntu 26.04 package.
+# GNU coreutils is already installed. tar is essential only because dpkg depends
+# on it; the entrypoint is java. CVE-2024-56433 is the default subordinate UID
+# range: disable it, create the system user, then remove login.defs and passwd.
+# Docker starts the process as that uid and does not invoke login.
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends --allow-remove-essential \
-        curl \
         coreutils-from-gnu \
         coreutils-from-uutils- \
-    && apt-get purge -y --allow-remove-essential rust-coreutils wget \
+    && apt-get purge -y --allow-remove-essential rust-coreutils \
     && sed -i -E 's/^SUB_UID_COUNT[[:space:]].*/SUB_UID_COUNT\t\t0/' /etc/login.defs \
     && sed -i -E 's/^SUB_GID_COUNT[[:space:]].*/SUB_GID_COUNT\t\t0/' /etc/login.defs \
     && : > /etc/subuid \
     && : > /etc/subgid \
     && useradd --system --uid 10001 --home /app --shell /usr/bin/false octo \
+    && apt-get purge -y --auto-remove \
+        adduser passwd login login.defs gnupg \
+        curl wget \
+        p11-kit p11-kit-modules libp11-kit0 libgnutls30t64 \
+        fontconfig libfontconfig1 libexpat1 \
+    && rm -f /etc/subuid /etc/subgid \
+    && dpkg --purge --force-remove-essential --force-depends tar \
+    && rm -rf /var/lib/apt/lists/* \
+    && id octo >/dev/null \
+    && ! dpkg -s libp11-kit0 >/dev/null 2>&1 \
+    && ! dpkg -s libexpat1 >/dev/null 2>&1 \
+    && ! dpkg -s curl >/dev/null 2>&1
     && apt-get purge -y adduser passwd login login.defs gnupg \
     && dpkg --purge --force-remove-essential --force-depends tar \
     && rm -rf /var/lib/apt/lists/*

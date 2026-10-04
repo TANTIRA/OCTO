@@ -158,7 +158,7 @@ a second connector on `OCTO_METRICS_PORT` (default `8081`) that answers anonymou
   design. Only containers on the stack's networks reach it.
 - The request is matched by the socket's local port, not by a header, so traffic
   arriving through Traefik on `8080` cannot claim to be a scrape.
-- Check from the host: `docker exec <api-container> curl -fsS localhost:8081/actuator/prometheus | head`.
+- Check from the host: `docker exec <api-container> bash -c 'exec 3<>/dev/tcp/127.0.0.1/8081 && printf "GET /actuator/prometheus HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 && head -c 400 <&3'`. The API image does not ship curl.
 
 ## OTEL collector (#306)
 
