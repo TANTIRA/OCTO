@@ -16,6 +16,7 @@ import com.octo.recon.compliance.persistence.ComplianceProvenance
 import com.octo.recon.compliance.persistence.ComplianceStore
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -31,7 +32,7 @@ import java.time.LocalDate
 import java.util.Currency
 import java.util.UUID
 
-private const val SUBJECT_LIMIT = 300
+internal const val SUBJECT_LIMIT = 300
 
 /**
  * Mirrors `compliance_rule_id_shape` in V14 so a malformed id is answered 400 at the edge.
@@ -226,7 +227,7 @@ class ComplianceController(
         val tenantId: UUID,
         @field:NotBlank val ruleId: String,
         val version: Int? = null,
-        @field:NotBlank val name: String,
+        @field:NotBlank @field:Size(max = SUBJECT_LIMIT) val name: String,
         @field:Valid val check: CheckBody,
     )
 

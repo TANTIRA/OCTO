@@ -337,6 +337,97 @@ class ProspectEndpointTest {
     }
 
     @Test
+    fun `a transition rationale at the limit is stored and one character over is refused`() {
+        val atLimit = "r".repeat(RATIONALE_LIMIT)
+        val over = "r".repeat(RATIONALE_LIMIT + 1)
+        run { mvc ->
+            val refused = mvc.registered()
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$refused/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"passed","rationale":"$over"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+            assertThat(store.eventRows[refused].orEmpty()).isEmpty()
+
+            mvc.register(member).andExpect(status().isCreated)
+            val accepted = store.states.keys.single { it != refused }
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$accepted/transition")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"to":"passed","rationale":"$atLimit"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.stage").value("passed"))
+            assertThat(
+                store.eventRows
+                    .getValue(accepted)
+                    .single()
+                    .rationale,
+            ).hasSize(RATIONALE_LIMIT)
+        }
+    }
+
+    @Test
+    fun `a task rationale and assignee at the limit are accepted and one character over is refused`() {
+        val atRationale = "r".repeat(RATIONALE_LIMIT)
+        val overRationale = "r".repeat(RATIONALE_LIMIT + 1)
+        val atAssignee = "a".repeat(ASSIGNEE_LIMIT)
+        val overAssignee = "a".repeat(ASSIGNEE_LIMIT + 1)
+        run { mvc ->
+            val id = mvc.registered()
+            for (stage in listOf("screening", "due-diligence", "ic-review")) {
+                mvc
+                    .perform(
+                        post("/api/v1/prospects/$id/transition")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"to":"$stage"}""")
+                            .with(jwt().jwt { it.subject(member.toString()) }),
+                    ).andExpect(status().isOk)
+            }
+            mvc
+                .perform(post("/api/v1/prospects/$id/ic-review").with(jwt().jwt { it.subject(member.toString()) }))
+                .andExpect(status().isAccepted)
+            val approval = tasks.opened().single { it.kind == TaskKind.APPROVAL }.id
+            val evidence = tasks.opened().single { it.kind == TaskKind.EVIDENCE_REQUEST }.id
+
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$approval")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"assigned","assignee":"$overAssignee"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$approval")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"assigned","assignee":"$atAssignee"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.assignee").value(atAssignee))
+
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$evidence")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"completed","rationale":"$overRationale"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post("/api/v1/prospects/$id/tasks/$evidence")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"event":"completed","rationale":"$atRationale"}""")
+                        .with(jwt().jwt { it.subject(member.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("completed"))
+        }
+    }
+
+    @Test
     fun `invested needs an approved IC task on the prospect`() {
         run { mvc ->
             val id = mvc.registered()
