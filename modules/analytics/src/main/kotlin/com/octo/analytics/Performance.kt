@@ -61,6 +61,15 @@ private val MC = MathContext.DECIMAL64
 private const val XIRR_FLOOR = -0.999999
 private const val XIRR_CAP = 1e6
 
+/**
+ * Roots below this bound sit in the near-total-loss fringe. Extending the search from −99% down to
+ * [XIRR_FLOOR] made an extra NPV zero visible there whenever a fund's last flow is a small capital
+ * call (about one-millionth to one percent of the preceding distribution). That zero is not an
+ * economically meaningful alternative when a root at or above this bound also exists (methodology §2.1).
+ * A pattern whose only root is in the fringe still reports that near-total loss.
+ */
+private const val XIRR_MEANINGFUL_FLOOR = -0.99
+
 private fun ratio(
     numerator: BigDecimal,
     denominator: BigDecimal,
@@ -104,48 +113,41 @@ fun pool(series: List<CashFlowSeries>): CashFlowSeries {
 /**
  * XIRR with an actual/365 year fraction (methodology §2.1).
  *
- * Returns null when the NPV curve does not admit a unique economically meaningful root over
- * (-99.9999%, +100,000,000%]. A single crossing is that root. Several crossings need a
- * discriminator: a wind-down pattern like a small capital call after the last distribution
- * produces a second mathematical root near -100% that contradicts what the flows actually
- * earned (#547). The reported root must agree with the undiscounted net — the sign of NPV at
- * r = 0 — so a real gain cannot come back as a near-total loss. Exactly one root on that side
- * is the meaningful one; zero or several is not.
+ * Returns null when (−99.9999%, +100,000,000%] contains no economically meaningful root, or more than
+ * one. A root below −99% does not compete with a root at or above −99%: it is the extra zero a small
+ * terminal contribution creates. Two roots at or above −99% are both meaningful, so the function
+ * reports none instead of picking one.
  */
 fun xirr(flows: List<CashFlow>): Double? {
     val nonZero = flows.filter { it.amount.signum() != 0 }
     if (nonZero.none { it.amount.signum() < 0 } || nonZero.none { it.amount.signum() > 0 }) return null
     val d0 = nonZero.minOf { it.date }
     val points = nonZero.map { ChronoUnit.DAYS.between(d0, it.date) / 365.0 to it.amount.toDouble() }
-    val npv = { r: Double -> points.sumOf { (t, c) -> c / (1 + r).pow(t) } }
+    val roots = xirrRoots { r -> points.sumOf { (t, c) -> c / (1 + r).pow(t) } }
+    val meaningful = roots.filter { it >= XIRR_MEANINGFUL_FLOOR }
+    return when (meaningful.size) {
+        1 -> meaningful.single()
+        0 -> roots.singleOrNull()
+        else -> null
+    }
+}
 
-    // ponytail: fixed grid scan, two roots closer than one grid step read as none; refine the grid if that bites.
-    // Cubic spacing packs points near -100% (near-total losses); the doubling tail past +10,000% reaches
-    // short-dated large gains, and the cap is appended so the bracket covers the documented ceiling.
-    val grid =
-        (0..400).map { XIRR_FLOOR + (101.0 - XIRR_FLOOR) * (it / 400.0).pow(3) } +
-            generateSequence(203.0) { 2 * it + 1 }.takeWhile { it < XIRR_CAP } + XIRR_CAP
-    val crossings = grid.zipWithNext().filter { (a, b) -> npv(a) == 0.0 || npv(a) * npv(b) < 0 }
-    if (crossings.isEmpty()) return null
-
-    fun bisect(
-        lo0: Double,
-        hi0: Double,
-    ): Double {
+// ponytail: fixed grid scan, two roots closer than one grid step read as none; refine the grid if that bites.
+// Cubic spacing packs points near -100% (near-total losses). Doubling (1 + r) past +10,000% reaches
+// short-dated large gains and finishes on the +100,000,000% cap.
+private fun xirrRoots(npv: (Double) -> Double): List<Double> {
+    val head = (0..400).map { XIRR_FLOOR + (101.0 - XIRR_FLOOR) * (it / 400.0).pow(3) }
+    val tail = generateSequence(203.0) { 2 * it + 1 }.takeWhile { it < XIRR_CAP }.toList()
+    val grid = head + tail + XIRR_CAP
+    return grid.zipWithNext().filter { (a, b) -> npv(a) == 0.0 || npv(a) * npv(b) < 0 }.map { (lo0, hi0) ->
         var lo = lo0
         var hi = hi0
         repeat(200) {
             val mid = (lo + hi) / 2
             if (npv(lo) * npv(mid) <= 0) hi = mid else lo = mid
         }
-        return (lo + hi) / 2
+        (lo + hi) / 2
     }
-
-    val roots = crossings.map { (lo, hi) -> bisect(lo, hi) }
-    if (roots.size == 1) return roots.single()
-    val net = nonZero.fold(BigDecimal.ZERO) { acc, f -> acc + f.amount }.signum()
-    val meaningful = roots.filter { it.compareTo(0.0) == net }
-    return meaningful.singleOrNull()
 }
 
 /**

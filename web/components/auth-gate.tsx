@@ -1,12 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/lib/supabase";
-import {
-  armRecoveryFor,
-  clearRecoveryPending,
-  recoveryPendingFor,
-} from "@/lib/password-reset";
+import { supabase, syncRecoverySession, whenRecoverySettled } from "@/lib/supabase";
 
 /**
  * Client-side session gate for the app shell.
@@ -15,6 +10,9 @@ import {
  * - Supabase unconfigured → render children (dev/misconfig path; the API
  *   boundary still rejects unauthenticated calls, so nothing real leaks).
  * - Session present → render children; SIGNED_OUT event returns to /login.
+ * - Reset-link session whose new password is not saved yet (#549) → redirect
+ *   to /login/reset. That session is a real auth session, so the pending
+ *   flag, not the session alone, decides.
  * - Check fails (network, SDK throw) → error surface with a retry. Never a
  *   silent spinner: a rejected promise would otherwise pin `allowed` false
  *   forever and look like an eternal load.
@@ -37,19 +35,20 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     setFailed(false);
     supabase.auth
       .getSession()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (!mounted) return;
-        if (data.session) {
-          // A reset-link session is a full session — until its password is set the
-          // only place it may go is the set-new-password form (#549).
-          if (recoveryPendingFor(window.localStorage, data.session.user.id)) {
-            window.location.replace("/login/reset");
-          } else {
-            setAllowed(true);
-          }
-        } else {
+        if (!data.session) {
+          syncRecoverySession(null);
           window.location.replace("/login");
+          return;
         }
+        const pending = await whenRecoverySettled(data.session);
+        if (!mounted) return;
+        if (pending) {
+          window.location.replace("/login/reset");
+          return;
+        }
+        setAllowed(true);
       })
       .catch(() => {
         if (!mounted) return;
@@ -58,15 +57,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" && session) {
-        armRecoveryFor(window.localStorage, session.user.id);
-        window.location.replace("/login/reset");
-      }
-      if (event === "SIGNED_OUT") {
-        clearRecoveryPending(window.localStorage);
-        window.location.replace("/login");
-      }
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") window.location.replace("/login");
     });
 
     return () => {

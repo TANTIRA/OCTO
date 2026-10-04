@@ -1,6 +1,5 @@
 package com.octo.api.graph
 
-import com.octo.api.access.PlatformAdmin
 import com.octo.workflow.persistence.JdbcTaskStore
 import io.micrometer.core.instrument.MeterRegistry
 import org.neo4j.driver.AuthTokens
@@ -15,9 +14,10 @@ import org.springframework.scheduling.annotation.EnableScheduling
 import javax.sql.DataSource
 
 /**
- * Wires the graph projection (ADR-0004 amendment, #308). Everything hangs off a non-blank `NEO4J_URI`: unset or empty
- * means no driver and no projector, while store calls keep enqueueing — the outbox waits until a graph is configured.
- * Blank counts as unset on purpose: a compose file that forwards an empty value must not boot a half-configured driver.
+ * Wires the graph projection and its reconciliation (ADR-0004 amendment, #308, #564). Everything hangs off a
+ * non-blank `NEO4J_URI`: unset or empty means no driver, no projector and no reconciliation schedule, while store
+ * calls keep enqueueing — the outbox waits until a graph is configured. Blank counts as unset on purpose: a compose
+ * file that forwards an empty value must not boot a half-configured driver.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
@@ -40,11 +40,9 @@ class GraphConfiguration {
     ) = GraphProjector(
         JdbcGraphOutboxStore(dataSource.getObject()),
         driver,
-        env.getProperty("NEO4J_DATABASE")?.takeIf(String::isNotBlank) ?: "neo4j",
+        neo4jDatabase(env),
         meters.getIfAvailable(),
     )
-
-    private fun graphDatabase(env: Environment) = env.getProperty("NEO4J_DATABASE")?.takeIf(String::isNotBlank) ?: "neo4j"
 
     @Bean
     @ConditionalOnExpression("!'\${NEO4J_URI:}'.isBlank()")
@@ -52,26 +50,33 @@ class GraphConfiguration {
         driver: Driver,
         dataSource: ObjectProvider<DataSource>,
         env: Environment,
-    ) = GraphReconciler(dataSource.getObject(), driver, graphDatabase(env))
+    ) = GraphReconciler(dataSource.getObject(), driver, neo4jDatabase(env))
 
-    /**
-     * #564: the scheduled per-tenant pass and the admin endpoint it serves. Task opens go through
-     * `JdbcTaskStore.openUnlessOpen`, so a discrepancy key already under review is never doubled —
-     * the same deduplication `ReconciliationRunner` relies on for ledger breaks.
-     */
     @Bean
     @ConditionalOnExpression("!'\${NEO4J_URI:}'.isBlank()")
-    fun graphReconciliationRunner(
+    fun graphTenantDirectory(dataSource: ObjectProvider<DataSource>): GraphTenantDirectory =
+        JdbcGraphTenantDirectory(dataSource.getObject())
+
+    @Bean
+    @ConditionalOnExpression("!'\${NEO4J_URI:}'.isBlank()")
+    fun graphReconciliationRuns(
         reconciler: GraphReconciler,
         dataSource: ObjectProvider<DataSource>,
-        meters: ObjectProvider<MeterRegistry>,
-    ): GraphReconciliationRunner {
-        val tasks = JdbcTaskStore(dataSource.getObject())
-        return GraphReconciliationRunner(
-            dataSource.getObject(),
+    ): GraphReconciliationRuns {
+        val tasks by lazy { JdbcTaskStore(dataSource.getObject()) }
+        return GraphReconciliationService(
             reconciler::reconcile,
-            GraphTaskOpener { task, provenance -> tasks.openUnlessOpen(task, provenance) },
-            meters.getIfAvailable(),
+            GraphDriftTaskOpener { task, provenance -> tasks.openUnlessOpen(task, provenance) },
         )
     }
+
+    @Bean
+    @ConditionalOnExpression("!'\${NEO4J_URI:}'.isBlank()")
+    fun graphReconciliationScheduler(
+        tenants: GraphTenantDirectory,
+        runs: GraphReconciliationRuns,
+        meters: ObjectProvider<MeterRegistry>,
+    ) = GraphReconciliationScheduler(tenants, runs, meters.getIfAvailable())
+
+    private fun neo4jDatabase(env: Environment) = env.getProperty("NEO4J_DATABASE")?.takeIf(String::isNotBlank) ?: "neo4j"
 }

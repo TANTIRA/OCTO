@@ -3,13 +3,13 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { MIN_PASSWORD_LENGTH, newPasswordError } from "@/lib/password-reset";
 import {
-  armRecoveryFor,
-  clearRecoveryPending,
-  recoveryPendingFor,
-} from "@/lib/password-reset";
+  finishPasswordRecovery,
+  supabase,
+  syncRecoverySession,
+  whenRecoverySettled,
+} from "@/lib/supabase";
+import { MIN_PASSWORD_LENGTH, newPasswordError } from "@/lib/password-reset";
 import {
   btnPrimary,
   cx,
@@ -25,10 +25,12 @@ const alertClass =
   "rounded-[var(--rb-r-md,8px)] border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200";
 
 /**
- * Set-new-password form (#498). The reset email links here; the Supabase
- * client exchanges the link's tokens for a recovery session while it
+ * Set-new-password form (#498, #549). The reset email links here; the
+ * Supabase client exchanges the link's tokens for a session while it
  * initialises, so `getSession()` resolves only after that exchange. No
- * session means the link was invalid, expired or already used.
+ * session means the link was invalid, expired or already used. An ordinary
+ * signed-in session is not this form — only a reset-link session whose new
+ * password is still unset.
  */
 export default function ResetPassword() {
   const passwordId = useId();
@@ -48,17 +50,20 @@ export default function ResetPassword() {
     let active = true;
     supabase.auth
       .getSession()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (!active) return;
-        const session = data.session;
-        // The form is only for a session that came from a reset link — any other
-        // signed-in session would be a password change without the current one (#549).
-        if (session && recoveryPendingFor(window.localStorage, session.user.id)) {
-          armRecoveryFor(window.localStorage, session.user.id);
-          setPhase("ready");
-        } else {
+        if (!data.session) {
+          syncRecoverySession(null);
           setPhase("invalid");
+          return;
         }
+        const pending = await whenRecoverySettled(data.session);
+        if (!active) return;
+        if (!pending) {
+          window.location.replace("/app");
+          return;
+        }
+        setPhase("ready");
       })
       .catch(() => {
         if (active) setPhase("invalid");
@@ -78,6 +83,13 @@ export default function ResetPassword() {
     }
     setPending(true);
     setError(null);
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (!accessToken || !syncRecoverySession(data.session)) {
+      setError("This reset link is no longer valid. Request a new one from the sign-in page.");
+      setPending(false);
+      return;
+    }
     const { error: updateError } = await supabase.auth.updateUser({
       password,
     });
@@ -86,8 +98,7 @@ export default function ResetPassword() {
       setPending(false);
       return;
     }
-    // The password is set — the recovery gate lifts for this and every other tab.
-    clearRecoveryPending(window.localStorage);
+    finishPasswordRecovery(accessToken);
     window.location.replace("/app");
   };
 

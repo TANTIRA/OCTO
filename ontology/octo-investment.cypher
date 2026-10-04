@@ -258,8 +258,10 @@ FOR (n:EvmWallet) REQUIRE n.octoId IS UNIQUE;
 // Append-only token-denominated flows. Fiat flows stay on ledger-event; token
 // positions are derived from these, never stored.
 // type: entity | name: instrument-flow
-// owns: instrument-flow-type, monetary-amount, occurred-at, recorded-at, external-id, slot
+// owns: instrument-flow-type, monetary-amount, occurred-at, recorded-at, external-id, slot, tenant-id, octo-id @unique
 // plays: instrument-flow-of:flow-side, supersedes:replacement, supersedes:original, source-attribution:data-side
+CREATE CONSTRAINT instrument_flow_octo_id_unique IF NOT EXISTS
+FOR (n:InstrumentFlow) REQUIRE n.octoId IS UNIQUE;
 
 // ============================================================
 // Relations — organizational
@@ -361,6 +363,9 @@ FOR (n:EvmWallet) REQUIRE n.octoId IS UNIQUE;
 // ============================================================
 // type: relation | name: instrument-flow-of | reified: node
 // relates: flow-side @card(1), instrument-side @card(1), wallet-side @card(1)
+// owns: tenant-id, octo-id @unique
+CREATE CONSTRAINT instrument_flow_of_octo_id_unique IF NOT EXISTS
+FOR (n:InstrumentFlowOf) REQUIRE n.octoId IS UNIQUE;
 
 // Which organization controls a wallet (treasury, custody, fund wallet).
 // type: relation | name: wallet-custody

@@ -78,32 +78,16 @@ private class StakingFakeStore : OnchainStagingStore {
     override fun newestSlot(
         chain: String,
         wallet: String,
-        actor: String,
     ): Long? = null
-
-    override fun syncFrontier(
-        chain: String,
-        wallet: String,
-    ): SyncFrontier? = null
-
-    override fun saveSyncFrontier(frontier: SyncFrontier) {
-    }
-
-    override fun clearSyncFrontier(
-        chain: String,
-        wallet: String,
-    ) {
-    }
 
     override fun newestStagedSlot(chain: String): Long? = null
 
-    override fun scanCheckpoint(chain: String): Long? = null
+    override fun scannedThrough(chain: String): Long? = null
 
-    override fun saveScanCheckpoint(
+    override fun recordScannedThrough(
         chain: String,
         block: Long,
-    ) {
-    }
+    ) = Unit
 
     override fun tokenContracts(chain: String): List<TokenContract> = emptyList()
 

@@ -5,16 +5,21 @@ import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
-import com.octo.ingestion.onchain.SyncFrontier
+import com.octo.ingestion.onchain.SolanaHistoryCursor
+import com.octo.ingestion.onchain.StagedNativeLeg
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.TransferDirection
 import com.octo.ingestion.onchain.TransferKind
 import com.octo.ingestion.onchain.WatchSource
+import com.octo.ingestion.onchain.isSolanaNetworkFee
+import com.octo.ingestion.onchain.legacyBalanceExternalId
+import com.octo.ingestion.onchain.omitSolanaFeesAlreadyBooked
 import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
 import java.math.BigDecimal
-import java.sql.PreparedStatement
+import java.sql.Connection
 import java.sql.Timestamp
+import java.sql.Types
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -71,11 +76,7 @@ class JdbcOnchainStagingStore(
         }
 
     /**
-     * The newest slot this writer staged for a chain/wallet, or null when it staged nothing.
-     *
-     * The [actor] filter scopes the cursor to the caller's own pipeline (#509): rows written
-     * by the webhook must not move the poller's `slot.gt` cursor, or a transaction delivered
-     * before the first poll would skip the wallet's whole history below it.
+     * The newest staged slot for a chain/wallet, or null when nothing is staged.
      *
      * Staking rewards are excluded: they are staged at the reward's `effectiveSlot` by the staking
      * collector, not by the transaction scan, so counting them would move the poller's `slot.gt`
@@ -88,7 +89,6 @@ class JdbcOnchainStagingStore(
     override fun newestSlot(
         chain: String,
         wallet: String,
-        actor: String,
     ): Long? =
         dataSource.scoped(TenantScope.All) { c ->
             c
@@ -96,13 +96,12 @@ class JdbcOnchainStagingStore(
                     """
                     select max(slot)
                       from octo.onchain_transfer
-                     where chain = ? and wallet = ? and actor = ? and transfer_kind <> ?
+                     where chain = ? and wallet = ? and transfer_kind <> ?
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
                     s.setString(2, wallet)
-                    s.setString(3, actor)
-                    s.setString(4, TransferKind.STAKING_REWARD.db)
+                    s.setString(3, TransferKind.STAKING_REWARD.db)
                     s.executeQuery().use { r ->
                         if (r.next()) {
                             val slot = r.getLong(1)
@@ -114,72 +113,59 @@ class JdbcOnchainStagingStore(
                 }
         }
 
-    override fun syncFrontier(
+    override fun historyCursor(
         chain: String,
         wallet: String,
-    ): SyncFrontier? =
+    ): SolanaHistoryCursor? =
         dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
-                    select floor_slot, ceiling_slot
-                      from octo.onchain_sync_frontier
+                    select floor_slot, resume_token, pending_tip_slot
+                      from octo.solana_history_cursor
                      where chain = ? and address = ?
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
                     s.setString(2, wallet)
                     s.executeQuery().use { r ->
-                        if (r.next()) {
-                            SyncFrontier(
-                                chain = chain,
-                                address = wallet,
-                                floorSlot = r.getLong("floor_slot").takeIf { !r.wasNull() },
-                                ceilingSlot = r.getLong("ceiling_slot"),
-                            )
-                        } else {
+                        if (!r.next()) {
                             null
+                        } else {
+                            SolanaHistoryCursor(
+                                floorSlot = r.getLong("floor_slot").takeIf { !r.wasNull() },
+                                resumeToken = r.getString("resume_token"),
+                                pendingTipSlot = r.getLong("pending_tip_slot").takeIf { !r.wasNull() },
+                            )
                         }
                     }
                 }
         }
 
-    override fun saveSyncFrontier(frontier: SyncFrontier) {
-        dataSource.scoped(TenantScope.All) { c ->
-            c
-                .prepareStatement(
-                    """
-                    insert into octo.onchain_sync_frontier (chain, address, floor_slot, ceiling_slot)
-                    values (?, ?, ?, ?)
-                    on conflict (chain, address) do update
-                       set ceiling_slot = excluded.ceiling_slot,
-                           floor_slot = excluded.floor_slot,
-                           updated_at = now()
-                    """.trimIndent(),
-                ).use { s ->
-                    s.setString(1, frontier.chain)
-                    s.setString(2, frontier.address)
-                    frontier.floorSlot?.let { s.setLong(3, it) } ?: s.setNull(3, java.sql.Types.BIGINT)
-                    s.setLong(4, frontier.ceilingSlot)
-                    s.executeUpdate()
-                }
-        }
-    }
-
-    override fun clearSyncFrontier(
+    override fun saveHistoryCursor(
         chain: String,
         wallet: String,
+        cursor: SolanaHistoryCursor,
     ) {
         dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
-                    delete from octo.onchain_sync_frontier
-                     where chain = ? and address = ?
+                    insert into octo.solana_history_cursor
+                        (chain, address, floor_slot, resume_token, pending_tip_slot, updated_at)
+                    values (?, ?, ?, ?, ?, now())
+                    on conflict (chain, address) do update
+                        set floor_slot = excluded.floor_slot,
+                            resume_token = excluded.resume_token,
+                            pending_tip_slot = excluded.pending_tip_slot,
+                            updated_at = now()
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
                     s.setString(2, wallet)
+                    if (cursor.floorSlot == null) s.setNull(3, Types.BIGINT) else s.setLong(3, cursor.floorSlot)
+                    s.setString(4, cursor.resumeToken)
+                    if (cursor.pendingTipSlot == null) s.setNull(5, Types.BIGINT) else s.setLong(5, cursor.pendingTipSlot)
                     s.executeUpdate()
                 }
         }
@@ -200,34 +186,37 @@ class JdbcOnchainStagingStore(
                 }
         }
 
-    override fun scanCheckpoint(chain: String): Long? =
+    override fun scannedThrough(chain: String): Long? =
         dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
-                    select through_block
-                      from octo.onchain_scan_checkpoint
+                    select scanned_through
+                      from octo.evm_scan_checkpoint
                      where chain = ?
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
-                    s.executeQuery().use { r -> if (r.next()) r.getLong(1) else null }
+                    s.executeQuery().use { r -> if (r.next()) r.getLong(1).takeIf { !r.wasNull() } else null }
                 }
         }
 
-    override fun saveScanCheckpoint(
+    override fun recordScannedThrough(
         chain: String,
         block: Long,
     ) {
+        require(chain.isNotBlank()) { "chain required" }
+        require(block >= 0) { "scanned-through block must be >= 0" }
         dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
                     """
-                    insert into octo.onchain_scan_checkpoint (chain, through_block)
+                    insert into octo.evm_scan_checkpoint (chain, scanned_through)
                     values (?, ?)
                     on conflict (chain) do update
-                       set through_block = greatest(octo.onchain_scan_checkpoint.through_block, excluded.through_block),
+                       set scanned_through = greatest(octo.evm_scan_checkpoint.scanned_through, excluded.scanned_through),
                            updated_at = now()
+                     where excluded.scanned_through > octo.evm_scan_checkpoint.scanned_through
                     """.trimIndent(),
                 ).use { s ->
                     s.setString(1, chain)
@@ -275,96 +264,82 @@ class JdbcOnchainStagingStore(
             values (?, ?, ?, ?, ?, ?, 'finalized', ?, ?, ?, ?, ?, ?, ?, ?, null, ?, ?, ?, ?)
             on conflict (source_system, external_id) do nothing
             """.trimIndent()
-        // #553: a fee leg only stages when its sibling balance leg is absent or provably the
-        // current normalization shape — the row the batch itself produces (same amount,
-        // direction and kind). A transaction staged before fees split into their own leg kept
-        // a `bal:0` whose amount already includes the fee (or one the current normalizer would
-        // never write); inserting the fee leg on top would book the fee twice. Skipping keeps
-        // the fee represented exactly once — inside the stored leg.
-        val feeSql =
-            """
-            insert into octo.onchain_transfer
-                (external_id, chain, signature, slot, block_hash, block_time, commitment,
-                 wallet, counterparty, token_account, mint_address, amount_raw, decimals,
-                 direction, transfer_kind, vendor_payload,
-                 source_system, actor, ingestion_run_id, correlation_id)
-            select *
-              from (values (?, ?, ?, cast(? as bigint), ?, cast(? as timestamptz), 'finalized',
-                            ?, ?, ?, ?, cast(? as numeric), cast(? as integer), ?, ?, cast(null as jsonb),
-                            ?, ?, cast(? as uuid), cast(? as uuid))) as v
-            where not exists (
-                select 1
-                  from octo.onchain_transfer sib
-                 where sib.source_system = ?
-                   and sib.external_id = ?
-                   and (cast(? as numeric) is null
-                        or sib.amount_raw <> cast(? as numeric)
-                        or sib.direction <> ?
-                        or sib.transfer_kind <> ?))
-            on conflict (source_system, external_id) do nothing
-            """.trimIndent()
         // TODO(#114): carry the normalized provider payload into vendor_payload when the webhook
         // path lands — lineage then covers both delivery routes.
-        val byId = transfers.associateBy { it.externalId }
         return dataSource.scoped(TenantScope.All) { c ->
-            var staged = 0
+            val rows = omitSolanaFeesAlreadyBooked(transfers, stagedLegacyBalances(c, transfers))
+            if (rows.isEmpty()) return@scoped 0
             c.prepareStatement(sql).use { s ->
-                for (t in transfers) {
-                    if (t.direction == TransferDirection.FEE) continue
-                    s.setTransfer(t, actor, ingestionRunId, correlationId)
+                for (t in rows) {
+                    s.setString(1, t.externalId)
+                    s.setString(2, t.chain)
+                    s.setString(3, t.signature)
+                    s.setLong(4, t.slot)
+                    s.setString(5, t.blockHash)
+                    s.setTimestamp(6, Timestamp.from(t.blockTime))
+                    s.setString(7, t.wallet)
+                    s.setString(8, t.counterparty)
+                    s.setString(9, t.tokenAccount)
+                    s.setString(10, t.mintAddress)
+                    s.setBigDecimal(11, t.amountRaw.toBigDecimal())
+                    s.setInt(12, t.decimals)
+                    s.setString(13, t.direction.db)
+                    s.setString(14, t.transferKind.db)
+                    s.setString(15, t.sourceSystem)
+                    s.setString(16, actor)
+                    s.setObject(17, ingestionRunId)
+                    s.setObject(18, correlationId)
                     s.addBatch()
                 }
-                staged += s.executeBatch().count { it > 0 }
+                s.executeBatch().count { it > 0 }
             }
-            c.prepareStatement(feeSql).use { s ->
-                for (t in transfers) {
-                    if (t.direction != TransferDirection.FEE) continue
-                    val sibling = byId[t.externalId.removeSuffix(FEE_LEG) + BAL_PAYER_LEG]
-                    s.setTransfer(t, actor, ingestionRunId, correlationId)
-                    s.setString(19, t.sourceSystem)
-                    s.setString(20, t.externalId.removeSuffix(FEE_LEG) + BAL_PAYER_LEG)
-                    if (sibling == null) {
-                        s.setNull(21, java.sql.Types.NUMERIC)
-                        s.setNull(22, java.sql.Types.NUMERIC)
-                        s.setNull(23, java.sql.Types.VARCHAR)
-                        s.setNull(24, java.sql.Types.VARCHAR)
-                    } else {
-                        s.setBigDecimal(21, sibling.amountRaw.toBigDecimal())
-                        s.setBigDecimal(22, sibling.amountRaw.toBigDecimal())
-                        s.setString(23, sibling.direction.db)
-                        s.setString(24, sibling.transferKind.db)
-                    }
-                    staged += s.executeUpdate()
-                }
-            }
-            staged
         }
     }
 
-    private fun PreparedStatement.setTransfer(
-        t: OnchainTransfer,
-        actor: String,
-        ingestionRunId: UUID,
-        correlationId: UUID,
-    ) {
-        setString(1, t.externalId)
-        setString(2, t.chain)
-        setString(3, t.signature)
-        setLong(4, t.slot)
-        setString(5, t.blockHash)
-        setTimestamp(6, Timestamp.from(t.blockTime))
-        setString(7, t.wallet)
-        setString(8, t.counterparty)
-        setString(9, t.tokenAccount)
-        setString(10, t.mintAddress)
-        setBigDecimal(11, t.amountRaw.toBigDecimal())
-        setInt(12, t.decimals)
-        setString(13, t.direction.db)
-        setString(14, t.transferKind.db)
-        setString(15, t.sourceSystem)
-        setString(16, actor)
-        setObject(17, ingestionRunId)
-        setObject(18, correlationId)
+    /**
+     * Staged `bal:0` legs that a Solana fee in this batch might already be inside. One indexed
+     * lookup per source system; batches with no fee leg do not touch the table.
+     */
+    private fun stagedLegacyBalances(
+        connection: Connection,
+        transfers: List<OnchainTransfer>,
+    ): List<StagedNativeLeg> {
+        val wanted =
+            transfers
+                .filter { it.isSolanaNetworkFee() }
+                .mapNotNull { fee -> legacyBalanceExternalId(fee.externalId)?.let { fee.sourceSystem to it } }
+                .groupBy({ it.first }, { it.second })
+        if (wanted.isEmpty()) return emptyList()
+        val sql =
+            """
+            select source_system, external_id, amount_raw, direction
+              from octo.onchain_transfer
+             where source_system = ?
+               and external_id = any (?)
+            """.trimIndent()
+        return connection.prepareStatement(sql).use { statement ->
+            buildList {
+                for ((sourceSystem, ids) in wanted) {
+                    statement.setString(1, sourceSystem)
+                    statement.setArray(2, connection.createArrayOf("text", ids.distinct().toTypedArray()))
+                    statement.executeQuery().use { rows ->
+                        while (rows.next()) {
+                            val direction =
+                                TransferDirection.entries.firstOrNull { it.db == rows.getString("direction") }
+                                    ?: continue
+                            add(
+                                StagedNativeLeg(
+                                    sourceSystem = rows.getString("source_system"),
+                                    externalId = rows.getString("external_id"),
+                                    amountRaw = rows.getBigDecimal("amount_raw").toBigIntegerExact(),
+                                    direction = direction,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     override fun insertSnapshots(
@@ -499,11 +474,4 @@ class JdbcOnchainStagingStore(
     internal fun snapshotExternalId(b: OnchainBalance): String =
         "${b.chain}:${b.wallet}:${b.mintAddress ?: "native"}${b.tokenAccount?.let { ":$it" } ?: ""}" +
             ":balance:${b.source.db}:${b.asOf.epochSecond}:${b.amountRaw}"
-
-    private companion object {
-        // The Helius normalizer's leg ids: "solana:<sig>:<account>:fee" sits next to
-        // "solana:<sig>:<account>:bal:0" — the payer is always account index 0.
-        const val FEE_LEG = ":fee"
-        const val BAL_PAYER_LEG = ":bal:0"
-    }
 }

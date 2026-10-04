@@ -1,76 +1,79 @@
 package com.octo.api.graph
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.octo.iborcore.InstrumentFlow
+import com.octo.iborcore.InstrumentFlowType
+import com.octo.iborcore.ProjectedInstrument
+import com.octo.iborcore.instrumentFlowProjection
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import java.math.BigInteger
+import java.time.Instant
 import java.util.UUID
 
 /**
- * The `instrument-flow` write's shape (#565): the chain picks the wallet label on the server
- * side, every endpoint is merged on its unique key, and a malformed payload is rejected instead
- * of written half-way.
+ * Promoted instrument flows project a tenant wallet whose label comes from the chain (#565).
+ * Solana is `:Wallet`; Arbitrum is `:EvmWallet`. An unmapped chain is refused before a write.
  */
 class GraphProjectionTest {
+    private val json = ObjectMapper()
     private val tenantId = UUID.randomUUID()
-    private val flowId = UUID.randomUUID()
     private val instrumentId = UUID.randomUUID()
     private val wallet = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZ9dusFVt7f"
 
-    private fun row(
-        chain: String = "solana",
-        properties: Map<String, Any?> =
-            mapOf(
-                "externalId" to "sig:0:bal:0",
-                "flowType" to "transfer-in",
-                "amountRaw" to "42",
-                "decimals" to "6",
-                "occurredAt" to "2026-01-01T00:00:00Z",
-                "recordedAt" to "2026-01-01T00:00:01Z",
-                "slot" to "7",
-            ),
-        payload: Map<String, Any?> =
-            mapOf(
-                "chain" to chain,
-                "properties" to properties,
-                "walletAddress" to wallet,
-                "instrumentId" to instrumentId.toString(),
-                "instrument" to mapOf("chain" to chain, "mintAddress" to "mint-abc", "instrumentKind" to "spl-token"),
-            ),
-    ) = OutboxRow(1L, tenantId, "instrument-flow", flowId, ObjectMapper().writeValueAsString(payload), 0, UUID.randomUUID())
-
     @Test
-    fun `a solana flow projects flow, wallet, instrument and the reified relation`() {
-        val write = graphWrite(row())
-        assertThat(write.cypher)
-            .contains("MERGE (f:InstrumentFlow {octoId: \$octoId})")
-            .contains("MERGE (w:Wallet {tenantId: \$tenantId, solanaAddress: \$walletAddress})")
-            .contains("MERGE (r)-[:INSTRUMENT_FLOW_OF__FLOW_SIDE]->(f)")
-            .contains("MERGE (r)-[:INSTRUMENT_FLOW_OF__INSTRUMENT_SIDE]->(i)")
-            .contains("MERGE (r)-[:INSTRUMENT_FLOW_OF__WALLET_SIDE]->(w)")
-        assertThat(write.parameters["octoId"]).isEqualTo(flowId.toString())
-        assertThat(write.parameters["instrumentId"]).isEqualTo(instrumentId.toString())
-        assertThat(write.parameters["walletOctoId"])
-            .isEqualTo(walletOctoId(tenantId, "solana", wallet).toString())
-        @Suppress("UNCHECKED_CAST")
-        val props = write.parameters["properties"] as Map<String, String>
-        assertThat(props).containsEntry("flowType", "transfer-in").containsEntry("amountRaw", "42")
+    fun `a solana flow projects a tenant Wallet`() {
+        val specs = projection("solana", "spl-token")
+        val walletSpec = specs.first { it.aggregateType == "wallet" }
+        val write = graphWrite(row(walletSpec))
+
+        assertThat(write.cypher).contains("MERGE (n:Wallet {octoId: \$octoId})")
+        assertThat(write.cypher).contains("n.tenantId = \$tenantId")
+        assertThat(walletSpec.properties).containsEntry("solanaAddress", wallet)
     }
 
     @Test
-    fun `an arbitrum flow projects an EvmWallet endpoint`() {
-        val write = graphWrite(row(chain = "arbitrum-one"))
-        assertThat(write.cypher).contains("MERGE (w:EvmWallet {tenantId: \$tenantId, evmAddress: \$walletAddress})")
-        assertThat(write.parameters["walletOctoId"])
-            .isEqualTo(walletOctoId(tenantId, "arbitrum-one", wallet).toString())
+    fun `an arbitrum flow projects an EvmWallet`() {
+        val specs = projection("arbitrum-one", "erc-20")
+        val walletSpec = specs.first { it.aggregateType == "wallet" }
+        val write = graphWrite(row(walletSpec))
+
+        assertThat(write.cypher).contains("MERGE (n:EvmWallet {octoId: \$octoId})")
+        assertThat(walletSpec.properties).containsEntry("evmAddress", wallet)
     }
 
     @Test
-    fun `a payload missing required state or on an unmapped chain is refused`() {
-        assertThatThrownBy { graphWrite(row(properties = mapOf("externalId" to "x"))) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-        assertThatThrownBy { graphWrite(row(chain = "bitcoin")) }
+    fun `an unmapped chain is refused before a write`() {
+        assertThatThrownBy { projection("bitcoin", "native-token") }
             .isInstanceOf(IllegalArgumentException::class.java)
             .hasMessageContaining("no wallet projection")
     }
+
+    private fun projection(
+        chain: String,
+        kind: String,
+    ) = instrumentFlowProjection(
+        tenantId,
+        InstrumentFlow(
+            id = UUID.randomUUID(),
+            externalId = "$chain:sig:$wallet:tok:0",
+            instrumentId = instrumentId,
+            chain = chain,
+            wallet = wallet,
+            tokenAccount = null,
+            flowType = InstrumentFlowType.TRANSFER_IN,
+            amountRaw = BigInteger("42"),
+            decimals = 6,
+            occurredAt = Instant.parse("2026-01-01T00:00:00Z"),
+            recordedAt = Instant.parse("2026-01-01T00:00:01Z"),
+            slot = 7,
+            signature = "sig",
+        ),
+        UUID.randomUUID(),
+        ProjectedInstrument(instrumentId, "$chain:mint:abc", chain, "mint-abc", kind, 6),
+    )
+
+    private fun row(spec: com.octo.iborcore.GraphNodeSpec) =
+        OutboxRow(1L, tenantId, spec.aggregateType, spec.aggregateId, json.writeValueAsString(spec.payload()), 0, UUID.randomUUID())
 }

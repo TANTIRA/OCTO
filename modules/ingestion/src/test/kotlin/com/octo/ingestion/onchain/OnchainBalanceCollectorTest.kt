@@ -27,32 +27,16 @@ private class FakeSnapshotStore(
     override fun newestSlot(
         chain: String,
         wallet: String,
-        actor: String,
     ): Long? = null
-
-    override fun syncFrontier(
-        chain: String,
-        wallet: String,
-    ): SyncFrontier? = null
-
-    override fun saveSyncFrontier(frontier: SyncFrontier) {
-    }
-
-    override fun clearSyncFrontier(
-        chain: String,
-        wallet: String,
-    ) {
-    }
 
     override fun newestStagedSlot(chain: String): Long? = null
 
-    override fun scanCheckpoint(chain: String): Long? = null
+    override fun scannedThrough(chain: String): Long? = null
 
-    override fun saveScanCheckpoint(
+    override fun recordScannedThrough(
         chain: String,
         block: Long,
-    ) {
-    }
+    ) = Unit
 
     override fun tokenContracts(chain: String): List<TokenContract> = emptyList()
 
@@ -257,39 +241,6 @@ class OnchainBalanceCollectorTest {
     }
 
     @Test
-    fun `a holding the rpc fallback could not parse is left alone, never zeroed`() {
-        // #550: the emptied-holdings rule must not treat a dropped token account as gone.
-        val store = FakeSnapshotStore(WALLET)
-        store.snapshots += held(USDC, "5000000", decimals = 6)
-        val accounts =
-            ObjectMapper().readTree(
-                """{"value":[{"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":"oops","decimals":6}}}}}}]}""",
-            )
-        val walletApi = StubWalletApi(emptyMap(), failures = setOf(WALLET))
-
-        val report = OnchainBalanceCollector(store, walletApi, StubRpc(0, accounts)).collect(asOf = AS_OF)
-
-        assertEquals(0, report.snapshotsInserted)
-        assertEquals(listOf(USDC), report.skippedTokens)
-    }
-
-    @Test
-    fun `an rpc account whose mint is unreadable suppresses every emptied write`() {
-        val store = FakeSnapshotStore(WALLET)
-        store.snapshots += held(USDC, "5000000", decimals = 6)
-        store.snapshots += held(BONK, "10", decimals = 5)
-        val accounts =
-            ObjectMapper().readTree(
-                """{"value":[{"account":{"data":{"parsed":{"info":{"tokenAmount":{"amount":"5","decimals":6}}}}}}]}""",
-            )
-        val walletApi = StubWalletApi(emptyMap(), failures = setOf(WALLET))
-
-        val report = OnchainBalanceCollector(store, walletApi, StubRpc(0, accounts)).collect(asOf = AS_OF)
-
-        assertEquals(0, report.snapshotsInserted)
-    }
-
-    @Test
     fun `an emptied native balance on the rpc fallback lands as an rpc zero`() {
         val store = FakeSnapshotStore(WALLET)
         store.snapshots += held(null, "2000000000", decimals = 9)
@@ -301,6 +252,48 @@ class OnchainBalanceCollectorTest {
         assertEquals(null, zero.mintAddress)
         assertEquals(BigInteger.ZERO, zero.amountRaw)
         assertEquals(BalanceSource.RPC, zero.source)
+    }
+
+    @Test
+    fun `a mint the rpc fallback could not read is not zeroed`() {
+        val store = FakeSnapshotStore(WALLET)
+        store.snapshots += held(USDC, "5000000", decimals = 6)
+        store.snapshots += held(BONK, "10", decimals = 5)
+        val accounts =
+            ObjectMapper().readTree(
+                """{"value":[{"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":null,"decimals":6}}}}}}]}""",
+            )
+        val walletApi = StubWalletApi(emptyMap(), failures = setOf(WALLET))
+
+        val report = OnchainBalanceCollector(store, walletApi, StubRpc(accounts = accounts)).collect(asOf = AS_OF)
+
+        val written = store.snapshots.filter { it.asOf == AS_OF }
+        assertTrue(written.none { it.mintAddress == USDC })
+        assertEquals(listOf(USDC), report.skippedTokens)
+        val zero = written.single { it.mintAddress == BONK }
+        assertEquals(BigInteger.ZERO, zero.amountRaw)
+        assertEquals(BalanceSource.RPC, zero.source)
+    }
+
+    @Test
+    fun `an unparsed rpc token account does not zero holdings it could not identify`() {
+        val store = FakeSnapshotStore(WALLET)
+        store.snapshots += held(USDC, "5000000", decimals = 6)
+        store.snapshots += held(null, "2000000000", decimals = 9)
+        val accounts =
+            ObjectMapper().readTree(
+                """{"value":[{"pubkey":"Ta111","account":{"data":["AAAA","base64"]}}]}""",
+            )
+        val walletApi = StubWalletApi(emptyMap(), failures = setOf(WALLET))
+
+        OnchainBalanceCollector(store, walletApi, StubRpc(lamports = 0, accounts = accounts)).collect(asOf = AS_OF)
+
+        val written = store.snapshots.filter { it.asOf == AS_OF }
+        assertTrue(written.none { it.mintAddress == USDC })
+        val native = written.single()
+        assertEquals(null, native.mintAddress)
+        assertEquals(BigInteger.ZERO, native.amountRaw)
+        assertEquals(BalanceSource.RPC, native.source)
     }
 }
 

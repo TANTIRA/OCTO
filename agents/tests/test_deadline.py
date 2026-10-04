@@ -1,7 +1,5 @@
 """#486 — one end-to-end run deadline gates every outbound attempt and drafter
-step, caps in-flight HTTP timeouts, and still lets the run land `failed`.
-#548/#554/#555 — ambiguous task writes are recorded as unknown, abandoned
-model calls are killed at the socket, and the budget counts queue time."""
+step, caps in-flight HTTP timeouts, and still lets the run land `failed`."""
 
 import threading
 import time
@@ -12,15 +10,20 @@ import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from octo_agents import deadline
-from octo_agents.api_client import OctoApiClient, PlatformWriteOutcomeUnknown
+from octo_agents.api_client import OctoApiClient
+from octo_agents.chat import drafter_model
+from octo_agents.config import Settings
 from octo_agents.deadline import (
     Deadline,
     DeadlineExceeded,
-    DeadlineTransport,
     _DeadlineCallback,
+    _DeadlineTransport,
+    drafter_request_overrides,
     invoke_within_deadline,
     run_deadline,
+    track_model_client,
 )
+from octo_agents.registry import ApprovedModelRegistry
 from octo_agents.retry import send_with_retry
 from octo_agents.workflows import screening_dd
 from octo_agents.workflows.screening_dd import finish_failed, run_screening_dd
@@ -34,6 +37,22 @@ class FakeClock:
 
     def __call__(self) -> float:
         return self.now
+
+
+def test_queue_time_comes_out_of_the_budget() -> None:
+    clock = FakeClock()
+    assert deadline.budget_after_queue(100, clock=clock) == 100  # no arrival mark
+    with deadline.note_request_arrival(clock=clock):
+        assert deadline.budget_after_queue(100, clock=clock) == 100
+        clock.now += 30  # the request sat in the threadpool queue
+        left = deadline.budget_after_queue(100, clock=clock)
+        assert left == 70
+        with run_deadline(left, clock=clock) as active:
+            assert active.remaining() == 70
+            clock.now += 70
+            with pytest.raises(DeadlineExceeded, match="before judge call"):
+                active.check("judge call")
+    assert deadline.budget_after_queue(100, clock=clock) == 100
 
 
 def test_deadline_counts_down_on_the_injected_clock() -> None:
@@ -146,132 +165,119 @@ def test_screening_out_of_time_after_drafting_opens_no_task_and_fails(
     assert "deadline" in api.finished[0]["error"]
 
 
-def test_deadline_is_measured_from_the_request_arrival() -> None:
-    """#555 — queue time behind a busy worker counts against the budget."""
-    clock = FakeClock()
-    token = deadline.request_arrived(clock.now)
-    try:
-        clock.now += 30  # 30 s queued for a threadpool slot
-        with run_deadline(100, clock=clock) as d:
-            assert d.remaining() == 70
-        token2 = deadline.request_arrived(clock.now)
-        clock.now += 30  # the next request queued too
-        with run_deadline(100, clock=clock) as d2:
-            assert d2.remaining() == 70  # its budget measures from its own arrival
-        deadline.clear_arrival(token2)
-    finally:
-        deadline.clear_arrival(token)
-    with run_deadline(100, clock=clock) as d3:
-        assert d3.remaining() == 100  # no stamp: measured from pickup as before
+class _CountingTransport(httpx.BaseTransport):
+    """Records each send, then fails the way a slow provider times out."""
 
-
-class _FakeInner(httpx.BaseTransport):
-    """An inner transport whose send can hang past the deadline."""
-
-    def __init__(self) -> None:
-        self.closed = False
-        self.calls = 0
-        self.slow = False
+    def __init__(self, clock: FakeClock) -> None:
+        self.clock = clock
+        self.timeouts: list[float] = []
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
-        self.calls += 1
-        if self.slow:
-            time.sleep(2)
-        return httpx.Response(200, json={"ok": True})
-
-    def close(self) -> None:
-        self.closed = True
+        timeout = request.extensions["timeout"]
+        self.timeouts.append(float(timeout.read))
+        self.clock.now += 60
+        raise httpx.ReadTimeout("slow provider")
 
 
-def test_deadline_transport_passes_a_response_inside_the_budget() -> None:
-    inner = _FakeInner()
-    transport = DeadlineTransport(inner)
-    with run_deadline(10):
-        response = transport.handle_request(httpx.Request("POST", "http://m.test"))
-    assert response.json() == {"ok": True}
-    assert inner.calls == 1 and not inner.closed
-
-
-def test_deadline_transport_kills_the_in_flight_request_at_expiry() -> None:
-    inner = _FakeInner()
-    inner.slow = True
-    transport = DeadlineTransport(inner)
-    started = time.monotonic()
-    with run_deadline(0.2), pytest.raises(DeadlineExceeded, match="model request"):
-        transport.handle_request(httpx.Request("POST", "http://m.test"))
-    assert time.monotonic() - started < 1
-    assert inner.closed  # the abandoned socket dies with the pool (#554)
-
-
-def test_deadline_transport_refuses_a_send_after_expiry() -> None:
-    inner = _FakeInner()
-    transport = DeadlineTransport(inner)
-    with run_deadline(0), pytest.raises(DeadlineExceeded, match="model request"):
-        transport.handle_request(httpx.Request("POST", "http://m.test"))
-    assert inner.calls == 0  # no spend after the run has failed
-
-
-def test_a_sent_write_cut_at_the_deadline_is_ambiguous() -> None:
-    """#548 — once the request fired, a deadline-cut answer is not "no task"."""
+def test_model_attempt_is_capped_and_not_retried_after_the_deadline() -> None:
+    # #554 — a single-step drafter never reaches another callback, so the
+    # SDK's own retries used to run (and bill) for minutes after the run failed.
     clock = FakeClock()
+    inner = _CountingTransport(clock)
+    transport = _DeadlineTransport(inner, owner=None)
+    request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+    request.extensions["timeout"] = httpx.Timeout(60.0)
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        clock.now += 200  # the answer would arrive after the budget ran out
-        raise httpx.ReadTimeout("timed out")
+    def sdk_retry() -> None:
+        for _ in range(3):  # max_retries=2 → three attempts
+            try:
+                transport.handle_request(request)
+            except httpx.ReadTimeout:
+                continue
+            return
 
-    api = OctoApiClient(
-        "http://api.test:8080",
-        "tok",
-        client=httpx.Client(transport=httpx.MockTransport(handler)),
-    )
-    with run_deadline(100, clock=clock), pytest.raises(
-        PlatformWriteOutcomeUnknown, match="prospects/p-1/screen"
-    ):
-        api.request_screening("p-1")
+    with run_deadline(10, clock=clock), pytest.raises(DeadlineExceeded, match="drafter model call"):
+        sdk_retry()
+    assert inner.timeouts == [10.0]
 
 
-def test_a_task_write_cut_at_the_deadline_records_outcome_unknown(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """#548 — the failed run must not omit a task the platform may have opened."""
+def test_abandoned_drafter_closes_the_inflight_client() -> None:
+    closed = threading.Event()
 
-    class MemoAgent:
+    class Client:
+        def close(self) -> None:
+            closed.set()
+
+    class Hung:
         def invoke(self, payload: Any, config: Any) -> Any:
-            return {"messages": [type("M", (), {"content": "memo"})()]}
+            if not closed.wait(5):
+                raise AssertionError("in-flight model call was not cancelled")
+            return {"messages": []}
 
-    monkeypatch.setattr(screening_dd, "create_deep_agent", lambda **_: MemoAgent())
-
-    class LateScreeningApi(FakeApi):
-        def request_screening(self, prospect_id: str) -> Any:
-            self.screening_requests.append(prospect_id)
-            raise PlatformWriteOutcomeUnknown(f"/api/v1/prospects/{prospect_id}/screen")
-
-    api = LateScreeningApi(events=[{"note": "deck"}])
-    with run_deadline(100), pytest.raises(PlatformWriteOutcomeUnknown):
-        run_screening_dd(
-            agent_model=None,
-            judge=fake_judge(preflight=0.9, scores=[5.0], advance=0.95),
-            api=api,
-            prospect_id="p-1",
-            tenant_id="t-1",
-            run_key="rk-1",
-            models={"drafter": "d", "judge": "j"},
-        )
-    assert api.finished[0]["status"] == "failed"
-    assert api.finished[0]["output"]["screening_outcome_unknown"] is True
+    started = time.monotonic()
+    with run_deadline(0.2), pytest.raises(DeadlineExceeded):
+        track_model_client(Client())
+        invoke_within_deadline(Hung(), {})
+    assert closed.is_set()
+    assert time.monotonic() - started < 2
 
 
-def test_a_task_write_never_sent_fails_plain() -> None:
-    """#548 — a send refused before it fired is not an ambiguous write."""
+def test_drafter_retry_budget_is_the_time_left_not_the_sdk_window() -> None:
+    assert drafter_request_overrides(60_000) == {}
     clock = FakeClock()
-    api = OctoApiClient(
-        "http://api.test:8080",
-        "tok",
-        client=httpx.Client(
-            transport=httpx.MockTransport(lambda r: httpx.Response(200, json={}))
-        ),
+    with run_deadline(100, clock=clock):
+        clock.now += 40
+        limits = drafter_request_overrides(60_000)
+    assert limits["timeout_ms"] == 60_000  # configured attempt cap is tighter
+    assert limits["retries"].backoff.max_elapsed_time == 60_000
+    clock = FakeClock()
+    with run_deadline(100, clock=clock):
+        clock.now += 95
+        limits = drafter_request_overrides(60_000)
+    assert limits["timeout_ms"] == 5_000
+    assert limits["retries"].backoff.max_elapsed_time == 5_000
+    assert limits["retries"].backoff.max_interval == 5_000
+    with run_deadline(100, clock=clock), pytest.raises(DeadlineExceeded):
+        clock.now += 100
+        drafter_request_overrides(60_000)
+
+
+class _Completion:
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]:
+        return {
+            "model": "deepseek/deepseek-v4.1-flash",
+            "choices": [
+                {
+                    "message": {"role": "assistant", "content": "memo"},
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+
+
+def test_drafter_call_forwards_the_deadline_to_the_provider_client() -> None:
+    settings = Settings(
+        openrouter_api_key="k",
+        octo_agents_insecure_http=True,
+        request_timeout_s=60.0,
     )
-    with run_deadline(0, clock=clock):
-        with pytest.raises(DeadlineExceeded) as exc:
-            api.request_screening("p-1")
-        assert not isinstance(exc.value, PlatformWriteOutcomeUnknown)
+    model = drafter_model(settings, ApprovedModelRegistry(settings.model_registry_path))
+    http = model.client.sdk_configuration.client
+    assert isinstance(http._transport, _DeadlineTransport)
+    seen: dict[str, Any] = {}
+
+    def send(**kwargs: Any) -> _Completion:
+        seen.update(kwargs)
+        return _Completion()
+
+    model.client.chat.send = send  # type: ignore[method-assign]
+    clock = FakeClock()
+    with run_deadline(100, clock=clock):
+        clock.now += 90
+        assert model.invoke("draft the letter").content == "memo"
+    assert seen["timeout_ms"] == 10_000
+    assert seen["retries"].backoff.max_elapsed_time == 10_000
+    with run_deadline(100, clock=clock), pytest.raises(DeadlineExceeded):
+        clock.now += 100
+        model.invoke("draft the letter")
+    assert seen["timeout_ms"] == 10_000  # the expired call never reached the provider

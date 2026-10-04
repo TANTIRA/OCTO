@@ -26,6 +26,9 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.util.UUID
 
+/** Schedule name bound before the row is kept for the life of the cadence (#504). */
+internal const val MAX_SCHEDULE_NAME_LENGTH = 300
+
 /**
  * `POST /api/v1/report-schedules` registers a cadence; `PUT` edits it (tenant and id immutable);
  * `GET` reads one or lists a tenant's. Writes need a working role — a schedule submits real report
@@ -120,13 +123,13 @@ class ReportScheduleController(
 
     data class ScheduleBody(
         val tenantId: UUID,
-        @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val name: String,
+        @field:NotBlank @field:Size(max = MAX_SCHEDULE_NAME_LENGTH) val name: String,
         @field:NotBlank val type: String,
         @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val positionSourceType: String,
         @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val positionSourceId: String,
         @field:Size(max = MAX_REPORT_MEASURES) val measures: List<String> = emptyList(),
         val parameters: Map<String, Any?>? = null,
-        @field:NotBlank @field:Size(max = MAX_REPORT_FIELD_LENGTH) val cron: String,
+        @field:NotBlank val cron: String,
         val active: Boolean = true,
     )
 

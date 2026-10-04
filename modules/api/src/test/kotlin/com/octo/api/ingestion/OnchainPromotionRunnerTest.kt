@@ -23,19 +23,24 @@ class OnchainPromotionRunnerTest {
         val flows = mutableListOf<InstrumentFlow>()
         var down = false
 
-        override fun promotableTransfers(limit: Int): List<StagedTransfer> {
+        override fun unpromotedTransfers(limit: Int): List<StagedTransfer> {
             check(!down) { "database down" }
+            val known = instrumentIds().keys
             return rows
                 .filter { r -> flows.none { it.externalId == r.externalId } }
-                .filter { it.mintAddress == null }
+                .filter { InstrumentKey(it.chain, it.mintAddress) in known }
                 .take(limit)
         }
 
-        override fun quarantinedMints() =
-            rows
+        override fun quarantinedMints(): List<QuarantinedMint> {
+            check(!down) { "database down" }
+            val known = instrumentIds().keys
+            return rows
                 .filter { r -> flows.none { it.externalId == r.externalId } }
-                .filter { it.mintAddress != null }
-                .map { QuarantinedMint(it.chain, it.mintAddress, 1) }
+                .filter { InstrumentKey(it.chain, it.mintAddress) !in known }
+                .groupBy { InstrumentKey(it.chain, it.mintAddress) }
+                .map { (key, group) -> QuarantinedMint(key.chain, key.mintAddress, group.size) }
+        }
 
         override fun instrumentIds() = mapOf(InstrumentKey("solana", null) to native)
 

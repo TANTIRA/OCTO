@@ -66,13 +66,25 @@ class AssetMigrationIT {
     }
 
     @Test
-    fun `a row is corrected at most once — a second superseder is refused`() {
-        val id = asset()
-        asset(supersedes = id, rationale = "first correction")
-        // #566: asset joins V44's one-correction rule; the unique partial index refuses the fork.
-        assertThatThrownBy { asset(supersedes = id, rationale = "conflicting correction") }
-            .isInstanceOf(SQLException::class.java)
-            .hasMessageContaining("asset_supersedes_unique")
+    fun `a second correction of the same asset is rejected`() {
+        assertThat(
+            count(
+                """
+                select count(*) from pg_indexes
+                where schemaname = 'octo' and indexname = 'asset_supersedes_unique'
+                  and indexdef ilike '%unique%' and indexdef ilike '%where (supersedes_id is not null)%'
+                """.trimIndent(),
+            ),
+        ).isEqualTo(1)
+        assertThat(
+            count("select count(*) from pg_indexes where schemaname = 'octo' and indexname = 'asset_supersedes_id_idx'"),
+        ).isZero()
+        val original = asset()
+        val first = asset(supersedes = original, rationale = "domicile corrected after KYC refresh")
+        assertThatThrownBy { asset(supersedes = original, rationale = "A competing correction.") }
+            .isInstanceOfSatisfying(SQLException::class.java) { assertThat(it.sqlState).isEqualTo("23505") }
+        // The chain continues by correcting the correction, not by forking the original.
+        assertThat(asset(supersedes = first, rationale = "Corrected again.")).isNotNull()
     }
 
     @Test

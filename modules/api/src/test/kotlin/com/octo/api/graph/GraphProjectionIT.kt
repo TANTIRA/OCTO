@@ -9,7 +9,9 @@ import com.octo.api.asset.AssetType
 import com.octo.api.asset.persistence.JdbcAssetStore
 import com.octo.iborcore.InstrumentFlow
 import com.octo.iborcore.InstrumentFlowType
+import com.octo.iborcore.instrumentFlowOfGraphId
 import com.octo.iborcore.persistence.JdbcInstrumentFlowStore
+import com.octo.iborcore.walletGraphId
 import com.octo.persistence.TenantScope
 import org.assertj.core.api.Assertions.assertThat
 import org.flywaydb.core.Flyway
@@ -190,134 +192,155 @@ class GraphProjectionIT {
         assertThat(JdbcGraphOutboxStore(dataSource).stats().failed).isGreaterThanOrEqualTo(1)
     }
 
-    private fun driver(): Driver =
-        GraphDatabase.driver("bolt://${neo4j.host}:${neo4j.getMappedPort(7687)}", AuthTokens.basic("neo4j", PASSWORD))
+    @Test
+    fun `a promoted flow projects its instrument, wallet, flow, and instrument-flow-of edges`() {
+        val tenantId = tenant()
+        val wallet = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"
+        track("solana", wallet, tenantId)
+        val instrumentId = instrumentId("solana:native")
+        val flows = JdbcInstrumentFlowStore(dataSource)
+        val original = flow(instrumentId, "solana", wallet, "solana:sig-1:$wallet:bal:0", 500, 9)
+        assertThat(flows.insertFlow(original, "helius-solana", UUID.randomUUID(), UUID.randomUUID())).isTrue()
 
-    private fun sql(statement: String) = dataSource.connection.use { it.createStatement().execute(statement) }
+        driver().use { driver ->
+            val projecting = projector(driver)
+            assertThat(projecting.drain()).isEqualTo(4)
+            assertThat(nodes("InstrumentFlow", original.id).single()["monetaryAmount"]).isEqualTo("500")
+            assertThat(nodes("Wallet", walletGraphId(tenantId, "solana", wallet)).single()["solanaAddress"]).isEqualTo(wallet)
+            val instrument = nodes("Instrument", instrumentId).single()
+            assertThat(instrument["instrumentId"]).isEqualTo("solana:native")
+            assertThat(instrument).doesNotContainKey("tenantId")
+            val relationId = instrumentFlowOfGraphId(original.id)
+            assertThat(edges(relationId)).containsExactlyInAnyOrder(
+                Triple("FLOW_SIDE", original.id, setOf("InstrumentFlow")),
+                Triple("INSTRUMENT_SIDE", instrumentId, setOf("Instrument")),
+                Triple("WALLET_SIDE", walletGraphId(tenantId, "solana", wallet), setOf("Wallet")),
+            )
+            assertThat(GraphReconciler(dataSource, driver, "neo4j").reconcile(tenantId).clean).isTrue()
 
-    /**
-     * A promoted flow (#565): the tracked address derives the tenant, the instrument row gives the
-     * endpoint its reference data, and `insertFlow`'s graph hook enqueues the projection in the
-     * same transaction — exactly the path `OnchainIngestionConfiguration` wires in production.
-     */
-    private fun promoteFlow(tenantId: UUID): InstrumentFlow {
-        val wallet =
-            "7VVV" +
-                UUID
-                    .randomUUID()
-                    .toString()
-                    .replace("-", "")
-                    .replace(Regex("[0OIl]"), "A")
-                    .take(39)
-        val instrumentId = UUID.randomUUID()
-        sql(
-            "insert into octo.tracked_address (chain, address, tenant_id, source_system, correlation_id) " +
-                "values ('solana', '$wallet', '$tenantId', 'it', '${UUID.randomUUID()}')",
-        )
-        val mint =
-            "7VVV" +
-                UUID
-                    .randomUUID()
-                    .toString()
-                    .replace("-", "")
-                    .replace(Regex("[0OIl]"), "A")
-                    .take(39)
-        sql(
-            "insert into octo.instrument (id, external_key, chain, mint_address, instrument_kind, decimals, symbol, " +
-                "source_system, actor, ingestion_run_id, correlation_id) values " +
-                "('$instrumentId', 'solana:mint:$mint', 'solana', '$mint', 'spl-token', 6, 'TST', " +
-                "'it', 'it', '${UUID.randomUUID()}', '${UUID.randomUUID()}')",
-        )
-        return InstrumentFlow(
-            id = UUID.randomUUID(),
-            externalId = "sig-1:$wallet:bal:0",
-            instrumentId = instrumentId,
-            chain = "solana",
-            wallet = wallet,
-            tokenAccount = null,
-            flowType = InstrumentFlowType.TRANSFER_IN,
-            amountRaw = BigInteger("500000"),
-            decimals = 6,
-            occurredAt = Instant.parse("2026-01-01T00:00:00Z"),
-            recordedAt = Instant.parse("2026-01-01T00:00:05Z"),
-            slot = 123_456L,
-            signature = "sig-1",
-        ).also {
-            JdbcInstrumentFlowStore(dataSource, ::enqueueInstrumentFlowProjection)
-                .insertFlow(it, "it", UUID.randomUUID(), UUID.randomUUID())
+            val corrected =
+                original.copy(
+                    id = UUID.randomUUID(),
+                    externalId = "solana:sig-1:$wallet:bal:0:fix",
+                    amountRaw = BigInteger("150"),
+                    supersedesId = original.id,
+                    rationale = "restated amount",
+                )
+            assertThat(flows.insertFlow(corrected, "helius-solana", UUID.randomUUID(), UUID.randomUUID())).isTrue()
+            assertThat(projecting.drain()).isEqualTo(4)
+            assertThat(nodes("InstrumentFlow", original.id).single()["monetaryAmount"]).isEqualTo("150")
+            assertThat(nodes("InstrumentFlow", corrected.id)).isEmpty()
+            assertThat(GraphReconciler(dataSource, driver, "neo4j").reconcile(tenantId).clean).isTrue()
+
+            driver
+                .executableQuery("MATCH (:InstrumentFlowOf {octoId: \$id})-[r:FLOW_SIDE]->() DELETE r")
+                .withParameters(mapOf("id" to relationId.toString()))
+                .execute()
+            assertThat(GraphReconciler(dataSource, driver, "neo4j").reconcile(tenantId).discrepancies)
+                .singleElement()
+                .extracting { it.kind to it.octoId }
+                .isEqualTo(GraphDiscrepancyKind.STALE to relationId)
         }
     }
 
     @Test
-    fun `a promoted flow lands the flow, its endpoints and the reified relation edges`() {
+    fun `an EVM flow projects an EvmWallet and an EvmContract`() {
         val tenantId = tenant()
-        val flow = promoteFlow(tenantId)
-        assertThat(outbox(flow.id)).containsExactly("pending" to 0)
-
-        driver().use { driver -> assertThat(projector(driver).drain()).isEqualTo(1) }
-
-        val node = nodes("InstrumentFlow", flow.id).single()
-        assertThat(node["flowType"]).isEqualTo("transfer-in")
-        assertThat(node["amountRaw"]).isEqualTo("500000")
-        assertThat(node["tenantId"]).isEqualTo(tenantId.toString())
+        val wallet = "0x1111111111111111111111111111111111111111"
+        track("arbitrum-one", wallet, tenantId)
+        val instrumentId = instrumentId("arbitrum-one:contract:0xaf88d065e77c8cc2239327c5edb3a432268e5831")
+        val promoted =
+            flow(
+                instrumentId,
+                "arbitrum-one",
+                wallet,
+                "arbitrum-one:0xtx:$wallet:log:1",
+                150,
+                6,
+            )
+        JdbcInstrumentFlowStore(dataSource).insertFlow(promoted, "rpc-arbitrum-one", UUID.randomUUID(), UUID.randomUUID())
 
         driver().use { driver ->
-            val wiring =
-                driver
-                    .executableQuery(
-                        """
-                        MATCH (r:InstrumentFlowOf {flowOctoId: ${'$'}id})-[fs:INSTRUMENT_FLOW_OF__FLOW_SIDE]->(f:InstrumentFlow)
-                        MATCH (r)-[is:INSTRUMENT_FLOW_OF__INSTRUMENT_SIDE]->(i:Instrument)
-                        MATCH (r)-[ws:INSTRUMENT_FLOW_OF__WALLET_SIDE]->(w:Wallet)
-                        RETURN i.instrumentId AS instrumentId, w.solanaAddress AS walletAddress,
-                               w.octoId AS walletOctoId, w.tenantId AS walletTenant
-                        """.trimIndent(),
-                    ).withParameters(mapOf("id" to flow.id.toString()))
-                    .execute()
-                    .records()
-                    .single()
-            assertThat(wiring["instrumentId"].asString()).isEqualTo(flow.instrumentId.toString())
-            assertThat(wiring["walletAddress"].asString()).isEqualTo(flow.wallet)
-            assertThat(wiring["walletTenant"].asString()).isEqualTo(tenantId.toString())
-            assertThat(wiring["walletOctoId"].asString())
-                .isEqualTo(walletOctoId(tenantId, "solana", flow.wallet).toString())
-            val instrumentProps =
-                driver
-                    .executableQuery("MATCH (i:Instrument {instrumentId: \$id}) RETURN properties(i) AS p")
-                    .withParameters(mapOf("id" to flow.instrumentId.toString()))
-                    .execute()
-                    .records()
-                    .single()["p"]
-                    .asMap()
-            assertThat(instrumentProps["instrumentKind"]).isEqualTo("spl-token")
-            // The instrument is global reference data: tenantId never lands on it.
-            assertThat(instrumentProps).doesNotContainKey("tenantId")
-        }
-
-        // A replayed row is a no-op: one flow node, one relation, three edges.
-        dataSource.connection.use { it.createStatement().execute("update octo.graph_outbox set status = 'pending', applied_at = null") }
-        driver().use { driver -> projector(driver).drain() }
-        driver().use { driver ->
-            assertThat(
-                driver
-                    .executableQuery("MATCH (f:InstrumentFlow {octoId: \$id}) RETURN count(*) AS n")
-                    .withParameters(mapOf("id" to flow.id.toString()))
-                    .execute()
-                    .records()
-                    .single()["n"]
-                    .asInt(),
-            ).isEqualTo(1)
-            assertThat(
-                driver
-                    .executableQuery("MATCH (r:InstrumentFlowOf {flowOctoId: \$id})-[e]->() RETURN count(e) AS n")
-                    .withParameters(mapOf("id" to flow.id.toString()))
-                    .execute()
-                    .records()
-                    .single()["n"]
-                    .asInt(),
-            ).isEqualTo(3)
+            assertThat(projector(driver).drain()).isEqualTo(4)
+            assertThat(nodes("EvmWallet", walletGraphId(tenantId, "arbitrum-one", wallet)).single()["evmAddress"]).isEqualTo(wallet)
+            val contract = nodes("EvmContract", instrumentId).single()
+            assertThat(contract["labels"]).isEqualTo(setOf("EvmContract", "Instrument"))
+            assertThat(contract).doesNotContainKey("tenantId")
+            assertThat(GraphReconciler(dataSource, driver, "neo4j").reconcile(tenantId).clean).isTrue()
         }
     }
+
+    private fun track(
+        chain: String,
+        address: String,
+        tenantId: UUID,
+    ) {
+        dataSource.connection.use { connection ->
+            connection
+                .prepareStatement(
+                    "insert into octo.tracked_address (chain, address, tenant_id, source_system, correlation_id) values (?, ?, ?, 'test', ?)",
+                ).use { statement ->
+                    statement.setString(1, chain)
+                    statement.setString(2, address)
+                    statement.setObject(3, tenantId)
+                    statement.setObject(4, UUID.randomUUID())
+                    statement.executeUpdate()
+                }
+        }
+    }
+
+    private fun instrumentId(externalKey: String): UUID =
+        dataSource.connection.use { connection ->
+            connection.prepareStatement("select id from octo.instrument where external_key = ?").use { statement ->
+                statement.setString(1, externalKey)
+                statement.executeQuery().use { rows ->
+                    check(rows.next()) { "instrument $externalKey missing" }
+                    rows.getObject(1, UUID::class.java)
+                }
+            }
+        }
+
+    private fun flow(
+        instrumentId: UUID,
+        chain: String,
+        wallet: String,
+        externalId: String,
+        amount: Long,
+        decimals: Int,
+    ) = InstrumentFlow(
+        id = UUID.randomUUID(),
+        externalId = externalId,
+        instrumentId = instrumentId,
+        chain = chain,
+        wallet = wallet,
+        tokenAccount = null,
+        flowType = InstrumentFlowType.TRANSFER_IN,
+        amountRaw = BigInteger.valueOf(amount),
+        decimals = decimals,
+        occurredAt = Instant.parse("2026-02-01T09:30:00Z"),
+        recordedAt = Instant.parse("2026-02-01T09:30:41Z"),
+        slot = 100,
+        signature = "sig",
+    )
+
+    private fun edges(octoId: UUID): List<Triple<String, UUID, Set<String>>> =
+        driver().use { driver ->
+            driver
+                .executableQuery("MATCH (n {octoId: \$id})-[r]->(m) RETURN type(r) AS t, m.octoId AS id, labels(m) AS l")
+                .withParameters(mapOf("id" to octoId.toString()))
+                .execute()
+                .records()
+                .map { record ->
+                    Triple(
+                        record["t"].asString(),
+                        UUID.fromString(record["id"].asString()),
+                        record["l"].asList { it.asString() }.toSet(),
+                    )
+                }
+        }
+
+    private fun driver(): Driver =
+        GraphDatabase.driver("bolt://${neo4j.host}:${neo4j.getMappedPort(7687)}", AuthTokens.basic("neo4j", PASSWORD))
 
     private companion object {
         const val PASSWORD = "octo-graph-it-password"

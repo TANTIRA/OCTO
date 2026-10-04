@@ -2,7 +2,9 @@
 unconfigured, 401 on a wrong token, and lets a valid token reach the
 workflow's own checks (feature flag) rather than failing at the edge."""
 
+import time
 from collections.abc import Iterator
+from contextlib import contextmanager
 from types import SimpleNamespace
 from typing import Any
 
@@ -140,3 +142,73 @@ def test_workflow_runs_under_the_configured_deadline(
     )
     assert res.status_code == 200
     assert len(seen) == 1 and 40 < seen[0] <= 42
+
+
+def _arrived(seconds_ago: float) -> Any:
+    """Stamps acceptance in the middleware, where the real clock starts.
+
+    The threadpool copies context only once a worker is free, so a stamp set
+    inside the endpoint — or inside a sync dependency, which runs on its own
+    worker — never includes the time the request sat in the queue.
+    """
+
+    def clock() -> float:
+        return time.monotonic() - seconds_ago
+
+    @contextmanager
+    def mark() -> Iterator[None]:
+        with deadline.note_request_arrival(clock=clock):
+            yield
+
+    return mark
+
+
+def test_time_waiting_for_a_worker_counts_against_the_run_budget(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OCTO_AGENTS_TOKEN", "s3cret")
+    monkeypatch.setenv("OCTO_AGENT_TOKEN", "api-token")
+    monkeypatch.setenv("OCTO_AGENTS_CALIBRATION_ENABLED", "true")
+    monkeypatch.setenv("RUN_DEADLINE_S", "100")
+    get_settings.cache_clear()
+    seen: list[float] = []
+
+    def observe(**_: object) -> Any:
+        seen.append(deadline._current.get().remaining())  # type: ignore[union-attr]
+        return SimpleNamespace(model_dump=lambda: {"status": "completed"})
+
+    monkeypatch.setattr(server, "note_request_arrival", _arrived(30))
+    monkeypatch.setattr(server, "run_calibration", observe)
+    res = client.post(
+        "/v1/workflows/calibration",
+        json={"tenant_id": "t-1"},
+        headers={"Authorization": "Bearer s3cret"},
+    )
+    assert res.status_code == 200
+    assert len(seen) == 1 and 68 < seen[0] <= 70
+
+
+def test_a_request_queued_past_the_budget_does_not_start_the_workflow(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OCTO_AGENTS_TOKEN", "s3cret")
+    monkeypatch.setenv("OCTO_AGENT_TOKEN", "api-token")
+    monkeypatch.setenv("OCTO_AGENTS_CALIBRATION_ENABLED", "true")
+    monkeypatch.setenv("RUN_DEADLINE_S", "42")
+    get_settings.cache_clear()
+    started: list[int] = []
+
+    def observe(**_: object) -> Any:
+        started.append(1)
+        return SimpleNamespace(model_dump=lambda: {"status": "completed"})
+
+    monkeypatch.setattr(server, "note_request_arrival", _arrived(50))
+    monkeypatch.setattr(server, "run_calibration", observe)
+    res = client.post(
+        "/v1/workflows/calibration",
+        json={"tenant_id": "t-1"},
+        headers={"Authorization": "Bearer s3cret"},
+    )
+    assert res.status_code == 504
+    assert started == []
+    assert res.json()["detail"] == "run deadline exceeded before workflow start"

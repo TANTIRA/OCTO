@@ -110,25 +110,29 @@ class HeliusBalanceNormalizerTest {
         assertEquals(BigInteger("1500000000"), parsed.balances[0].amountRaw)
         assertEquals(BigInteger("350"), parsed.balances[1].amountRaw)
         assertEquals(BalanceSource.RPC, parsed.balances[1].source)
+        assertEquals(emptyList(), parsed.skipped)
+        assertEquals(false, parsed.unidentified)
     }
 
     @Test
-    fun `rpc fallback marks unparsable amounts unreadable and counts unidentified accounts`() {
+    fun `an unreadable rpc token account is reported and a partial mint sum is dropped`() {
         val accounts =
             tree(
                 """
                 {"value":[
-                   {"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":"not-a-number","decimals":6}}}}}},
-                   {"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":"250"}}}}}},
-                   {"account":{"data":{"parsed":{"info":{"tokenAmount":{"amount":"5","decimals":6}}}}}},
-                   {"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":"250","decimals":6}}}}}}]}
+                   {"pubkey":"unparsed","account":{"data":["AAAA","base64"]}},
+                   {"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":"100","decimals":6}}}}}},
+                   {"account":{"data":{"parsed":{"info":{"mint":"$USDC","tokenAmount":{"amount":null,"decimals":6}}}}}},
+                   {"account":{"data":{"parsed":{"info":{"mint":"NegMint111","tokenAmount":{"amount":"-1","decimals":6}}}}}},
+                   {"account":{"data":{"parsed":{"info":{"mint":"GoodMint111","tokenAmount":{"amount":"5","decimals":6}}}}}}]}
                 """.trimIndent(),
             )
 
         val parsed = normalizer.fromRpc(0, accounts, WALLET, AS_OF)
 
-        assertEquals(BigInteger("250"), parsed.balances.single().amountRaw)
-        assertEquals(listOf(USDC, USDC), parsed.unreadableMints)
-        assertEquals(1, parsed.unidentifiedAccounts)
+        assertEquals(true, parsed.unidentified)
+        assertEquals(listOf(USDC, "NegMint111"), parsed.skipped)
+        assertEquals("GoodMint111", parsed.balances.single().mintAddress)
+        assertEquals(BigInteger("5"), parsed.balances.single().amountRaw)
     }
 }

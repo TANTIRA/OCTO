@@ -2,12 +2,13 @@ package com.octo.ingestion.onchain.evm
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.octo.ingestion.http.FakeTransport
+import com.octo.ingestion.http.okJson
 import com.octo.ingestion.onchain.CHAIN_ARBITRUM_ONE
 import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
-import com.octo.ingestion.onchain.SyncFrontier
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.WatchSource
 import java.math.BigInteger
@@ -23,7 +24,7 @@ private const val SW_CONTRACT = "0xaf88d065e77c8cc2239327c5edb3a432268e5831"
 private const val SW_CHAIN_ID = 42161L
 
 private class ScanFakeRpc(
-    private val head: Long = 25,
+    var head: Long = 25,
     private val chainId: Long = SW_CHAIN_ID,
 ) : EvmRpcApi {
     /** (from, to, fromSide) -> logs; missing key returns an empty page. */
@@ -81,39 +82,26 @@ private class ScanFakeStore(
     var cursor: Long? = null
     var contracts: List<TokenContract> = emptyList()
     val transfers = mutableListOf<OnchainTransfer>()
-    val checkpoints = mutableMapOf<String, Long>()
 
     override fun activeWatchedAddresses(chain: String) = watched.filter { it.chain == chain }
 
     override fun newestSlot(
         chain: String,
         wallet: String,
-        actor: String,
     ): Long? = cursor
 
     override fun newestStagedSlot(chain: String): Long? = cursor
 
-    override fun scanCheckpoint(chain: String): Long? = checkpoints[chain]
+    var scannedThroughBlock: Long? = null
 
-    override fun saveScanCheckpoint(
+    override fun scannedThrough(chain: String): Long? = scannedThroughBlock
+
+    override fun recordScannedThrough(
         chain: String,
         block: Long,
     ) {
-        checkpoints[chain] = maxOf(checkpoints[chain] ?: block, block)
-    }
-
-    override fun syncFrontier(
-        chain: String,
-        wallet: String,
-    ): SyncFrontier? = null
-
-    override fun saveSyncFrontier(frontier: SyncFrontier) {
-    }
-
-    override fun clearSyncFrontier(
-        chain: String,
-        wallet: String,
-    ) {
+        val current = scannedThroughBlock
+        if (current == null || block > current) scannedThroughBlock = block
     }
 
     override fun tokenContracts(chain: String): List<TokenContract> = contracts
@@ -189,9 +177,11 @@ class EvmScanServiceTest {
     @Test
     fun `no watched wallets scans nothing beyond the head probe`() {
         val rpc = ScanFakeRpc()
-        val report = service(rpc, ScanFakeStore()).scan()
+        val store = ScanFakeStore()
+        val report = service(rpc, store).scan()
         assertEquals(0, report.windowsScanned)
         assertTrue(rpc.logCalls.isEmpty())
+        assertEquals(null, store.scannedThroughBlock)
     }
 
     @Test
@@ -209,41 +199,46 @@ class EvmScanServiceTest {
             ),
             rpc.logCalls,
         )
+        assertEquals(25L, store.scannedThroughBlock)
     }
 
     @Test
-    fun `each poll resumes after the last finished window, not the last staged transfer`() {
-        // #494: a watched wallet with no recent transfers used to make every poll rescan
-        // the whole gap since the last staged row. The stored checkpoint records what the
-        // scan finished — including empty ranges — so a second poll over the same head does
-        // no RPC work at all, and a higher head scans only the new blocks.
-        val rpc = ScanFakeRpc(head = 24)
-        val store = ScanFakeStore(SW_WALLET)
+    fun `a quiet poll records the head and the next poll does not rescan it`() {
+        val rpc = ScanFakeRpc(head = 25)
+        val store = ScanFakeStore(SW_WALLET).apply { cursor = 5 }
+        val scan = service(rpc, store)
 
-        service(rpc, store).scan()
-        assertEquals(24L, store.checkpoints[CHAIN_ARBITRUM_ONE])
-        val distinctLogs = rpc.logCalls.map { it.first }.distinct()
-        assertEquals(3, distinctLogs.size)
+        scan.scan()
+        assertEquals(5L, store.cursor)
+        assertEquals(25L, store.scannedThroughBlock)
 
         rpc.logCalls.clear()
-        service(rpc, store).scan()
-        assertTrue(rpc.logCalls.isEmpty())
+        rpc.head = 28
+        scan.scan()
 
-        val grown = ScanFakeRpc(head = 30)
-        service(grown, store).scan()
-        assertEquals(listOf(Triple(25L, 30L, true), Triple(25L, 30L, false)), grown.logCalls)
-        assertEquals(30L, store.checkpoints[CHAIN_ARBITRUM_ONE])
+        assertEquals(
+            listOf(
+                Triple(26L, 28L, true),
+                Triple(26L, 28L, false),
+            ),
+            rpc.logCalls,
+        )
+        assertEquals(28L, store.scannedThroughBlock)
     }
 
     @Test
-    fun `a deployment without a checkpoint falls back to the staged cursor once`() {
-        val rpc = ScanFakeRpc(head = 9)
-        val store = ScanFakeStore(SW_WALLET).apply { cursor = 5 }
+    fun `a stored checkpoint resumes after itself when a later transfer is already staged`() {
+        val rpc = ScanFakeRpc(head = 30)
+        val store =
+            ScanFakeStore(SW_WALLET).apply {
+                cursor = 25
+                scannedThroughBlock = 10
+            }
 
-        service(rpc, store).scan()
+        service(rpc, store, window = 20).scan()
 
-        assertEquals(Triple(6L, 9L, true), rpc.logCalls.first())
-        assertEquals(9L, store.checkpoints[CHAIN_ARBITRUM_ONE])
+        assertEquals(Triple(11L, 30L, true), rpc.logCalls.first())
+        assertEquals(30L, store.scannedThroughBlock)
     }
 
     @Test
@@ -301,44 +296,39 @@ class EvmScanServiceTest {
 
     @Test
     fun `a contract whose decimals hit an invalid opcode is skipped and the scan continues`() {
-        val hostile = "0xhostilecontract000000000000000000000000"
-        val delegate = ScanFakeRpc(head = 10)
-        delegate.logPages[Triple(0L, 9L, false)] =
+        val hostile = "0x00000000000000000000000000000000000000fe"
+        val page =
             logs(
                 transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "0xbad", block = 8, contract = hostile),
-                transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "0xgood", logIndex = 1, block = 9),
+                transferLog(from = SW_OTHER, to = SW_WALLET, txHash = "0xgood", logIndex = 1, block = 8),
+            ).toString()
+        val six = "0x" + "0".repeat(62) + "06"
+        val transport =
+            FakeTransport(
+                okJson("""{"jsonrpc":"2.0","id":1,"result":"0xa4b1"}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"result":{"number":"0x9","hash":"0xhead","timestamp":"0x66000000"}}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"result":[]}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"result":$page}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"invalid opcode: INVALID"}}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"result":"$six"}"""),
+                okJson("""{"jsonrpc":"2.0","id":1,"result":{"number":"0x8","timestamp":"0x65f00000"}}"""),
             )
         val rpc =
-            object : EvmRpcApi by delegate {
-                override fun decimals(contract: String): Int? {
-                    if (contract == hostile) {
-                        throw EvmException("evm rpc eth_call error: invalid opcode: INVALID", rpcCode = -32000)
-                    }
-                    return 6
-                }
-            }
+            EvmRpcClient(
+                EvmConfig("https://rpc.example", CHAIN_ARBITRUM_ONE, SW_CHAIN_ID),
+                transport = transport,
+                sleeper = {},
+            )
         val store = ScanFakeStore(SW_WALLET)
 
-        val report = service(rpc, store).scan()
+        val report = service(rpc, store, window = 10).scan()
 
         assertEquals(0, report.windowShrinks)
-        assertEquals(2, report.windowsScanned)
-        assertEquals(1, report.legsStaged)
-        assertEquals("0xgood", store.transfers.single().signature)
+        assertEquals(1, report.windowsScanned)
         assertEquals(listOf(hostile), report.skippedContracts)
-    }
-
-    @Test
-    fun `a provider error while reading decimals still fails the scan`() {
-        val delegate = ScanFakeRpc(head = 0)
-        delegate.logPages[Triple(0L, 0L, false)] = logs(transferLog(from = SW_OTHER, to = SW_WALLET, block = 0))
-        val rpc =
-            object : EvmRpcApi by delegate {
-                override fun decimals(contract: String): Int? =
-                    throw EvmException("evm rpc eth_call error: missing trie node", rpcCode = -32000)
-            }
-
-        assertFailsWith<EvmException> { service(rpc, ScanFakeStore(SW_WALLET), window = 1).scan() }
+        assertEquals(1, report.legsStaged)
+        assertEquals(6, store.transfers.single().decimals)
+        assertEquals("$CHAIN_ARBITRUM_ONE:0xgood:$SW_WALLET:log:1", store.transfers.single().externalId)
     }
 
     @Test
@@ -380,7 +370,31 @@ class EvmScanServiceTest {
                     fromSide: Boolean,
                 ): JsonNode = throw EvmException("http 503", 503)
             }
-        assertFailsWith<EvmException> { service(throwing, ScanFakeStore(SW_WALLET)).scan() }
+        val store = ScanFakeStore(SW_WALLET)
+        assertFailsWith<EvmException> { service(throwing, store).scan() }
+        assertEquals(null, store.scannedThroughBlock)
+    }
+
+    @Test
+    fun `a later window that fails leaves only the finished window checkpointed`() {
+        val delegate = ScanFakeRpc(head = 25)
+        var calls = 0
+        val throwing =
+            object : EvmRpcApi by delegate {
+                override fun transferLogs(
+                    fromBlock: Long,
+                    toBlock: Long,
+                    addresses: List<String>,
+                    fromSide: Boolean,
+                ): JsonNode {
+                    calls++
+                    if (calls > 2) throw EvmException("http 503", 503)
+                    return delegate.transferLogs(fromBlock, toBlock, addresses, fromSide)
+                }
+            }
+        val store = ScanFakeStore(SW_WALLET)
+        assertFailsWith<EvmException> { service(throwing, store, window = 10).scan() }
+        assertEquals(9L, store.scannedThroughBlock)
     }
 
     @Test

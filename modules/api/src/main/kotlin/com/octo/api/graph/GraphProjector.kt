@@ -1,6 +1,8 @@
 package com.octo.api.graph
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.octo.iborcore.INSTRUMENT_FLOW_OF_EDGES
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
@@ -20,50 +22,158 @@ internal data class GraphWrite(
     val parameters: Map<String, Any?>,
 )
 
-/** The labels a projected kind carries (the full `sub` chain) and the ontology properties it must have. */
+/**
+ * The labels a projected kind carries (the full `sub` chain), the ontology properties it must have, and — for the
+ * first relationship-bearing projection — the role edges it writes. Labels and relationship types cannot be Cypher
+ * parameters, so both come only from this table.
+ *
+ * [mergeOn] is `octoId` for tenant nodes. Global instruments merge on `instrumentId`, the reference-data key, and
+ * then store `octoId`. [tenantScoped] is false for that reference data: the node carries no `tenantId`.
+ */
 internal data class Projection(
     val labels: String,
     val properties: List<String>,
+    val optionalProperties: List<String> = emptyList(),
+    val edges: List<String> = emptyList(),
+    val tenantScoped: Boolean = true,
+    val mergeOn: String = "octoId",
 ) {
     val labelSet: Set<String> get() = labels.split(':').filter(String::isNotEmpty).toSet()
 }
 
 /**
- * Every node shape the projector may write, keyed by outbox `aggregate_type` and payload `kind`. Labels cannot be
- * Cypher parameters, so they come only from this table — a payload can never inject a label.
+ * Every node shape the projector may write, keyed by outbox `aggregate_type` and payload `kind`. A payload can
+ * never inject a label or a relationship type.
  */
 internal val PROJECTIONS =
     mapOf(
         ("asset" to "fund") to Projection(":Fund", listOf("legalName")),
         ("asset" to "investment") to Projection(":Investment", listOf("displayName")),
         ("asset" to "operating-company") to Projection(":OperatingCompany:Organization:Party", listOf("legalName")),
+        ("instrument" to "native-token") to
+            Projection(
+                ":Instrument",
+                listOf("instrumentId", "instrumentKind", "chainId", "decimals"),
+                tenantScoped = false,
+                mergeOn = "instrumentId",
+            ),
+        ("instrument" to "solana-mint") to
+            Projection(
+                ":SolanaMint:Instrument",
+                listOf("instrumentId", "instrumentKind", "chainId", "decimals", "solanaAddress"),
+                tenantScoped = false,
+                mergeOn = "instrumentId",
+            ),
+        ("instrument" to "evm-contract") to
+            Projection(
+                ":EvmContract:Instrument",
+                listOf("instrumentId", "instrumentKind", "chainId", "decimals", "evmAddress"),
+                tenantScoped = false,
+                mergeOn = "instrumentId",
+            ),
+        ("wallet" to "solana") to Projection(":Wallet", listOf("solanaAddress", "chainId")),
+        ("wallet" to "evm") to Projection(":EvmWallet", listOf("evmAddress", "chainId")),
+        ("instrument-flow" to "flow") to
+            Projection(
+                ":InstrumentFlow",
+                listOf("instrumentFlowType", "monetaryAmount", "occurredAt", "recordedAt", "externalId"),
+                optionalProperties = listOf("slot"),
+            ),
+        ("instrument-flow-of" to "relation") to
+            Projection(":InstrumentFlowOf", emptyList(), edges = INSTRUMENT_FLOW_OF_EDGES),
     )
 
 private val json = ObjectMapper()
 
+private val LABELS = Regex("^(:[A-Z][A-Za-z0-9]*)+$")
+private val PROPERTY = Regex("^[A-Za-z][A-Za-z0-9]*$")
+private val RELATIONSHIP = Regex("^[A-Z][A-Z0-9_]*$")
+private val UUID_TEXT = Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
 /**
- * The idempotent write for [row]: `MERGE` on the globally unique `octoId`, then set the node's tenant and its full
- * projected state. Replaying a row, or applying an older and a newer upsert of one node, leaves the newest state.
+ * The idempotent write for [row]. Tenant nodes `MERGE` on `octoId`; global instruments `MERGE` on `instrumentId`
+ * and then store `octoId`. A relationship-bearing row matches its endpoints first — a missing endpoint fails the
+ * write so the row retries — then replaces its role edges, so a correction retargets instead of accumulating.
+ * Replaying a row leaves the newest state.
  */
 internal fun graphWrite(row: OutboxRow): GraphWrite {
-    if (row.aggregateType == INSTRUMENT_FLOW_AGGREGATE) return instrumentFlowGraphWrite(row)
     val payload = json.readTree(row.payload)
     val kind = payload.path("kind").asText()
     val projection =
         requireNotNull(PROJECTIONS[row.aggregateType to kind]) { "no graph projection for ${row.aggregateType}/$kind" }
-    val properties =
-        projection.properties.associateWith { name ->
-            payload
-                .path("properties")
-                .path(name)
-                .takeIf { it.isTextual && it.asText().isNotBlank() }
-                ?.asText() ?: throw IllegalArgumentException("${row.aggregateType}/$kind payload is missing $name")
+    require(projection.labels.matches(LABELS)) { "projection labels are not a label chain" }
+    require(projection.mergeOn.matches(PROPERTY)) { "projection merge key is not a property name" }
+    val properties = linkedMapOf<String, Any?>()
+    for (name in projection.properties) {
+        properties[name] =
+            textProp(payload, name)
+                ?: throw IllegalArgumentException("${row.aggregateType}/$kind payload is missing $name")
+    }
+    for (name in projection.optionalProperties) {
+        textProp(payload, name)?.let { properties[name] = it }
+    }
+    val endpoints =
+        projection.edges.map { edge ->
+            require(edge.matches(RELATIONSHIP)) { "projection edge $edge is not a relationship type" }
+            val id = payload.path("endpoints").path(edge).asText("")
+            require(id.matches(UUID_TEXT)) { "${row.aggregateType}/$kind payload is missing endpoint $edge" }
+            edge to id
         }
-    return GraphWrite(
-        "MERGE (n${projection.labels} {octoId: \$octoId}) SET n += \$properties, n.tenantId = \$tenantId",
-        mapOf("octoId" to row.aggregateId.toString(), "tenantId" to row.tenantId.toString(), "properties" to properties),
-    )
+    val mergeKey =
+        if (projection.mergeOn == "octoId") {
+            null
+        } else {
+            properties[projection.mergeOn]?.toString()
+                ?: throw IllegalArgumentException("${row.aggregateType}/$kind cannot merge on ${projection.mergeOn}")
+        }
+    val parameters =
+        linkedMapOf<String, Any?>(
+            "octoId" to row.aggregateId.toString(),
+            "properties" to properties,
+        )
+    if (projection.tenantScoped) parameters["tenantId"] = row.tenantId.toString()
+    if (mergeKey != null) parameters["mergeKey"] = mergeKey
+    endpoints.forEachIndexed { index, (_, id) -> parameters["e$index"] = id }
+    return GraphWrite(cypher(projection, endpoints, mergeKey != null), parameters)
 }
+
+private fun textProp(
+    payload: JsonNode,
+    name: String,
+): String? =
+    payload
+        .path("properties")
+        .path(name)
+        .takeIf { it.isTextual && it.asText().isNotBlank() }
+        ?.asText()
+
+private fun cypher(
+    projection: Projection,
+    endpoints: List<Pair<String, String>>,
+    mergesOnBusinessKey: Boolean,
+): String =
+    buildString {
+        endpoints.forEachIndexed { index, _ -> append("MATCH (e$index {octoId: \$e$index}) ") }
+        if (mergesOnBusinessKey) {
+            append("MERGE (n${projection.labels} {${projection.mergeOn}: \$mergeKey}) ")
+        } else {
+            append("MERGE (n${projection.labels} {octoId: \$octoId}) ")
+        }
+        append("SET n += \$properties")
+        if (projection.tenantScoped) append(", n.tenantId = \$tenantId")
+        if (mergesOnBusinessKey) append(", n.octoId = \$octoId")
+        append(' ')
+        if (endpoints.isNotEmpty()) {
+            val vars = endpoints.indices.joinToString(", ") { "e$it" }
+            val types = endpoints.joinToString("|") { it.first }
+            append("WITH n, $vars OPTIONAL MATCH (n)-[old:$types]->() DELETE old WITH DISTINCT n, $vars ")
+            endpoints.forEachIndexed { index, (type, _) ->
+                append("MERGE (n)-[r$index:$type]->(e$index) ")
+                if (projection.tenantScoped) append("SET r$index.tenantId = \$tenantId ")
+            }
+        }
+        append("RETURN n.octoId AS written")
+    }
 
 /**
  * Drains `octo.graph_outbox` into Neo4j (ADR-0004 amendment, #308). Each row is applied in its own write, then marked
@@ -121,11 +231,13 @@ class GraphProjector(
             for ((index, row) in rows.withIndex()) {
                 try {
                     val write = graphWrite(row)
-                    driver
-                        .executableQuery(write.cypher)
-                        .withParameters(write.parameters)
-                        .withConfig(config)
-                        .execute()
+                    val written =
+                        driver
+                            .executableQuery(write.cypher)
+                            .withParameters(write.parameters)
+                            .withConfig(config)
+                            .execute()
+                    if (written.records().isEmpty()) throw IllegalStateException("graph write matched nothing")
                     outbox.applied(row)
                     applied++
                     appliedRows?.increment()

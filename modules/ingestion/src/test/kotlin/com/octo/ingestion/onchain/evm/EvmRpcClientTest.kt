@@ -131,12 +131,22 @@ class EvmRpcClientTest {
     }
 
     @Test
-    fun `a deterministic VM failure reads as an unreadable contract, not a provider outage`() {
-        for (message in listOf("invalid opcode: INVALID", "out of gas", "invalid jump destination")) {
+    fun `invalid opcode, out of gas, and invalid jump are an unanswerable contract`() {
+        // Nodes report these under -32000 with no "revert". They are deterministic, so a null
+        // read lets the scan skip the contract instead of pinning the chain cursor to the block.
+        for (message in listOf(
+            "invalid opcode: INVALID",
+            "out of gas",
+            "invalid jump destination",
+            "OutOfGas",
+            "InvalidOpcode",
+        )) {
             val transport =
                 FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"$message"}}"""))
-            assertNull(client(transport).decimals("0xhostile"))
+            assertNull(client(transport).decimals("0xhostile"), message)
         }
+        val jump = okJson("""{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"invalid jump destination"}}""")
+        assertNull(client(FakeTransport(jump)).balanceOf("0xhostile", "0xw"))
     }
 
     @Test

@@ -14,63 +14,115 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
-import testsupport.graph.GraphReconciliationEndpointWiring
 import java.util.UUID
+import java.util.function.Supplier
 
-/**
- * `GET /api/v1/admin/graph/reconciliation` gated the same way tenant provisioning is: a platform
- * admin gets the live report — which also opens the drift tasks — and every other caller is
- * denied (#564). `NEO4J_URI` stays unset so the conditional graph beans (and the scanned
- * controller) stay out; the endpoint is supplied by [GraphReconciliationEndpointWiring] with a
- * planted runner, which also exercises that the route maps from a bean-registered controller. The
- * wiring class lives outside `com.octo.api` precisely so this harness's component scan cannot pull
- * it into unrelated OctoApplication contexts.
- */
+/** `GET /api/v1/admin/graph/reconciliation` is platform-admin only and refuses to invent a report when no graph is wired. */
 class GraphReconciliationEndpointTest {
-    private fun run(block: (MockMvc, GraphReconciliationEndpointWiring) -> Unit) {
+    private val platformAdmin = UUID.randomUUID()
+    private val outsider = UUID.randomUUID()
+    private val tenantId = UUID.randomUUID()
+    private val octoId = UUID.randomUUID()
+    private val taskId = UUID.randomUUID()
+    private val calls = mutableListOf<UUID>()
+
+    private val runs =
+        GraphReconciliationRuns { id, _ ->
+            calls += id
+            val discrepancy = GraphDiscrepancy(GraphDiscrepancyKind.MISSING, "asset", octoId, "no node")
+            GraphReconciliationReport(
+                GraphReconciliation(id, 2, listOf(discrepancy)),
+                listOf(GraphDriftTask(discrepancy, taskId, opened = true)),
+            )
+        }
+    private val tenants =
+        object : GraphTenantDirectory {
+            override fun ids() = listOf(tenantId)
+
+            override fun exists(tenantId: UUID) = tenantId == this@GraphReconciliationEndpointTest.tenantId
+        }
+
+    private val withGraph =
         WebApplicationContextRunner()
-            .withUserConfiguration(OctoApplication::class.java, GraphReconciliationEndpointWiring::class.java)
+            .withUserConfiguration(OctoApplication::class.java)
+            .withBean(GraphReconciliationRuns::class.java, Supplier { runs })
+            .withBean(GraphTenantDirectory::class.java, Supplier { tenants })
             .withPropertyValues(
                 "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
-            ).run { context ->
-                block(
-                    MockMvcBuilders.webAppContextSetup(context).apply<DefaultMockMvcBuilder>(springSecurity()).build(),
-                    context.getBean(GraphReconciliationEndpointWiring::class.java),
-                )
-            }
+                "NEO4J_URI=",
+                "OCTO_PLATFORM_ADMINS=$platformAdmin",
+            )
+
+    private val withoutGraph =
+        WebApplicationContextRunner()
+            .withUserConfiguration(OctoApplication::class.java)
+            .withPropertyValues(
+                "spring.autoconfigure.exclude=${DataSourceAutoConfiguration::class.qualifiedName},${FlywayAutoConfiguration::class.qualifiedName}",
+                "NEO4J_URI=",
+                "OCTO_PLATFORM_ADMINS=$platformAdmin",
+            )
+
+    private fun WebApplicationContextRunner.mvc(block: (MockMvc) -> Unit) {
+        run { context ->
+            block(MockMvcBuilders.webAppContextSetup(context).apply<DefaultMockMvcBuilder>(springSecurity()).build())
+        }
     }
 
+    private fun MockMvc.getReconciliation(
+        caller: UUID?,
+        tenant: UUID = tenantId,
+    ) = perform(
+        get("/api/v1/admin/graph/reconciliation")
+            .param("tenantId", tenant.toString())
+            .let { if (caller == null) it else it.with(jwt().jwt { it.subject(caller.toString()) }) },
+    )
+
     @Test
-    fun `a platform admin gets the live report and the discrepancy's task opens`() {
-        run { mvc, wiring ->
+    fun `a platform admin gets the tenant report and its drift task`() {
+        calls.clear()
+        withGraph.mvc { mvc ->
             mvc
-                .perform(
-                    get("/api/v1/admin/graph/reconciliation")
-                        .param("tenantId", wiring.tenantId.toString())
-                        .with(jwt().jwt { it.subject(wiring.platformAdmin.toString()) }),
-                ).andExpect(status().isOk)
+                .getReconciliation(platformAdmin)
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.tenantId").value(tenantId.toString()))
+                .andExpect(jsonPath("$.checked").value(2))
                 .andExpect(jsonPath("$.clean").value(false))
-                .andExpect(jsonPath("$.checked").value(4))
                 .andExpect(jsonPath("$.discrepancies[0].kind").value("missing"))
-                .andExpect(jsonPath("$.discrepancies[0].octoId").value(wiring.octoId.toString()))
-            assertThat(wiring.opened.single().subjectId)
-                .isEqualTo("${wiring.tenantId}:missing:asset:${wiring.octoId}")
+                .andExpect(jsonPath("$.discrepancies[0].aggregateType").value("asset"))
+                .andExpect(jsonPath("$.discrepancies[0].octoId").value(octoId.toString()))
+                .andExpect(jsonPath("$.discrepancies[0].detail").value("no node"))
+                .andExpect(jsonPath("$.discrepancies[0].taskId").value(taskId.toString()))
+                .andExpect(jsonPath("$.discrepancies[0].opened").value(true))
+            assertThat(calls).containsExactly(tenantId)
         }
     }
 
     @Test
-    fun `tenant callers and anonymous callers are denied`() {
-        run { mvc, wiring ->
+    fun `anyone else is forbidden and does not run reconciliation`() {
+        calls.clear()
+        withGraph.mvc { mvc ->
+            mvc.getReconciliation(outsider).andExpect(status().isForbidden)
+            mvc.getReconciliation(null).andExpect(status().isForbidden)
             mvc
-                .perform(
-                    get("/api/v1/admin/graph/reconciliation")
-                        .param("tenantId", wiring.tenantId.toString())
-                        .with(jwt().jwt { it.subject(UUID.randomUUID().toString()) }),
-                ).andExpect(status().isForbidden)
-            mvc
-                .perform(get("/api/v1/admin/graph/reconciliation").param("tenantId", wiring.tenantId.toString()))
-                .andExpect(status().isForbidden)
-            assertThat(wiring.opened).isEmpty()
+                .perform(get("/api/v1/admin/graph/reconciliation").with(jwt().jwt { it.subject(platformAdmin.toString()) }))
+                .andExpect(status().isBadRequest)
+            assertThat(calls).isEmpty()
+        }
+    }
+
+    @Test
+    fun `an unknown tenant is 404 and does not open a task`() {
+        calls.clear()
+        withGraph.mvc { mvc ->
+            mvc.getReconciliation(platformAdmin, UUID.randomUUID()).andExpect(status().isNotFound)
+            assertThat(calls).isEmpty()
+        }
+    }
+
+    @Test
+    fun `without a graph the route answers 503`() {
+        withoutGraph.mvc { mvc ->
+            mvc.getReconciliation(platformAdmin).andExpect(status().isServiceUnavailable)
         }
     }
 }

@@ -24,18 +24,20 @@ data class EvmScanReport(
  * `eth_getLogs` scan covers every watched address at once — two topic-filtered queries per
  * block window (senders and recipients), merged by `(txHash, logIndex)`.
  *
- * The scan runs `checkpoint + 1 -> finalized head` in bounded windows. The cursor is stored
- * per chain (V47's `onchain_scan_checkpoint`, #494): a window's checkpoint is written only
- * after its legs are staged, so a crashed window re-scans and the `(source_system,
- * external_id)` key refuses duplicates — while quiet ranges with no watched transfers still
- * count as scanned instead of being re-walked every poll. Deployments that staged rows
- * before the checkpoint existed bootstrap from `newestStagedSlot`, the old cursor. A
- * provider that rejects the range (its own cap, not the protocol's) shrinks the window
- * rather than failing the run.
+ * The scan runs from the resume block through the finalized head in bounded windows.
+ * Resume is one past the stored scanned-through checkpoint. A chain with no checkpoint
+ * yet falls back to the newest staged slot, so the first poll after this exists does not
+ * replay history that already staged. Once a checkpoint exists it wins, even when a later
+ * transfer is staged: following that transfer would skip the blocks in between. Each
+ * window that finishes — including one that stages nothing — records its last block, so
+ * a quiet period is not scanned again on the next poll. A crashed window is not recorded
+ * and re-scans; the `(source_system, external_id)` key refuses duplicates. A provider
+ * that rejects the range (its own cap, not the protocol's) shrinks the window rather
+ * than failing the run.
  *
- * Known limitation, by design: the cursor is per chain, so a wallet watched *after* the
- * cursor passed its history sees only forward movement. Backfill is a startBlock reset or
- * a dedicated tool — recorded in the runbook, not silently approximated.
+ * Known limitation, by design: the checkpoint is per chain, so a wallet watched *after* it
+ * passed that wallet's history sees only forward movement. Backfill is a checkpoint reset
+ * or a dedicated tool — recorded in the runbook, not silently approximated.
  */
 class EvmScanService(
     private val rpc: EvmRpcApi,
@@ -74,11 +76,7 @@ class EvmScanService(
         val skippedContracts = linkedSetOf<String>()
         val malformedLogs = linkedSetOf<String>()
 
-        // The stored checkpoint is the resume cursor: it covers quiet ranges the staged-data
-        // floor cannot see (#494). Only a deployment with no checkpoint yet falls back to
-        // the pre-V47 staged-data cursor; startBlock stays the cold-start floor.
-        val cursor = store.scanCheckpoint(config.chain) ?: store.newestStagedSlot(config.chain)
-        var from = maxOf((cursor ?: -1L) + 1, config.startBlock)
+        var from = resumeFrom()
         var window = config.maxBlockWindow
         while (from <= head) {
             val to = minOf(from + window - 1, head)
@@ -89,7 +87,9 @@ class EvmScanService(
                 legsStaged += store.insertTransfers(outcome.legs, runId, correlationId, actor)
                 skippedContracts += outcome.skippedContracts
                 malformedLogs += outcome.malformedLogs
-                store.saveScanCheckpoint(config.chain, to)
+                // After the inserts commit. An empty window still counts: that is the quiet
+                // range the staged-slot cursor used to rescan on every poll.
+                store.recordScannedThrough(config.chain, to)
                 from = to + 1
             } catch (e: EvmException) {
                 if (e.status != null || window <= 1L) throw e
@@ -134,7 +134,7 @@ class EvmScanService(
         for (log in logs.values) {
             // A log that cannot identify itself is never staged as a fact: no tx hash, log index,
             // or block number means no dedup key and no audit trail. The skip is recorded — the
-            // cursor still advances past it (per-chain staging cursor), so the runbook surfaces
+            // scanned-through checkpoint still advances past it, so the runbook surfaces
             // the gap rather than silently re-scanning or fabricating identity (#196's rule).
             val txHash = log.path("transactionHash").asText()
             val logIndex = log.path("logIndex").asQuantityOrNull()
@@ -144,17 +144,7 @@ class EvmScanService(
                 malformed += describe(log)
                 continue
             }
-            // A contract that cannot report decimals is skipped and named in the report. A
-            // deterministic VM failure (invalid opcode, out of gas, invalid jump) is that case,
-            // not a provider outage: shrinking the window and then failing the run would pin the
-            // cursor on this block and stop ingestion for every watched wallet on the chain (#545).
-            val resolved =
-                try {
-                    decimals.resolve(contract)
-                } catch (e: EvmException) {
-                    if (!e.isUnreadableContract()) throw e
-                    null
-                }
+            val resolved = decimals.resolve(contract)
             if (resolved == null) {
                 skipped += contract
                 continue
@@ -174,6 +164,16 @@ class EvmScanService(
             legs += normalizer.normalize(log, watched, resolved, blockTime, config.chain, config.sourceSystem)
         }
         return WindowOutcome(logs.size, legs, skipped, malformed)
+    }
+
+    /**
+     * First block to scan. A stored checkpoint is the cursor. The staged slot is only the
+     * floor when no checkpoint exists yet.
+     */
+    private fun resumeFrom(): Long {
+        val checkpoint = store.scannedThrough(config.chain)
+        val floor = checkpoint ?: (store.newestStagedSlot(config.chain) ?: -1L)
+        return maxOf(floor + 1, config.startBlock)
     }
 
     /** One eth_chainId check per process — a wrong-endpoint deploy fails on the first scan. */

@@ -37,14 +37,6 @@ data class TaskEventRequest(
     }
 }
 
-/**
- * The events that end or redirect an approval task — the gate decisions only an
- * `approver` may post. `assigned` routes the task and `resubmitted` is already
- * requester-locked by the machine, so neither is a decision.
- */
-fun TaskEvent.isGateDecision() =
-    this is TaskEvent.Approved || this is TaskEvent.Rejected || this is TaskEvent.ReworkRequested || this is TaskEvent.Cancelled
-
 data class TaskView(
     val taskId: UUID,
     val kind: String,

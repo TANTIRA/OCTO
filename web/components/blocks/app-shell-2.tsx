@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Menu,
   Scale,
+  TrendingUp,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import ReportQueue from "@/components/report-queue";
 import ReconPanel from "@/components/recon-panel";
 import CompliancePanel from "@/components/compliance-panel";
 import AgentRunsPanel from "@/components/agent-runs-panel";
+import AnalysisPanel from "@/components/analysis-panel";
 import BrainPanel from "@/components/brain-panel";
 import SessionMenu from "@/components/session-menu";
 import { usePlatformAdmin, useTenants } from "@/lib/use-tenants";
@@ -57,6 +59,7 @@ const AREAS: Area[] = [
   { id: "compliance", label: "Compliance", icon: Scale, title: "Compliance" },
   { id: "alerts", label: "Alerts & agents", icon: Bell, title: "Alerts & agents" },
   { id: "brain", label: "Company brain", icon: Brain, title: "Company brain" },
+  { id: "analysis", label: "Analysis", icon: TrendingUp, title: "Analysis" },
   { id: "assets", label: "Assets", icon: Landmark, title: "Assets", pending: true },
   { id: "positions", label: "Positions", icon: ChartPie, title: "Positions", pending: true },
 ];
@@ -291,6 +294,7 @@ const KEY_DESTINATIONS: Record<string, string> = {
   "g l": "alerts",
   "g x": "/admin",
   "g b": "brain",
+  "g m": "analysis",
   n: "deals",
   r: "recon",
   l: "reports",
@@ -646,6 +650,8 @@ export default function AppShell2() {
                 <AgentRunsPanel />
               ) : area.id === "brain" ? (
                 <BrainPanel />
+              ) : area.id === "analysis" ? (
+                <AnalysisPanel />
               ) : null}
             </Fragment>
           </main>

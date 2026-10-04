@@ -1,7 +1,7 @@
 package com.octo.api.graph
 
 import com.octo.api.access.PlatformAdmin
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
@@ -11,52 +11,67 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
-/** One discrepancy as the admin endpoint reports it — the wire form of [GraphDiscrepancy]. */
-data class GraphDiscrepancyView(
-    val kind: String,
-    val aggregateType: String,
-    val octoId: UUID,
-    val detail: String,
-)
-
-/** One tenant's graph-vs-ledger comparison, fresh from [GraphReconciliationRunner.reconcileTenant]. */
-data class GraphReconciliationView(
-    val tenantId: UUID,
-    val checked: Int,
-    val clean: Boolean,
-    val discrepancies: List<GraphDiscrepancyView>,
-)
-
-private fun GraphReconciliation.view() =
-    GraphReconciliationView(
-        tenantId,
-        checked,
-        clean,
-        discrepancies.map { GraphDiscrepancyView(it.kind.wireValue, it.aggregateType, it.octoId, it.detail) },
-    )
-
 /**
- * `GET /api/v1/admin/graph/reconciliation?tenantId=…` — a live reconciliation for one tenant,
- * platform admins only (#564). The call is the same disposition the scheduled pass gives drift:
- * reading the report also opens the deduplicated evidence-request tasks, so an admin never sees
- * a discrepancy the workflow does not know about. The component is scanned in only when
- * `NEO4J_URI` is set — with no graph there is nothing to reconcile, and no [GraphReconciliationRunner]
- * bean would exist to satisfy it.
+ * `GET /api/v1/admin/graph/reconciliation?tenantId=` (#564). Platform admins (`OCTO_PLATFORM_ADMINS`) only.
+ * The read uses the same disposition as the schedule: each discrepancy opens one `evidence-request`, deduplicated
+ * with `openUnlessOpen`. When `NEO4J_URI` is unset the run is absent and the route answers 503 — never a fake
+ * clean report.
  */
 @RestController
-@ConditionalOnExpression("!'\${NEO4J_URI:}'.isBlank()")
 class GraphReconciliationController(
-    private val runner: GraphReconciliationRunner,
+    private val runs: ObjectProvider<GraphReconciliationRuns>,
+    private val tenants: ObjectProvider<GraphTenantDirectory>,
     private val platform: PlatformAdmin,
 ) {
     @GetMapping("/api/v1/admin/graph/reconciliation")
-    fun report(
+    fun reconciliation(
         @AuthenticationPrincipal jwt: Jwt,
         @RequestParam tenantId: UUID,
-    ): GraphReconciliationView {
-        if (!platform.isAdmin(jwt.subject)) {
+    ): ReconciliationView {
+        val subject = jwt.subject
+        if (subject == null || !platform.isAdmin(subject)) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "graph reconciliation needs a platform admin")
         }
-        return runner.reconcileTenant(tenantId).view()
+        val run = runs.ifAvailable
+        val directory = tenants.ifAvailable
+        if (run == null || directory == null) {
+            throw ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "graph reconciliation is not configured")
+        }
+        if (!directory.exists(tenantId)) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "no such tenant")
+        }
+        val report = run.run(tenantId, UUID.randomUUID())
+        return ReconciliationView(
+            tenantId = report.reconciliation.tenantId,
+            checked = report.reconciliation.checked,
+            clean = report.reconciliation.clean,
+            discrepancies =
+                report.tasks.map { drift ->
+                    DiscrepancyView(
+                        drift.discrepancy.kind.wireValue,
+                        drift.discrepancy.aggregateType,
+                        drift.discrepancy.octoId,
+                        drift.discrepancy.detail,
+                        drift.taskId,
+                        drift.opened,
+                    )
+                },
+        )
     }
+
+    data class DiscrepancyView(
+        val kind: String,
+        val aggregateType: String,
+        val octoId: UUID,
+        val detail: String,
+        val taskId: UUID,
+        val opened: Boolean,
+    )
+
+    data class ReconciliationView(
+        val tenantId: UUID,
+        val checked: Int,
+        val clean: Boolean,
+        val discrepancies: List<DiscrepancyView>,
+    )
 }

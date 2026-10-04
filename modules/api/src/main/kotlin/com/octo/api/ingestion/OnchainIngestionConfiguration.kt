@@ -1,6 +1,5 @@
 package com.octo.api.ingestion
 
-import com.octo.api.graph.enqueueInstrumentFlowProjection
 import com.octo.iborcore.InstrumentFlow
 import com.octo.iborcore.InstrumentFlowPromoter
 import com.octo.iborcore.InstrumentFlowStore
@@ -11,6 +10,7 @@ import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
 import com.octo.ingestion.onchain.OnchainWebhookService
+import com.octo.ingestion.onchain.SolanaHistoryCursor
 import com.octo.ingestion.onchain.TokenContract
 import com.octo.ingestion.onchain.TransactionFetcher
 import com.octo.ingestion.onchain.WatchSource
@@ -43,29 +43,27 @@ class OnchainIngestionConfiguration {
             override fun newestSlot(
                 chain: String,
                 wallet: String,
-                actor: String,
-            ): Long? = delegate.newestSlot(chain, wallet, actor)
-
-            override fun syncFrontier(
-                chain: String,
-                wallet: String,
-            ) = delegate.syncFrontier(chain, wallet)
-
-            override fun saveSyncFrontier(frontier: com.octo.ingestion.onchain.SyncFrontier) = delegate.saveSyncFrontier(frontier)
-
-            override fun clearSyncFrontier(
-                chain: String,
-                wallet: String,
-            ) = delegate.clearSyncFrontier(chain, wallet)
+            ): Long? = delegate.newestSlot(chain, wallet)
 
             override fun newestStagedSlot(chain: String): Long? = delegate.newestStagedSlot(chain)
 
-            override fun scanCheckpoint(chain: String): Long? = delegate.scanCheckpoint(chain)
+            override fun historyCursor(
+                chain: String,
+                wallet: String,
+            ): SolanaHistoryCursor? = delegate.historyCursor(chain, wallet)
 
-            override fun saveScanCheckpoint(
+            override fun saveHistoryCursor(
+                chain: String,
+                wallet: String,
+                cursor: SolanaHistoryCursor,
+            ) = delegate.saveHistoryCursor(chain, wallet, cursor)
+
+            override fun scannedThrough(chain: String): Long? = delegate.scannedThrough(chain)
+
+            override fun recordScannedThrough(
                 chain: String,
                 block: Long,
-            ) = delegate.saveScanCheckpoint(chain, block)
+            ) = delegate.recordScannedThrough(chain, block)
 
             override fun tokenContracts(chain: String): List<TokenContract> = delegate.tokenContracts(chain)
 
@@ -167,13 +165,9 @@ class OnchainIngestionConfiguration {
     @Bean
     @ConditionalOnMissingBean(InstrumentFlowStore::class)
     fun instrumentFlowStore(dataSource: ObjectProvider<DataSource>): InstrumentFlowStore {
-        val delegate by lazy {
-            // #565: the flow's graph upsert rides the promotion transaction — the outbox row and
-            // the ledger insert commit or roll back together.
-            JdbcInstrumentFlowStore(dataSource.getObject(), ::enqueueInstrumentFlowProjection)
-        }
+        val delegate by lazy { JdbcInstrumentFlowStore(dataSource.getObject()) }
         return object : InstrumentFlowStore {
-            override fun promotableTransfers(limit: Int) = delegate.promotableTransfers(limit)
+            override fun unpromotedTransfers(limit: Int) = delegate.unpromotedTransfers(limit)
 
             override fun quarantinedMints() = delegate.quarantinedMints()
 
@@ -197,13 +191,7 @@ class OnchainIngestionConfiguration {
     }
 
     @Bean
-    fun instrumentFlowPromoter(
-        store: InstrumentFlowStore,
-        env: Environment,
-    ) = InstrumentFlowPromoter(
-        store,
-        batchSize = env.getProperty("octo.onchain.promotion.batch-size", Int::class.java, 500),
-    )
+    fun instrumentFlowPromoter(store: InstrumentFlowStore) = InstrumentFlowPromoter(store)
 
     /** Staging → `instrument_flow` promotion (#310); runs unless `octo.onchain.promotion.enabled` is false. */
     @Bean

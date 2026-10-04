@@ -67,6 +67,91 @@ class OnchainStagingStoreIT {
     }
 
     @Test
+    fun `re-staging a legacy fee-inclusive balance does not insert a second fee leg`() {
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+        val signature = sig()
+        val legacy =
+            transfer(wallet, signature, 250_000_010L).copy(
+                amountRaw = BigInteger("1000005000"),
+                direction = TransferDirection.OUT,
+                transferKind = TransferKind.TRANSFER_OUT,
+            )
+        assertThat(store.insertTransfers(listOf(legacy), UUID.randomUUID(), UUID.randomUUID(), "helius-poller")).isEqualTo(1)
+
+        assertThat(store.insertTransfers(feeSplit(legacy, "1000000000", "5000"), UUID.randomUUID(), UUID.randomUUID(), "helius-webhook"))
+            .isZero()
+        assertThat(stagedAmounts(signature)).containsExactly("out" to "1000005000")
+    }
+
+    @Test
+    fun `a legacy native debit of exactly the fee is not paired with a new fee leg`() {
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+        val signature = sig()
+        val legacy =
+            transfer(wallet, signature, 250_000_011L).copy(
+                amountRaw = BigInteger("5000"),
+                direction = TransferDirection.OUT,
+                transferKind = TransferKind.TRANSFER_OUT,
+            )
+        store.insertTransfers(listOf(legacy), UUID.randomUUID(), UUID.randomUUID(), "helius-poller")
+
+        val feeOnly =
+            legacy.copy(
+                externalId = "solana:$signature:$wallet:fee",
+                direction = TransferDirection.FEE,
+            )
+        assertThat(store.insertTransfers(listOf(feeOnly), UUID.randomUUID(), UUID.randomUUID(), "helius-webhook")).isZero()
+        assertThat(stagedAmounts(signature)).containsExactly("out" to "5000")
+    }
+
+    @Test
+    fun `a fee-free balance staged without its fee still accepts the fee leg`() {
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+        val signature = sig()
+        val balance =
+            transfer(wallet, signature, 250_000_012L).copy(
+                amountRaw = BigInteger("1000000000"),
+                direction = TransferDirection.OUT,
+                transferKind = TransferKind.TRANSFER_OUT,
+            )
+        store.insertTransfers(listOf(balance), UUID.randomUUID(), UUID.randomUUID(), "helius-poller")
+
+        assertThat(store.insertTransfers(feeSplit(balance, "1000000000", "5000"), UUID.randomUUID(), UUID.randomUUID(), "helius-webhook"))
+            .isEqualTo(1)
+        assertThat(stagedAmounts(signature)).containsExactly(
+            "fee" to "5000",
+            "out" to "1000000000",
+        )
+    }
+
+    @Test
+    fun `a fee-split transaction with no legacy row stages the balance and the fee`() {
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+        val signature = sig()
+        val balance =
+            transfer(wallet, signature, 250_000_013L).copy(
+                amountRaw = BigInteger("1000000000"),
+                direction = TransferDirection.OUT,
+                transferKind = TransferKind.TRANSFER_OUT,
+            )
+        val split = feeSplit(balance, "1000000000", "5000")
+        assertThat(store.insertTransfers(split, UUID.randomUUID(), UUID.randomUUID(), "helius-poller")).isEqualTo(2)
+        assertThat(store.insertTransfers(split, UUID.randomUUID(), UUID.randomUUID(), "helius-webhook")).isZero()
+        assertThat(stagedAmounts(signature)).containsExactly(
+            "fee" to "5000",
+            "out" to "1000000000",
+        )
+    }
+
+    @Test
     fun `newestSlot returns the highest staged slot`() {
         val wallet = addr()
         track(wallet)
@@ -81,26 +166,8 @@ class OnchainStagingStoreIT {
             UUID.randomUUID(),
             "helius-poller",
         )
-        assertThat(store.newestSlot(CHAIN_SOLANA, wallet, "helius-poller")).isEqualTo(250_000_009L)
-        assertThat(store.newestSlot(CHAIN_SOLANA, addr(), "helius-poller")).isNull()
-    }
-
-    @Test
-    fun `newestSlot is scoped to the writer's actor so webhook rows cannot move the poller cursor`() {
-        // #509: a webhook-delivered transaction used to advance the same cursor, so the
-        // poller's first pass skipped the wallet's history below it.
-        val wallet = addr()
-        track(wallet)
-        event(wallet, "watched")
-        store.insertTransfers(
-            listOf(transfer(wallet, "webhook", 250_000_900L)),
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            "helius-webhook",
-        )
-
-        assertThat(store.newestSlot(CHAIN_SOLANA, wallet, "helius-webhook")).isEqualTo(250_000_900L)
-        assertThat(store.newestSlot(CHAIN_SOLANA, wallet, "helius-poller")).isNull()
+        assertThat(store.newestSlot(CHAIN_SOLANA, wallet)).isEqualTo(250_000_009L)
+        assertThat(store.newestSlot(CHAIN_SOLANA, addr())).isNull()
     }
 
     @Test
@@ -109,13 +176,8 @@ class OnchainStagingStoreIT {
         track(wallet)
         event(wallet, "watched")
         store.insertTransfers(
-            listOf(transfer(wallet, "scanned", 250_000_001L)),
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            "helius-poller",
-        )
-        store.insertTransfers(
             listOf(
+                transfer(wallet, "scanned", 250_000_001L),
                 transfer(wallet, "reward:700:stake", 250_000_900L).copy(
                     externalId = "solana:700:stake-$wallet",
                     direction = TransferDirection.IN,
@@ -126,11 +188,11 @@ class OnchainStagingStoreIT {
             UUID.randomUUID(),
             "helius-staking",
         )
-        assertThat(store.newestSlot(CHAIN_SOLANA, wallet, "helius-poller")).isEqualTo(250_000_001L)
+        assertThat(store.newestSlot(CHAIN_SOLANA, wallet)).isEqualTo(250_000_001L)
     }
 
     @Test
-    fun `newestStagedSlot is the EVM resume cursor — the highest staged slot on the chain`() {
+    fun `newestStagedSlot is the highest staged slot on the chain`() {
         val wallet = evmAddr()
         track(wallet, CHAIN_ARBITRUM_ONE)
         event(wallet, "watched", chain = CHAIN_ARBITRUM_ONE)
@@ -157,132 +219,17 @@ class OnchainStagingStoreIT {
     }
 
     @Test
-    fun `sync frontier persists per wallet until cleared`() {
-        // #509: a wallet whose history exceeds the page budget resumes from this frontier on the
-        // next poll instead of restarting from the newest cursor.
-        val wallet = addr()
-        track(wallet)
-        event(wallet, "watched")
-
-        assertThat(store.syncFrontier(CHAIN_SOLANA, wallet)).isNull()
-        store.saveSyncFrontier(
-            com.octo.ingestion.onchain.SyncFrontier(
-                chain = CHAIN_SOLANA,
-                address = wallet,
-                floorSlot = 250_000_010L,
-                ceilingSlot = 250_000_090L,
-            ),
-        )
-        assertThat(store.syncFrontier(CHAIN_SOLANA, wallet))
-            .isEqualTo(
-                com.octo.ingestion.onchain.SyncFrontier(
-                    chain = CHAIN_SOLANA,
-                    address = wallet,
-                    floorSlot = 250_000_010L,
-                    ceilingSlot = 250_000_090L,
-                ),
-            )
-        // A second partial descent overwrites the frontier in place.
-        store.saveSyncFrontier(
-            com.octo.ingestion.onchain.SyncFrontier(
-                chain = CHAIN_SOLANA,
-                address = wallet,
-                floorSlot = 250_000_010L,
-                ceilingSlot = 250_000_050L,
-            ),
-        )
-        assertThat(store.syncFrontier(CHAIN_SOLANA, wallet)?.ceilingSlot).isEqualTo(250_000_050L)
-        store.clearSyncFrontier(CHAIN_SOLANA, wallet)
-        assertThat(store.syncFrontier(CHAIN_SOLANA, wallet)).isNull()
-    }
-
-    @Test
-    fun `scan checkpoint persists per chain`() {
-        // #494: the EVM cursor lives in the checkpoint table, not in staged rows, so quiet
-        // ranges still advance the resume point.
-        store.saveScanCheckpoint(CHAIN_ARBITRUM_ONE, 123L)
-        assertThat(store.scanCheckpoint(CHAIN_ARBITRUM_ONE)).isEqualTo(123L)
-        store.saveScanCheckpoint(CHAIN_ARBITRUM_ONE, 456L)
-        assertThat(store.scanCheckpoint(CHAIN_ARBITRUM_ONE)).isEqualTo(456L)
-    }
-
-    @Test
-    fun `a fee leg is refused when the sibling leg predates the fee split`() {
-        // #553: staged under the old normalization, the payer's bal:0 already contains the
-        // fee. Re-normalizing splits the same transaction into a fee-free bal leg plus a fee
-        // leg; the bal leg dedupes and the fee leg must be refused or the fee books twice.
-        val wallet = addr()
-        track(wallet)
-        event(wallet, "watched")
-        val oldShape =
-            transfer(wallet, "sigMixed", 250_000_001L).copy(
-                externalId = "solana:sigMixed:$wallet:bal:0",
-                direction = TransferDirection.OUT,
-                transferKind = TransferKind.TRANSFER_OUT,
-                amountRaw = BigInteger("6000"),
-            )
-        store.insertTransfers(listOf(oldShape), UUID.randomUUID(), UUID.randomUUID(), "helius-poller")
-
-        val newShapeBal =
-            transfer(wallet, "sigMixed", 250_000_001L).copy(
-                externalId = "solana:sigMixed:$wallet:bal:0",
-                direction = TransferDirection.OUT,
-                transferKind = TransferKind.TRANSFER_OUT,
-                amountRaw = BigInteger("1000"),
-            )
-        val feeLeg = feeTransfer(wallet, "sigMixed", 250_000_001L, BigInteger("5000"))
-        assertThat(
-            store.insertTransfers(listOf(newShapeBal, feeLeg), UUID.randomUUID(), UUID.randomUUID(), "helius-poller"),
-        ).isZero()
-
-        assertThat(stagedTotal("sigMixed")).isEqualTo(BigInteger("6000"))
-    }
-
-    @Test
-    fun `a fee leg is refused for a pure-fee transaction staged before the split`() {
-        // #553: the old shape wrote the whole fee as a bal:0 out leg; the new shape writes no
-        // bal leg at all, so nothing in the batch proves the stored row is the current shape.
-        val wallet = addr()
-        track(wallet)
-        event(wallet, "watched")
-        val oldShape =
-            transfer(wallet, "sigPureFee", 250_000_002L).copy(
-                externalId = "solana:sigPureFee:$wallet:bal:0",
-                direction = TransferDirection.OUT,
-                transferKind = TransferKind.TRANSFER_OUT,
-                amountRaw = BigInteger("5000"),
-            )
-        store.insertTransfers(listOf(oldShape), UUID.randomUUID(), UUID.randomUUID(), "helius-poller")
-
-        val feeLeg = feeTransfer(wallet, "sigPureFee", 250_000_002L, BigInteger("5000"))
-        assertThat(
-            store.insertTransfers(listOf(feeLeg), UUID.randomUUID(), UUID.randomUUID(), "helius-poller"),
-        ).isZero()
-
-        assertThat(stagedTotal("sigPureFee")).isEqualTo(BigInteger("5000"))
-    }
-
-    @Test
-    fun `a fee leg stages with its sibling under one normalization shape`() {
-        // The common path: both legs land together on first delivery, and a redelivery of the
-        // same new-shape batch dedupes instead of suppressing the fee.
-        val wallet = addr()
-        track(wallet)
-        event(wallet, "watched")
-        val bal =
-            transfer(wallet, "sigNew", 250_000_003L).copy(
-                externalId = "solana:sigNew:$wallet:bal:0",
-                direction = TransferDirection.OUT,
-                transferKind = TransferKind.TRANSFER_OUT,
-                amountRaw = BigInteger("1000"),
-            )
-        val fee = feeTransfer(wallet, "sigNew", 250_000_003L, BigInteger("5000"))
-
-        assertThat(store.insertTransfers(listOf(bal, fee), UUID.randomUUID(), UUID.randomUUID(), "helius-poller"))
-            .isEqualTo(2)
-        assertThat(store.insertTransfers(listOf(bal, fee), UUID.randomUUID(), UUID.randomUUID(), "helius-poller"))
-            .isZero()
-        assertThat(stagedTotal("sigNew")).isEqualTo(BigInteger("6000"))
+    fun `the EVM scan checkpoint advances and never moves backward`() {
+        val chain = "checkpoint-it"
+        assertThat(store.scannedThrough(chain)).isNull()
+        store.recordScannedThrough(chain, 100)
+        assertThat(store.scannedThrough(chain)).isEqualTo(100L)
+        store.recordScannedThrough(chain, 100)
+        store.recordScannedThrough(chain, 40)
+        assertThat(store.scannedThrough(chain)).isEqualTo(100L)
+        store.recordScannedThrough(chain, 250)
+        assertThat(store.scannedThrough(chain)).isEqualTo(250L)
+        assertThat(store.scannedThrough("checkpoint-other")).isNull()
     }
 
     @Test
@@ -335,31 +282,6 @@ class OnchainStagingStoreIT {
 
     private fun evmAddr() = "0x${UUID.randomUUID().toString().replace("-", "")}${"a".repeat(8)}"
 
-    private fun feeTransfer(
-        wallet: String,
-        signature: String,
-        slot: Long,
-        amount: BigInteger,
-    ) = transfer(wallet, signature, slot).copy(
-        externalId = "solana:$signature:$wallet:fee",
-        direction = TransferDirection.FEE,
-        transferKind = TransferKind.TRANSFER_OUT,
-        amountRaw = amount,
-    )
-
-    private fun stagedTotal(signature: String): BigInteger =
-        dataSource().connection.use { c ->
-            c
-                .prepareStatement("select coalesce(sum(amount_raw), 0) from octo.onchain_transfer where signature = ?")
-                .use { s ->
-                    s.setString(1, signature)
-                    s.executeQuery().use { r ->
-                        r.next()
-                        r.getBigDecimal(1).toBigInteger()
-                    }
-                }
-        }
-
     private fun track(
         address: String,
         chain: String = CHAIN_SOLANA,
@@ -398,6 +320,39 @@ class OnchainStagingStoreIT {
                 }
         }
     }
+
+    private fun sig() = "sig" + UUID.randomUUID().toString().replace("-", "")
+
+    private fun feeSplit(
+        balance: OnchainTransfer,
+        balanceAmount: String,
+        feeAmount: String,
+    ) = listOf(
+        balance.copy(amountRaw = BigInteger(balanceAmount)),
+        balance.copy(
+            externalId = "solana:${balance.signature}:${balance.wallet}:fee",
+            amountRaw = BigInteger(feeAmount),
+            direction = TransferDirection.FEE,
+            transferKind = TransferKind.TRANSFER_OUT,
+        ),
+    )
+
+    private fun stagedAmounts(signature: String): List<Pair<String, String>> =
+        dataSource().connection.use { c ->
+            c
+                .prepareStatement(
+                    "select direction, amount_raw from octo.onchain_transfer where signature = ? order by direction",
+                ).use { s ->
+                    s.setString(1, signature)
+                    s.executeQuery().use { r ->
+                        buildList {
+                            while (r.next()) {
+                                add(r.getString("direction") to r.getBigDecimal("amount_raw").toBigIntegerExact().toString())
+                            }
+                        }
+                    }
+                }
+        }
 
     private fun transfer(
         wallet: String,

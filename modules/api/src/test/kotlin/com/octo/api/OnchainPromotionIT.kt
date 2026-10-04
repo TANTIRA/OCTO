@@ -59,6 +59,7 @@ class OnchainPromotionIT {
         val report = promoter.promote()
 
         assertThat(report.promoted).isEqualTo(2)
+        assertThat(outboxMentioning("solana:sig-a:$wallet:bal:0")).describedAs("an untracked wallet is not projected").isZero()
         val flows = store.flowsFor("solana", wallet, TenantScope.All)
         assertThat(flows.map { it.flowType }).containsExactlyInAnyOrder(InstrumentFlowType.TRANSFER_IN, InstrumentFlowType.TRANSFER_OUT)
         assertThat(flows.all { it.instrumentId == nativeInstrumentId() }).isTrue()
@@ -76,6 +77,7 @@ class OnchainPromotionIT {
 
         assertThat(first.promoted).isZero()
         assertThat(first.quarantined.map { it.mintAddress }).containsExactly(mint)
+        assertThat(first.quarantined.single().count).isEqualTo(1)
 
         registerMint(mint)
         val second = promoter.promote()
@@ -131,7 +133,7 @@ class OnchainPromotionIT {
                 s.execute("grant usage on schema octo to promotion_probe")
                 s.execute(
                     "grant select, insert on octo.onchain_transfer, octo.instrument, octo.instrument_flow, " +
-                        "octo.tracked_address to promotion_probe",
+                        "octo.tracked_address, octo.graph_outbox to promotion_probe",
                 )
                 s.execute(
                     "insert into octo.tenant (id, slug, display_name, source_system, correlation_id) values " +
@@ -160,7 +162,31 @@ class OnchainPromotionIT {
         assertThat(runtime.flowsFor("solana", walletB, a)).describedAs("tenant B's flows are invisible to A").isEmpty()
         assertThat(runtime.flowsFor("solana", walletB, b).map { it.amountRaw }).containsExactly(BigInteger("20"))
         assertThat(InstrumentFlowPromoter(runtime).promote().promoted).describedAs("replay under RLS is a no-op").isZero()
+        assertThat(outboxCount(tenantA)).describedAs("the promotion transaction enqueued the four graph upserts").isEqualTo(4)
+        assertThat(outboxCount(tenantB)).isEqualTo(4)
     }
+
+    private fun outboxMentioning(fragment: String): Int =
+        dataSource().connection.use { connection ->
+            connection.prepareStatement("select count(*) from octo.graph_outbox where strpos(payload::text, ?) > 0").use { statement ->
+                statement.setString(1, fragment)
+                statement.executeQuery().use { rows ->
+                    rows.next()
+                    rows.getInt(1)
+                }
+            }
+        }
+
+    private fun outboxCount(tenantId: UUID): Int =
+        dataSource().connection.use { connection ->
+            connection.prepareStatement("select count(*) from octo.graph_outbox where tenant_id = ?").use { statement ->
+                statement.setObject(1, tenantId)
+                statement.executeQuery().use { rows ->
+                    rows.next()
+                    rows.getInt(1)
+                }
+            }
+        }
 
     private fun dataSource() =
         run {

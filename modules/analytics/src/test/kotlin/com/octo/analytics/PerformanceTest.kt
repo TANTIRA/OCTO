@@ -76,16 +76,15 @@ class PerformanceTest {
 
     @Test
     fun `xirr is undefined when the npv curve has two roots`() {
-        // +100, -230, +132 at yearly steps has roots at 10% and 20% — both positive, so no
-        // single economically meaningful rate exists.
+        // +100, -230, +132 at yearly steps has roots at 10% and 20%.
         val flows = listOf(flow("2019-01-01", "100"), flow("2020-01-01", "-230"), flow("2020-12-31", "132"))
         assertNull(xirr(flows))
     }
 
     @Test
     fun `xirr picks the meaningful root for a wind-down with a trailing capital call`() {
-        // #547: -100, +150, then a final -1 call has roots near +49.3% and -99.3%; only the
-        // positive one agrees with the +49 the flows actually earned.
+        // #547: -100, +150, then a final -1 call has roots near +49.3% and -99.3%. The root
+        // below -99% does not compete, so the rate at or above -99% is reported.
         val flows =
             listOf(
                 flow("2020-01-01", "-100"),
@@ -96,9 +95,10 @@ class PerformanceTest {
     }
 
     @Test
-    fun `xirr stays undefined when both wind-down roots share the net's sign`() {
+    fun `xirr stays undefined when both wind-down roots are at or above -99 percent`() {
         // A heavier trailing call makes the net negative and both roots land below zero
-        // (about -13.8% and -36.2%) — neither is uniquely meaningful, so the result is null.
+        // (about -13.8% and -36.2%). Both are at or above -99%, so neither is discarded
+        // and the result stays undefined.
         val flows =
             listOf(
                 flow("2020-01-01", "-100"),
@@ -106,6 +106,20 @@ class PerformanceTest {
                 flow("2022-01-01", "-55"),
             )
         assertNull(xirr(flows))
+    }
+
+    @Test
+    fun `a fund that ends with a small capital call still reports its irr`() {
+        // Wind-down: −100, +150, −1, NAV 0. Actual/365 (2020 is a leap year) has a rate near 49.2%
+        // and an economically meaningless root near −99.3%.
+        val series =
+            CashFlowSeries(
+                currency = USD,
+                flows = listOf(flow("2020-01-01", "-100"), flow("2021-01-01", "150"), flow("2022-01-01", "-1")),
+                nav = BigDecimal.ZERO,
+                valuationDate = LocalDate.parse("2022-01-01"),
+            )
+        assertEquals(0.491660919781, assertNotNull(performance(series).irr), 1e-9)
     }
 
     // Two flows have a closed form: r = (CF1 / -CF0)^(365 / days) - 1.
@@ -130,6 +144,15 @@ class PerformanceTest {
         // 103 back on 100 after 5 days: r = 1.03^73 - 1, about 765%.
         val irr = xirr(listOf(flow("2020-01-01", "-100"), flow("2020-01-06", "103")))
         val expected = 1.03.pow(365.0 / 5) - 1
+        assertEquals(expected, assertNotNull(irr), expected * 1e-9)
+    }
+
+    @Test
+    fun `xirr searches through the documented 100 million percent cap`() {
+        // Closed form sits between the last doubling step (~835,583) and r = 1e6.
+        val expected = 900_000.0
+        val repaid = BigDecimal((expected + 1).pow(5.0 / 365.0) * 100)
+        val irr = xirr(listOf(flow("2020-01-01", "-100"), CashFlow(LocalDate.parse("2020-01-06"), repaid)))
         assertEquals(expected, assertNotNull(irr), expected * 1e-9)
     }
 

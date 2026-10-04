@@ -1,6 +1,5 @@
 package com.octo.api.reconciliation
 
-import com.octo.api.SHORT_TEXT_LIMIT
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.recon.matching.SourceRecord
@@ -21,6 +20,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Currency
 import java.util.UUID
+
+/** Source system and external id bound before a break or its review task is recorded (#504). */
+internal const val SOURCE_FIELD_LIMIT = 200
 
 /**
  * `POST /api/v1/reconciliations` (#6 slice 9): the caller submits a source system's records; the run compares them
@@ -87,10 +89,10 @@ class ReconciliationController(
     }
 
     data class RecordBody(
-        @field:NotBlank @field:Size(max = SHORT_TEXT_LIMIT) val sourceSystem: String,
-        @field:NotBlank @field:Size(max = SHORT_TEXT_LIMIT) val externalId: String,
+        @field:NotBlank @field:Size(max = SOURCE_FIELD_LIMIT) val sourceSystem: String,
+        @field:NotBlank @field:Size(max = SOURCE_FIELD_LIMIT) val externalId: String,
         val amount: BigDecimal,
-        @field:NotBlank @field:Size(max = SHORT_TEXT_LIMIT) val currency: String,
+        @field:NotBlank val currency: String,
         val date: LocalDate,
     )
 
@@ -103,7 +105,7 @@ class ReconciliationController(
         val tenantId: UUID,
         @field:NotEmpty @field:Valid val records: List<RecordBody>,
         val tolerance: ToleranceBody? = null,
-        @field:Size(max = SHORT_TEXT_LIMIT) val zone: String = "UTC",
+        val zone: String = "UTC",
         val complete: Boolean = false,
     )
 

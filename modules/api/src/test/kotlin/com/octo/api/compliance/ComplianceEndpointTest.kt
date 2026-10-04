@@ -1,5 +1,6 @@
 package com.octo.api.compliance
 
+import com.octo.api.MAX_JSON_OBJECT_BYTES
 import com.octo.api.OctoApplication
 import com.octo.api.access.TenantAccess
 import com.octo.api.access.TenantDirectory
@@ -86,6 +87,36 @@ class ComplianceEndpointTest {
         """{"tenantId": "$tenantId", "subject": "fund-1", "asOf": "2026-06-30",
             "exposure": {"currency": "USD", "byAsset": {"a": "60", "b": "40"}},
             "coverage": {"currency": "USD", "scenario": "base", "ratio": null}}"""
+
+    @Test
+    fun `a rule name at the limit is stored and one character over is refused`() {
+        val atLimit = "n".repeat(SUBJECT_LIMIT)
+        val over = "n".repeat(SUBJECT_LIMIT + 1)
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rule().replace("Concentration", over))
+                        .with(asUser(approver)),
+                ).andExpect(status().isBadRequest)
+            assertThat(store.rules).isEmpty()
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rule().replace("Concentration", atLimit))
+                        .with(asUser(approver)),
+                ).andExpect(status().isCreated)
+                .andExpect(jsonPath("$.name").value(atLimit))
+            assertThat(
+                store.rules
+                    .getValue(tenantId)
+                    .single()
+                    .first.name,
+            ).hasSize(SUBJECT_LIMIT)
+        }
+    }
 
     @Test
     fun `an approver defines rules, anyone lists them, and an analyst's evaluation opens the review task`() {
@@ -381,6 +412,48 @@ class ComplianceEndpointTest {
                         .with(asUser(analyst)),
                 ).andExpect(status().isOk)
             assertThat(sidecarCalls).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `a rationale whose outcomes exceed the run input cap is 400 before any outcome or task lands`() {
+        run { mvc ->
+            mvc
+                .perform(post("/api/v1/compliance/rules").contentType(MediaType.APPLICATION_JSON).content(rule()).with(asUser(approver)))
+                .andExpect(status().isCreated)
+            var sidecarCalls = 0
+            agentsBehavior = {
+                sidecarCalls++
+                mapOf("status" to "completed", "rationale" to "ok")
+            }
+            // The largest holding's id is copied into the outcome explanation, so this input
+            // serializes past the agent_run input cap. The same body is a valid evaluation.
+            val asset = "a".repeat(MAX_JSON_OBJECT_BYTES)
+            val fat =
+                evaluation.replace(
+                    """"byAsset": {"a": "60", "b": "40"}""",
+                    """"byAsset": {"$asset": "60", "b": "40"}""",
+                )
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rationale")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(fat)
+                        .with(asUser(analyst)),
+                ).andExpect(status().isBadRequest)
+            assertThat(store.recorded).isEmpty()
+            assertThat(opened).isEmpty()
+            assertThat(sidecarCalls).isZero()
+
+            mvc
+                .perform(
+                    post("/api/v1/compliance/evaluations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(fat)
+                        .with(asUser(analyst)),
+                ).andExpect(status().isOk)
+            assertThat(store.recorded).isNotEmpty()
+            assertThat(opened).isNotEmpty()
         }
     }
 

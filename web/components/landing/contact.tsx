@@ -111,7 +111,6 @@ export function Contact() {
         </div>
 
         <form
-          id="contact-form"
           data-anim
           onSubmit={onSubmit}
           toolname="request_access"
@@ -174,6 +173,11 @@ export function Contact() {
             </div>
           </div>
 
+          {/* Named honeypot inside the form. Generic fillers set it; the API answers 202 and stores nothing. */}
+          <div className="hidden" aria-hidden="true">
+            <label htmlFor="contact-website">Website</label>
+            <input id="contact-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+          </div>
 
           <p className="mt-6 text-xs leading-relaxed text-white/40">
             We only use your details to contact you about OCTO.
@@ -193,14 +197,6 @@ export function Contact() {
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
         </form>
-
-        {/* Honeypot — outside the <form> in the DOM so WebMCP never offers it to agents as a
-            field, but form-associated and named so form.elements- and name-based fillers
-            find it and FormData submits it (#556); bots that fill it get a silent 202. */}
-        <div className="hidden" aria-hidden="true">
-          <label htmlFor="contact-website">Website</label>
-          <input id="contact-website" name="website" type="text" form="contact-form" tabIndex={-1} autoComplete="off" />
-        </div>
       </Reveal>
     </section>
   );

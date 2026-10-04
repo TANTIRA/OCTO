@@ -6,7 +6,6 @@ flag; /healthz is open for the compose healthcheck only.
 """
 
 import hmac
-import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import date
@@ -25,8 +24,8 @@ from .chat import drafter_model
 from .config import Settings, get_settings
 from .deadline import (
     DeadlineExceeded,
-    clear_arrival,
-    request_arrived,
+    budget_after_queue,
+    note_request_arrival,
     run_deadline,
 )
 from .judge import JudgeClient
@@ -67,26 +66,26 @@ app = FastAPI(
 _bearer = HTTPBearer(auto_error=False)
 
 
-class _ArrivalStampMiddleware:
-    """Stamps when the request was received, before FastAPI queues the sync
-    endpoint behind a busy threadpool. The run budget is measured from that
-    stamp so a queued run still ends before the platform's own timeout (#555)."""
+class _BudgetFromArrival:
+    """Starts the run clock when the request arrives (#555).
 
-    def __init__(self, app: Any) -> None:
-        self.app = app
+    Sync workflow endpoints run on a threadpool. While the pool is busy the
+    request waits, and that wait used to fall outside the run budget, so a
+    queued run could still be working after the platform's 120 s timeout.
+    """
+
+    def __init__(self, asgi: Callable[..., Any]) -> None:
+        self._asgi = asgi
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
+        if scope["type"] == "http" and str(scope.get("path", "")).startswith("/v1/"):
+            with note_request_arrival():
+                await self._asgi(scope, receive, send)
             return
-        token = request_arrived(time.monotonic())
-        try:
-            await self.app(scope, receive, send)
-        finally:
-            clear_arrival(token)
+        await self._asgi(scope, receive, send)
 
 
-app.add_middleware(_ArrivalStampMiddleware)
+app.add_middleware(_BudgetFromArrival)
 
 
 # Tenant/subject binding (#318): a subject outside the body's tenant answers 404
@@ -111,11 +110,19 @@ def _deadline_exceeded(_: Request, exc: DeadlineExceeded) -> JSONResponse:
 
 def _deadlined(endpoint: Callable[..., Any]) -> Callable[..., Any]:
     """Runs a workflow endpoint under one run deadline. FastAPI passes keyword
-    arguments and reads the wrapped signature, so dependencies are unchanged."""
+    arguments and reads the wrapped signature, so dependencies are unchanged.
+
+    The budget is what remains of `run_deadline_s` since the request arrived,
+    so queue time in front of this worker counts against it (#555). A request
+    that already outlived the budget is refused before the workflow starts.
+    """
 
     @wraps(endpoint)
     def run(**kwargs: Any) -> Any:
-        with run_deadline(kwargs["settings"].run_deadline_s):
+        left = budget_after_queue(kwargs["settings"].run_deadline_s)
+        if left <= 0:
+            raise DeadlineExceeded("workflow start")
+        with run_deadline(left):
             return endpoint(**kwargs)
 
     return run

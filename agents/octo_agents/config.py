@@ -63,7 +63,8 @@ class Settings(BaseSettings):
     octo_agents_operating_review_enabled: bool = False
 
     request_timeout_s: float = 60.0
-    # End-to-end run budget (#486): plus deadline.py's 10 s bookkeeping grace it
+    # End-to-end run budget (#486, #555): measured from request arrival, including
+    # time waiting for a worker. Plus deadline.py's 10 s bookkeeping grace it
     # must stay under the platform AgentsClient's 120 s timeout.
     run_deadline_s: float = Field(default=100.0, gt=0, le=110)
 

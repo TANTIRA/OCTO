@@ -199,4 +199,49 @@ class ReportScheduleEndpointTest {
             assertThat(schedules.schedules).isEmpty()
         }
     }
+
+    @Test
+    fun `a schedule name at the limit is stored and one character over is refused`() {
+        val atLimit = "n".repeat(MAX_SCHEDULE_NAME_LENGTH)
+        val over = "n".repeat(MAX_SCHEDULE_NAME_LENGTH + 1)
+        run { mvc ->
+            mvc
+                .perform(
+                    post("/api/v1/report-schedules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body().replace("LP weekly", over))
+                        .with(jwt().jwt { it.subject(analyst.toString()) }),
+                ).andExpect(status().isBadRequest)
+            assertThat(schedules.schedules).isEmpty()
+            mvc
+                .perform(
+                    post("/api/v1/report-schedules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body().replace("LP weekly", atLimit))
+                        .with(jwt().jwt { it.subject(analyst.toString()) }),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.name").value(atLimit))
+            assertThat(
+                schedules.schedules.values
+                    .single()
+                    .name,
+            ).hasSize(MAX_SCHEDULE_NAME_LENGTH)
+        }
+    }
+
+    @Test
+    fun `a whitespace-only measure is a validation error`() {
+        run { mvc ->
+            for (measures in listOf("[\" \"]", "[\"tvpi\", \" \"]")) {
+                mvc
+                    .perform(
+                        post("/api/v1/report-schedules")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body().replace("[\"tvpi\"]", measures))
+                            .with(jwt().jwt { it.subject(analyst.toString()) }),
+                    ).andExpect(status().isBadRequest)
+            }
+            assertThat(schedules.schedules).isEmpty()
+        }
+    }
 }

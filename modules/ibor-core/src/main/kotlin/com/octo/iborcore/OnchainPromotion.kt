@@ -40,13 +40,13 @@ data class StagedTransfer(
 )
 
 /**
- * One `(chain, mint)` whose staged transfers cannot promote — no registered instrument —
- * with the count of rows waiting on it (#495). Reported per pass without loading the rows.
+ * One unregistered `(chain, mint)` and how many finalized staging rows wait on it.
+ * A null [mintAddress] is the chain's native asset. The rows themselves are not loaded.
  */
 data class QuarantinedMint(
     val chain: String,
     val mintAddress: String?,
-    val staged: Long,
+    val count: Int,
 )
 
 /** What [InstrumentFlowPromoter.promote] did in one pass. */
@@ -59,19 +59,13 @@ data class PromotionReport(
 /** Storage the promoter needs; the JDBC implementation lives in `persistence`. */
 interface InstrumentFlowStore {
     /**
-     * Up to [limit] finalized staging rows that can promote now — the `(chain, mint)` has a
-     * registered instrument and no `instrument_flow` counterpart exists yet — in
-     * `recorded_at` order. Rows waiting on an unregistered mint are excluded and surface
-     * through [quarantinedMints] instead, so a backlog of spam airdrops never becomes the
-     * pass's working set (#495). [limit] bounds the pass; the remainder promotes on later
-     * ticks.
+     * Staging rows with no `instrument_flow` counterpart yet whose `(chain, mint)` is a
+     * registered instrument, `recorded_at, id` order, at most [limit] rows. Unregistered
+     * mints stay out of this read; [quarantinedMints] counts them.
      */
-    fun promotableTransfers(limit: Int): List<StagedTransfer>
+    fun unpromotedTransfers(limit: Int): List<StagedTransfer>
 
-    /**
-     * Unpromotable staged rows grouped by their `(chain, mint)` — the quarantine summary a
-     * pass reports without loading the rows themselves (#495).
-     */
+    /** Unpromoted finalized rows on unregistered mints, one entry per `(chain, mint)`. */
     fun quarantinedMints(): List<QuarantinedMint>
 
     /** Every registered instrument keyed by `(chain, mint)`; a null mint is the native asset. */
@@ -108,46 +102,62 @@ interface InstrumentFlowStore {
  * correction waits until the fact it supersedes exists (a dangling `supersedes_id` would break
  * `resolveCurrent`), and `external_id` identity makes any replay a no-op.
  *
- * A pass is bounded to [batchSize] rows (#495): quarantined mints are counted without being
- * loaded, so promotion cost tracks new work, not the growing history of unpromotable rows.
+ * A pass reads registered rows in batches of [batchSize]. It stops on a short batch or on a
+ * batch that promotes nothing, so deferred corrections — which stay unpromoted and sort to the
+ * head — cannot spin the pass. Unregistered mints are counted, not loaded.
  */
 class InstrumentFlowPromoter(
     private val store: InstrumentFlowStore,
-    private val batchSize: Int = 500,
+    private val batchSize: Int = DEFAULT_BATCH_SIZE,
 ) {
+    init {
+        require(batchSize > 0) { "promotion batch size must be positive" }
+    }
+
     fun promote(now: Instant = Instant.now()): PromotionReport {
         val instruments = store.instrumentIds()
-        val deferred = mutableListOf<StagedTransfer>()
+        val deferred = linkedMapOf<UUID, StagedTransfer>()
         var promoted = 0
-        for (row in store.promotableTransfers(batchSize)) {
-            // promotableTransfers already filtered to registered mints; a null here means a
-            // store that does not honor that contract — skip rather than invent an instrument.
-            val instrumentId = instruments[InstrumentKey(row.chain, row.mintAddress)] ?: continue
-            val supersedes = row.supersedesId?.let(store::flowIdForStaging)
-            if (row.supersedesId != null && supersedes == null) {
-                deferred += row
-                continue
+        while (true) {
+            val page = store.unpromotedTransfers(batchSize)
+            if (page.isEmpty()) break
+            var pagePromoted = 0
+            for (row in page) {
+                val instrumentId = instruments[InstrumentKey(row.chain, row.mintAddress)] ?: continue
+                val supersedes = row.supersedesId?.let(store::flowIdForStaging)
+                if (row.supersedesId != null && supersedes == null) {
+                    deferred[row.id] = row
+                    continue
+                }
+                val flow =
+                    InstrumentFlow(
+                        id = UUID.randomUUID(),
+                        externalId = row.externalId,
+                        instrumentId = instrumentId,
+                        chain = row.chain,
+                        wallet = row.wallet,
+                        tokenAccount = row.tokenAccount,
+                        flowType = InstrumentFlowType.entries.first { it.wireValue == row.transferKind },
+                        amountRaw = row.amountRaw,
+                        decimals = row.decimals,
+                        occurredAt = row.blockTime,
+                        recordedAt = now,
+                        slot = row.slot,
+                        signature = row.signature,
+                        supersedesId = supersedes,
+                        rationale = row.rationale,
+                    )
+                if (store.insertFlow(flow, row.sourceSystem, row.ingestionRunId, row.correlationId)) {
+                    promoted++
+                    pagePromoted++
+                }
             }
-            val flow =
-                InstrumentFlow(
-                    id = UUID.randomUUID(),
-                    externalId = row.externalId,
-                    instrumentId = instrumentId,
-                    chain = row.chain,
-                    wallet = row.wallet,
-                    tokenAccount = row.tokenAccount,
-                    flowType = InstrumentFlowType.entries.first { it.wireValue == row.transferKind },
-                    amountRaw = row.amountRaw,
-                    decimals = row.decimals,
-                    occurredAt = row.blockTime,
-                    recordedAt = now,
-                    slot = row.slot,
-                    signature = row.signature,
-                    supersedesId = supersedes,
-                    rationale = row.rationale,
-                )
-            if (store.insertFlow(flow, row.sourceSystem, row.ingestionRunId, row.correlationId)) promoted++
+            if (page.size < batchSize || pagePromoted == 0) break
         }
-        return PromotionReport(promoted, store.quarantinedMints(), deferred)
+        return PromotionReport(promoted, store.quarantinedMints(), deferred.values.toList())
+    }
+
+    companion object {
+        const val DEFAULT_BATCH_SIZE = 500
     }
 }
