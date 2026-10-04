@@ -97,6 +97,13 @@ private open class FakeStore : OnchainStagingStore {
 
     override fun newestStagedSlot(chain: String): Long? = null
 
+    override fun scannedThrough(chain: String): Long? = null
+
+    override fun recordScannedThrough(
+        chain: String,
+        block: Long,
+    ) = Unit
+
     override fun tokenContracts(chain: String): List<TokenContract> = emptyList()
 
     override fun insertTransfers(

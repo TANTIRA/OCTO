@@ -38,7 +38,7 @@ data class LboInputs(
 /**
  * §5.4 results with the inputs they came from (§10.6). [exitEquity] is ExitEV − ExitNetDebt exactly as §5.4 writes
  * it and can be negative; [exitProceeds] floors it at zero, because a limited-liability sponsor cannot receive less
- * than nothing, and MOIC and IRR are computed on the proceeds. [irr] is null where §2.1 has no single root.
+ * than nothing, and MOIC and IRR are computed on the proceeds. [irr] is null where §2.1 has no unique economically meaningful root.
  */
 data class LboReturns(
     val inputs: LboInputs,

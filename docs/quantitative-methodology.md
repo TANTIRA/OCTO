@@ -29,7 +29,7 @@ $$
 0 = \sum_{t=0}^{n} \frac{C_t}{(1+r)^{(d_t-d_0)/365}} + \frac{NAV_T}{(1+r)^{(d_T-d_0)/365}}
 $$
 
-Use the actual dates from the IBOR. Report Gross IRR before management fees, carried interest, and fund expenses; report Net IRR after these items. A result is undefined when the cash-flow pattern does not admit a unique economically meaningful root.
+Use the actual dates from the IBOR. Report Gross IRR before management fees, carried interest, and fund expenses; report Net IRR after these items. A result is undefined when the cash-flow pattern does not admit a unique economically meaningful root. A mathematical root below −99% is not economically meaningful when another root exists at or above −99%: the lower root is the extra zero a small terminal contribution creates beside the fund's rate. When that lower root is the only one, it is the near-total-loss rate and is reported. Two or more roots at or above −99% leave the result undefined.
 
 ### 2.2 Multiples
 

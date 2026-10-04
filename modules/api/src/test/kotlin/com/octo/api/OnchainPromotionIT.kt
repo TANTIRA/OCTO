@@ -76,6 +76,7 @@ class OnchainPromotionIT {
 
         assertThat(first.promoted).isZero()
         assertThat(first.quarantined.map { it.mintAddress }).containsExactly(mint)
+        assertThat(first.quarantined.single().count).isEqualTo(1)
 
         registerMint(mint)
         val second = promoter.promote()
