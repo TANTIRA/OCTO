@@ -67,9 +67,6 @@ RUN apt-get update \
     && ! dpkg -s libp11-kit0 >/dev/null 2>&1 \
     && ! dpkg -s libexpat1 >/dev/null 2>&1 \
     && ! dpkg -s curl >/dev/null 2>&1
-    && apt-get purge -y adduser passwd login login.defs gnupg \
-    && dpkg --purge --force-remove-essential --force-depends tar \
-    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build --chown=octo:octo /src/app.jar /app/app.jar
 USER octo
