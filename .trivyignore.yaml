@@ -6,9 +6,163 @@ vulnerabilities:
       - "pkg:deb/ubuntu/rust-coreutils"
     statement: >-
       False positive. Ubuntu still lists 26.04 as "needs fix", but upstream fixed uu_id in 0.6.0
-      (GitLab advisory for cargo/uu_id) and the base image ships rust-coreutils 0.8.0-0ubuntu3, whose
-      src/uu/id/src/id.rs looks up the effective user with geteuid(). CVSS 3.3, local only, and the
-      api container never calls id. Code scanning alert #81.
+      (GitLab advisory for cargo/uu_id). Dockerfile's Temurin JRE ships rust-coreutils
+      0.10.0-1ubuntu2~26.04.1, which is past that fix. CVSS 3.3, local only. Alert #81.
+    expired_at: 2027-01-31
+
+  # rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the pinned Temurin JRE (Dockerfile).
+  # Debian's tracker marks each of these fixed in rust-coreutils 0.10.0-1; the 0.10.0
+  # release is the upstream fix. Trivy leaves Fixed Version empty, so it still reports
+  # the patched package. Alerts 65-80 and 82-84.
+  - id: CVE-2026-35341
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. Dockerfile pins eclipse-temurin:21.0.12.1_1-jre, which ships
+      rust-coreutils 0.10.0-1ubuntu2~26.04.1. Debian marks CVE-2026-35341 fixed in
+      rust-coreutils 0.10.0-1 (upstream 0.10.0). The installed package is that fix.
+      Code scanning alert #65.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35344
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. Same image package as alert #65: rust-coreutils
+      0.10.0-1ubuntu2~26.04.1. Debian marks CVE-2026-35344 fixed in 0.10.0-1.
+      Code scanning alert #66.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35345
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35345 fixed in 0.10.0-1. Alert #67.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35348
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35348 fixed in 0.10.0-1. Alert #68.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35350
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35350 fixed in 0.10.0-1. Alert #69.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35351
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35351 fixed in 0.10.0-1. Alert #70.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35352
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35352 fixed in 0.10.0-1. Alert #71.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35354
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35354 fixed in 0.10.0-1. Alert #72.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35357
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35357 fixed in 0.10.0-1. Alert #73.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35359
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35359 fixed in 0.10.0-1. Alert #74.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35360
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35360 fixed in 0.10.0-1. Alert #75.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35363
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35363 fixed in 0.10.0-1. Alert #76.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35364
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35364 fixed in 0.10.0-1. Alert #77.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35367
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35367 fixed in 0.10.0-1. Alert #78.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35368
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35368 fixed in 0.10.0-1. Alert #79.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35370
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35370 fixed in 0.10.0-1. Alert #80.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35373
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35373 fixed in 0.10.0-1. Alert #82.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35374
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35374 fixed in 0.10.0-1. Alert #83.
+    expired_at: 2027-01-31
+  - id: CVE-2026-35377
+    purls: ["pkg:deb/ubuntu/rust-coreutils"]
+    statement: >-
+      False positive. rust-coreutils 0.10.0-1ubuntu2~26.04.1 in the Dockerfile JRE
+      image. Debian marks CVE-2026-35377 fixed in 0.10.0-1. Alert #84.
+    expired_at: 2027-01-31
+
+  - id: CVE-2026-85091
+    purls: ["pkg:deb/ubuntu/zlib1g"]
+    statement: >-
+      False positive. Dockerfile's Temurin JRE ships zlib1g
+      1:1.3.dfsg+really1.3.1-1ubuntu3.1 (upstream zlib 1.3.1). CVE-2026-85091 is
+      gz_vacate() in zlib 1.3.1.2 through 1.3.2; Debian marks older zlib
+      not-affected because that code landed in 1.3.1.2. Alert #88.
+    expired_at: 2027-01-31
+
+  - id: CVE-2026-89092
+    purls:
+      - "pkg:deb/ubuntu/libc-bin"
+      - "pkg:deb/ubuntu/libc-gconv-modules-extra"
+      - "pkg:deb/ubuntu/libc6"
+      - "pkg:deb/ubuntu/locales"
+    statement: >-
+      False positive. GLIBC-SA-2026-0016 is a stack overflow in the nscd daemon.
+      The octo-api image (Dockerfile) does not install the nscd package; Trivy
+      attributes the glibc source advisory to libc6, libc-bin, locales, and
+      libc-gconv-modules-extra, which do not contain nscd. Alerts #9, #11, #13, #34.
+    expired_at: 2027-01-31
+
+  - id: CVE-2026-40228
+    purls:
+      - "pkg:deb/ubuntu/libsystemd0"
+      - "pkg:deb/ubuntu/libudev1"
+    statement: >-
+      False positive. CVE-2026-40228 is systemd-journald writing unescaped emerg
+      messages when ForwardToWall=yes. The Dockerfile JRE image installs
+      libsystemd0 and libudev1 only; the systemd-journald package is not present.
+      Alerts #31 and #32.
     expired_at: 2027-01-31
   - id: CVE-2026-85091
     purls:
