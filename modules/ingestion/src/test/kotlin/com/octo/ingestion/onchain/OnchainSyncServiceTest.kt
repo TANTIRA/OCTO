@@ -2,11 +2,14 @@ package com.octo.ingestion.onchain
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.octo.ingestion.onchain.helius.HeliusException
 import com.octo.ingestion.onchain.helius.HeliusRpcApi
 import com.octo.ingestion.onchain.helius.HeliusTransferNormalizer
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 private val WALLET = "7VVA" + "A".repeat(39)
@@ -70,8 +73,22 @@ private open class FakeStore : OnchainStagingStore {
     var watched = listOf(WatchSource(CHAIN_SOLANA, WALLET, null, null))
     var cursorSlot: Long? = null
     val batches = mutableListOf<List<String>>()
+    var savedCursor: SolanaHistoryCursor? = null
 
     override fun activeWatchedAddresses(chain: String): List<WatchSource> = watched
+
+    override fun historyCursor(
+        chain: String,
+        wallet: String,
+    ): SolanaHistoryCursor? = savedCursor
+
+    override fun saveHistoryCursor(
+        chain: String,
+        wallet: String,
+        cursor: SolanaHistoryCursor,
+    ) {
+        savedCursor = cursor
+    }
 
     override fun newestSlot(
         chain: String,
@@ -124,10 +141,11 @@ private fun solTx(
     wallet: String,
     pre: Long,
     post: Long,
+    slot: Long = 250000001,
 ): JsonNode =
     ObjectMapper().readTree(
         """
-        {"slot":250000001,"blockTime":1726000000,
+        {"slot":$slot,"blockTime":1726000000,
          "transaction":{"signatures":["$sig"],"message":{"accountKeys":[{"pubkey":"$wallet"}]}},
          "meta":{"err":null,"preBalances":[$pre],"postBalances":[$post],"preTokenBalances":[],"postTokenBalances":[]}}
         """.trimIndent(),
@@ -171,16 +189,82 @@ class OnchainSyncServiceTest {
         assertEquals(2, results[0].transfersStaged)
         assertEquals(null, rpc.txCalls[0].third) // no slot filter on a cold wallet
         assertEquals(2, store.batches.single().size)
+        assertEquals(250000001L, store.savedCursor?.floorSlot)
+        assertNull(store.savedCursor?.resumeToken)
     }
 
     @Test
-    fun `incremental sync passes the newest staged slot as the slot filter`() {
-        val rpc = FakeRpc(listOf(listOf(solTx("sigNew", WALLET, 0, 50)) to null))
-        val store = FakeStore().apply { cursorSlot = 250_000_010L }
+    fun `incremental sync passes the history floor as the slot filter`() {
+        val rpc = FakeRpc(listOf(listOf(solTx("sigNew", WALLET, 0, 50, slot = 250_000_011)) to null))
+        val store =
+            FakeStore().apply {
+                savedCursor = SolanaHistoryCursor(floorSlot = 250_000_010L, resumeToken = null, pendingTipSlot = null)
+            }
         val service = OnchainSyncService(rpc, normalizer, store, pageLimit = 100)
 
         service.syncAll()
         assertEquals(250_000_010L, rpc.txCalls[0].third)
+        assertEquals(250_000_011L, store.savedCursor?.floorSlot)
+    }
+
+    @Test
+    fun `a webhook staged slot does not become the history floor`() {
+        val rpc = FakeRpc(listOf(listOf(solTx("sigOld", WALLET, 0, 1, slot = 10)) to null))
+        val store = FakeStore().apply { cursorSlot = 9_000_000L }
+        OnchainSyncService(rpc, normalizer, store, pageLimit = 100).syncAll()
+
+        assertEquals(null, rpc.txCalls[0].third)
+        assertEquals(10L, store.savedCursor?.floorSlot)
+    }
+
+    @Test
+    fun `a page budget resumes the older page instead of skipping it`() {
+        val rpc =
+            FakeRpc(
+                listOf(
+                    listOf(solTx("sigNew", WALLET, 0, 1, slot = 300)) to "page-2",
+                    listOf(solTx("sigMid", WALLET, 1, 2, slot = 200)) to "page-3",
+                    listOf(solTx("sigOld", WALLET, 2, 3, slot = 100)) to null,
+                    emptyList<JsonNode>() to null,
+                ),
+            )
+        val store = FakeStore()
+        val service = OnchainSyncService(rpc, normalizer, store, pageLimit = 1, maxPages = 1)
+
+        assertEquals(1, service.syncAll().single().signaturesSeen)
+        assertEquals("page-2", store.savedCursor?.resumeToken)
+        assertNull(store.savedCursor?.floorSlot)
+        assertEquals(300L, store.savedCursor?.pendingTipSlot)
+
+        assertEquals(1, service.syncAll().single().signaturesSeen)
+        assertEquals("page-2", rpc.txCalls[1].second)
+        assertNull(rpc.txCalls[1].third)
+
+        assertEquals(1, service.syncAll().single().signaturesSeen)
+        assertEquals(3, store.batches.sumOf { it.size })
+        assertEquals(300L, store.savedCursor?.floorSlot)
+        assertNull(store.savedCursor?.resumeToken)
+
+        service.syncAll()
+        assertEquals(300L, rpc.txCalls[3].third)
+        assertNull(rpc.txCalls[3].second)
+    }
+
+    @Test
+    fun `a repeated pagination token fails before the cursor moves`() {
+        val rpc =
+            FakeRpc(
+                listOf(
+                    listOf(solTx("sig", WALLET, 0, 1)) to "same",
+                    listOf(solTx("sig2", WALLET, 1, 2)) to "same",
+                ),
+            )
+        val store = FakeStore()
+        assertFailsWith<HeliusException> {
+            OnchainSyncService(rpc, normalizer, store, pageLimit = 1).syncAll()
+        }
+        assertTrue(store.batches.isEmpty())
+        assertNull(store.savedCursor)
     }
 
     @Test
