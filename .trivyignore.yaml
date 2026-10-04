@@ -164,3 +164,48 @@ vulnerabilities:
       libsystemd0 and libudev1 only; the systemd-journald package is not present.
       Alerts #31 and #32.
     expired_at: 2027-01-31
+  - id: CVE-2026-85091
+    purls:
+      - "pkg:deb/ubuntu/zlib1g"
+      - "pkg:deb/ubuntu/zlib"
+    statement: >-
+      False positive. The advisory covers gz_vacate() in zlib 1.3.1.2 through 1.3.2.
+      Dockerfile's Temurin runtime ships zlib1g 1:1.3.dfsg+really1.3.1, and
+      /usr/lib/*/libz.so.1.3.1 does not export gz_vacate. Alert #88.
+    expired_at: 2027-04-30
+  - id: CVE-2026-40228
+    purls:
+      - "pkg:deb/ubuntu/libsystemd0"
+      - "pkg:deb/ubuntu/libudev1"
+      - "pkg:deb/ubuntu/systemd"
+    statement: >-
+      False positive. CVE-2026-40228 is systemd-journald ForwardToWall ANSI
+      injection. Dockerfile's runtime image installs libsystemd0 and libudev1
+      only; systemd-journald is not installed and neither package ships that
+      binary. Alerts #31 and #32.
+    expired_at: 2027-04-30
+  - id: CVE-2026-89092
+    purls:
+      - "pkg:deb/ubuntu/libc-bin"
+      - "pkg:deb/ubuntu/libc6"
+      - "pkg:deb/ubuntu/libc-gconv-modules-extra"
+      - "pkg:deb/ubuntu/locales"
+      - "pkg:deb/ubuntu/glibc"
+    statement: >-
+      False positive. CVE-2026-89092 is a stack overflow in the nscd daemon.
+      Dockerfile's runtime image does not install nscd, and dpkg -L on libc6,
+      libc-bin, libc-gconv-modules-extra, and locales does not contain an nscd
+      binary. Alerts #9, #11, #13, and #34.
+    expired_at: 2027-04-30
+  - id: CVE-2026-18374
+    purls:
+      - "pkg:deb/ubuntu/libc-bin"
+      - "pkg:deb/ubuntu/libc-gconv-modules-extra"
+      - "pkg:deb/ubuntu/locales"
+    statement: >-
+      False positive for these binary packages. CVE-2026-18374 is in glibc
+      fopen, which ships in libc.so.6 from libc6 (Dockerfile). libc-bin is the
+      locale and loader helpers, libc-gconv-modules-extra is charset modules,
+      and locales is locale data. Alerts #8, #10, and #33. The libc6 finding
+      stays open: Ubuntu 26.04 has no fixed glibc.
+    expired_at: 2027-04-30
