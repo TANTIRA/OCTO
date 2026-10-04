@@ -151,9 +151,13 @@ internal const val MAX_REPORT_FIELD_LENGTH = 200
 /** Bound on how many measures one report (or schedule template) may request. */
 internal const val MAX_REPORT_MEASURES = 50
 
-/** Measure names and the free-form `parameters` object are capped the same way for one-off reports and schedules. */
+/**
+ * Measure names and the free-form `parameters` object are bounded the same way for one-off reports and
+ * schedules. A whitespace-only measure is rejected here: [ReportRequest] refuses it, and accepting it on a
+ * schedule would throw once the cadence came due.
+ */
 internal fun reportInputsBounded(
     json: ObjectMapper,
     measures: List<String>,
     parameters: Map<String, Any?>?,
-): Boolean = measures.none { it.length > MAX_REPORT_FIELD_LENGTH } && json.isBoundedObject(parameters)
+): Boolean = measures.none { it.isBlank() || it.length > MAX_REPORT_FIELD_LENGTH } && json.isBoundedObject(parameters)
