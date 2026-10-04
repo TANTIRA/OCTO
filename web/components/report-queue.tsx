@@ -21,6 +21,8 @@ import { useTenants } from "@/lib/use-tenants";
  * `POST /api/v1/reports/{id}/release`. The gate's `taskStatus` comes back on
  * the same payload, so a job keeps polling while its approval is open and
  * shows `released` plus the artifact once an approver decides (#489/#490).
+ * An approver also receives the draft before that decision (#552); the queue
+ * shows whatever body the API returned, and `released` stays the gate.
  */
 
 const cx = (...c: (string | false | null | undefined)[]) =>
@@ -65,7 +67,8 @@ const doneDetail = (j: Job): string => {
   if (j.status !== "done") return j.status;
   if (j.released) return "released — artifact unsealed";
   if (j.taskStatus === "rejected" || j.taskStatus === "cancelled")
-    return `release ${j.taskStatus} — artifact stays sealed`;
+    return `release ${j.taskStatus} — artifact stays unreleased`;
+  if (j.result != null) return "draft — pending release";
   if (j.approvalTaskId) return "awaiting approval — sealed until the gate decides";
   return "result ready (sealed until release)";
 };
@@ -383,13 +386,16 @@ export default function ReportQueue() {
                   <span className="block truncate text-xs text-neutral-500">
                     {j.error ?? doneDetail(j)}
                   </span>
-                  {j.released && j.artifactSha256 && (
+                  {j.artifactSha256 && (
                     <span className="block truncate font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
                       sha256 {j.artifactSha256.slice(0, 16)}
                     </span>
                   )}
-                  {j.released && j.result != null && (
-                    <pre className="mt-1 max-h-40 overflow-auto rounded-[var(--rb-r-sm,6px)] bg-neutral-50 p-2 text-[11px] text-neutral-600 dark:bg-neutral-950 dark:text-neutral-400">
+                  {j.result != null && (
+                    <pre
+                      aria-label={j.released ? "Released report" : "Report draft"}
+                      className="mt-1 max-h-40 overflow-auto rounded-[var(--rb-r-sm,6px)] bg-neutral-50 p-2 text-[11px] text-neutral-600 dark:bg-neutral-950 dark:text-neutral-400"
+                    >
                       {JSON.stringify(j.result, null, 2)}
                     </pre>
                   )}

@@ -47,10 +47,22 @@ interface ReleaseTasks {
 }
 
 /**
- * Whether [task] — a report job's approval task — releases the job's artifact. Every read path that could
- * carry a result or its hash gates on this one check (#482), so a draft never leaks around the gate.
+ * Whether [task] — a report job's approval task — releases the job's artifact. Release is this check
+ * alone (#482). Reading the draft does not approve the task and does not satisfy it.
  */
 internal fun releases(task: TaskState?): Boolean = task?.status == TaskStatus.APPROVED
+
+/**
+ * Who may read the result and its hash. A released artifact is visible to every member of the tenant.
+ * Before release, only an approver may read the sealed draft (#552), so they can see what a decision
+ * would publish. Viewers stay on the published artifact. Analysts and admins stay behind the gate
+ * #482 closed — an admin is segregated from approval duties and is not the person deciding the release.
+ * A true result here does not make [releases] true.
+ */
+internal fun revealsDraft(
+    released: Boolean,
+    role: TenantRole?,
+): Boolean = released || role == TenantRole.APPROVER
 
 /** The `subject_type` a release task binds to — opened and decided against this one literal. */
 private const val RELEASE_SUBJECT = "report-job"
@@ -58,8 +70,9 @@ private const val RELEASE_SUBJECT = "report-job"
 /**
  * The approval gate of #6 slice 7: an outbound artifact passes a `workflow_task` of kind `approval` before
  * release. `POST /api/v1/reports/{id}/release` opens that task for a `done` job, once; `GET …/release` tells
- * whether the task is approved and only then carries the result. Segregation of duties (V5, V7): the
- * requester of the task cannot be the one who approves it.
+ * whether the task is approved. The result travels with that view once released, and also to an approver
+ * while the task is still open (#552). Segregation of duties (V5, V7): the requester of the task cannot
+ * be the one who approves it.
  */
 @RestController
 class ReleaseController(
@@ -88,7 +101,7 @@ class ReleaseController(
             } catch (e: NoSuchElementException) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build()
             }
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(attached.release(openedTask))
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(attached.release(openedTask, role))
     }
 
     @GetMapping("/api/v1/reports/{id}/release")
@@ -98,8 +111,8 @@ class ReleaseController(
     ): ResponseEntity<ReleaseView> {
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
-        roleIn(userId, job) ?: return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(job.release(job.approvalTaskId?.let(tasks::state)))
+        val role = roleIn(userId, job) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(job.release(job.approvalTaskId?.let(tasks::state), role))
     }
 
     /**
@@ -126,7 +139,7 @@ class ReleaseController(
             } ?: return ResponseEntity.notFound().build()
         val event = body.toEvent(jwt.subject!!) ?: return ResponseEntity.badRequest().build()
         if (!role.mayPost(task.task.kind, event)) return ResponseEntity.notFound().build()
-        return decideTask(taskId, event, body.correlationId, tasks::append) { job.release(it) }
+        return decideTask(taskId, event, body.correlationId, tasks::append) { job.release(it, role) }
     }
 
     private fun roleIn(
@@ -156,7 +169,10 @@ class ReleaseController(
         }
     }
 
-    /** [result] is present only once the approval task is approved: before that the artifact stays inside. */
+    /**
+     * [result] and [artifactSha256] are present once the approval task is approved, and also to an
+     * approver while it is still open (#552). [released] stays false until the task is approved.
+     */
     data class ReleaseView(
         val jobId: UUID,
         val jobStatus: String,
@@ -167,16 +183,20 @@ class ReleaseController(
         val artifactSha256: String?,
     )
 
-    private fun ReportJob.release(task: TaskState?): ReleaseView {
+    private fun ReportJob.release(
+        task: TaskState?,
+        role: TenantRole,
+    ): ReleaseView {
         val released = releases(task)
+        val reveal = revealsDraft(released, role)
         return ReleaseView(
             jobId = id,
             jobStatus = status.wireValue,
             approvalTaskId = approvalTaskId,
             taskStatus = task?.status?.name?.lowercase(),
             released = released,
-            result = if (released) result?.let { json.readTree(it) } else null,
-            artifactSha256 = if (released) artifactSha256 else null,
+            result = if (reveal) result?.let { json.readTree(it) } else null,
+            artifactSha256 = if (reveal) artifactSha256 else null,
         )
     }
 }
