@@ -6,7 +6,7 @@ import com.octo.api.asset.AssetRecord
 import com.octo.api.asset.AssetStore
 import com.octo.api.asset.AssetType
 import com.octo.api.asset.Identifier
-import com.octo.api.graph.enqueueGraphUpsert
+import com.octo.iborcore.persistence.enqueueGraphUpsert
 import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
 import java.sql.Connection

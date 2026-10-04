@@ -44,7 +44,7 @@ Last triage: 2026-09-29 — full real-code gap audit folded in (items 11+).
 | # | Item | Source | Owner | Status |
 | --- | --- | --- | --- | --- |
 | 9 | Self-hosted Supabase acceptance list: restore drill meeting RPO/RTO, upgrade/rollback rehearsal on staging, monitoring + incident runbooks, capacity/dependency-failure tests | `docs/adr/0002-self-hosted-supabase.md` | @Aldroun | open |
-| 10 | Neo4j graph follow-ups after ADR-0004 acceptance (#308): scheduled reconciliation + admin endpoint + drift tasks (#564); project promoted `instrument_flow`, the first live writer (#565); unique `asset.supersedes_id`, since a forked asset lineage is reported, not prevented (#566). | `docs/adr/0004-neo4j-graph-store.md`, `modules/api/.../graph/` | @Fatihmaull | open |
+| 10 | Neo4j graph follow-ups after ADR-0004 acceptance (#308): scheduled reconciliation + admin endpoint + drift tasks (#564); promoted `instrument_flow` projection (#565, done); unique `asset.supersedes_id`, since a forked asset lineage is reported, not prevented (#566). | `docs/adr/0004-neo4j-graph-store.md`, `modules/api/.../graph/` | @Fatihmaull | open |
 
 ## Gap audit — high (real code, verified 2026-09-29)
 
