@@ -60,6 +60,8 @@ interface OnchainStagingStore {
         wallet: String,
         cursor: SolanaHistoryCursor,
     ) = Unit
+
+    /**
      * The last block the EVM poller finished scanning on [chain], inclusive, or null when
      * no checkpoint is stored. Quiet ranges advance this; [newestStagedSlot] does not.
      */
