@@ -52,7 +52,7 @@ class ContactController(
         val sourceIp: String?,
     )
 
-    /** `website` is the honeypot: absent from the rendered form's reachable controls. */
+    /** `website` is the honeypot: a non-visible named field of the contact form. Real visitors leave it blank. */
     data class ContactBody(
         @field:Email @field:NotBlank @field:Size(max = 320) val email: String,
         @field:NotBlank @field:Size(max = 120) val firstName: String,

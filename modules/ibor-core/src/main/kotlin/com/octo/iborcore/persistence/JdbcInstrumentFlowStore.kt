@@ -6,6 +6,7 @@ import com.octo.iborcore.InstrumentFlowType
 import com.octo.iborcore.InstrumentKey
 import com.octo.iborcore.PROMOTION_ACTOR
 import com.octo.iborcore.ProjectedInstrument
+import com.octo.iborcore.QuarantinedMint
 import com.octo.iborcore.StagedTransfer
 import com.octo.iborcore.instrumentFlowProjection
 import com.octo.persistence.TenantScope
@@ -34,7 +35,7 @@ import javax.sql.DataSource
 class JdbcInstrumentFlowStore(
     private val dataSource: DataSource,
 ) : InstrumentFlowStore {
-    override fun unpromotedTransfers(): List<StagedTransfer> =
+    override fun unpromotedTransfers(limit: Int): List<StagedTransfer> =
         dataSource.scoped(TenantScope.All) { c ->
             c
                 .prepareStatement(
@@ -42,40 +43,58 @@ class JdbcInstrumentFlowStore(
                     select s.id, s.external_id, s.chain, s.signature, s.slot, s.block_time,
                            s.wallet, s.token_account, s.mint_address, s.amount_raw, s.decimals,
                            s.transfer_kind, s.supersedes_id, s.rationale, s.recorded_at,
-                       s.source_system,
-                           s.ingestion_run_id, s.correlation_id
+                           s.source_system, s.ingestion_run_id, s.correlation_id
                       from octo.onchain_transfer s
                      where s.commitment = 'finalized'
                        and not exists (
                            select 1 from octo.instrument_flow f
                             where f.source_system = s.source_system
                               and f.external_id = s.external_id)
+                       and exists (
+                           select 1 from octo.instrument i
+                            where i.chain = s.chain
+                              and i.mint_address is not distinct from s.mint_address)
                      order by s.recorded_at, s.id
+                     limit ?
+                    """.trimIndent(),
+                ).use { s ->
+                    s.setInt(1, limit)
+                    s.executeQuery().use { r ->
+                        buildList {
+                            while (r.next()) add(r.stagedTransfer())
+                        }
+                    }
+                }
+        }
+
+    override fun quarantinedMints(): List<QuarantinedMint> =
+        dataSource.scoped(TenantScope.All) { c ->
+            c
+                .prepareStatement(
+                    """
+                    select s.chain, s.mint_address, count(*)::int as waiting
+                      from octo.onchain_transfer s
+                     where s.commitment = 'finalized'
+                       and not exists (
+                           select 1 from octo.instrument_flow f
+                            where f.source_system = s.source_system
+                              and f.external_id = s.external_id)
+                       and not exists (
+                           select 1 from octo.instrument i
+                            where i.chain = s.chain
+                              and i.mint_address is not distinct from s.mint_address)
+                     group by s.chain, s.mint_address
+                     order by s.chain, s.mint_address
                     """.trimIndent(),
                 ).use { s ->
                     s.executeQuery().use { r ->
                         buildList {
                             while (r.next()) {
                                 add(
-                                    StagedTransfer(
-                                        id = r.uuid("id")!!,
-                                        externalId = r.getString("external_id"),
+                                    QuarantinedMint(
                                         chain = r.getString("chain"),
-                                        signature = r.getString("signature"),
-                                        slot = r.getLong("slot"),
-                                        blockTime = r.instant("block_time"),
-                                        wallet = r.getString("wallet"),
-                                        tokenAccount = r.getString("token_account"),
                                         mintAddress = r.getString("mint_address"),
-                                        amountRaw = r.getBigDecimal("amount_raw").toBigIntegerExact(),
-                                        decimals = r.getInt("decimals"),
-                                        transferKind = r.getString("transfer_kind"),
-                                        supersedesId = r.uuid("supersedes_id"),
-                                        rationale = r.getString("rationale"),
-                                        recordedAt = r.instant("recorded_at"),
-                                        sourceSystem = r.getString("source_system"),
-                                        ingestionRunId = r.uuid("ingestion_run_id")!!,
-                                        correlationId = r.uuid("correlation_id")!!,
+                                        count = r.getInt("waiting"),
                                     ),
                                 )
                             }
@@ -270,4 +289,26 @@ class JdbcInstrumentFlowStore(
     private fun ResultSet.uuid(column: String): UUID? = getObject(column, UUID::class.java)
 
     private fun ResultSet.instant(column: String) = getObject(column, OffsetDateTime::class.java).toInstant()
+
+    private fun ResultSet.stagedTransfer() =
+        StagedTransfer(
+            id = uuid("id")!!,
+            externalId = getString("external_id"),
+            chain = getString("chain"),
+            signature = getString("signature"),
+            slot = getLong("slot"),
+            blockTime = instant("block_time"),
+            wallet = getString("wallet"),
+            tokenAccount = getString("token_account"),
+            mintAddress = getString("mint_address"),
+            amountRaw = getBigDecimal("amount_raw").toBigIntegerExact(),
+            decimals = getInt("decimals"),
+            transferKind = getString("transfer_kind"),
+            supersedesId = uuid("supersedes_id"),
+            rationale = getString("rationale"),
+            recordedAt = instant("recorded_at"),
+            sourceSystem = getString("source_system"),
+            ingestionRunId = uuid("ingestion_run_id")!!,
+            correlationId = uuid("correlation_id")!!,
+        )
 }

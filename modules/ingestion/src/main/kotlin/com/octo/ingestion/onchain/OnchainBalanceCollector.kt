@@ -43,11 +43,24 @@ class OnchainBalanceCollector(
         for (watch in wallets) {
             val skippedBefore = skipped.size
             val fallbacksBefore = fallbacks.size
-            val balances = collectWallet(watch.address, asOf, fallbacks, skipped, failed) ?: continue
+            val read = collectWallet(watch.address, asOf, fallbacks, skipped, failed) ?: continue
             val source = if (fallbacks.size > fallbacksBefore) BalanceSource.RPC else BalanceSource.WALLET_API
-            val unreadable = skipped.subList(skippedBefore, skipped.size).map(::mintOf).toSet()
-            val emptied = emptiedHoldings(chain, watch.address, balances, unreadable, source, asOf)
-            snapshots += staging.insertSnapshots(balances + emptied, ingestionRunId, UUID.randomUUID(), ACTOR)
+            val freshSkips = skipped.subList(skippedBefore, skipped.size)
+            // Wallet API uses the wrapped-SOL mint as its native row. RPC skipped mints are real
+            // SPL mints (wrapped SOL included) and must not be rewritten to the native key.
+            val unreadable = mutableSetOf<String?>()
+            if (source == BalanceSource.RPC) unreadable += freshSkips else unreadable += freshSkips.map(::mintOf)
+            val emptied =
+                emptiedHoldings(
+                    chain,
+                    watch.address,
+                    read.balances,
+                    unreadable,
+                    source,
+                    asOf,
+                    read.unidentifiedTokenAccounts,
+                )
+            snapshots += staging.insertSnapshots(read.balances + emptied, ingestionRunId, UUID.randomUUID(), ACTOR)
         }
         return BalanceCollectionReport(wallets.size, snapshots, fallbacks, skipped, failed)
     }
@@ -58,7 +71,7 @@ class OnchainBalanceCollector(
         fallbacks: MutableList<String>,
         skipped: MutableList<String>,
         failed: MutableList<String>,
-    ): List<OnchainBalance>? {
+    ): WalletRead? {
         try {
             val all = mutableListOf<OnchainBalance>()
             var page = 1
@@ -66,7 +79,7 @@ class OnchainBalanceCollector(
                 val parsed = normalizer.fromWalletApi(walletApi.balances(address, page), address, asOf)
                 all += parsed.balances
                 skipped += parsed.skipped
-                if (!parsed.hasMore) return all
+                if (!parsed.hasMore) return WalletRead(all)
                 page++
             }
         } catch (e: HeliusException) {
@@ -76,8 +89,11 @@ class OnchainBalanceCollector(
                 return null
             }
             fallbacks += address
-            return runCatching { normalizer.fromRpc(client.balance(address), client.tokenAccountsByOwner(address), address, asOf) }
-                .onFailure { failed += address }
+            return runCatching {
+                val parsed = normalizer.fromRpc(client.balance(address), client.tokenAccountsByOwner(address), address, asOf)
+                skipped += parsed.skipped
+                WalletRead(parsed.balances, parsed.unidentified)
+            }.onFailure { failed += address }
                 .getOrNull()
         }
     }
@@ -85,7 +101,9 @@ class OnchainBalanceCollector(
     // Both sources omit empty holdings, so the table stays sparse — except where the latest
     // snapshot still shows a holding: there a zero must land, or recon keeps reading the stale
     // amount. Stake rows (token_account set) belong to the staking collector, and a mint this
-    // pass could not read is left alone rather than zeroed.
+    // pass could not read is left alone rather than zeroed. An RPC account with no readable
+    // mint might be any prior token holding, so none of those unread mints are zeroed either.
+    // Native SOL still comes from getBalance and can be zeroed on its own.
     private fun emptiedHoldings(
         chain: String,
         wallet: String,
@@ -93,15 +111,24 @@ class OnchainBalanceCollector(
         unreadable: Set<String?>,
         source: BalanceSource,
         asOf: Instant,
+        unidentifiedTokenAccounts: Boolean,
     ): List<OnchainBalance> {
         val seen = observed.map { it.mintAddress }.toSet()
         return staging
             .latestSnapshots(chain, wallet)
             .filter { it.tokenAccount == null && it.amountRaw.signum() > 0 }
-            .filter { it.mintAddress !in seen && it.mintAddress !in unreadable }
-            .distinctBy { it.mintAddress }
+            .filter {
+                it.mintAddress !in seen &&
+                    it.mintAddress !in unreadable &&
+                    !(unidentifiedTokenAccounts && it.mintAddress != null)
+            }.distinctBy { it.mintAddress }
             .map { it.copy(amountRaw = BigInteger.ZERO, usdValue = null, source = source, slot = null, asOf = asOf) }
     }
+
+    private data class WalletRead(
+        val balances: List<OnchainBalance>,
+        val unidentifiedTokenAccounts: Boolean = false,
+    )
 
     private fun mintOf(walletApiMint: String): String? = walletApiMint.takeIf { it != HeliusBalanceNormalizer.WRAPPED_SOL_MINT }
 

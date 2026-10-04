@@ -99,4 +99,20 @@ class ReportScheduleRunnerTest {
         assertThat(schedules.load(good.id, TenantScope.All)!!.nextRunAt).isAfter(Instant.now())
         assertThat(schedules.load(bad.id, TenantScope.All)!!.nextRunAt).isEqualTo(bad.nextRunAt)
     }
+
+    @Test
+    fun `a blank measure parks that schedule and another tenant still fires`() {
+        val bad = schedule().copy(measures = listOf(" "), claimedUntil = null)
+        val good = schedule().copy(claimedUntil = null)
+        schedules.upsert(bad, TenantScope.All)
+        schedules.upsert(good, TenantScope.All)
+
+        runner.poll()
+
+        assertThat(jobs.jobs.values.map { it.request.tenantId }).containsExactly(good.tenantId)
+        assertThat(schedules.load(good.id, TenantScope.All)!!.nextRunAt).isAfter(Instant.now())
+        val parked = schedules.load(bad.id, TenantScope.All)!!
+        assertThat(parked.nextRunAt).isAfter(Instant.now().plus(90L * 365, ChronoUnit.DAYS))
+        assertThat(parked.claimedUntil).isNull()
+    }
 }

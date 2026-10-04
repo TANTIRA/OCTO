@@ -107,7 +107,7 @@ class OnchainStagingStoreIT {
     }
 
     @Test
-    fun `newestStagedSlot is the EVM resume cursor — the highest staged slot on the chain`() {
+    fun `newestStagedSlot is the highest staged slot on the chain`() {
         val wallet = evmAddr()
         track(wallet, CHAIN_ARBITRUM_ONE)
         event(wallet, "watched", chain = CHAIN_ARBITRUM_ONE)
@@ -131,6 +131,20 @@ class OnchainStagingStoreIT {
             "evm-poller",
         )
         assertThat(store.newestStagedSlot(CHAIN_ARBITRUM_ONE)).isEqualTo(777_777_777L)
+    }
+
+    @Test
+    fun `the EVM scan checkpoint advances and never moves backward`() {
+        val chain = "checkpoint-it"
+        assertThat(store.scannedThrough(chain)).isNull()
+        store.recordScannedThrough(chain, 100)
+        assertThat(store.scannedThrough(chain)).isEqualTo(100L)
+        store.recordScannedThrough(chain, 100)
+        store.recordScannedThrough(chain, 40)
+        assertThat(store.scannedThrough(chain)).isEqualTo(100L)
+        store.recordScannedThrough(chain, 250)
+        assertThat(store.scannedThrough(chain)).isEqualTo(250L)
+        assertThat(store.scannedThrough("checkpoint-other")).isNull()
     }
 
     @Test

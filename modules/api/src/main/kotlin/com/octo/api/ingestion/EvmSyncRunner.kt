@@ -11,8 +11,8 @@ import org.springframework.scheduling.annotation.Scheduled
  * Runs the EVM poller on a fixed delay — the scheduling entry point the Solana services
  * never grew (they are webhook-fed today). One poll scans the finalized range for ERC-20
  * `Transfer` legs, then snapshots watched balances at the same head. A failed poll logs
- * and waits for the next tick; staging rows already written are facts, so the next run
- * resumes rather than redoes.
+ * and waits for the next tick. Each finished block range is checkpointed per chain, so
+ * the next run resumes after it — a quiet range is not scanned again.
  */
 class EvmSyncRunner(
     private val scan: EvmScanService,

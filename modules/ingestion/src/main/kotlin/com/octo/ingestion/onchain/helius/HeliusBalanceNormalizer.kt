@@ -61,13 +61,21 @@ class HeliusBalanceNormalizer {
         )
     }
 
-    /** RPC fallback: `getBalance` lamports + `getTokenAccountsByOwner` grouped per mint. */
+    /**
+     * RPC fallback: `getBalance` lamports + `getTokenAccountsByOwner` grouped per mint.
+     *
+     * A token account that is present but cannot be read is reported, never dropped. Dropping
+     * it would look like an emptied holding and a later zero snapshot would replace the real
+     * balance. [RpcParse.skipped] names mints whose amount could not be read; [RpcParse.unidentified]
+     * is set when `jsonParsed` returned an account with no mint (raw bytes), so the caller
+     * cannot prove which prior token holding that account was.
+     */
     fun fromRpc(
         lamports: Long,
         tokenAccounts: JsonNode,
         wallet: String,
         asOf: Instant,
-    ): List<OnchainBalance> {
+    ): RpcParse {
         val balances = mutableListOf<OnchainBalance>()
         if (lamports > 0) {
             balances +=
@@ -84,6 +92,8 @@ class HeliusBalanceNormalizer {
                 )
         }
         val perMint = linkedMapOf<String, Pair<BigInteger, Int>>()
+        val skipped = linkedSetOf<String>()
+        var unidentified = false
         for (account in tokenAccounts.path("value")) {
             val info =
                 account
@@ -92,11 +102,19 @@ class HeliusBalanceNormalizer {
                     .path("parsed")
                     .path("info")
             val mint = info.path("mint").asText()
-            if (mint.isEmpty()) continue
+            if (mint.isEmpty()) {
+                unidentified = true
+                continue
+            }
+            if (mint in skipped) continue
             val amount = info.path("tokenAmount").path("amount")
-            if (!amount.isTextual) continue
-            val raw = amount.asText().toBigIntegerOrNull() ?: continue
-            if (raw.signum() <= 0) continue
+            val raw = if (amount.isTextual) amount.asText().toBigIntegerOrNull() else null
+            if (raw == null || raw.signum() < 0) {
+                skipped += mint
+                perMint.remove(mint)
+                continue
+            }
+            if (raw.signum() == 0) continue
             val decimals = info.path("tokenAmount").path("decimals").asInt()
             perMint.merge(mint, raw to decimals) { (a, d), (b, _) -> a + b to d }
         }
@@ -114,8 +132,19 @@ class HeliusBalanceNormalizer {
                     asOf = asOf,
                 )
         }
-        return balances
+        return RpcParse(balances, skipped.toList(), unidentified)
     }
+
+    /**
+     * One `getTokenAccountsByOwner` pass. [skipped] mints were seen but their amount was not
+     * a readable integer, so they must not be stored and must not be zeroed. [unidentified]
+     * means at least one account came back without a mint.
+     */
+    data class RpcParse(
+        val balances: List<OnchainBalance>,
+        val skipped: List<String>,
+        val unidentified: Boolean,
+    )
 
     data class BalanceParse(
         val balances: List<OnchainBalance>,
