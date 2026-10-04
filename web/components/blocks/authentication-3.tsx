@@ -17,7 +17,7 @@ import {
   KeyRound,
   Loader2,
 } from "lucide-react";
-import { landedFromRecoveryLink, supabase } from "@/lib/supabase";
+import { supabase, whenRecoverySettled } from "@/lib/supabase";
 
 // Wallets are browser objects — render only on the client.
 const WalletSignIn = dynamic(() => import("@/components/wallet-sign-in"), {
@@ -126,14 +126,21 @@ export default function Authentication3() {
     return () => clearInterval(id);
   }, [step]);
 
-  // Already signed in — go straight to the app. A password-reset link that
-  // still points here (sent before #498) also yields a session: send it to
-  // the set-new-password form instead, or the reset would never happen.
+  // Already signed in — go straight to the app. A reset-link session is not
+  // signed in for the app until a new password is saved (#549); older reset
+  // links that still point here take the same path.
   useEffect(() => {
-    supabase?.auth.getSession().then(({ data }) => {
-      if (!data.session) return;
-      window.location.replace(landedFromRecoveryLink ? "/login/reset" : "/app");
+    if (!supabase) return;
+    let active = true;
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!active || !data.session) return;
+      const pending = await whenRecoverySettled(data.session);
+      if (!active) return;
+      window.location.replace(pending ? "/login/reset" : "/app");
     });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const submit = async (event: FormEvent) => {
