@@ -53,6 +53,10 @@ The graph holds every tenant in one database (Community Edition has a single use
 
 Every graph read filters on `tenantId`. This changes what `@key` means for those entities, so the ontology moves to **2.0.0** (SemVer MAJOR). Existing graphs drop the replaced global constraints (`fund_legal_name_key`, `deal_display_name_key`, `investment_display_name_key`, `document_file_name_key`, `person_email_unique`, `wallet_solana_address_key`, `evm_wallet_evm_address_key`) before applying the schema. Production holds no projected data yet, so nothing needs to be rekeyed.
 
+### Instrument-flow projection (#565, ontology 2.1.0)
+
+Promoted `instrument_flow` rows enqueue four upserts in the same transaction as the ledger insert: the global `:Instrument` (merged on `instrumentId`), the tenant's `:Wallet` or `:EvmWallet`, the `:InstrumentFlow` (octoId = lineage root), and the reified `:InstrumentFlowOf` with `FLOW_SIDE`, `INSTRUMENT_SIDE`, and `WALLET_SIDE` edges. Relationship types come from the projection table, not the payload. `instrument-flow` and `instrument-flow-of` own `tenant-id` and a unique `octo-id`. A wallet's octoId is the name-based UUID of `(tenant, chain, address)`, because `tracked_address` has no row uuid. A flow whose wallet has no tenant stays in the ledger and is not projected.
+
 ## Consequences
 
 ### Positive
@@ -76,7 +80,7 @@ Every graph read filters on `tenantId`. This changes what `@key` means for those
 ## Acceptance criteria
 
 - [x] `ontology/octo-investment.cypher` validates against a live Neo4j Community instance in CI (`Neo4jSchemaIT`, pinned image `neo4j:2025.12.1-community`)
-- [x] Dual-write ingestion path with atomic failure semantics implemented — transactional outbox (V45, #559) drained by `GraphProjector` (#560); `GraphOutboxStoreIT`, `GraphProjectionIT`. Assets are the first projected aggregate; their write path has no production caller yet, so the first live projection is `instrument_flow`.
+- [x] Dual-write ingestion path with atomic failure semantics implemented — transactional outbox (V45, #559) drained by `GraphProjector` (#560); `GraphOutboxStoreIT`, `GraphProjectionIT`. Promoted `instrument_flow` is the first live projection (#565): the flow, its `:InstrumentFlowOf` edges, and the `:Wallet` / `:EvmWallet` / `:Instrument` endpoints.
 - [x] Graph-ledger reconciliation report passes on seeded test data — `GraphReconciler` (#308): missing, stale, orphan, forked, failed and stuck, per tenant; `GraphReconciliationIT`
 - [x] Neo4j backup/restore and upgrade runbooks exist (`restore-runbook.md` §6, `runbooks/neo4j-upgrade.md`, #308)
 - [x] Performance test: look-through aggregation over 5-level hierarchy within reporting SLA (`modules/lookthrough/src/test/kotlin/com/octo/lookthrough/ExposurePerfTest.kt`, #308)

@@ -221,6 +221,10 @@ class ReportScheduleEndpointTest {
                     .single()
                     .name,
             ).hasSize(MAX_SCHEDULE_NAME_LENGTH)
+        }
+    }
+
+    @Test
     fun `a whitespace-only measure is a validation error`() {
         run { mvc ->
             for (measures in listOf("[\" \"]", "[\"tvpi\", \" \"]")) {

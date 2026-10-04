@@ -282,13 +282,17 @@ inv:InstrumentFlowShape a sh:NodeShape ;
     sh:property [ sh:path inv:occurredAt ; sh:datatype xsd:dateTime ; sh:message "occurredAt must be an xsd:dateTime."@en ] ;
     sh:property [ sh:path inv:recordedAt ; sh:datatype xsd:dateTime ; sh:message "recordedAt must be an xsd:dateTime."@en ] ;
     sh:property [ sh:path inv:externalId ; sh:datatype xsd:string ; sh:message "externalId must be a string."@en ] ;
-    sh:property [ sh:path inv:slot ; sh:datatype xsd:integer ; sh:message "slot must be an integer."@en ] .
+    sh:property [ sh:path inv:slot ; sh:datatype xsd:integer ; sh:message "slot must be an integer."@en ] ;
+    sh:property [ sh:path inv:tenantId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "tenantId must be a lowercase UUID."@en ] ;
+    sh:property [ sh:path inv:octoId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "octoId must be a lowercase UUID."@en ] .
 
 inv:InstrumentFlowOfShape a sh:NodeShape ;
     sh:targetClass inv:InstrumentFlowOf ;
     sh:property [ sh:path inv:flowSide ; sh:minCount 1 ; sh:message "An instrument-flow-of must relate exactly one flow-side (mirrors 'relates flow-side @card(1)')."@en ] ;
     sh:property [ sh:path inv:instrumentSide ; sh:minCount 1 ; sh:message "An instrument-flow-of must relate exactly one instrument-side (mirrors 'relates instrument-side @card(1)')."@en ] ;
-    sh:property [ sh:path inv:walletSide ; sh:minCount 1 ; sh:message "An instrument-flow-of must relate exactly one wallet-side (mirrors 'relates wallet-side @card(1)')."@en ] .
+    sh:property [ sh:path inv:walletSide ; sh:minCount 1 ; sh:message "An instrument-flow-of must relate exactly one wallet-side (mirrors 'relates wallet-side @card(1)')."@en ] ;
+    sh:property [ sh:path inv:tenantId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "tenantId must be a lowercase UUID."@en ] ;
+    sh:property [ sh:path inv:octoId ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" ; sh:message "octoId must be a lowercase UUID."@en ] .
 
 inv:WalletCustodyShape a sh:NodeShape ;
     sh:targetClass inv:WalletCustody ;

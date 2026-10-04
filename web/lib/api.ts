@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase, syncRecoverySession } from "@/lib/supabase";
 import { isPlatformAdmin } from "@/lib/admin-gate";
 
 /**
@@ -8,8 +8,9 @@ import { isPlatformAdmin } from "@/lib/admin-gate";
  * rewrites proxy them to the internal API service, so no CORS surface is
  * exposed. When a Supabase session exists its access token is attached as a
  * bearer token; the API's resource server verifies it against the issuer
- * JWKS. Without a session the call still runs — the API returns 401 and the
- * caller decides how to render that.
+ * JWKS. A reset-link session whose new password is not saved yet is not an
+ * app session, so its token is left off (#549). Without a session the call
+ * still runs — the API returns 401 and the caller decides how to render that.
  */
 export async function apiFetch(
   path: string,
@@ -19,7 +20,9 @@ export async function apiFetch(
   if (supabase && !headers.has("Authorization")) {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
-    if (token) headers.set("Authorization", `Bearer ${token}`);
+    if (token && !syncRecoverySession(data.session)) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
   }
   return fetch(path, { ...init, headers });
 }

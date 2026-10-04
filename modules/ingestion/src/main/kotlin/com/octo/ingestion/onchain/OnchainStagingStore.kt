@@ -1,5 +1,6 @@
 package com.octo.ingestion.onchain
 
+import java.math.BigInteger
 import java.util.UUID
 
 /**
@@ -60,6 +61,8 @@ interface OnchainStagingStore {
         wallet: String,
         cursor: SolanaHistoryCursor,
     ) = Unit
+
+    /**
      * The last block the EVM poller finished scanning on [chain], inclusive, or null when
      * no checkpoint is stored. Quiet ranges advance this; [newestStagedSlot] does not.
      */
@@ -83,6 +86,9 @@ interface OnchainStagingStore {
     /**
      * Batch-insert staging rows. Returns rows actually inserted — replays and webhook/poller
      * duplicates hit the unique (source_system, external_id) key and count as zero.
+     *
+     * A Solana fee leg is not inserted when [omitSolanaFeesAlreadyBooked] finds that fee already
+     * inside a legacy native-balance leg. Re-normalizing that older shape must not debit it twice.
      */
     fun insertTransfers(
         transfers: List<OnchainTransfer>,
@@ -120,3 +126,69 @@ interface OnchainStagingStore {
         actor: String,
     ): Int
 }
+
+/**
+ * A native-balance leg already in `onchain_transfer`. Compared with a re-normalized batch to see
+ * whether its amount still includes the network fee.
+ */
+internal data class StagedNativeLeg(
+    val sourceSystem: String,
+    val externalId: String,
+    val amountRaw: BigInteger,
+    val direction: TransferDirection,
+)
+
+/**
+ * Drops Solana fee legs whose lamports are already inside a legacy balance leg.
+ *
+ * Before the fee was its own leg, the fee payer's native leg used
+ * `solana:<sig>:<account>:bal:0` and stored `|post - pre|`, fee included. Re-normalization emits
+ * that same id with the fee removed, plus `...:fee`. The balance id conflicts and is kept as-is;
+ * the fee id is new and would debit the fee again. When the staged `bal:0` amount and direction
+ * are exactly that legacy leg (`(post - pre) = newSignedDelta - fee`), the fee leg is omitted.
+ * A staged fee-free amount is left alone so a missing fee row can still be inserted. Nothing here
+ * writes position or cash state — those stay derived from the legs that remain.
+ *
+ * [stagedNativeLegs] must be the staged `bal:0` siblings of [incoming]'s fee legs, keyed by the
+ * same `(source_system, external_id)` as the unique staging key. An empty collection means nothing
+ * legacy is staged, so every incoming leg is kept.
+ */
+internal fun omitSolanaFeesAlreadyBooked(
+    incoming: List<OnchainTransfer>,
+    stagedNativeLegs: Collection<StagedNativeLeg>,
+): List<OnchainTransfer> {
+    if (incoming.none { it.isSolanaNetworkFee() } || stagedNativeLegs.isEmpty()) return incoming
+    val staged = stagedNativeLegs.associateBy { it.sourceSystem to it.externalId }
+    val incomingById = incoming.associateBy { it.sourceSystem to it.externalId }
+    val drop = mutableSetOf<Pair<String, String>>()
+    for (fee in incoming) {
+        if (!fee.isSolanaNetworkFee()) continue
+        val balanceId = legacyBalanceExternalId(fee.externalId) ?: continue
+        val stagedBalance = staged[fee.sourceSystem to balanceId] ?: continue
+        val newBalance = incomingById[fee.sourceSystem to balanceId]
+        val newSigned =
+            when (newBalance?.direction) {
+                null -> BigInteger.ZERO
+                TransferDirection.IN -> newBalance.amountRaw
+                TransferDirection.OUT -> newBalance.amountRaw.negate()
+                else -> continue
+            }
+        val legacySigned = newSigned - fee.amountRaw
+        if (legacySigned.signum() == 0) continue
+        val legacyDirection = if (legacySigned.signum() > 0) TransferDirection.IN else TransferDirection.OUT
+        if (stagedBalance.amountRaw == legacySigned.abs() && stagedBalance.direction == legacyDirection) {
+            drop += fee.sourceSystem to fee.externalId
+        }
+    }
+    if (drop.isEmpty()) return incoming
+    return incoming.filter { (it.sourceSystem to it.externalId) !in drop }
+}
+
+/** Fee payer is `accountKeys[0]`, so the legacy native leg for a `...:fee` id is `...:bal:0`. */
+internal fun legacyBalanceExternalId(feeExternalId: String): String? {
+    if (!feeExternalId.endsWith(":fee")) return null
+    return feeExternalId.removeSuffix(":fee") + ":bal:0"
+}
+
+internal fun OnchainTransfer.isSolanaNetworkFee(): Boolean =
+    chain == CHAIN_SOLANA && direction == TransferDirection.FEE && externalId.endsWith(":fee")

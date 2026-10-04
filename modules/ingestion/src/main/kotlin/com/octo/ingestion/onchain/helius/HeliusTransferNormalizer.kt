@@ -25,7 +25,9 @@ import java.time.Instant
  * When the watched wallet pays the fee (`accountKeys[0]`), `meta.fee` is staged as its own
  * `direction = fee` leg and removed from the native SOL leg, so legs still net to the wallet's
  * lamport delta. An absent `fee` is treated as zero (the whole delta stays one leg); a present but
- * malformed one skips the native leg.
+ * malformed one skips the native leg. A balance leg staged before this split already holds the fee
+ * under the same `bal:0` id; staging drops the new fee leg in that case so a redelivery does not
+ * debit it again.
  *
  * Deterministic identity: `externalId = "solana:<sig>:<account>:<leg>"` where leg is
  * `bal:<accountIndex>` for native SOL, `fee` for the network fee, or `tok:<accountIndex>` for

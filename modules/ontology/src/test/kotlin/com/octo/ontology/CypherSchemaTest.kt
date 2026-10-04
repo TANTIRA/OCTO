@@ -41,7 +41,8 @@ class CypherSchemaTest {
 
     @Test
     fun `tenant-owned entities own tenant-id and a unique octo-id, reference data owns neither`() {
-        val tenantOwned = listOf("party", "fund", "deal", "investment", "document", "wallet", "evm-wallet")
+        val tenantOwned =
+            listOf("party", "fund", "deal", "investment", "document", "wallet", "evm-wallet", "instrument-flow")
         for (name in tenantOwned) {
             val owns = schema.entities.getValue(name).owns
             assertTrue(owns.any { it.attribute == "tenant-id" && !it.key }, "$name must own tenant-id")
