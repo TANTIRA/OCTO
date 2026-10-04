@@ -8,6 +8,7 @@ import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskEvent
 import com.octo.workflow.TaskState
+import com.octo.workflow.TaskStatus
 import com.octo.workflow.next
 import com.octo.workflow.opened
 import com.octo.workflow.persistence.TaskProvenance
@@ -29,7 +30,6 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
-import java.time.Instant
 import java.util.UUID
 import java.util.function.Supplier
 
@@ -168,6 +168,62 @@ class ReleaseEndpointTest {
     }
 
     @Test
+    fun `an approver reads the sealed draft before deciding and that read does not release it`() {
+        run { mvc ->
+            val id = doneJob()
+            mvc
+                .perform(get("/api/v1/reports/$id").with(asUser(approver)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+                .andExpect(jsonPath("$.artifactSha256").value("a".repeat(64)))
+            mvc
+                .perform(post("/api/v1/reports/$id/release").with(asUser(analyst)))
+                .andExpect(status().isAccepted)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.result").doesNotExist())
+
+            mvc
+                .perform(get("/api/v1/reports/$id").with(asUser(approver)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.taskStatus").value("open"))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+            mvc
+                .perform(get("/api/v1/reports/$id/release").with(asUser(approver)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+                .andExpect(jsonPath("$.artifactSha256").value("a".repeat(64)))
+
+            for (who in listOf(viewer, analyst, admin)) {
+                mvc
+                    .perform(get("/api/v1/reports/$id").with(asUser(who)))
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.released").value(false))
+                    .andExpect(jsonPath("$.result").doesNotExist())
+                    .andExpect(jsonPath("$.artifactSha256").doesNotExist())
+                mvc
+                    .perform(get("/api/v1/reports/$id/release").with(asUser(who)))
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.released").value(false))
+                    .andExpect(jsonPath("$.result").doesNotExist())
+            }
+
+            val taskId = jobs.load(id, TenantScope.All)!!.approvalTaskId!!
+            assertThat(taskStates.getValue(taskId).status).isEqualTo(TaskStatus.OPEN)
+            mvc
+                .perform(
+                    post("/api/v1/reports/$id/release/decision")
+                        .with(asUser(analyst))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"decision": "approve"}"""),
+                ).andExpect(status().isNotFound)
+            assertThat(taskStates.getValue(taskId).status).isEqualTo(TaskStatus.OPEN)
+        }
+    }
+
+    @Test
     fun `an approver rejects a release and the artifact stays sealed`() {
         run { mvc ->
             val id = doneJob()
@@ -183,8 +239,9 @@ class ReleaseEndpointTest {
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.released").value(false))
                 .andExpect(jsonPath("$.taskStatus").value("rejected"))
-                .andExpect(jsonPath("$.result").doesNotExist())
-                .andExpect(jsonPath("$.artifactSha256").doesNotExist())
+                // The approver can still read the draft they refused. Refusal did not release it.
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+                .andExpect(jsonPath("$.artifactSha256").value("a".repeat(64)))
             mvc
                 .perform(get("/api/v1/reports/$id").with(asUser(viewer)))
                 .andExpect(status().isOk)
