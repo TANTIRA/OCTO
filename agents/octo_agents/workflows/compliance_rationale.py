@@ -8,6 +8,7 @@ engine's output. Jev's citation gate verifies exactly that before the
 rationale ships.
 """
 
+import hashlib
 import json
 from typing import Any, Literal
 
@@ -30,6 +31,33 @@ Concise prose, one short paragraph per outcome."""
 # every outcome is addressed.
 CITED_THRESHOLD = 0.7
 COMPLETE_THRESHOLD = 0.6
+
+# The platform rejects a recorded run input over 32 KiB (#342). A tenant with
+# enough rules or positions serializes larger outcome sets; the audit input
+# keeps a digest instead of the blob so the run is still recorded — breach
+# tasks already opened and a 502 with no run row was #551.
+MAX_RECORDED_INPUT_BYTES = 28_000
+
+
+def _recorded_input(subject: str, as_of: str, outcomes: list[dict[str, Any]]) -> Any:
+    """The run's audit input. Full outcomes while they fit the platform bound;
+    a count + sha256 digest past it — the outcomes themselves already live on
+    the platform's evaluation record, so the digest is enough to tie this run
+    to exactly them."""
+    full = {"subject": subject, "as_of": as_of, "outcomes": outcomes}
+    blob = json.dumps(full, default=str).encode()
+    if len(blob) <= MAX_RECORDED_INPUT_BYTES:
+        return full
+    return {
+        "subject": subject,
+        "as_of": as_of,
+        "outcomes": {
+            "truncated": True,
+            "count": len(outcomes),
+            "bytes": len(blob),
+            "sha256": hashlib.sha256(blob).hexdigest(),
+        },
+    }
 
 
 class RationaleVerdict(BaseModel):
@@ -104,7 +132,7 @@ def run_compliance_rationale(
         run_key=run_key,
         subject_type="compliance",
         subject_id=f"{subject}/{as_of}",
-        input={"subject": subject, "as_of": as_of, "outcomes": outcomes},
+        input=_recorded_input(subject, as_of, outcomes),
         models=models,
     )
     try:

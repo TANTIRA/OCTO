@@ -129,6 +129,21 @@ data class WatchSource(
     val label: String?,
 )
 
+/**
+ * Where a truncated history descent stopped on one watched address (#509). [floorSlot] is
+ * the exclusive lower bound the descent is filling — null means it reaches genesis (a wallet
+ * the poller itself never synced). [ceilingSlot] is the lowest slot already fetched,
+ * inclusive: the next pass reads `slot.lte = ceilingSlot`, so the boundary slot is refetched
+ * and the unique staging key absorbs the overlap — a page that ended mid-slot can never skip
+ * the transactions it had not reached yet.
+ */
+data class SyncFrontier(
+    val chain: String,
+    val address: String,
+    val floorSlot: Long?,
+    val ceilingSlot: Long,
+)
+
 /** Evidence kinds the onchain adapter can produce — mirrors `onchain_claim_evidence.evidence_kind`. */
 enum class EvidenceKind(
     val db: String,

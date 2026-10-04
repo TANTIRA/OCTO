@@ -35,6 +35,7 @@ private class FakeRpc(
         limit: Int,
         paginationToken: String?,
         slotGt: Long?,
+        slotLte: Long?,
     ): JsonNode {
         txCalls += Triple(address, paginationToken, slotGt)
         val (txs, next) = pages.getOrNull(txCalls.size - 1) ?: (emptyList<JsonNode>() to null)

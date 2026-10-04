@@ -37,6 +37,7 @@ private class StakingStubRpc(
         limit: Int,
         paginationToken: String?,
         slotGt: Long?,
+        slotLte: Long?,
     ): JsonNode = throw UnsupportedOperationException()
 
     override fun balance(address: String) = 0L

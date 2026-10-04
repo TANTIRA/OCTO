@@ -66,6 +66,20 @@ class ReportScheduleRunnerTest {
     }
 
     @Test
+    fun `a schedule whose template cannot build a request is parked, not retried`() {
+        // #487: a stored schedule with a blank measure throws the same way every pass; the
+        // runner parks it a century out instead of reclaiming and refiring it per lease.
+        val schedule = schedule().copy(measures = listOf(" "))
+        schedules.upsert(schedule, TenantScope.All)
+
+        runner.fire(schedule)
+
+        assertThat(jobs.jobs).isEmpty()
+        val reloaded = schedules.load(schedule.id, TenantScope.All)!!
+        assertThat(reloaded.nextRunAt).isAfter(Instant.now().plus(90L * 365, ChronoUnit.DAYS))
+    }
+
+    @Test
     fun `a tenant at the pending-job cap is left due instead of growing the queue`() {
         val schedule = schedule()
         schedules.upsert(schedule, TenantScope.All)

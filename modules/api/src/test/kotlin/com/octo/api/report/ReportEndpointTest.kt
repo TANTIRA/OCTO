@@ -30,6 +30,7 @@ import java.util.function.Supplier
 /** `POST /api/v1/reports` and `GET /api/v1/reports/{id}` with an in-memory store: roles, tenant scoping, and the job view. */
 class ReportEndpointTest {
     private val analyst = UUID.randomUUID()
+    private val approver = UUID.randomUUID()
     private val viewer = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val jobs = FakeReportJobs()
@@ -43,6 +44,7 @@ class ReportEndpointTest {
                     TenantDirectory { id ->
                         when (id) {
                             analyst -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
+                            approver -> listOf(TenantAccess(tenantId, "acme", TenantRole.APPROVER))
                             viewer -> listOf(TenantAccess(tenantId, "acme", TenantRole.VIEWER))
                             else -> emptyList()
                         }
@@ -103,6 +105,16 @@ class ReportEndpointTest {
                 // Unreleased: the draft and its hash stay behind the release gate on the status read too (#482).
                 .andExpect(jsonPath("$.result").doesNotExist())
                 .andExpect(jsonPath("$.artifactSha256").doesNotExist())
+                // The queue reads the gate's state off the job view (#490).
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.approvalTaskId").doesNotExist())
+                .andExpect(jsonPath("$.taskStatus").doesNotExist())
+            // An approver reads the sealed draft so they can decide the release (#552).
+            mvc
+                .perform(get("/api/v1/reports/$id").with(jwt().jwt { it.subject(approver.toString()) }))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
         }
     }
 
@@ -156,6 +168,8 @@ class ReportEndpointTest {
                 body().replace("[\"tvpi\"]", "[$many]"),
                 body().replace("\"tvpi\"", "\"$big\""),
                 body().replace("\"fund-1\"", "\"$big\""),
+                // #487: a whitespace-only measure is a validation error, not a 500 from the request rule.
+                body().replace("\"tvpi\"", "\" \""),
             )) {
                 mvc.perform(post(analyst, oversized)).andExpect(status().isBadRequest)
             }

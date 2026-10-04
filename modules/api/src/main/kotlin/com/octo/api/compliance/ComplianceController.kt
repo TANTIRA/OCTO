@@ -2,6 +2,7 @@ package com.octo.api.compliance
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.octo.analytics.CoverageReport
+import com.octo.api.SHORT_TEXT_LIMIT
 import com.octo.api.access.TenantDirectory
 import com.octo.api.access.TenantRole
 import com.octo.api.agents.AgentRunsController
@@ -292,7 +293,7 @@ class ComplianceController(
 
     data class CoverageBody(
         val currency: String,
-        val scenario: String,
+        @field:Size(max = SHORT_TEXT_LIMIT) val scenario: String,
         val ratio: BigDecimal?,
     )
 
@@ -302,7 +303,7 @@ class ComplianceController(
         val asOf: LocalDate,
         val exposure: ExposureBody? = null,
         val currencyExposure: Map<String, BigDecimal>? = null,
-        val coverage: CoverageBody? = null,
+        @field:Valid val coverage: CoverageBody? = null,
     ) {
         /** The engine's input shape; null when a field cannot parse or the subject is oversized (callers answer 400). */
         fun inputs(): ComplianceInputs? =

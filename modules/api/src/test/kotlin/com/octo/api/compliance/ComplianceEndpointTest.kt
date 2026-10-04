@@ -241,6 +241,29 @@ class ComplianceEndpointTest {
     }
 
     @Test
+    fun `an oversized rule name or scenario is a client error`() {
+        run { mvc ->
+            // #504: the rule's display name and the coverage scenario are bounded text fields.
+            mvc
+                .perform(
+                    post("/api/v1/compliance/rules")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rule().replace("\"Concentration\"", "\"${"x".repeat(301)}\""))
+                        .with(asUser(approver)),
+                ).andExpect(status().isBadRequest)
+            mvc
+                .perform(
+                    post("/api/v1/compliance/evaluations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(evaluation.replace("\"base\"", "\"${"x".repeat(201)}\""))
+                        .with(asUser(analyst)),
+                ).andExpect(status().isBadRequest)
+            assertThat(store.rules).isEmpty()
+            assertThat(store.recorded).isEmpty()
+        }
+    }
+
+    @Test
     fun `an analyst cannot define rules, a viewer cannot evaluate, a bad check is 400, and no token is 403`() {
         run { mvc ->
             mvc

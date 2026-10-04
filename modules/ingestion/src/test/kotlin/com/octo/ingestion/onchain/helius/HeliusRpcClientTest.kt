@@ -85,6 +85,17 @@ class HeliusRpcClientTest {
     }
 
     @Test
+    fun `transactionsForAddress sends the frontier ceiling as slot lte`() {
+        // #509: a resumed descent bounds the page below the lowest slot it already fetched.
+        val transport = FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"result":{"data":[]}}"""))
+        client(transport).transactionsForAddress("walletX", limit = 50, slotGt = 10, slotLte = 42)
+
+        val slot = transport.bodyOf(0)["params"][1]["filters"]["slot"]
+        assertEquals(10, slot["gt"].asLong())
+        assertEquals(42, slot["lte"].asLong())
+    }
+
+    @Test
     fun `balance reads lamports from result value`() {
         val transport =
             FakeTransport(okJson("""{"jsonrpc":"2.0","id":1,"result":{"context":{"slot":7},"value":123456789}}"""))

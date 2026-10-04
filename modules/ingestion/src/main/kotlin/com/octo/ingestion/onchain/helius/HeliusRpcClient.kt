@@ -78,12 +78,16 @@ class HeliusRpcClient(
         limit: Int,
         paginationToken: String?,
         slotGt: Long?,
+        slotLte: Long?,
     ): JsonNode {
         val filters = mapper.createObjectNode()
         filters.put("status", "succeeded")
         filters.put("tokenAccounts", "balanceChanged")
-        if (slotGt != null) {
-            filters.set<JsonNode>("slot", mapper.createObjectNode().put("gt", slotGt))
+        if (slotGt != null || slotLte != null) {
+            val slot = mapper.createObjectNode()
+            if (slotGt != null) slot.put("gt", slotGt)
+            if (slotLte != null) slot.put("lte", slotLte)
+            filters.set<JsonNode>("slot", slot)
         }
         val params = mapper.createObjectNode()
         params.put("transactionDetails", "full")

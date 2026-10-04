@@ -228,6 +228,7 @@ def test_failed_close_after_ic_review_opened_records_the_task(
     assert api.finished["output"] == {
         "ic_review_requested": True,
         "ic_review_task_id": "ic-task-1",
+        "ic_review_outcome_unknown": False,
     }
 
 

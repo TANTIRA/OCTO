@@ -182,6 +182,11 @@ class ReportScheduleEndpointTest {
                 body().replace("[\"tvpi\"]", "[$many]"),
                 body().replace("\"tvpi\"", "\"$big\""),
                 body().replace("\"fund-1\"", "\"$big\""),
+                // #487: the blank measure that used to slip into the table is a validation error.
+                body().replace("\"tvpi\"", "\" \""),
+                // #504: the schedule's own free-text fields are bounded too.
+                body().replace("\"LP weekly\"", "\"$big\""),
+                body().replace(Regex("\"cron\": \"[^\"]*\""), "\"cron\": \"$big\""),
             )) {
                 mvc
                     .perform(
