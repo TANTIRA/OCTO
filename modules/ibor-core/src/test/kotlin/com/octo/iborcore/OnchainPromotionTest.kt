@@ -18,13 +18,27 @@ private class FakeStore : InstrumentFlowStore {
     val staged = mutableListOf<StagedTransfer>()
     val flows = mutableListOf<InstrumentFlow>()
     val instruments = mutableMapOf(InstrumentKey("solana", null) to SOL, InstrumentKey("solana", BONK_MINT) to BONK)
+    var unpromotedReads = 0
 
     fun stage(rows: List<StagedTransfer>) = staged.addAll(rows)
 
-    override fun unpromotedTransfers() =
+    override fun unpromotedTransfers(limit: Int): List<StagedTransfer> {
+        unpromotedReads++
+        check(unpromotedReads <= 32) { "unpromotedTransfers re-read past 32 pages" }
+        return staged
+            .filter { s -> flows.none { it.externalId == s.externalId } }
+            .filter { InstrumentKey(it.chain, it.mintAddress) in instruments }
+            .sortedWith(compareBy({ it.recordedAt }, { it.id }))
+            .take(limit)
+    }
+
+    override fun quarantinedMints(): List<QuarantinedMint> =
         staged
             .filter { s -> flows.none { it.externalId == s.externalId } }
-            .sortedWith(compareBy({ it.recordedAt }, { it.id }))
+            .filter { InstrumentKey(it.chain, it.mintAddress) !in instruments }
+            .groupBy { InstrumentKey(it.chain, it.mintAddress) }
+            .map { (key, rows) -> QuarantinedMint(key.chain, key.mintAddress, rows.size) }
+            .sortedWith(compareBy({ it.chain }, { it.mintAddress }))
 
     override fun instrumentIds() = instruments
 
@@ -108,7 +122,56 @@ class OnchainPromotionTest {
 
         assertEquals(1, report.promoted)
         assertEquals(listOf(unknownMint), report.quarantined.map { it.mintAddress })
+        assertEquals(1, report.quarantined.single().count)
         assertTrue(store.flows.none { it.externalId == "solana:s1:w:tok:1" })
+    }
+
+    @Test
+    fun `unregistered mints are counted and left out of the pass`() {
+        val unknownMint = "So11111111111111111111111111111111111111199"
+        val store = FakeStore()
+        store.stage(
+            (1..20).map { n ->
+                staged("spam:$n", "transfer-in", mint = unknownMint, recorded = "2025-01-01T00:00:10Z")
+            } + staged("solana:s1:w:bal:0", "transfer-in", recorded = "2025-02-01T00:00:10Z"),
+        )
+
+        val report = InstrumentFlowPromoter(store, batchSize = 5).promote(now)
+
+        assertEquals(1, report.promoted)
+        assertEquals(unknownMint, report.quarantined.single().mintAddress)
+        assertEquals(20, report.quarantined.single().count)
+        assertEquals(1, store.unpromotedReads)
+    }
+
+    @Test
+    fun `registered rows promote across batches`() {
+        val store = FakeStore()
+        store.stage((1..5).map { n -> staged("solana:s$n:w:bal:0", "transfer-in", recorded = "2025-01-1${n}T00:00:10Z") })
+
+        val report = InstrumentFlowPromoter(store, batchSize = 2).promote(now)
+
+        assertEquals(5, report.promoted)
+        assertEquals(3, store.unpromotedReads)
+        assertEquals(5, store.flows.size)
+    }
+
+    @Test
+    fun `deferred corrections that fill a batch do not spin the pass`() {
+        val store = FakeStore()
+        val missing = UUID.randomUUID()
+        store.stage(
+            listOf(
+                staged("solana:s1:w:bal:0:fix", "transfer-in", supersedes = missing, recorded = "2025-01-01T00:00:10Z"),
+                staged("solana:s2:w:bal:0:fix", "transfer-in", supersedes = missing, recorded = "2025-01-02T00:00:10Z"),
+            ),
+        )
+
+        val report = InstrumentFlowPromoter(store, batchSize = 2).promote(now)
+
+        assertEquals(0, report.promoted)
+        assertEquals(2, report.deferred.size)
+        assertEquals(1, store.unpromotedReads)
     }
 
     @Test

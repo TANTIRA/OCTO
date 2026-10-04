@@ -12,7 +12,7 @@ data class EvmConfig(
     val chain: String,
     val chainId: Long,
     val sourceSystem: String = "rpc-$chain",
-    /** Block to start scanning at when staging holds nothing for [chain] yet. */
+    /** Block to start scanning at when [chain] has neither a checkpoint nor staged history. */
     val startBlock: Long = 0,
     /** Upper bound on one `eth_getLogs` block range; providers cap this below the protocol. */
     val maxBlockWindow: Long = 10_000,

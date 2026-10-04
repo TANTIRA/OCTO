@@ -125,8 +125,10 @@ class GraphReconciliationIT {
                     "t" to a.toString(),
                 ),
             )
-            // Two corrections of one row fork the lineage: asset supersession is not unique in V11.
+            // V47 refuses a second correction of one row. Drop the unique index only to plant a
+            // fork that predates it: reconciliation still reports that lineage, and does not guess a head.
             store(a, AssetType.INVESTMENT, "Acme Series B-1", supersedes = investment.id)
+            sql("drop index octo.asset_supersedes_unique")
             store(a, AssetType.INVESTMENT, "Acme Series B-2", supersedes = investment.id)
             projector.drain()
             val failedId = UUID.randomUUID()

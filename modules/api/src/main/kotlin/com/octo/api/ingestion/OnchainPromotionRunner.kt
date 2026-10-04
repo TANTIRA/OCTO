@@ -41,12 +41,13 @@ class OnchainPromotionRunner(
     private fun record(report: PromotionReport) {
         promoted?.increment(report.promoted.toDouble())
         deferred.set(report.deferred.size)
+        val waiting = report.quarantined.sumOf { it.count }
         // Quarantine persists until someone registers the instrument — warn when it changes, not every tick.
-        if (quarantined.getAndSet(report.quarantined.size) != report.quarantined.size && report.quarantined.isNotEmpty()) {
+        if (quarantined.getAndSet(waiting) != waiting && waiting > 0) {
             log.warn(
                 "onchain promotion: {} staged transfers wait on unregistered instruments {}",
-                report.quarantined.size,
-                report.quarantined.map { "${it.chain}:${it.mintAddress ?: "native"}" }.distinct(),
+                waiting,
+                report.quarantined.map { "${it.chain}:${it.mintAddress ?: "native"}" },
             )
         }
         if (report.promoted > 0) log.info("onchain promotion: {} flows promoted, {} deferred", report.promoted, report.deferred.size)

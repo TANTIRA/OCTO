@@ -8,6 +8,7 @@ import com.octo.persistence.TenantScope
 import com.octo.workflow.Task
 import com.octo.workflow.TaskEvent
 import com.octo.workflow.TaskState
+import com.octo.workflow.TaskStatus
 import com.octo.workflow.next
 import com.octo.workflow.opened
 import com.octo.workflow.persistence.TaskProvenance
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner
+import org.springframework.http.MediaType
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.MockMvc
@@ -28,7 +30,6 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
-import java.time.Instant
 import java.util.UUID
 import java.util.function.Supplier
 
@@ -36,6 +37,8 @@ import java.util.function.Supplier
 class ReleaseEndpointTest {
     private val analyst = UUID.randomUUID()
     private val viewer = UUID.randomUUID()
+    private val approver = UUID.randomUUID()
+    private val admin = UUID.randomUUID()
     private val tenantId = UUID.randomUUID()
     private val jobs = FakeReportJobs()
     private val taskStates = mutableMapOf<UUID, TaskState>()
@@ -53,6 +56,14 @@ class ReleaseEndpointTest {
                     } ?: opened(task).also { taskStates[task.id] = it }
 
             override fun state(taskId: UUID) = taskStates[taskId]
+
+            override fun append(
+                taskId: UUID,
+                event: TaskEvent,
+                provenance: TaskProvenance,
+            ): TaskState =
+                taskStates[taskId]?.next(event)?.also { taskStates[taskId] = it }
+                    ?: throw NoSuchElementException("no task $taskId")
         }
 
     private val contextRunner =
@@ -65,6 +76,8 @@ class ReleaseEndpointTest {
                         when (id) {
                             analyst -> listOf(TenantAccess(tenantId, "acme", TenantRole.ANALYST))
                             viewer -> listOf(TenantAccess(tenantId, "acme", TenantRole.VIEWER))
+                            approver -> listOf(TenantAccess(tenantId, "acme", TenantRole.APPROVER))
+                            admin -> listOf(TenantAccess(tenantId, "acme", TenantRole.ADMIN))
                             else -> emptyList()
                         }
                     }
@@ -129,7 +142,16 @@ class ReleaseEndpointTest {
 
             val taskId = jobs.load(id, TenantScope.All)!!.approvalTaskId!!
             assertThat(taskStates.getValue(taskId).task.requestedBy).isEqualTo(analyst.toString())
-            taskStates[taskId] = taskStates.getValue(taskId).next(TaskEvent.Approved("approver-1", Instant.now()))
+            mvc
+                .perform(
+                    post("/api/v1/reports/$id/release/decision")
+                        .with(asUser(approver))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"decision": "approve"}"""),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(true))
+                .andExpect(jsonPath("$.taskStatus").value("approved"))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
             mvc
                 .perform(get("/api/v1/reports/$id/release").with(asUser(viewer)))
                 .andExpect(status().isOk)
@@ -142,6 +164,157 @@ class ReleaseEndpointTest {
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.result.tvpi").value(1.3))
                 .andExpect(jsonPath("$.artifactSha256").value("a".repeat(64)))
+        }
+    }
+
+    @Test
+    fun `an approver reads the sealed draft before deciding and that read does not release it`() {
+        run { mvc ->
+            val id = doneJob()
+            mvc
+                .perform(get("/api/v1/reports/$id").with(asUser(approver)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+                .andExpect(jsonPath("$.artifactSha256").value("a".repeat(64)))
+            mvc
+                .perform(post("/api/v1/reports/$id/release").with(asUser(analyst)))
+                .andExpect(status().isAccepted)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.result").doesNotExist())
+
+            mvc
+                .perform(get("/api/v1/reports/$id").with(asUser(approver)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.taskStatus").value("open"))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+            mvc
+                .perform(get("/api/v1/reports/$id/release").with(asUser(approver)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+                .andExpect(jsonPath("$.artifactSha256").value("a".repeat(64)))
+
+            for (who in listOf(viewer, analyst, admin)) {
+                mvc
+                    .perform(get("/api/v1/reports/$id").with(asUser(who)))
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.released").value(false))
+                    .andExpect(jsonPath("$.result").doesNotExist())
+                    .andExpect(jsonPath("$.artifactSha256").doesNotExist())
+                mvc
+                    .perform(get("/api/v1/reports/$id/release").with(asUser(who)))
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.released").value(false))
+                    .andExpect(jsonPath("$.result").doesNotExist())
+            }
+
+            val taskId = jobs.load(id, TenantScope.All)!!.approvalTaskId!!
+            assertThat(taskStates.getValue(taskId).status).isEqualTo(TaskStatus.OPEN)
+            mvc
+                .perform(
+                    post("/api/v1/reports/$id/release/decision")
+                        .with(asUser(analyst))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"decision": "approve"}"""),
+                ).andExpect(status().isNotFound)
+            assertThat(taskStates.getValue(taskId).status).isEqualTo(TaskStatus.OPEN)
+        }
+    }
+
+    @Test
+    fun `an approver rejects a release and the artifact stays sealed`() {
+        run { mvc ->
+            val id = doneJob()
+            mvc
+                .perform(post("/api/v1/reports/$id/release").with(asUser(analyst)))
+                .andExpect(status().isAccepted)
+            mvc
+                .perform(
+                    post("/api/v1/reports/$id/release/decision")
+                        .with(asUser(approver))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"decision": "reject", "rationale": "numbers do not tie to the IBOR"}"""),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.released").value(false))
+                .andExpect(jsonPath("$.taskStatus").value("rejected"))
+                // The approver can still read the draft they refused. Refusal did not release it.
+                .andExpect(jsonPath("$.result.tvpi").value(1.3))
+                .andExpect(jsonPath("$.artifactSha256").value("a".repeat(64)))
+            mvc
+                .perform(get("/api/v1/reports/$id").with(asUser(viewer)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.result").doesNotExist())
+                .andExpect(jsonPath("$.artifactSha256").doesNotExist())
+        }
+    }
+
+    @Test
+    fun `only an approver may decide the release gate`() {
+        run { mvc ->
+            val id = doneJob()
+            mvc
+                .perform(post("/api/v1/reports/$id/release").with(asUser(analyst)))
+                .andExpect(status().isAccepted)
+            val decide =
+                post("/api/v1/reports/$id/release/decision")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"decision": "approve"}""")
+            // An admin is segregated from approval duties; members and viewers are plain denied,
+            // and a stranger learns nothing — all answer 404 alike.
+            mvc.perform(decide.with(asUser(admin))).andExpect(status().isNotFound)
+            mvc.perform(decide.with(asUser(analyst))).andExpect(status().isNotFound)
+            mvc.perform(decide.with(asUser(viewer))).andExpect(status().isNotFound)
+            mvc.perform(decide.with(asUser(UUID.randomUUID()))).andExpect(status().isNotFound)
+            mvc.perform(decide.with(asUser(approver))).andExpect(status().isOk)
+        }
+    }
+
+    @Test
+    fun `the requester cannot decide their own release`() {
+        run { mvc ->
+            val id = doneJob()
+            // The approver asks for the release, so the same person cannot also decide it.
+            mvc
+                .perform(post("/api/v1/reports/$id/release").with(asUser(approver)))
+                .andExpect(status().isAccepted)
+            mvc
+                .perform(
+                    post("/api/v1/reports/$id/release/decision")
+                        .with(asUser(approver))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"decision": "approve"}"""),
+                ).andExpect(status().isConflict)
+            mvc
+                .perform(get("/api/v1/reports/$id/release").with(asUser(viewer)))
+                .andExpect(jsonPath("$.released").value(false))
+        }
+    }
+
+    @Test
+    fun `decisions refuse missing tasks, malformed bodies and settled gates`() {
+        run { mvc ->
+            val id = doneJob()
+            val decide =
+                post("/api/v1/reports/$id/release/decision")
+                    .contentType(MediaType.APPLICATION_JSON)
+            // No release was requested — there is no gate to decide.
+            mvc.perform(decide.content("""{"decision": "approve"}""").with(asUser(approver))).andExpect(status().isNotFound)
+            mvc
+                .perform(post("/api/v1/reports/$id/release").with(asUser(analyst)))
+                .andExpect(status().isAccepted)
+            // Unknown decisions and a reject without its rationale fail at the boundary.
+            mvc.perform(decide.content("""{"decision": "maybe"}""").with(asUser(approver))).andExpect(status().isBadRequest)
+            mvc.perform(decide.content("""{"decision": "reject"}""").with(asUser(approver))).andExpect(status().isBadRequest)
+            mvc.perform(decide.content("""{"decision": "approve"}""").with(asUser(approver))).andExpect(status().isOk)
+            // A decided gate accepts nothing more.
+            mvc
+                .perform(
+                    decide
+                        .content("""{"decision": "reject", "rationale": "second thought"}""")
+                        .with(asUser(approver)),
+                ).andExpect(status().isConflict)
         }
     }
 

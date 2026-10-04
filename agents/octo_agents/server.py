@@ -22,7 +22,12 @@ from pydantic import BaseModel, Field
 from .api_client import OctoApiClient
 from .chat import drafter_model
 from .config import Settings, get_settings
-from .deadline import DeadlineExceeded, run_deadline
+from .deadline import (
+    DeadlineExceeded,
+    budget_after_queue,
+    note_request_arrival,
+    run_deadline,
+)
 from .judge import JudgeClient
 from .registry import ApprovedModelRegistry
 from .tools import SubjectNotInTenantError
@@ -61,6 +66,28 @@ app = FastAPI(
 _bearer = HTTPBearer(auto_error=False)
 
 
+class _BudgetFromArrival:
+    """Starts the run clock when the request arrives (#555).
+
+    Sync workflow endpoints run on a threadpool. While the pool is busy the
+    request waits, and that wait used to fall outside the run budget, so a
+    queued run could still be working after the platform's 120 s timeout.
+    """
+
+    def __init__(self, asgi: Callable[..., Any]) -> None:
+        self._asgi = asgi
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        if scope["type"] == "http" and str(scope.get("path", "")).startswith("/v1/"):
+            with note_request_arrival():
+                await self._asgi(scope, receive, send)
+            return
+        await self._asgi(scope, receive, send)
+
+
+app.add_middleware(_BudgetFromArrival)
+
+
 # Tenant/subject binding (#318): a subject outside the body's tenant answers 404
 # like the platform does (nothing leaks about which tenant owns it), and a
 # run_key replay bound to another request answers 409 instead of its output.
@@ -83,11 +110,19 @@ def _deadline_exceeded(_: Request, exc: DeadlineExceeded) -> JSONResponse:
 
 def _deadlined(endpoint: Callable[..., Any]) -> Callable[..., Any]:
     """Runs a workflow endpoint under one run deadline. FastAPI passes keyword
-    arguments and reads the wrapped signature, so dependencies are unchanged."""
+    arguments and reads the wrapped signature, so dependencies are unchanged.
+
+    The budget is what remains of `run_deadline_s` since the request arrived,
+    so queue time in front of this worker counts against it (#555). A request
+    that already outlived the budget is refused before the workflow starts.
+    """
 
     @wraps(endpoint)
     def run(**kwargs: Any) -> Any:
-        with run_deadline(kwargs["settings"].run_deadline_s):
+        left = budget_after_queue(kwargs["settings"].run_deadline_s)
+        if left <= 0:
+            raise DeadlineExceeded("workflow start")
+        with run_deadline(left):
             return endpoint(**kwargs)
 
     return run

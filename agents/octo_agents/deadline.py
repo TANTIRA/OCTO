@@ -1,8 +1,11 @@
 """End-to-end run deadline (#486, #554).
+"""End-to-end run deadline (#486, #555).
 
 The platform gives up on a workflow call after 120 s (AgentsClient.kt). A run
-holds one monotonic deadline, set per request in server.py and kept in a
-contextvar. Every judge and platform attempt checks it and caps its HTTP
+holds one monotonic deadline, kept in a contextvar. The clock starts when the
+request arrives (`note_request_arrival` in server.py), not when a threadpool
+worker picks it up, so time spent queued behind other runs counts against the
+budget. Every judge and platform attempt checks the deadline and caps its HTTP
 timeout to the time left (retry.py). Every drafter call checks it at each
 model or tool step (`invoke_within_deadline`). The drafter's HTTP client is
 also capped to the time left on every attempt and closed when the run stops
@@ -94,6 +97,35 @@ def run_deadline(
     deadline = Deadline(budget_s, clock=clock)
     with _active(deadline):
         yield deadline
+
+
+# When the HTTP request was accepted. Sync endpoints wait for a free threadpool
+# worker; that wait is not part of the worker's own clock (#555).
+_arrived_at: contextvars.ContextVar[float | None] = contextvars.ContextVar(
+    "octo_request_arrived_at", default=None
+)
+
+
+@contextmanager
+def note_request_arrival(*, clock: Callable[[], float] = time.monotonic) -> Iterator[None]:
+    """Records acceptance time, before the request waits for a worker."""
+    token = _arrived_at.set(clock())
+    try:
+        yield
+    finally:
+        _arrived_at.reset(token)
+
+
+def budget_after_queue(budget_s: float, *, clock: Callable[[], float] = time.monotonic) -> float:
+    """Seconds of `budget_s` still left when a worker starts.
+
+    Time since `note_request_arrival` counts against the budget. With no
+    arrival mark — a direct call, or a test — the full budget remains.
+    """
+    arrived = _arrived_at.get()
+    if arrived is None:
+        return budget_s
+    return budget_s - (clock() - arrived)
 
 
 @contextmanager

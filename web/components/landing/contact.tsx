@@ -59,8 +59,6 @@ export function Contact() {
   async function send(form: HTMLFormElement): Promise<string> {
     const data = new FormData(form);
     const text = (key: string) => String(data.get(key) ?? "").trim();
-    // The honeypot sits outside the <form> so WebMCP never offers it to agents as a parameter.
-    const honeypot = form.ownerDocument.getElementById("contact-website") as HTMLInputElement | null;
     setStatus("pending");
     try {
       const res = await fetch("/api/v1/contact", {
@@ -75,7 +73,7 @@ export function Contact() {
           aumBand: text("aumBand"),
           phone: text("phone") || undefined,
           message: text("message") || undefined,
-          website: honeypot?.value.trim() || undefined,
+          website: text("website") || undefined,
         }),
       });
       if (res.ok) form.reset();
@@ -175,6 +173,11 @@ export function Contact() {
             </div>
           </div>
 
+          {/* Named honeypot inside the form. Generic fillers set it; the API answers 202 and stores nothing. */}
+          <div className="hidden" aria-hidden="true">
+            <label htmlFor="contact-website">Website</label>
+            <input id="contact-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+          </div>
 
           <p className="mt-6 text-xs leading-relaxed text-white/40">
             We only use your details to contact you about OCTO.
@@ -194,12 +197,6 @@ export function Contact() {
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
         </form>
-
-        {/* Honeypot — hidden from humans and outside the form, so agents never see it; bots that fill it get a silent 202. */}
-        <div className="hidden" aria-hidden="true">
-          <label htmlFor="contact-website">Website</label>
-          <input id="contact-website" type="text" tabIndex={-1} autoComplete="off" />
-        </div>
       </Reveal>
     </section>
   );
