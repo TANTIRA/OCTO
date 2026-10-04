@@ -31,7 +31,7 @@ concept names. A concept that grows a second purpose is split, not extended.
 | Promotion | Verified transition from staging to ledger facts; dedupe via `source_system`+`external_id`, correction via `supersedes_id`+rationale | `InstrumentFlowPromoter`, `ibor-core` | built | finalize, commit |
 | Finality gate | Only chain state observed as `finalized` may promote; vendor commitment claims are never trusted | `OnchainWebhookService`, `FinalityProbe` | built | commitment check |
 | Tracked address | Wallet under observation by the onchain ingestion | `octo.tracked_address` | built | watched wallet |
-| Cursor | Per-address resume point for the ingestion poller — derived from the staged rows themselves (`newestStagedSlot`), not stored separately | adapter stores (`JdbcOnchainStagingStore`) | built | checkpoint, bookmark |
+| Cursor | Solana resumes per wallet from the newest staged slot. EVM resumes per chain from `evm_scan_checkpoint.scanned_through`, falling back to the newest staged slot only when no checkpoint exists yet, so a quiet range is not scanned again | `JdbcOnchainStagingStore`, `octo.evm_scan_checkpoint` | built | checkpoint, bookmark |
 | Time series | Bi-temporal fact: `effective_date` + `recorded_at`, append-only | `octo.dataset` + `octo.timeseries_observation` | built | point-in-time data |
 
 ## Investment ontology

@@ -231,7 +231,7 @@ carries formula version, input lineage, valuation date, currency, and convention
 
 | Measure family | Contents | Notes |
 | --- | --- | --- |
-| Performance | XIRR (actual/365, grid-scan + bisection; non-unique roots → `null`), DPI, RVPI, TVPI, MOIC, commitment status | undefined → `null`, never 0 |
+| Performance | XIRR (actual/365, grid-scan + bisection; non-unique economically meaningful roots → `null`), DPI, RVPI, TVPI, MOIC, commitment status | undefined → `null`, never 0 |
 | Benchmark-relative | Kaplan–Schoar PME, direct alpha | benchmark growth-scaled flows |
 | Attribution | Brinson allocation/selection/interaction; sequential equity bridge + Shapley order-neutral option | ordering stored with the run |
 | Risk | TWR, volatility, Sharpe/Sortino/MDD, VaR/ES; factor and regime models (HMM, Markov-switching, Kalman) | appraisal-smoothed risk labeled as such |

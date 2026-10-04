@@ -43,16 +43,16 @@ interface EvmRpcApi {
     /** `eth_getBalance` at `finalized` — wei. */
     fun nativeBalance(address: String): BigInteger
 
-    /** `balanceOf(address)` `eth_call` on [contract] at `finalized`; null when the call reverts or returns empty. */
+    /** `balanceOf(address)` `eth_call` on [contract] at `finalized`; null when the call cannot answer or returns empty. */
     fun balanceOf(
         contract: String,
         address: String,
     ): BigInteger?
 
-    /** `decimals()` `eth_call`; null when the contract does not implement it — never assumed. */
+    /** `decimals()` `eth_call`; null when the contract cannot answer — never assumed. */
     fun decimals(contract: String): Int?
 
-    /** `totalSupply()` `eth_call`; null when unimplemented. */
+    /** `totalSupply()` `eth_call`; null when the contract cannot answer. */
     fun totalSupply(contract: String): BigInteger?
 
     /** `eth_getTransactionCount` at `finalized` — the account-activity signal. */

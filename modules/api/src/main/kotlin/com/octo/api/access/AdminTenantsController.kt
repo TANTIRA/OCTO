@@ -3,6 +3,7 @@ package com.octo.api.access
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.octo.api.MAX_JSON_OBJECT_BYTES
 import com.octo.api.access.persistence.AccessAdministration
 import com.octo.api.access.persistence.AccessProvenance
 import com.octo.api.access.persistence.TenantSettingKeys
@@ -22,6 +23,15 @@ import org.springframework.web.server.ResponseStatusException
 import java.sql.SQLException
 import java.time.Instant
 import java.util.UUID
+
+/** Mirrors `tenant_setting_key_shape` in V31 (1–127 of `[a-z0-9_.-]`). The CHECK stays the authority. */
+internal val SETTING_KEY_SHAPE = Regex("^[a-z0-9][a-z0-9_.-]{0,126}$")
+
+/** JSON text bound for a setting value; same ceiling as other caller-supplied JSON (#504). */
+internal const val SETTING_VALUE_LIMIT = MAX_JSON_OBJECT_BYTES
+
+/** Revocation rationale that lands on append-only `tenant_member_event` (#504). */
+internal const val MEMBER_RATIONALE_LIMIT = 4_000
 
 /**
  * Tenant provisioning — the API edge the store layer never had (tenancy megaplan slice B).
@@ -93,18 +103,23 @@ class AdminTenantsController(
                         access.grant(tenantId, userId, MembershipEvent.Granted(jwt.subject!!, now, roleOf(body.role)), provenance)
                     "role-changed" ->
                         access.append(tenantId, userId, MembershipEvent.RoleChanged(jwt.subject!!, now, roleOf(body.role)), provenance)
-                    "revoked" ->
+                    "revoked" -> {
+                        val rationale =
+                            body.rationale?.takeIf(String::isNotBlank)
+                                ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "a revocation needs a rationale")
+                        if (rationale.length > MEMBER_RATIONALE_LIMIT) {
+                            throw ResponseStatusException(
+                                HttpStatus.BAD_REQUEST,
+                                "rationale is capped at $MEMBER_RATIONALE_LIMIT characters",
+                            )
+                        }
                         access.append(
                             tenantId,
                             userId,
-                            MembershipEvent.Revoked(
-                                jwt.subject!!,
-                                now,
-                                body.rationale?.takeIf(String::isNotBlank)
-                                    ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "a revocation needs a rationale"),
-                            ),
+                            MembershipEvent.Revoked(jwt.subject!!, now, rationale),
                             provenance,
                         )
+                    }
                     else -> throw ResponseStatusException(HttpStatus.BAD_REQUEST, "unknown member event '${body.type}'")
                 }
             } catch (e: NoSuchElementException) {
@@ -141,6 +156,15 @@ class AdminTenantsController(
         requireMemberAdmin(jwt, tenantId)
         if (body.key.isBlank()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "setting key must not be blank")
+        }
+        if (!SETTING_KEY_SHAPE.matches(body.key)) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "setting key is not a valid key")
+        }
+        if (body.value.length > SETTING_VALUE_LIMIT) {
+            throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "setting value is capped at $SETTING_VALUE_LIMIT characters",
+            )
         }
         if (body.key == TenantSettingKeys.RATE_LIMIT_PER_MINUTE) {
             requirePlatformAdmin(jwt)

@@ -122,6 +122,12 @@ private const val NAME_LIMIT = 300
 private const val FIELD_LIMIT = 200
 private const val DESCRIPTION_LIMIT = 10_000
 
+/** Rationale that lands on append-only prospect and workflow-task events (#504). */
+internal const val RATIONALE_LIMIT = 4_000
+
+/** Assignee that lands on append-only workflow-task events (#504). */
+internal const val ASSIGNEE_LIMIT = 200
+
 /** A screening rule constrains at most this many allowed values per field. */
 private const val CRITERIA_LIST_LIMIT = 100
 
@@ -303,6 +309,7 @@ class ProspectController(
             prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        if ((body.rationale?.length ?: 0) > RATIONALE_LIMIT) return ResponseEntity.badRequest().build()
         val to =
             runCatching { ProspectStage.fromWireValue(body.to) }.getOrNull()
                 ?: return ResponseEntity.badRequest().build()
@@ -547,6 +554,9 @@ class ProspectController(
                         // a distinct subject so each stream holds one open evidence request.
                         (it.task.subjectId == id.toString() || it.task.subjectId.startsWith("$id:dd:"))
                 } ?: return ResponseEntity.notFound().build()
+        if ((body.rationale?.length ?: 0) > RATIONALE_LIMIT || (body.assignee?.length ?: 0) > ASSIGNEE_LIMIT) {
+            return ResponseEntity.badRequest().build()
+        }
         val event = body.toEvent(jwt.subject!!) ?: return ResponseEntity.badRequest().build()
         if (!role.mayPost(bound.task.kind, event)) return ResponseEntity.notFound().build()
         return decideTask(taskId, event, body.correlationId, tasks::append) { after ->
@@ -815,6 +825,46 @@ class ProspectController(
                     ).build()
             }
         counter("deal.prospects.agent_ic_memos")?.increment()
+        return ResponseEntity.ok(result)
+    }
+
+    /**
+     * `POST /api/v1/prospects/{id}/agent-due-diligence` — runs the parallel DD workstreams
+     * (ADR-0005 F3). The sidecar bands market, financial, legal, and operational findings and
+     * opens one `EVIDENCE_REQUEST` task per high-or-blocker stream through the platform's own
+     * `/dd-evidence` route. Same auth and sidecar error contract as [agentIcMemo]: members of
+     * the prospect's tenant, viewers and outsiders 404, sidecar down or flag-off 503, any other
+     * sidecar failure 502.
+     */
+    @PostMapping("/api/v1/prospects/{id}/agent-due-diligence")
+    fun agentDueDiligence(
+        @PathVariable id: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<Any> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val current =
+            prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        val result =
+            try {
+                agents.run(
+                    "due-diligence",
+                    mapOf(
+                        "prospect_id" to id.toString(),
+                        "tenant_id" to current.prospect.tenantId.toString(),
+                        "run_key" to UUID.randomUUID().toString(),
+                    ),
+                )
+            } catch (e: AgentsUnavailableException) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
+            } catch (e: AgentsCallException) {
+                return ResponseEntity
+                    .status(
+                        if (e.statusCode == 503) HttpStatus.SERVICE_UNAVAILABLE else HttpStatus.BAD_GATEWAY,
+                    ).build()
+            }
+        counter("deal.prospects.agent_due_diligence")?.increment()
         return ResponseEntity.ok(result)
     }
 
