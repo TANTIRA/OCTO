@@ -31,7 +31,8 @@ import java.util.UUID
  * Marquee report service (#6 slice 7): `POST /api/v1/reports` queues a job, `GET /api/v1/reports/{id}` reads its
  * status and result. Submitting needs a working role in the tenant (analyst, approver or admin, per V8);
  * reading needs any role. Another tenant's job and an unknown id are 404 (default deny). The result and its
- * artifact hash stay withheld until the release gate's approval task is approved, exactly as `GET …/release`.
+ * artifact hash stay withheld until the release gate's approval task is approved, exactly as `GET …/release`,
+ * except an approver may read the sealed draft before deciding (#552). That read does not release the job.
  */
 @RestController
 class ReportController(
@@ -79,8 +80,10 @@ class ReportController(
     ): ResponseEntity<JobView> {
         val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
         val job = jobs.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
-        if (tenants.tenantsOf(userId).none { it.tenantId == job.request.tenantId }) return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(job.view(job.approvalTaskId?.let(tasks::state)))
+        val role =
+            tenants.tenantsOf(userId).firstOrNull { it.tenantId == job.request.tenantId }?.role
+                ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(job.view(job.approvalTaskId?.let(tasks::state), role))
     }
 
     private fun userId(jwt: Jwt) = runCatching { UUID.fromString(jwt.subject!!) }.getOrNull()
@@ -96,7 +99,8 @@ class ReportController(
 
     /**
      * [result] is the job's result object; it is opaque here and typed by the report's engine adapter. It and
-     * [artifactSha256] are null until the job is released (#482). [released] and [taskStatus] carry the
+     * [artifactSha256] are null until the job is released (#482), unless the caller is an approver reading
+     * the sealed draft (#552). [released] and [taskStatus] carry the
      * release gate's state so a queue can show a pending, decided or still-unrequested gate (#490).
      */
     data class JobView(
@@ -117,8 +121,12 @@ class ReportController(
         val updatedAt: Instant,
     )
 
-    private fun ReportJob.view(task: TaskState? = null): JobView {
+    private fun ReportJob.view(
+        task: TaskState? = null,
+        role: TenantRole? = null,
+    ): JobView {
         val released = releases(task)
+        val reveal = revealsDraft(released, role)
         return JobView(
             id = id,
             tenantId = request.tenantId,
@@ -127,9 +135,9 @@ class ReportController(
             positionSourceId = request.positionSourceId,
             measures = request.measures,
             status = status.wireValue,
-            result = if (released) result?.let { json.readTree(it) } else null,
+            result = if (reveal) result?.let { json.readTree(it) } else null,
             error = error,
-            artifactSha256 = if (released) artifactSha256 else null,
+            artifactSha256 = if (reveal) artifactSha256 else null,
             released = released,
             approvalTaskId = approvalTaskId,
             taskStatus = task?.status?.name?.lowercase(),
@@ -151,9 +159,13 @@ internal const val MAX_REPORT_FIELD_LENGTH = 200
 /** Bound on how many measures one report (or schedule template) may request. */
 internal const val MAX_REPORT_MEASURES = 50
 
-/** Measure names and the free-form `parameters` object are capped the same way for one-off reports and schedules. */
+/**
+ * Measure names and the free-form `parameters` object are bounded the same way for one-off reports and
+ * schedules. A whitespace-only measure is rejected here: [ReportRequest] refuses it, and accepting it on a
+ * schedule would throw once the cadence came due.
+ */
 internal fun reportInputsBounded(
     json: ObjectMapper,
     measures: List<String>,
     parameters: Map<String, Any?>?,
-): Boolean = measures.none { it.length > MAX_REPORT_FIELD_LENGTH } && json.isBoundedObject(parameters)
+): Boolean = measures.none { it.isBlank() || it.length > MAX_REPORT_FIELD_LENGTH } && json.isBoundedObject(parameters)

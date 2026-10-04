@@ -207,6 +207,78 @@ class AdminTenantsEndpointTest {
     }
 
     @Test
+    fun `a revocation rationale at the limit is stored and one character over is refused`() {
+        val member = UUID.randomUUID()
+        val atLimit = "r".repeat(MEMBER_RATIONALE_LIMIT)
+        val over = "r".repeat(MEMBER_RATIONALE_LIMIT + 1)
+        run { mvc ->
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"granted","role":"analyst"}""")
+                .andExpect(status().isOk)
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"revoked","rationale":"$over"}""")
+                .andExpect(status().isBadRequest)
+                .andExpect(status().reason("rationale is capped at $MEMBER_RATIONALE_LIMIT characters"))
+            assertThat(access.events.filterIsInstance<MembershipEvent.Revoked>()).isEmpty()
+            assertThat(access.memberships[tenantId to member]?.status?.name).isEqualTo("ACTIVE")
+            mvc
+                .memberEvent(tenantAdmin, user = member, body = """{"type":"revoked","rationale":"$atLimit"}""")
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("revoked"))
+            assertThat(
+                access.events
+                    .filterIsInstance<MembershipEvent.Revoked>()
+                    .single()
+                    .rationale,
+            ).hasSize(MEMBER_RATIONALE_LIMIT)
+        }
+    }
+
+    @Test
+    fun `a setting key and value at the limit are stored and one character over is refused`() {
+        val json = ObjectMapper()
+        val atKey = "k".repeat(127)
+        val overKey = "k".repeat(128)
+        val atValue = "\"" + "v".repeat(SETTING_VALUE_LIMIT - 2) + "\""
+        val overValue = "\"" + "v".repeat(SETTING_VALUE_LIMIT - 1) + "\""
+        run { mvc ->
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(mapOf("key" to overKey, "value" to "true")))
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isBadRequest)
+                .andExpect(status().reason("setting key is not a valid key"))
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(mapOf("key" to "features.screening_dd", "value" to overValue)))
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isBadRequest)
+                .andExpect(status().reason("setting value is capped at $SETTING_VALUE_LIMIT characters"))
+            assertThat(settings.rows).isEmpty()
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(mapOf("key" to atKey, "value" to "true")))
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isOk)
+            mvc
+                .perform(
+                    put("/api/v1/admin/tenants/$tenantId/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(mapOf("key" to "features.note", "value" to atValue)))
+                        .with(jwt().jwt { it.subject(tenantAdmin.toString()) }),
+                ).andExpect(status().isOk)
+            assertThat(settings.rows[tenantId to atKey]).isEqualTo("true")
+            assertThat(settings.rows[tenantId to "features.note"]).hasSize(SETTING_VALUE_LIMIT)
+        }
+    }
+
+    @Test
     fun `a tenant admin writes and reads settings but an analyst cannot`() {
         run { mvc ->
             mvc

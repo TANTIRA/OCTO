@@ -365,6 +365,22 @@ export default function PipelineBoard() {
                             )}
                           </button>
                         )}
+                        {p.stage === "due-diligence" && (
+                          <button
+                            type="button"
+                            disabled={moving !== null}
+                            onClick={() =>
+                              act(
+                                p,
+                                () => postJson(`/api/v1/prospects/${p.id}/agent-due-diligence`, {}),
+                                `Due diligence started for ${p.name}.`,
+                              )
+                            }
+                            className="inline-flex h-6 cursor-pointer items-center rounded-[var(--rb-r-sm,6px)] bg-neutral-100 px-2 text-[11px] font-medium text-neutral-700 hover:bg-neutral-200 disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                          >
+                            Run due diligence
+                          </button>
+                        )}
                         {p.stage === "ic-review" && (
                           <IcActions
                             review={ic[p.id]}
