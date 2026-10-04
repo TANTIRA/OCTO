@@ -155,7 +155,9 @@ class OnchainIngestionConfiguration {
     fun instrumentFlowStore(dataSource: ObjectProvider<DataSource>): InstrumentFlowStore {
         val delegate by lazy { JdbcInstrumentFlowStore(dataSource.getObject()) }
         return object : InstrumentFlowStore {
-            override fun unpromotedTransfers() = delegate.unpromotedTransfers()
+            override fun unpromotedTransfers(limit: Int) = delegate.unpromotedTransfers(limit)
+
+            override fun quarantinedMints() = delegate.quarantinedMints()
 
             override fun instrumentIds() = delegate.instrumentIds()
 
