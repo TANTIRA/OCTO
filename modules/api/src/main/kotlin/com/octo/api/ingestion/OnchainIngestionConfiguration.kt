@@ -57,6 +57,12 @@ class OnchainIngestionConfiguration {
                 wallet: String,
                 cursor: SolanaHistoryCursor,
             ) = delegate.saveHistoryCursor(chain, wallet, cursor)
+            override fun scannedThrough(chain: String): Long? = delegate.scannedThrough(chain)
+
+            override fun recordScannedThrough(
+                chain: String,
+                block: Long,
+            ) = delegate.recordScannedThrough(chain, block)
 
             override fun tokenContracts(chain: String): List<TokenContract> = delegate.tokenContracts(chain)
 
@@ -160,7 +166,9 @@ class OnchainIngestionConfiguration {
     fun instrumentFlowStore(dataSource: ObjectProvider<DataSource>): InstrumentFlowStore {
         val delegate by lazy { JdbcInstrumentFlowStore(dataSource.getObject()) }
         return object : InstrumentFlowStore {
-            override fun unpromotedTransfers() = delegate.unpromotedTransfers()
+            override fun unpromotedTransfers(limit: Int) = delegate.unpromotedTransfers(limit)
+
+            override fun quarantinedMints() = delegate.quarantinedMints()
 
             override fun instrumentIds() = delegate.instrumentIds()
 

@@ -162,4 +162,13 @@ class ReportEndpointTest {
             assertThat(jobs.jobs).isEmpty()
         }
     }
+
+    @Test
+    fun `a whitespace-only measure is a validation error`() {
+        run { mvc ->
+            mvc.perform(post(analyst, body().replace("[\"tvpi\"]", "[\" \"]"))).andExpect(status().isBadRequest)
+            mvc.perform(post(analyst, body().replace("[\"tvpi\"]", "[\"tvpi\", \" \"]"))).andExpect(status().isBadRequest)
+            assertThat(jobs.jobs).isEmpty()
+        }
+    }
 }

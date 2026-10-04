@@ -36,9 +36,8 @@ interface OnchainStagingStore {
     ): Long?
 
     /**
-     * The highest staged slot on [chain] — the EVM scanner's resume cursor. Derived from
-     * staging like [newestSlot]: a crashed window re-scans idempotently because the
-     * unique (source_system, external_id) key refuses duplicates.
+     * The highest staged slot on [chain]. The EVM poller uses this only when
+     * [scannedThrough] is null. A finished range with no transfers leaves it unchanged.
      */
     fun newestStagedSlot(chain: String): Long?
 
@@ -61,6 +60,19 @@ interface OnchainStagingStore {
         wallet: String,
         cursor: SolanaHistoryCursor,
     ) = Unit
+     * The last block the EVM poller finished scanning on [chain], inclusive, or null when
+     * no checkpoint is stored. Quiet ranges advance this; [newestStagedSlot] does not.
+     */
+    fun scannedThrough(chain: String): Long?
+
+    /**
+     * Record that [chain] has been fully scanned through [block], inclusive. Monotonic: a
+     * block at or below the stored checkpoint leaves the row where it is.
+     */
+    fun recordScannedThrough(
+        chain: String,
+        block: Long,
+    )
 
     /**
      * Registered non-native instruments on [chain] — contract address + decimals. The EVM
