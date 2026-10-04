@@ -24,6 +24,7 @@ import {
   LayoutDashboard,
   Scale,
   Search,
+  TrendingUp,
   UserPlus,
   type LucideIcon,
 } from "lucide-react";
@@ -116,6 +117,14 @@ const COMMANDS: Command[] = [
     icon: Brain,
   },
   {
+    id: "go-analysis",
+    group: "Navigation",
+    title: "Analysis",
+    detail: "Equity bridge, DDQ response, operating review",
+    shortcut: "G M",
+    icon: TrendingUp,
+  },
+  {
     id: "do-prospect",
     group: "Actions",
     title: "Add a prospect",
@@ -158,6 +167,7 @@ const AREA_BY_COMMAND: Record<string, string> = {
   "do-recon": "recon",
   "do-report": "reports",
   "go-brain": "brain",
+  "go-analysis": "analysis",
 };
 
 // Commands that leave the shell entirely (route-level navigation).

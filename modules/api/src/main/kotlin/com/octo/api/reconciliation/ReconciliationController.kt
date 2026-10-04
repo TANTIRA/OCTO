@@ -7,6 +7,7 @@ import com.octo.recon.matching.Tolerance
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
+import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -19,6 +20,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Currency
 import java.util.UUID
+
+/** Source system and external id bound before a break or its review task is recorded (#504). */
+internal const val SOURCE_FIELD_LIMIT = 200
 
 /**
  * `POST /api/v1/reconciliations` (#6 slice 9): the caller submits a source system's records; the run compares them
@@ -85,8 +89,8 @@ class ReconciliationController(
     }
 
     data class RecordBody(
-        @field:NotBlank val sourceSystem: String,
-        @field:NotBlank val externalId: String,
+        @field:NotBlank @field:Size(max = SOURCE_FIELD_LIMIT) val sourceSystem: String,
+        @field:NotBlank @field:Size(max = SOURCE_FIELD_LIMIT) val externalId: String,
         val amount: BigDecimal,
         @field:NotBlank val currency: String,
         val date: LocalDate,

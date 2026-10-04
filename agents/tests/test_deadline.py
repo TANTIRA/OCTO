@@ -39,6 +39,22 @@ class FakeClock:
         return self.now
 
 
+def test_queue_time_comes_out_of_the_budget() -> None:
+    clock = FakeClock()
+    assert deadline.budget_after_queue(100, clock=clock) == 100  # no arrival mark
+    with deadline.note_request_arrival(clock=clock):
+        assert deadline.budget_after_queue(100, clock=clock) == 100
+        clock.now += 30  # the request sat in the threadpool queue
+        left = deadline.budget_after_queue(100, clock=clock)
+        assert left == 70
+        with run_deadline(left, clock=clock) as active:
+            assert active.remaining() == 70
+            clock.now += 70
+            with pytest.raises(DeadlineExceeded, match="before judge call"):
+                active.check("judge call")
+    assert deadline.budget_after_queue(100, clock=clock) == 100
+
+
 def test_deadline_counts_down_on_the_injected_clock() -> None:
     clock = FakeClock()
     d = Deadline(100, clock=clock)

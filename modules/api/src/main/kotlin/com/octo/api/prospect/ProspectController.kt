@@ -5,6 +5,8 @@ import com.octo.api.access.TenantRole
 import com.octo.api.agents.AgentsCallException
 import com.octo.api.agents.AgentsClient
 import com.octo.api.agents.AgentsUnavailableException
+import com.octo.api.decideTask
+import com.octo.api.mayPost
 import com.octo.dealsourcing.Prospect
 import com.octo.dealsourcing.ProspectEvent
 import com.octo.dealsourcing.ProspectSource
@@ -119,6 +121,12 @@ interface ScreeningRules {
 private const val NAME_LIMIT = 300
 private const val FIELD_LIMIT = 200
 private const val DESCRIPTION_LIMIT = 10_000
+
+/** Rationale that lands on append-only prospect and workflow-task events (#504). */
+internal const val RATIONALE_LIMIT = 4_000
+
+/** Assignee that lands on append-only workflow-task events (#504). */
+internal const val ASSIGNEE_LIMIT = 200
 
 /** A screening rule constrains at most this many allowed values per field. */
 private const val CRITERIA_LIST_LIMIT = 100
@@ -301,6 +309,7 @@ class ProspectController(
             prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
         val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
         if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        if ((body.rationale?.length ?: 0) > RATIONALE_LIMIT) return ResponseEntity.badRequest().build()
         val to =
             runCatching { ProspectStage.fromWireValue(body.to) }.getOrNull()
                 ?: return ResponseEntity.badRequest().build()
@@ -520,9 +529,9 @@ class ProspectController(
      * completes the evidence checklist due-diligence raised, the requester resubmits after rework.
      * The task state machine holds every rule — nobody decides an approval they requested, only the
      * requester resubmits, terminal tasks accept nothing — and the edge adds the governance bar the
-     * role model states: gate decisions on an `approval` task (approve, reject, rework, cancel)
-     * need `approver` or `admin`, like compliance-rule writes (ComplianceController). A task on any
-     * other subject is 404: the route never reveals it exists.
+     * role model states: gate decisions on an `approval` task (approve, reject, rework, cancel) are
+     * the `approver` role's alone (`mayPost`); admins are segregated from approval duties. A task
+     * on any other subject is 404: the route never reveals it exists.
      */
     @PostMapping("/api/v1/prospects/{id}/tasks/{taskId}")
     fun taskEvent(
@@ -545,24 +554,15 @@ class ProspectController(
                         // a distinct subject so each stream holds one open evidence request.
                         (it.task.subjectId == id.toString() || it.task.subjectId.startsWith("$id:dd:"))
                 } ?: return ResponseEntity.notFound().build()
-        val event = body.toEvent(jwt.subject!!) ?: return ResponseEntity.badRequest().build()
-        // A gate decision on an approval task is the APPROVER's duty alone. ADMIN is segregated from
-        // approval duties (TenantRole.ADMIN; data-security-governance.md: administration vs approval):
-        // an admin who also controls membership must not be able to decide the IC gate. Routing the
-        // task (assigned) or the requester resubmitting after rework stays a working action.
-        if (bound.task.kind == TaskKind.APPROVAL && event.isGateDecision() && role != TenantRole.APPROVER) {
-            return ResponseEntity.notFound().build()
+        if ((body.rationale?.length ?: 0) > RATIONALE_LIMIT || (body.assignee?.length ?: 0) > ASSIGNEE_LIMIT) {
+            return ResponseEntity.badRequest().build()
         }
-        val after =
-            try {
-                tasks.append(taskId, event, TaskProvenance("api", body.correlationId ?: UUID.randomUUID()))
-            } catch (_: NoSuchElementException) {
-                return ResponseEntity.notFound().build()
-            } catch (_: IllegalArgumentException) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).build()
-            }
-        counter("deal.prospects.task_events", "event", body.event)?.increment()
-        return ResponseEntity.ok(after.view())
+        val event = body.toEvent(jwt.subject!!) ?: return ResponseEntity.badRequest().build()
+        if (!role.mayPost(bound.task.kind, event)) return ResponseEntity.notFound().build()
+        return decideTask(taskId, event, body.correlationId, tasks::append) { after ->
+            counter("deal.prospects.task_events", "event", body.event)?.increment()
+            after.view()
+        }
     }
 
     /**
@@ -828,6 +828,46 @@ class ProspectController(
         return ResponseEntity.ok(result)
     }
 
+    /**
+     * `POST /api/v1/prospects/{id}/agent-due-diligence` — runs the parallel DD workstreams
+     * (ADR-0005 F3). The sidecar bands market, financial, legal, and operational findings and
+     * opens one `EVIDENCE_REQUEST` task per high-or-blocker stream through the platform's own
+     * `/dd-evidence` route. Same auth and sidecar error contract as [agentIcMemo]: members of
+     * the prospect's tenant, viewers and outsiders 404, sidecar down or flag-off 503, any other
+     * sidecar failure 502.
+     */
+    @PostMapping("/api/v1/prospects/{id}/agent-due-diligence")
+    fun agentDueDiligence(
+        @PathVariable id: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<Any> {
+        val userId = userId(jwt) ?: return ResponseEntity.notFound().build()
+        val current =
+            prospects.load(id, TenantScope.User(userId)) ?: return ResponseEntity.notFound().build()
+        val role = roleIn(userId, current.prospect.tenantId) ?: return ResponseEntity.notFound().build()
+        if (role == TenantRole.VIEWER) return ResponseEntity.notFound().build()
+        val result =
+            try {
+                agents.run(
+                    "due-diligence",
+                    mapOf(
+                        "prospect_id" to id.toString(),
+                        "tenant_id" to current.prospect.tenantId.toString(),
+                        "run_key" to UUID.randomUUID().toString(),
+                    ),
+                )
+            } catch (e: AgentsUnavailableException) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
+            } catch (e: AgentsCallException) {
+                return ResponseEntity
+                    .status(
+                        if (e.statusCode == 503) HttpStatus.SERVICE_UNAVAILABLE else HttpStatus.BAD_GATEWAY,
+                    ).build()
+            }
+        counter("deal.prospects.agent_due_diligence")?.increment()
+        return ResponseEntity.ok(result)
+    }
+
     private fun screen(
         prospect: Prospect,
         scope: TenantScope,
@@ -873,14 +913,6 @@ class ProspectController(
             sector.fits() && region.fits() && sourceRef.fits() && (description == null || description.length <= DESCRIPTION_LIMIT)
 
     private fun String?.fits() = this == null || length <= FIELD_LIMIT
-
-    /**
-     * The events that end or redirect an approval task — the gate decisions only `approver`/`admin`
-     * may post. `assigned` routes the task and `resubmitted` is already requester-locked by the
-     * machine, so neither is a decision.
-     */
-    private fun TaskEvent.isGateDecision() =
-        this is TaskEvent.Approved || this is TaskEvent.Rejected || this is TaskEvent.ReworkRequested || this is TaskEvent.Cancelled
 
     private fun roleIn(
         userId: UUID,
