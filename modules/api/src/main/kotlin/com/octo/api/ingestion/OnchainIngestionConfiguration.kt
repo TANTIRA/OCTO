@@ -46,6 +46,13 @@ class OnchainIngestionConfiguration {
 
             override fun newestStagedSlot(chain: String): Long? = delegate.newestStagedSlot(chain)
 
+            override fun scannedThrough(chain: String): Long? = delegate.scannedThrough(chain)
+
+            override fun recordScannedThrough(
+                chain: String,
+                block: Long,
+            ) = delegate.recordScannedThrough(chain, block)
+
             override fun tokenContracts(chain: String): List<TokenContract> = delegate.tokenContracts(chain)
 
             override fun insertTransfers(
