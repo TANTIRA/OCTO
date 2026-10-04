@@ -67,6 +67,91 @@ class OnchainStagingStoreIT {
     }
 
     @Test
+    fun `re-staging a legacy fee-inclusive balance does not insert a second fee leg`() {
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+        val signature = sig()
+        val legacy =
+            transfer(wallet, signature, 250_000_010L).copy(
+                amountRaw = BigInteger("1000005000"),
+                direction = TransferDirection.OUT,
+                transferKind = TransferKind.TRANSFER_OUT,
+            )
+        assertThat(store.insertTransfers(listOf(legacy), UUID.randomUUID(), UUID.randomUUID(), "helius-poller")).isEqualTo(1)
+
+        assertThat(store.insertTransfers(feeSplit(legacy, "1000000000", "5000"), UUID.randomUUID(), UUID.randomUUID(), "helius-webhook"))
+            .isZero()
+        assertThat(stagedAmounts(signature)).containsExactly("out" to "1000005000")
+    }
+
+    @Test
+    fun `a legacy native debit of exactly the fee is not paired with a new fee leg`() {
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+        val signature = sig()
+        val legacy =
+            transfer(wallet, signature, 250_000_011L).copy(
+                amountRaw = BigInteger("5000"),
+                direction = TransferDirection.OUT,
+                transferKind = TransferKind.TRANSFER_OUT,
+            )
+        store.insertTransfers(listOf(legacy), UUID.randomUUID(), UUID.randomUUID(), "helius-poller")
+
+        val feeOnly =
+            legacy.copy(
+                externalId = "solana:$signature:$wallet:fee",
+                direction = TransferDirection.FEE,
+            )
+        assertThat(store.insertTransfers(listOf(feeOnly), UUID.randomUUID(), UUID.randomUUID(), "helius-webhook")).isZero()
+        assertThat(stagedAmounts(signature)).containsExactly("out" to "5000")
+    }
+
+    @Test
+    fun `a fee-free balance staged without its fee still accepts the fee leg`() {
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+        val signature = sig()
+        val balance =
+            transfer(wallet, signature, 250_000_012L).copy(
+                amountRaw = BigInteger("1000000000"),
+                direction = TransferDirection.OUT,
+                transferKind = TransferKind.TRANSFER_OUT,
+            )
+        store.insertTransfers(listOf(balance), UUID.randomUUID(), UUID.randomUUID(), "helius-poller")
+
+        assertThat(store.insertTransfers(feeSplit(balance, "1000000000", "5000"), UUID.randomUUID(), UUID.randomUUID(), "helius-webhook"))
+            .isEqualTo(1)
+        assertThat(stagedAmounts(signature)).containsExactly(
+            "fee" to "5000",
+            "out" to "1000000000",
+        )
+    }
+
+    @Test
+    fun `a fee-split transaction with no legacy row stages the balance and the fee`() {
+        val wallet = addr()
+        track(wallet)
+        event(wallet, "watched")
+        val signature = sig()
+        val balance =
+            transfer(wallet, signature, 250_000_013L).copy(
+                amountRaw = BigInteger("1000000000"),
+                direction = TransferDirection.OUT,
+                transferKind = TransferKind.TRANSFER_OUT,
+            )
+        val split = feeSplit(balance, "1000000000", "5000")
+        assertThat(store.insertTransfers(split, UUID.randomUUID(), UUID.randomUUID(), "helius-poller")).isEqualTo(2)
+        assertThat(store.insertTransfers(split, UUID.randomUUID(), UUID.randomUUID(), "helius-webhook")).isZero()
+        assertThat(stagedAmounts(signature)).containsExactly(
+            "fee" to "5000",
+            "out" to "1000000000",
+        )
+    }
+
+    @Test
     fun `newestSlot returns the highest staged slot`() {
         val wallet = addr()
         track(wallet)
@@ -235,6 +320,39 @@ class OnchainStagingStoreIT {
                 }
         }
     }
+
+    private fun sig() = "sig" + UUID.randomUUID().toString().replace("-", "")
+
+    private fun feeSplit(
+        balance: OnchainTransfer,
+        balanceAmount: String,
+        feeAmount: String,
+    ) = listOf(
+        balance.copy(amountRaw = BigInteger(balanceAmount)),
+        balance.copy(
+            externalId = "solana:${balance.signature}:${balance.wallet}:fee",
+            amountRaw = BigInteger(feeAmount),
+            direction = TransferDirection.FEE,
+            transferKind = TransferKind.TRANSFER_OUT,
+        ),
+    )
+
+    private fun stagedAmounts(signature: String): List<Pair<String, String>> =
+        dataSource().connection.use { c ->
+            c
+                .prepareStatement(
+                    "select direction, amount_raw from octo.onchain_transfer where signature = ? order by direction",
+                ).use { s ->
+                    s.setString(1, signature)
+                    s.executeQuery().use { r ->
+                        buildList {
+                            while (r.next()) {
+                                add(r.getString("direction") to r.getBigDecimal("amount_raw").toBigIntegerExact().toString())
+                            }
+                        }
+                    }
+                }
+        }
 
     private fun transfer(
         wallet: String,

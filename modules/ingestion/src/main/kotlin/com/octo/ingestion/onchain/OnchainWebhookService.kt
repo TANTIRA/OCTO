@@ -16,7 +16,7 @@ import java.util.logging.Logger
  * `accountKeys`, then written through the same staging path as the poller. External ids are
  * deterministic (`solana:<sig>:<account>:<leg>`), so a delivery that overlaps a poll — or a
  * Helius retry of the same delivery — dedupes on `(source_system, external_id)` instead of
- * double-writing facts.
+ * double-writing facts. A fee that an older balance leg already includes is left there.
  *
  * The vendor shape stops here: callers pass raw JSON, everything downstream is normalized.
  *

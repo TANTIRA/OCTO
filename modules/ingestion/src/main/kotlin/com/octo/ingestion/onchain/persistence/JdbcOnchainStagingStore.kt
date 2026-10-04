@@ -5,13 +5,19 @@ import com.octo.ingestion.onchain.OnchainBalance
 import com.octo.ingestion.onchain.OnchainEvidence
 import com.octo.ingestion.onchain.OnchainStagingStore
 import com.octo.ingestion.onchain.OnchainTransfer
+import com.octo.ingestion.onchain.StagedNativeLeg
 import com.octo.ingestion.onchain.SolanaHistoryCursor
 import com.octo.ingestion.onchain.TokenContract
+import com.octo.ingestion.onchain.TransferDirection
 import com.octo.ingestion.onchain.TransferKind
 import com.octo.ingestion.onchain.WatchSource
+import com.octo.ingestion.onchain.isSolanaNetworkFee
+import com.octo.ingestion.onchain.legacyBalanceExternalId
+import com.octo.ingestion.onchain.omitSolanaFeesAlreadyBooked
 import com.octo.persistence.TenantScope
 import com.octo.persistence.scoped
 import java.math.BigDecimal
+import java.sql.Connection
 import java.sql.Timestamp
 import java.sql.Types
 import java.util.UUID
@@ -261,8 +267,10 @@ class JdbcOnchainStagingStore(
         // TODO(#114): carry the normalized provider payload into vendor_payload when the webhook
         // path lands — lineage then covers both delivery routes.
         return dataSource.scoped(TenantScope.All) { c ->
+            val rows = omitSolanaFeesAlreadyBooked(transfers, stagedLegacyBalances(c, transfers))
+            if (rows.isEmpty()) return@scoped 0
             c.prepareStatement(sql).use { s ->
-                for (t in transfers) {
+                for (t in rows) {
                     s.setString(1, t.externalId)
                     s.setString(2, t.chain)
                     s.setString(3, t.signature)
@@ -284,6 +292,52 @@ class JdbcOnchainStagingStore(
                     s.addBatch()
                 }
                 s.executeBatch().count { it > 0 }
+            }
+        }
+    }
+
+    /**
+     * Staged `bal:0` legs that a Solana fee in this batch might already be inside. One indexed
+     * lookup per source system; batches with no fee leg do not touch the table.
+     */
+    private fun stagedLegacyBalances(
+        connection: Connection,
+        transfers: List<OnchainTransfer>,
+    ): List<StagedNativeLeg> {
+        val wanted =
+            transfers
+                .filter { it.isSolanaNetworkFee() }
+                .mapNotNull { fee -> legacyBalanceExternalId(fee.externalId)?.let { fee.sourceSystem to it } }
+                .groupBy({ it.first }, { it.second })
+        if (wanted.isEmpty()) return emptyList()
+        val sql =
+            """
+            select source_system, external_id, amount_raw, direction
+              from octo.onchain_transfer
+             where source_system = ?
+               and external_id = any (?)
+            """.trimIndent()
+        return connection.prepareStatement(sql).use { statement ->
+            buildList {
+                for ((sourceSystem, ids) in wanted) {
+                    statement.setString(1, sourceSystem)
+                    statement.setArray(2, connection.createArrayOf("text", ids.distinct().toTypedArray()))
+                    statement.executeQuery().use { rows ->
+                        while (rows.next()) {
+                            val direction =
+                                TransferDirection.entries.firstOrNull { it.db == rows.getString("direction") }
+                                    ?: continue
+                            add(
+                                StagedNativeLeg(
+                                    sourceSystem = rows.getString("source_system"),
+                                    externalId = rows.getString("external_id"),
+                                    amountRaw = rows.getBigDecimal("amount_raw").toBigIntegerExact(),
+                                    direction = direction,
+                                ),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
