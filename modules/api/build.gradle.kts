@@ -33,7 +33,7 @@ dependencyManagement {
             .forEach { dependency("org.apache.tomcat.embed:$it:$tomcat") }
         val log4j = libs.versions.log4j.get()
         listOf("log4j-api", "log4j-to-slf4j").forEach { dependency("org.apache.logging.log4j:$it:$log4j") }
-        dependency("org.apache.commons:commons-lang3:3.20.0")
+        dependency("org.apache.commons:commons-lang3:3.21.0")
     }
 }
 
