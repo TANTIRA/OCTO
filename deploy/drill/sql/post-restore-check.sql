@@ -99,10 +99,14 @@ append_only as (
 -- The attempted mutations, recorded by the DO block above. enforced is true only when
 -- the update actually raised; null means there was no row to probe (unverifiable, and
 -- unverifiable is not PASS).
+--
+-- bool_or, not max: `enforced` is boolean and PostgreSQL has no max(boolean) aggregate.
+-- One row per thing (thing is the primary key), so bool_or over a single value is the
+-- value itself, with the same null behaviour when nothing was probed.
 mutation_blocked as (
     select
-        max(case when thing = 'ledger_event' then enforced end) as ledger_blocked,
-        max(case when thing = 'audit_event' then enforced end) as audit_blocked,
+        bool_or(case when thing = 'ledger_event' then enforced end) as ledger_blocked,
+        bool_or(case when thing = 'audit_event' then enforced end) as audit_blocked,
         max(case when thing = 'ledger_event' then detail end) as ledger_detail,
         max(case when thing = 'audit_event' then detail end) as audit_detail
     from _post_restore_probe
