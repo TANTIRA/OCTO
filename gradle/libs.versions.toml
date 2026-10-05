@@ -17,7 +17,7 @@ tomcat = "10.1.60"
 log4j = "2.26.1"
 freemarker = "2.3.35"
 bouncycastle = "1.86"
-thrift = "0.24.0"
+thrift = "0.25.0"
 postgresql = "42.7.13"
 slf4j = "2.0.20"
 
