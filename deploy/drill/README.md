@@ -16,10 +16,10 @@ This harness closes the part of that gap that can be closed without a staging en
 
 | It proves | It cannot prove |
 | --- | --- |
-| The real migration chain (V1..V40) applies cleanly to a fresh database | Staging timings, or that production backups exist |
+| The real migration chain (V1 through the newest migration on disk) applies cleanly to a fresh database | Staging timings, or that production backups exist |
 | A base backup plus WAL archive restores to a chosen point in time, with the boundary row present and the post-loss row gone | Real data volume, or the deployed Supabase topology |
 | The post-restore checklist passes after a restore: Flyway history, audit chain, append-only controls, role separation | That the operator's environment resembles production |
-| The audit chain verification finds a changed hash, a deleted row, and an empty chain | — |
+| The audit chain verification finds a changed hash, a forged canonical, and a deleted middle row | — |
 | An upgrade applies without data loss, and a restore returns the schema to its pre-upgrade state | — |
 
 **A local run is preparation, never acceptance.** ADR-0002's acceptance boxes are ticked
@@ -38,6 +38,29 @@ FROM_VERSION=41 TO_VERSION=42 deploy/drill/rollback-rehearsal.sh   # a later sli
 Both exit non-zero when an assertion fails, so a shell chain or CI job can gate on them.
 Requires Docker and bash; on Windows use Git Bash. `PG_IMAGE`, `PG_DB`, and `RUNTIME_ROLE`
 override the defaults.
+
+## The version window
+
+`rollback-rehearsal.sh` takes `FROM_VERSION` and `TO_VERSION`, and refuses a window its
+helpers cannot seed:
+
+- both must be plain digits;
+- `TO_VERSION` must be strictly greater than `FROM_VERSION`;
+- `FROM_VERSION` must be at or above the **rehearsal floor**, the migration that adds
+  `ledger_event.tenant_id`, below which the helper queries reach tables that do not exist;
+- `TO_VERSION` may not exceed the newest migration in `db/migrations/`.
+
+Both bounds are derived from `db/migrations/` rather than pinned, so they follow new
+migrations without an edit here. `validate_rehearsal_window` in `lib.sh` enforces all four
+before any container starts, so an impossible window fails in a second instead of partway
+through a run. It runs ahead of the Docker check, so a bad window is reported even when no
+daemon is up.
+
+The floor exists because the harness seeds through the *current* schema. Rehearsing below it
+would need helpers that speak the pre-V28 `mesta` schema and the pre-V30 ledger shape. That is
+a different harness, not a parameter, and it is deliberately out of scope: a pre-V5 state is
+not a recovery target, which `docs/restore-runbook.md` and `docs/reliability.md` §5 item 6
+record.
 
 ## Files
 
@@ -58,6 +81,10 @@ touches a backup it asserts that mirror's behaviour: a trigger-written chain mus
 row must each read `BROKEN`. A verifier that only ever answered `INTACT` would pass every
 drill and be worthless. If the self-test fails, the drill refuses to produce an evidence
 record at all.
+
+The mirror also anchors the oldest surviving row at genesis, so a log whose first row is not
+the genesis row reads `BROKEN` even when every hash is internally consistent. Losing the
+*newest* rows stays undetectable from inside the database; that is V6's documented ceiling.
 
 `selftest.sh` extends that to the artifacts around the harness — evidence records, the ADR
 acceptance boxes still being open, line endings, executable bits, and every document link
