@@ -159,7 +159,8 @@ echo "############ F. No dangling references ############"
 missing=0
 for src in docs/incident-runbook.md docs/upgrade-runbook.md docs/capacity-test-plan.md \
            docs/drill-evidence-template.md docs/restore-runbook.md \
-           docs/adr/0002-self-hosted-supabase.md deploy/drill/README.md; do
+           docs/adr/0002-self-hosted-supabase.md docs/runbooks/staging-provisioning.md \
+           deploy/drill/README.md; do
   srcdir="$(dirname "$src")"
   # `|| true` because grep exits 1 on no match, which set -e would treat as fatal.
   refs="$( { grep -ohE '\]\([^)]*\.(md|sh|sql)\)' "$src" 2>/dev/null \
