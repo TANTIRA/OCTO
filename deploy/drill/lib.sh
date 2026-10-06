@@ -36,6 +36,20 @@ log()  { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 warn() { printf '[%s] WARN %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
 die()  { printf '[%s] FAIL %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; exit 1; }
 
+# Epoch milliseconds. `date +%s%3N` is a GNU extension: BSD/macOS date prints the
+# %3N literally ("…3N"), which then fails inside $(( )) with "value too great
+# for base" and kills the drill mid-run. Prefer bash's $EPOCHREALTIME (5.0+),
+# fall back to perl (core Time::HiRes) for bash 4.
+now_ms() {
+  local t="${EPOCHREALTIME:-}"
+  if [ -n "$t" ]; then
+    # <sec>.<6-digit usec>; 10# stops a leading-zero fraction reading as octal
+    printf '%d\n' "$(( ${t%.*} * 1000 + 10#${t#*.} / 1000 ))"
+  else
+    perl -MTime::HiRes=time -e 'printf "%d\n", time() * 1000'
+  fi
+}
+
 require_docker() {
   command -v docker >/dev/null 2>&1 || die "docker not found on PATH"
   docker info >/dev/null 2>&1 || die "docker daemon is not reachable — start Docker and retry"

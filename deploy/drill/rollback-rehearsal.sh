@@ -205,13 +205,13 @@ docker exec "$PRIMARY" sh -c "
 say "step 7/8 start the restored instance and time the rollback (RTO)"
 cleanup_container "$RESTORED"
 start_data_container "$RESTORED" "$SHARED_VOL" "$ARCHIVE_VOL" "$RESTORE_DIR"
-RTO_START="$(date -u +%s%3N)"
+RTO_START="$(now_ms)"
 if ! wait_accepting "$RESTORED" "$PG_DB" 600; then
   docker logs "$RESTORED" 2>&1 | tail -40 | tee -a "$BODY"
   fail_drill "restored instance never reached 'ready'"
   exit 1
 fi
-RTO_MS=$(( $(date -u +%s%3N) - RTO_START ))
+RTO_MS=$(( $(now_ms) - RTO_START ))
 say "rolled-back instance reached 'ready' in ${RTO_MS} ms"
 
 say "step 8/8 verify the rolled-back state matches the pre-upgrade state"

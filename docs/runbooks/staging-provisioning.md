@@ -65,15 +65,27 @@ is configured here is the rehearsed version of that fix.
 
 1. Choose a destination that is **off-host and deletion-protected**: object storage, not
    a local volume. Encryption keys live in the secret manager, not on the DB host.
-2. Configure the base backup: `pgBackRest` or `wal-g` on the DB host
-   ([restore-runbook.md](../restore-runbook.md) §2). Schedule it daily.
-3. Configure archiving on the Postgres host:
+2. Configure the base backup. The pinned `supabase/postgres` image ships
+   `pg_basebackup` but **no `pgBackRest` and no `wal-g`** (#301) — under the
+   option-A staging approach this is a scheduled `pg_basebackup` written to a
+   mounted staging volume, with the host-side job below shipping both base
+   backup and WAL off-host. Record the "container archives locally, host ships
+   off-host" split as a deviation if ADR-0002's deletion-protected destination
+   cannot be arranged directly. Schedule the base backup daily.
+   ([restore-runbook.md](../restore-runbook.md) §2 lists the open A/B/C mechanism
+   choice — what is configured here is the rehearsal for whichever lands.)
+3. Configure archiving on the Postgres host. Under option A, `archive_command`
+   copies each segment into the mounted volume; the host-side job ships it to
+   object storage:
 
    ```
    archive_mode    = on
-   archive_command = 'wal-g wal-push %p'      # or the pgBackRest equivalent
+   archive_command = 'test ! -f /wal-archive/%f && cp %p /wal-archive/%f'
    archive_timeout = 60s                      # this bounds RPO -- see below
    ```
+
+   Options B (`wal-g wal-push %p`) and C (`pg_receivewal` sidecar) replace the
+   `archive_command` line; the rest of this section is unchanged.
 
    `archive_timeout` is the RPO floor: a segment is only archived when it fills or the
    timeout fires. Set it comfortably inside the `<= 15 min` target so the measured RPO has

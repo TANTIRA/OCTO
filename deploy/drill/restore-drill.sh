@@ -243,13 +243,13 @@ say "restore staged into ${RESTORE_DIR} with recovery_target_time=${RECOVERY_TAR
 say "step 8/9 start the restored instance and time recovery to accepting queries (RTO)"
 cleanup_container "$RESTORED"
 start_data_container "$RESTORED" "$SHARED_VOL" "$ARCHIVE_VOL" "$RESTORE_DIR"
-RTO_START="$(date -u +%s%3N)"
+RTO_START="$(now_ms)"
 if ! wait_accepting "$RESTORED" "$PG_DB" 600; then
   docker logs "$RESTORED" 2>&1 | tail -40 | tee -a "$BODY"
   fail_drill "restored instance never reached 'ready'"
   exit 1
 fi
-READY_MS=$(( $(date -u +%s%3N) - RTO_START ))
+READY_MS=$(( $(now_ms) - RTO_START ))
 say "restored instance reached 'ready' in ${READY_MS} ms"
 RESTORED_LAST="$(sql_scalar "$RESTORED" "$PG_DB" "select to_char(max(occurred_at) at time zone 'UTC','YYYY-MM-DD HH24:MI:SS.US') from octo.ledger_event")"
 PRIMARY_LAST="$(sql_scalar "$PRIMARY" "$PG_DB" "select to_char(max(occurred_at) at time zone 'UTC','YYYY-MM-DD HH24:MI:SS.US') from octo.ledger_event where id <> '${POST_LOSS_ID}'")"
@@ -344,7 +344,7 @@ VERDICT="${CHECK_ROW%%|*}"
 
 # Per the runbook, RTO ends when the restored instance is ready *and* the §7 checklist
 # has passed — the timer that stopped at the first query understated it.
-RTO_MS=$(( $(date -u +%s%3N) - RTO_START ))
+RTO_MS=$(( $(now_ms) - RTO_START ))
 say "post-restore checklist complete at ${RTO_MS} ms after restored-instance start (RTO)"
 
 # RPO and RTO. The drill proves point-in-time fidelity — the boundary row committed

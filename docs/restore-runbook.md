@@ -50,10 +50,27 @@ path yet: the Backups and Schedule tabs were empty when checked, still to be
 re-confirmed on the `octo-supabase-db` project itself. Re-check
 with `show archive_mode;` and `select * from pg_stat_archiver;` before a drill.
 
+**The deployed image also lacks the tools §4 names (observed 2026-10-04, #301).**
+`octo-supabase-db` runs `supabase/postgres:17.6.1.136`, which ships
+`pg_basebackup`, `curl`, `wget`, `tar`, `gzip` — but **no `pgbackrest`, no
+`wal-g`, no `aws`, no `rclone`**. So §4 fails for a second, independent reason:
+the restore tool does not exist on the DB host, not only because there is no
+archive. The mechanism choice is open (#301): (A) `archive_command` copies WAL
+to a mounted volume and a host-side job ships it to object storage — stock
+image, no build; (B) a custom image `FROM supabase/postgres` with wal-g —
+off-host, at the cost of maintaining an image that diverges from the Dokploy
+template; (C) a `pg_receivewal` sidecar streaming to object storage — off-host,
+at the cost of another container. `pg_basebackup` covers the base-backup leg
+under all three. Until the choice lands, treat §4 as **blocked procedure**,
+not an executable one.
+
 All three are separate failure domains. A full platform restore restores all of
 them; a surgical restore may only need one.
 
 ## 3. Pre-flight (do once, verify quarterly)
+
+The first two items are **open on production today** — see §2's deployed-state
+notes; they record what must exist, not what does.
 
 - [ ] Base backup job runs daily and its last success is monitored — an
       unmonitored backup silently stopped is the standard failure this catches.
@@ -66,11 +83,21 @@ them; a surgical restore may only need one.
 
 ## 4. Postgres point-in-time restore
 
+**Blocked on §2's two findings.** There is no archive to restore from
+(`archive_mode = off`), and the tool named below is not in the deployed image —
+so this section is the *target* procedure, not an executable one, until the
+operator provisions base backup + WAL archiving under one of the options in §2.
+If data is lost before then, the only recovery path is the last `deploy/backup.sh`
+logical dump, restored with `gunzip -c <archive> | psql` — no PITR.
+
+Once a base backup and archive exist:
+
 ```bash
 # On the DB host (or a recovery host — never over the live volume):
 pgbackrest --stanza=octo restore --type=time --target="YYYY-MM-DD HH:MM:SS+07" \
   --pg1-path=/var/lib/postgresql/data
-# or wal-g equivalent for the same stanza
+# or the wal-g equivalent; under option A the equivalent is pg_basebackup +
+# recovery_target_time replay from the archived WAL shipped off-host
 ```
 
 Choose the target time as the last WAL commit before the damage — restoring past
