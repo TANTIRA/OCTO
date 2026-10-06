@@ -1,20 +1,5 @@
-import type { Metadata } from "next";
-import AppShell2 from "@/components/blocks/app-shell-2";
-import CommandMenu1 from "@/components/blocks/command-menu-1";
-import AuthGate from "@/components/auth-gate";
-import { TenantProvider } from "@/lib/use-tenants";
+import { ControlCenter } from "@/components/views/control-center";
 
-export const metadata: Metadata = { title: "Dashboard · OCTO" };
-
-export default function AppPage() {
-  return (
-    <AuthGate>
-      <TenantProvider>
-        <div className="h-dvh w-full">
-          <AppShell2 />
-          <CommandMenu1 />
-        </div>
-      </TenantProvider>
-    </AuthGate>
-  );
+export default function ControlCenterPage() {
+  return <ControlCenter />;
 }
