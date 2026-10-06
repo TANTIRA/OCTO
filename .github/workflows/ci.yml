@@ -87,6 +87,23 @@ jobs:
       - name: Build
         run: npm run build
 
+  # The drill harness is not exercised by ./gradlew check — a broken drill once
+  # sat on main for two days unnoticed (#301), so it gates like everything else.
+  drills:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Restore drill
+        run: deploy/drill/restore-drill.sh
+
+      - name: Rollback rehearsal
+        run: deploy/drill/rollback-rehearsal.sh
+
+      - name: Harness self-test
+        run: deploy/drill/selftest.sh
+
   docker-build:
     runs-on: ubuntu-latest
     needs: [build, agents]
