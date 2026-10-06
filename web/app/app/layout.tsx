@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 const plexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Control Center", template: "%s · OCTO" },
+  title: { default: "Control Center · OCTO", template: "%s · OCTO" },
   robots: { index: false, follow: false },
 };
 
