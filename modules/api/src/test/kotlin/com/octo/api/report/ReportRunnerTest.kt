@@ -69,6 +69,69 @@ class ReportRunnerTest {
         assertThat(jobs.claimNext()).isNull()
     }
 
+    private fun attributionRequest(
+        source: String = "inline-sectors",
+        measures: List<String> = emptyList(),
+        sectors: String =
+            """[{"sector": "Tech", "portfolioWeight": "0.6", "benchmarkWeight": "0.5",
+                 "portfolioReturn": "0.10", "benchmarkReturn": "0.08"},
+                {"sector": "Energy", "portfolioWeight": "0.4", "benchmarkWeight": "0.5",
+                 "portfolioReturn": "0.02", "benchmarkReturn": "0.04"}]""",
+    ) = ReportRequest(
+        UUID.randomUUID(),
+        ReportType.ATTRIBUTION,
+        source,
+        "fund-1",
+        measures,
+        """{"currency": "USD", "benchmark": "MSCI World", "periodStart": "2026-01-01", "periodEnd": "2026-06-30",
+           "sectors": $sectors}""",
+        "analyst-1",
+        UUID.randomUUID(),
+    )
+
+    @Test
+    fun `an attribution job runs the methodology 4_2 engine on the inline sectors and keeps the requested measures`() {
+        jobs.submit(attributionRequest(measures = listOf("allocation", "selection", "interaction", "activeReturn")), TenantScope.All)
+        jobs.submit(attributionRequest(), TenantScope.All)
+        runner.poll()
+
+        val (selected, all) = jobs.jobs.values.toList()
+        assertThat(selected.status).isEqualTo(JobStatus.DONE)
+        val result = json.readTree(selected.result)
+        // Tech and Energy each add 0.002 allocation and 0.002 interaction; selection nets to zero (+0.01, -0.01).
+        assertThat(result["allocation"].decimalValue()).isEqualByComparingTo("0.004")
+        assertThat(result["selection"].decimalValue()).isEqualByComparingTo("0")
+        assertThat(result["interaction"].decimalValue()).isEqualByComparingTo("0.004")
+        assertThat(result["activeReturn"].decimalValue()).isEqualByComparingTo("0.008") // 0.068 - 0.060
+        assertThat(result.has("portfolioReturn")).isFalse()
+        assertThat(result["methodology"].asText()).isEqualTo("quantitative-methodology §4.2 v1")
+        assertThat(selected.artifactSha256).hasSize(64)
+        val full = json.readTree(all.result)
+        assertThat(full["sectors"]).hasSize(2)
+        assertThat(full["portfolioReturn"].decimalValue()).isEqualByComparingTo("0.068")
+    }
+
+    @Test
+    fun `an attribution job with a wrong source, unknown measure or weights that do not sum to one ends in error`() {
+        jobs.submit(attributionRequest(source = "fund"), TenantScope.All)
+        jobs.submit(attributionRequest(measures = listOf("alpha")), TenantScope.All)
+        jobs.submit(
+            attributionRequest(
+                sectors = """[{"sector": "Tech", "portfolioWeight": "0.9", "benchmarkWeight": "1",
+                               "portfolioReturn": "0.10", "benchmarkReturn": "0.08"}]""",
+            ),
+            TenantScope.All,
+        )
+        jobs.submit(attributionRequest(), TenantScope.All)
+        runner.poll()
+
+        val (source, measure, weights, ok) = jobs.jobs.values.toList()
+        assertThat(source.error).contains("inline-sectors")
+        assertThat(measure.error).contains("alpha")
+        assertThat(weights.error).contains("weights sum")
+        assertThat(ok.status).isEqualTo(JobStatus.DONE)
+    }
+
     @Test
     fun `an lp-report job ships its parameters to the sidecar and lands the judged memo as the result`() {
         var seen: Map<String, Any>? = null
