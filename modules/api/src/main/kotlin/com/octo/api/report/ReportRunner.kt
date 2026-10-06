@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.octo.analytics.CashFlow
 import com.octo.analytics.CashFlowSeries
+import com.octo.analytics.SectorPerformance
+import com.octo.analytics.brinson
 import com.octo.analytics.performance
 import com.octo.api.agents.AgentsClient
 import com.octo.iborcore.FlowType
@@ -84,8 +86,9 @@ class ReportRunner(
             ReportType.PERFORMANCE -> performanceReport(job)
             ReportType.GL_EXPORT -> glExportReport(job)
             ReportType.LP_REPORT -> lpReport(job)
-            // TODO(#105): exposure over lookThrough() and attribution over brinson() need their input shapes agreed.
-            ReportType.EXPOSURE, ReportType.ATTRIBUTION -> error("report type ${job.request.type.wireValue} is not supported yet")
+            ReportType.ATTRIBUTION -> attributionReport(job)
+            // TODO(#105): exposure over lookThrough() needs its input shape agreed.
+            ReportType.EXPOSURE -> error("report type ${job.request.type.wireValue} is not supported yet")
         }
 
     /** Position source `inline-series`: the caller supplies the investor-signed series (§10.2) in the parameters. */
@@ -128,6 +131,74 @@ class ReportRunner(
         data class Flow(
             val date: LocalDate,
             val amount: BigDecimal,
+        )
+    }
+
+    /**
+     * Attribution (#6 slice 3): single-period Brinson over the sector weights and returns the caller supplies
+     * inline (position source `inline-sectors`, mirroring performance's `inline-series` until benchmark
+     * weights are resolved from the graph store). Effects that are undefined for the inputs stay null (§10.7).
+     */
+    private fun attributionReport(job: ReportJob): Map<String, Any?> {
+        require(job.request.positionSourceType == "inline-sectors") {
+            "position source ${job.request.positionSourceType} is not supported; pass inline-sectors until benchmark weights are resolved from the graph store"
+        }
+        val input = json.readValue<AttributionInput>(job.request.parameters)
+        val report =
+            brinson(
+                Currency.getInstance(input.currency),
+                input.benchmark,
+                input.periodStart,
+                input.periodEnd,
+                input.sectors.map {
+                    SectorPerformance(it.sector, it.portfolioWeight, it.benchmarkWeight, it.portfolioReturn, it.benchmarkReturn)
+                },
+            )
+        val all =
+            mapOf(
+                "portfolioReturn" to report.portfolioReturn,
+                "benchmarkReturn" to report.benchmarkReturn,
+                "activeReturn" to report.activeReturn,
+                "allocation" to report.allocation,
+                "selection" to report.selection,
+                "interaction" to report.interaction,
+                "sectors" to
+                    report.sectors.map {
+                        mapOf(
+                            "sector" to it.sector,
+                            "allocation" to it.allocation,
+                            "selection" to it.selection,
+                            "interaction" to it.interaction,
+                        )
+                    },
+            )
+        val unknown = job.request.measures - all.keys
+        require(unknown.isEmpty()) { "unknown attribution measures $unknown; available: ${all.keys}" }
+        val selected = if (job.request.measures.isEmpty()) all else all.filterKeys { it in job.request.measures }
+        return selected +
+            mapOf(
+                "currency" to report.currency.currencyCode,
+                "benchmark" to report.benchmark,
+                "periodStart" to report.periodStart,
+                "periodEnd" to report.periodEnd,
+                "methodology" to report.methodology,
+            )
+    }
+
+    data class AttributionInput(
+        val currency: String,
+        val benchmark: String,
+        val periodStart: LocalDate,
+        val periodEnd: LocalDate,
+        val sectors: List<SectorInput>,
+    ) {
+        /** A return may be omitted only where its weight is zero (the engine enforces it). */
+        data class SectorInput(
+            val sector: String,
+            val portfolioWeight: BigDecimal,
+            val benchmarkWeight: BigDecimal,
+            val portfolioReturn: BigDecimal? = null,
+            val benchmarkReturn: BigDecimal? = null,
         )
     }
 
