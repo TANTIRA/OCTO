@@ -67,6 +67,22 @@ fn_lock_key() {
   sql_scalar "$1" "$PG_DB" "select case when pg_get_functiondef('octo.tenant_member_event_rules()'::regprocedure) like '%octo.tenant_member:%' then 'octo' when pg_get_functiondef('octo.tenant_member_event_rules()'::regprocedure) like '%mesta.tenant_member:%' then 'mesta' else 'unknown' end"
 }
 
+# The migration that redefines the fingerprinted object (V40 today), derived like
+# rehearsal_floor rather than pinned. A window that does not span it leaves the
+# fingerprint assertions passing trivially — still a valid rehearsal of the restore
+# path, but the record must not read as though that body change was exercised (#302).
+fingerprint_target_version() {
+  local f ver latest=
+  while IFS= read -r f; do
+    if grep -qE 'create or replace function[[:space:]]+(octo|mesta)\.tenant_member_event_rules' \
+       "$(repo_root)/${MIGRATION_DIR}/${f}"; then
+      ver="${f#V}"; ver="${ver%%__*}"
+      latest="$((10#$ver))"
+    fi
+  done < <(migration_files)
+  [ -n "$latest" ] && printf '%s' "$latest"
+}
+
 ensure_tenant() {
   local c="$1"
   psql_c "$c" "$PG_DB" -c "
@@ -116,6 +132,15 @@ membership_rule_enforced() {
 
 # Fail fast on an impossible window before any container is started.
 validate_rehearsal_window "$FROM_VERSION" "$TO_VERSION"
+
+# Warn, do not fail, when the window does not span the migration that redefines the
+# fingerprinted object: the assertions still run but pass trivially, so say so in the
+# record rather than let it read as though that body change was exercised.
+FN_TARGET="$(fingerprint_target_version || true)"
+if [ -n "$FN_TARGET" ] && ! (( 10#$FROM_VERSION < FN_TARGET && 10#$TO_VERSION >= FN_TARGET )); then
+  warn "window V${FROM_VERSION}->V${TO_VERSION} does not span V${FN_TARGET} (redefines octo.tenant_member_event_rules) — fingerprint assertions pass trivially"
+  printf -- '- WARN: window does not span V%s — fingerprint assertions pass trivially\n' "$FN_TARGET" >> "$BODY"
+fi
 
 require_docker
 say "rehearsal start (V${FROM_VERSION} -> V${TO_VERSION}, image ${PG_IMAGE}, commit $(cd "$(repo_root)" && git rev-parse --short HEAD))"
