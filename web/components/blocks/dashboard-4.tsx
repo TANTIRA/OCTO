@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 
 import PanelHeader from "@/components/panel-header";
 import { getJson, messageFor } from "@/lib/api";
@@ -239,9 +240,13 @@ export default function Dashboard4() {
                   className="h-11 transition-colors duration-150 hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
                 >
                   <td className="min-w-0 px-3 first:pl-4">
-                    <p className="truncate text-[13px] text-neutral-900 dark:text-neutral-100">
+                    {/* Opens the deal sheet on the Deals page. */}
+                    <Link
+                      href={`/app/deals?prospect=${p.id}`}
+                      className="block truncate rounded-[var(--rb-r-xs,4px)] text-[13px] text-neutral-900 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--rb-accent,oklch(20.5%_0_0))] dark:text-neutral-100 dark:focus-visible:outline-[var(--rb-accent,oklch(100%_0_0))]"
+                    >
                       {p.name}
-                    </p>
+                    </Link>
                   </td>
                   <td className="hidden px-3 text-right text-[13px] text-neutral-600 sm:table-cell dark:text-neutral-400">
                     {STAGE_NAME[p.stage] ?? p.stage}
