@@ -145,7 +145,9 @@ echo "############ E. Corrected: line endings, exec bits, ignore rule ##########
 for f in deploy/drill/lib.sh deploy/drill/restore-drill.sh deploy/drill/rollback-rehearsal.sh \
          deploy/drill/sql/verify-audit-chain.sql deploy/drill/sql/post-restore-check.sql \
          deploy/drill/README.md docs/upgrade-runbook.md docs/incident-runbook.md; do
-  if [ "$(tr -cd '\r' < "$f" | wc -c)" = "0" ]; then ok "LF only: $f"; else bad "CR in $f"; fi
+  # BSD wc pads its count with leading spaces ("       0"), which string-compares
+  # unequal to "0" and fails a clean file; strip before comparing.
+  if [ "$(tr -cd '\r' < "$f" | wc -c | tr -d '[:space:]')" = "0" ]; then ok "LF only: $f"; else bad "CR in $f"; fi
 done
 if [ -x deploy/drill/restore-drill.sh ]; then ok "restore-drill.sh is executable on disk"; else bad "restore-drill.sh not executable"; fi
 if [ -x deploy/drill/rollback-rehearsal.sh ]; then ok "rollback-rehearsal.sh is executable on disk"; else bad "rollback-rehearsal.sh not executable"; fi
