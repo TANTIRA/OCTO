@@ -53,16 +53,13 @@ class ReportRunnerTest {
     }
 
     @Test
-    fun `an unsupported type, source or measure ends in error with the reason, and the queue keeps draining`() {
-        jobs.submit(request(type = ReportType.EXPOSURE), TenantScope.All)
+    fun `an unsupported source or measure ends in error with the reason, and the queue keeps draining`() {
         jobs.submit(request(source = "commitment"), TenantScope.All)
         jobs.submit(request(measures = listOf("moic")), TenantScope.All)
         jobs.submit(request(), TenantScope.All)
         runner.poll()
 
-        val (exposure, commitment, moic, ok) = jobs.jobs.values.toList()
-        assertThat(exposure.status).isEqualTo(JobStatus.ERROR)
-        assertThat(exposure.error).contains("exposure")
+        val (commitment, moic, ok) = jobs.jobs.values.toList()
         assertThat(commitment.error).contains("inline-series")
         assertThat(moic.error).contains("moic")
         assertThat(ok.status).isEqualTo(JobStatus.DONE)
@@ -130,6 +127,74 @@ class ReportRunnerTest {
         assertThat(measure.error).contains("alpha")
         assertThat(weights.error).contains("weights sum")
         assertThat(ok.status).isEqualTo(JobStatus.DONE)
+    }
+
+    private fun exposureRequest(
+        source: String = "inline-edges",
+        measures: List<String> = emptyList(),
+        edges: String =
+            """[{"holder": "lp", "held": "fund-a", "fraction": "0.5"},
+                {"holder": "lp", "held": "fund-b", "fraction": "0.5"},
+                {"holder": "fund-a", "held": "co-c", "fraction": "0.4"},
+                {"holder": "fund-a", "held": "co-d", "fraction": "0.6"},
+                {"holder": "fund-a", "held": "co-e", "fraction": "-0.1"},
+                {"holder": "fund-b", "held": "co-c", "fraction": "1"}]""",
+    ) = ReportRequest(
+        UUID.randomUUID(),
+        ReportType.EXPOSURE,
+        source,
+        "fund-1",
+        measures,
+        """{"currency": "USD", "root": "lp", "rootNav": "1000", "edges": $edges}""",
+        "analyst-1",
+        UUID.randomUUID(),
+    )
+
+    @Test
+    fun `an exposure job runs the methodology 7_2 look-through on the inline edges and keeps the requested measures`() {
+        jobs.submit(exposureRequest(measures = listOf("netExposure", "grossExposure", "assetCount")), TenantScope.All)
+        jobs.submit(exposureRequest(), TenantScope.All)
+        runner.poll()
+
+        val (selected, all) = jobs.jobs.values.toList()
+        assertThat(selected.status).isEqualTo(JobStatus.DONE)
+        val result = json.readTree(selected.result)
+        // co-c is reached through both funds (200 + 500), co-d is 300 and co-e is a 50 short.
+        assertThat(result["netExposure"].decimalValue()).isEqualByComparingTo("950")
+        assertThat(result["grossExposure"].decimalValue()).isEqualByComparingTo("1050")
+        assertThat(result["assetCount"].asInt()).isEqualTo(3)
+        assertThat(result.has("byAsset")).isFalse()
+        assertThat(result["methodology"].asText()).isEqualTo("quantitative-methodology §7.2 v1")
+        assertThat(selected.artifactSha256).hasSize(64)
+        val full = json.readTree(all.result)
+        assertThat(full["byAsset"]["co-c"].decimalValue()).isEqualByComparingTo("700")
+        assertThat(full["byAsset"]["co-e"].decimalValue()).isEqualByComparingTo("-50")
+        assertThat(full["longExposure"].decimalValue()).isEqualByComparingTo("1000")
+        assertThat(full["shortExposure"].decimalValue()).isEqualByComparingTo("-50")
+    }
+
+    @Test
+    fun `an exposure job with a wrong source, unknown measure, ownership cycle or fraction out of range ends in error`() {
+        jobs.submit(exposureRequest(source = "fund"), TenantScope.All)
+        jobs.submit(exposureRequest(measures = listOf("beta")), TenantScope.All)
+        jobs.submit(
+            exposureRequest(
+                edges = """[{"holder": "lp", "held": "fund-a", "fraction": "0.5"},
+                            {"holder": "fund-a", "held": "lp", "fraction": "0.5"}]""",
+            ),
+            TenantScope.All,
+        )
+        jobs.submit(exposureRequest(edges = """[{"holder": "lp", "held": "fund-a", "fraction": "1.5"}]"""), TenantScope.All)
+        jobs.submit(exposureRequest(), TenantScope.All)
+        runner.poll()
+
+        val (source, measure, cycle, fraction, ok) = jobs.jobs.values.toList()
+        assertThat(source.error).contains("inline-edges")
+        assertThat(measure.error).contains("beta")
+        assertThat(cycle.error).contains("cycle")
+        assertThat(fraction.error).contains("within -1..1")
+        assertThat(ok.status).isEqualTo(JobStatus.DONE)
+        assertThat(jobs.claimNext()).isNull()
     }
 
     @Test

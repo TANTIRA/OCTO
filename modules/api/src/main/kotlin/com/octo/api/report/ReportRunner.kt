@@ -11,6 +11,9 @@ import com.octo.api.agents.AgentsClient
 import com.octo.iborcore.FlowType
 import com.octo.iborcore.LedgerEvent
 import com.octo.iborcore.glJournal
+import com.octo.lookthrough.EXPOSURE_METHODOLOGY
+import com.octo.lookthrough.OwnershipEdge
+import com.octo.lookthrough.lookThrough
 import com.octo.workflow.report.ReportJob
 import com.octo.workflow.report.ReportJobs
 import com.octo.workflow.report.ReportType
@@ -87,8 +90,7 @@ class ReportRunner(
             ReportType.GL_EXPORT -> glExportReport(job)
             ReportType.LP_REPORT -> lpReport(job)
             ReportType.ATTRIBUTION -> attributionReport(job)
-            // TODO(#105): exposure over lookThrough() needs its input shape agreed.
-            ReportType.EXPOSURE -> error("report type ${job.request.type.wireValue} is not supported yet")
+            ReportType.EXPOSURE -> exposureReport(job)
         }
 
     /** Position source `inline-series`: the caller supplies the investor-signed series (§10.2) in the parameters. */
@@ -199,6 +201,55 @@ class ReportRunner(
             val benchmarkWeight: BigDecimal,
             val portfolioReturn: BigDecimal? = null,
             val benchmarkReturn: BigDecimal? = null,
+        )
+    }
+
+    /**
+     * Exposure (#6, look-through slice): path-sum look-through of one root over the ownership edges the caller supplies
+     * inline (position source `inline-edges`, mirroring performance's `inline-series` until the edges are
+     * resolved from the graph store). A cycle in the edges is an error, not a loop (§7.2).
+     */
+    private fun exposureReport(job: ReportJob): Map<String, Any?> {
+        require(job.request.positionSourceType == "inline-edges") {
+            "position source ${job.request.positionSourceType} is not supported; pass inline-edges until ownership is resolved from the graph store"
+        }
+        val input = json.readValue<ExposureInput>(job.request.parameters)
+        val report =
+            lookThrough(
+                input.root,
+                input.rootNav,
+                Currency.getInstance(input.currency),
+                input.edges.map { OwnershipEdge(it.holder, it.held, it.fraction) },
+            )
+        val all =
+            mapOf(
+                "netExposure" to report.netExposure,
+                "grossExposure" to report.grossExposure,
+                "longExposure" to report.longExposure,
+                "shortExposure" to report.shortExposure,
+                "assetCount" to report.assetCount,
+                "assetCountLong" to report.assetCountLong,
+                "assetCountShort" to report.assetCountShort,
+                "byAsset" to report.byAsset,
+            )
+        val unknown = job.request.measures - all.keys
+        require(unknown.isEmpty()) { "unknown exposure measures $unknown; available: ${all.keys}" }
+        val selected = if (job.request.measures.isEmpty()) all else all.filterKeys { it in job.request.measures }
+        return selected +
+            mapOf("root" to report.root, "currency" to report.currency.currencyCode, "methodology" to EXPOSURE_METHODOLOGY)
+    }
+
+    data class ExposureInput(
+        val root: String,
+        val rootNav: BigDecimal,
+        val currency: String,
+        val edges: List<EdgeInput>,
+    ) {
+        /** [holder] owns [fraction] of [held]; a negative fraction is a short position. */
+        data class EdgeInput(
+            val holder: String,
+            val held: String,
+            val fraction: BigDecimal,
         )
     }
 

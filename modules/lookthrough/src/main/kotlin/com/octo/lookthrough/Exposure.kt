@@ -4,6 +4,9 @@ import java.math.BigDecimal
 import java.math.MathContext
 import java.util.Currency
 
+/** Formula set every exposure below is computed under (quantitative-methodology.md §7.2, §10.5). */
+const val EXPOSURE_METHODOLOGY = "quantitative-methodology §7.2 v1"
+
 /**
  * [holder] owns [fraction] of [held]. A negative fraction is a short position.
  * Entity ids are opaque: fund, vehicle, deal and company all look the same here.
