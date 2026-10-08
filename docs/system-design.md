@@ -158,8 +158,8 @@ Consequence: `ibor-core` never stores attribution. The caller resolves the event
 | Benchmark feature | OCTO capability | Module | Status |
 | --- | --- | --- | --- |
 | Aladdin IBOR — "one database, one system, one process" | Append-only ledger; positions derived, never written | `ibor-core` | ✅ ledger · 🟡 derivation |
-| Aladdin Performance & Attribution | PE performance (§2); Brinson (§4.2) | `analytics` | ✅ engines (`Performance`, `Attribution`) · ⬜ REST surface |
-| Aladdin look-through | Path-sum exposure (§7.2) | `lookthrough` | ✅ engine (`Exposure`) · ⬜ REST surface |
+| Aladdin Performance & Attribution | PE performance (§2); Brinson (§4.2) | `analytics` | ✅ engines (`Performance`, `Attribution`) · ✅ report jobs (`inline-series`, `inline-sectors`) · ⬜ sourcing from the graph store |
+| Aladdin look-through | Path-sum exposure (§7.2) | `lookthrough` | ✅ engine (`Exposure`) · ✅ report job (`inline-edges`) · ⬜ sourcing edges from the graph store |
 | Aladdin post-trade compliance | Rules evaluated after ledger writes → workflow tasks | `recon` + `workflow` | ✅ rules + evaluations, breach → `workflow_task` |
 | Aladdin reconciliation / trade matching | Source vs IBOR, graph vs ledger | `recon` | ✅ `/api/v1/reconciliations` + break table → tasks |
 | Aladdin risk (VaR/ES, factor) | Methodology §3.4, §4.1 | `analytics` | ✅ engines (`Risk`, `Factor`, `Regime`) · ⬜ REST surface |
