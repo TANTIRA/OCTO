@@ -12,7 +12,7 @@ testcontainers = "1.21.4"
 micrometer = "1.17.1"
 # Floor over the Boot 3.5.16 BOM's 1.49.0 (GHSA-rcgg-9c38-7xpx, fixed in 1.62.0); see modules/api.
 opentelemetry = "1.62.0"
-netty = "4.1.138.Final"
+netty = "4.1.139.Final"
 tomcat = "10.1.60"
 log4j = "2.26.1"
 freemarker = "2.3.35"
