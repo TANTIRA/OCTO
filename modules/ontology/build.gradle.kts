@@ -11,7 +11,7 @@ dependencies {
     // the 4.1 line that reactor-netty requires.
     constraints {
         implementation(libs.thrift)
-        testImplementation("io.netty:netty-handler:4.2.18.Final")
+        testImplementation("io.netty:netty-handler:4.1.139.Final")
     }
 
     testImplementation(libs.kotlin.test)
