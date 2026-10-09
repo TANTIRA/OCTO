@@ -33,44 +33,83 @@ A drill that does not measure these has not tested anything, so the arithmetic i
 
 | Store | Service | Contents | Backup layer |
 | --- | --- | --- | --- |
-| PostgreSQL | `octo-supabase-db` (dokploy-network) | `octo` domain schema, `auth` (GoTrue), `storage` metadata, `flyway_schema_history` | base backup + WAL archive (pgBackRest or wal-g on the DB host) |
+| PostgreSQL | `octo-supabase-db` (dokploy-network) | `octo` domain schema, `auth` (GoTrue), `storage` metadata, `flyway_schema_history` | nightly `pg_basebackup` plus a continuous WAL archive, gzipped to `/backups/octo/production/` on the host (§2.1) |
 | Neo4j | `octo-neo4j-db` (dokploy-network) | graph projections from the ontology schema | `neo4j-admin database dump` to object storage |
 | Supabase Storage | `octo-supabase` project | uploaded documents | storage bucket sync / S3-compatible copy |
 
-**Deployed state (observed 2026-10-01, #301):** `octo-supabase-db` runs with
-`archive_mode = off`, no `archive_command`, and `pg_stat_archiver` shows zero
-archived WALs since the container was created (2026-09-26). The Postgres backup
-layer in the table above is therefore **not provisioned**: §3's WAL item cannot
-pass, §4 has no stanza or archive to restore from, and the ≤ 15 min RPO is
-unreachable until the operator provisions base backup + WAL archiving
-(ADR-0002). Until then the only recovery path is a logical dump from
-`deploy/backup.sh` (manual; plain SQL, restored with `gunzip -c <archive> | psql`;
-RPO = time since the last dump, no PITR). Dokploy volume snapshots are not a
-path yet: the Backups and Schedule tabs were empty when checked, still to be
-re-confirmed on the `octo-supabase-db` project itself. Re-check
-with `show archive_mode;` and `select * from pg_stat_archiver;` before a drill.
+**Deployed state (observed 2026-10-09, #622):** the Postgres backup layer is
+**provisioned on both production and staging**. `archive_mode = on` with
+`archive_timeout = 300s`, `pg_stat_archiver.failed_count = 0` and
+`archived_count` climbing, plus a nightly base backup. A point-in-time restore
+has been rehearsed end to end from these backups on both environments —
+measured RPO ~3.7 min on production, ~85 s on staging, against the 15-minute
+target. §2.1 records the configuration; §4 is executable again.
 
-**The deployed image also lacks the tools §4 names (observed 2026-10-04, #301).**
-`octo-supabase-db` runs `supabase/postgres:17.6.1.136`, which ships
-`pg_basebackup`, `curl`, `wget`, `tar`, `gzip` — but **no `pgbackrest`, no
-`wal-g`, no `aws`, no `rclone`**. So §4 fails for a second, independent reason:
-the restore tool does not exist on the DB host, not only because there is no
-archive. The mechanism choice is open (#301): (A) `archive_command` copies WAL
-to a mounted volume and a host-side job ships it to object storage — stock
-image, no build; (B) a custom image `FROM supabase/postgres` with wal-g —
-off-host, at the cost of maintaining an image that diverges from the Dokploy
-template; (C) a `pg_receivewal` sidecar streaming to object storage — off-host,
-at the cost of another container. `pg_basebackup` covers the base-backup leg
-under all three. Until the choice lands, treat §4 as **blocked procedure**,
-not an executable one.
+Before this, `octo-supabase-db` ran with `archive_mode = off` and zero archived
+WALs since the container was created (2026-09-26), so no restore was possible
+at all. That gap, and the findings it surfaced, are on #622.
+
+**Not provisioned (as of 2026-10-09):** two gaps remain. The base backup runs
+nightly but its **last success is not monitored** — nothing alerts if archiving
+stalls or the cron stops, which is the failure §3's first item exists to catch.
+And the backup copies are **not encrypted**; they sit beside the database in
+plain gzip. Both are open on #622.
+
+### 2.1 How the Postgres backup is provisioned
+
+`supabase/postgres:17.6.1.136` ships `pg_basebackup`, `curl`, `wget`, `tar` and
+`gzip` — but **no `pgbackrest`, no `wal-g`, no `aws`, no `rclone`**. The
+mechanism therefore uses only what the image carries. Both environments run the
+same configuration, separated by path: production under
+`/backups/octo/production/`, staging under `/backups/octo/staging/`.
+
+| | |
+| --- | --- |
+| `archive_mode` | `on` — requires a **restart**, not a reload |
+| `archive_timeout` | `300s`, which bounds RPO at 5 minutes |
+| `archive_command` | gzips each segment to `/backups/wal/%f.gz`, written atomically via `.tmp` then `mv` |
+| Base backup | nightly `pg_basebackup -D /backups/base/<UTC> -Ft -z`, last 7 retained |
+| Retention | WAL kept 14 days, deliberately outliving the oldest base backup so no PITR window breaks |
+
+Three details are load-bearing and should not be "optimised" away:
+
+- **gzip.** A WAL segment is 16 MB even when it closed early and is nearly
+  empty; the [PostgreSQL docs](https://www.postgresql.org/docs/17/runtime-config-wal.html#GUC-ARCHIVE-TIMEOUT)
+  call this out directly. Uncompressed at 300s that is roughly 4.6 GB/day;
+  gzipped it is roughly 3 to 15 MB/day, with near-empty segments around 19 KB.
+- **The `hba_file` override.** `pg_basebackup` opens a *replication*
+  connection, and the image's `pg_hba.conf` has no `replication` record — its
+  own comment notes that `all` does not match `replication`, so the loopback
+  trust rule does not cover it. A copy carrying the base rules plus two
+  local-only replication records lives at `/backups/octo/<env>/pg_hba.conf`,
+  and the `db` service points `hba_file` at it. Editing
+  `/etc/postgresql/pg_hba.conf` inside the container would be lost on the next
+  redeploy, because that path is not on a volume.
+- **The staging and production paths are separate.** Getting them crossed would
+  have one environment archiving into the other's tree.
+
+Verify at any time:
+
+```sql
+show archive_mode;
+show archive_timeout;
+select archived_count, last_archived_time, failed_count, last_failed_time
+  from pg_stat_archiver;
+```
+
+`failed_count` above zero means WAL is accumulating on the primary and the disk
+will fill. Turn `archive_mode` off and correct the command rather than leaving it
+running.
 
 All three are separate failure domains. A full platform restore restores all of
 them; a surgical restore may only need one.
 
 ## 3. Pre-flight (do once, verify quarterly)
 
-The first two items are **open on production today** — see §2's deployed-state
-notes; they record what must exist, not what does.
+Items 1 and 4 are **open on production today** — see §2's deployed-state notes;
+they record what must exist, not what does. Item 2 now passes on both
+environments. Item 5 holds on staging; production has no smoke tenant, since
+the synthetic account was created for the staging rehearsal.
 
 - [ ] Base backup job runs daily and its last success is monitored — an
       unmonitored backup silently stopped is the standard failure this catches.
@@ -83,24 +122,60 @@ notes; they record what must exist, not what does.
 
 ## 4. Postgres point-in-time restore
 
-**Blocked on §2's two findings.** There is no archive to restore from
-(`archive_mode = off`), and the tool named below is not in the deployed image —
-so this section is the *target* procedure, not an executable one, until the
-operator provisions base backup + WAL archiving under one of the options in §2.
-If data is lost before then, the only recovery path is the last `deploy/backup.sh`
-logical dump, restored with `gunzip -c <archive> | psql` — no PITR.
-
-Once a base backup and archive exist:
+**Executable.** There is no `pgbackrest` or `wal-g` in the deployed image, so the
+restore is the inverse of §2.1's provisioning: unroll the base backup, then let
+`restore_command` pull segments from the archive. **Never restore over the live
+volume** — work in a scratch container, as `deploy/drill/restore-drill.sh` does.
 
 ```bash
-# On the DB host (or a recovery host — never over the live volume):
-pgbackrest --stanza=octo restore --type=time --target="YYYY-MM-DD HH:MM:SS+07" \
-  --pg1-path=/var/lib/postgresql/data
-# or the wal-g equivalent; under option A the equivalent is pg_basebackup +
-# recovery_target_time replay from the archived WAL shipped off-host
+# 1. A scratch container with the backup tree mounted. Same image, so the
+#    container's postgres uid (100) already matches the backup files' owner.
+docker run -d --name octo-restore \
+  -v /backups/octo/production:/backups \
+  --entrypoint sleep supabase/postgres:17.6.1.136 infinity
+
+# 2. Unroll the base backup and the WAL it shipped with. Both archives matter:
+#    base.tar.gz is the database, pg_wal.tar.gz is the WAL written during the
+#    backup, which recovery needs to reach a consistent state.
+docker exec octo-restore sh -c '
+  mkdir -p /restore/data &&
+  tar -xzf /backups/base/<backup>/base.tar.gz -C /restore/data &&
+  mkdir -p /restore/data/pg_wal &&
+  tar -xzf /backups/base/<backup>/pg_wal.tar.gz -C /restore/data/pg_wal &&
+  chown -R postgres:postgres /restore &&
+  chmod 700 /restore/data'
+
+# 3. Point recovery at the archive. restore_command is the exact inverse of
+#    archive_command. Add recovery_target_time for a targeted recovery.
+cat > /tmp/auto.conf <<'EOF'
+restore_command = 'gunzip -c /backups/wal/%f.gz > %p'
+recovery_target_action = 'promote'
+EOF
+docker cp /tmp/auto.conf octo-restore:/restore/data/postgresql.auto.conf
+docker exec octo-restore sh -c 'touch /restore/data/recovery.signal &&
+  chown postgres:postgres /restore/data/postgresql.auto.conf &&
+  chmod 700 /restore/data'
+
+# 4. Start it and watch the replay.
+docker exec -d -u postgres octo-restore sh -c \
+  'postgres -D /restore/data > /tmp/restore.log 2>&1'
+docker exec octo-restore tail -20 /tmp/restore.log
 ```
 
-Choose the target time as the last WAL commit before the damage — restoring past
+Expect `consistent recovery state reached`, `redo done at …`, and
+`database system is ready to accept connections`.
+
+**`gunzip: … No such file or directory` in the log is expected, not an error.**
+Recovery asks for the next segment, the archive has run out, and
+`restore_command` correctly returns non-zero — which recovery reads as
+"end of archive".
+
+`chmod 700 /restore/data` is required: Postgres refuses a data directory that
+others can read. `mkdir` and `tar` do not set that for you.
+
+Without a `recovery_target_time` the instance recovers to the newest segment in
+the archive, so it lands up to `archive_timeout` behind the primary. For a
+targeted recovery, choose the last WAL commit before the damage — restoring past
 it re-applies the corrupting transaction too.
 
 Then:
