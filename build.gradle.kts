@@ -23,10 +23,10 @@ buildscript {
         // Scope: these are build-time only (Gradle plugin execution — dependency resolution and
         // buildpack packaging). No httpclient5 reaches the application runtime classpath.
         resolutionStrategy.force(
-            "org.apache.httpcomponents.client5:httpclient5:5.6.4",
+            "org.apache.httpcomponents.client5:httpclient5:5.6.5",
             "org.apache.httpcomponents.core5:httpcore5:5.4.4",
             "org.apache.httpcomponents.core5:httpcore5-h2:5.4.4",
-            "org.apache.httpcomponents.client5:httpclient5:5.6.4",
+            "org.apache.httpcomponents.client5:httpclient5:5.6.5",
             "org.apache.httpcomponents.core5:httpcore5:5.4.4",
             "org.apache.httpcomponents.core5:httpcore5-h2:5.4.4",
         )
