@@ -7,7 +7,7 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("com.fasterxml.jackson:jackson-bom:2.22.3")
+        mavenBom("com.fasterxml.jackson:jackson-bom:2.22.4")
         // The catalog pins micrometer-core / registry-prometheus at 1.17.1, ahead of the
         // micrometer the Boot 3.5.16 BOM manages. Without this import the actuator stack loads a
         // mixed 1.17.1/1.15.12 set and every Spring context dies constructing a controller with
