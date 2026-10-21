@@ -5,7 +5,7 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("com.fasterxml.jackson:jackson-bom:2.22.3")
+        mavenBom("com.fasterxml.jackson:jackson-bom:2.22.4")
     }
 }
 
